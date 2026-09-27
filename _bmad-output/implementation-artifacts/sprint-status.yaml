@@ -1,0 +1,145 @@
+# generated: 2026-09-27 12:21
+# last_updated: 2026-09-27 12:21
+# project: zombies-teach-typing
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-09-27 12:21
+last_updated: 2026-09-27 12:21
+project: zombies-teach-typing
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  epic-1: backlog
+  1-1-project-settings-folder-skeleton-and-test-harness: backlog
+  1-2-web-export-ci-and-github-pages-deploy: backlog
+  1-3-screen-router-and-title-screen: backlog
+  1-4-audio-manager-and-browser-audio-unlock: backlog
+  1-5-web-platform-service-and-keyboard-capture-test: backlog
+  1-6-versioned-save-file: backlog
+  1-7-player-data-service-and-reload-proof-counter: backlog
+  1-8-debug-overlay-and-save-export: backlog
+  1-9-art-style-sheet-and-prototype-sprites-review-gate: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-typing-input-filtering: backlog
+  2-2-judgment-session-and-letter-bag: backlog
+  2-3-stats-calculator-and-run-result: backlog
+  2-4-run-frame-level-contract-and-test-level: backlog
+  2-5-shared-hud-with-wrong-key-feedback: backlog
+  2-6-green-zombie-hands-finger-guide: backlog
+  2-7-pause-focus-loss-and-resume-countdown: backlog
+  2-8-run-recording-and-personal-bests: backlog
+  2-9-chalkboard-report-card: backlog
+  2-10-run-debug-tools-and-seed-replay: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-zombie-run-level-target-queue-and-zombie-movement: backlog
+  3-2-brain-blocks-and-the-brain-counter: backlog
+  3-3-villager-hugs-and-party-hat-zombies: backlog
+  3-4-conga-line: backlog
+  3-5-run-end-dance-and-brains-award: backlog
+  3-6-sunny-village-green-and-zombie-run-art: backlog
+  3-7-zombie-groans-and-voice-spacing: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-cosmetic-catalogue-and-brain-wallet-rules: backlog
+  4-2-main-menu: backlog
+  4-3-hat-and-pet-display-everywhere: backlog
+  4-4-crypt-closet: backlog
+  4-5-welcome-gift-and-guided-first-purchase: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-0-mvp-ui-art-pass: backlog
+  5-1-mvp-audio-pass-and-mix: backlog
+  5-2-readability-color-and-plain-words-check: backlog
+  5-3-technical-metrics-on-family-computers: backlog
+  5-4-first-kid-playtest: backlog
+  5-5-playtest-fixes-and-publish-the-mvp-link: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-word-tagging-tool-and-starter-word-list: backlog
+  6-2-word-target-mode: backlog
+  6-3-horde-rush-field-spawning-and-size-classes: backlog
+  6-4-pacing-defender-projectiles-and-melting: backlog
+  6-5-arrivals-brains-and-run-end: backlog
+  6-6-farmhouse-farmer-and-march-music: backlog
+  6-7-horde-rush-tuning-and-stress-check: backlog
+  6-8-level-unlocks: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-tier-calculator-with-hysteresis: backlog
+  7-2-placement-run-and-hidden-tier: backlog
+  7-3-master-word-list: backlog
+  7-4-tier-word-pools-and-validation: backlog
+  7-5-zombie-run-and-horde-rush-follow-the-tier: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-paragraphs-and-sentence-generator: backlog
+  8-2-paragraph-target-mode: backlog
+  8-3-chase-movement-mob-and-camera: backlog
+  8-4-brain-pickups-on-the-path: backlog
+  8-5-caught-and-escaped-endings: backlog
+  8-6-moonlit-village-mob-and-chase-music: backlog
+  8-7-chase-tuning: backlog
+  epic-8-retrospective: optional
+
+  epic-9: backlog
+  9-1-eight-new-hats: backlog
+  9-2-eight-new-pets: backlog
+  9-3-full-catalogue-live: backlog
+  epic-9-retrospective: optional
+
+  epic-10: backlog
+  10-1-random-theme-rotation: backlog
+  10-2-pumpkin-patch-farm-and-snowy-town: backlog
+  10-3-castle-knight-and-beach-hut-lifeguard: backlog
+  10-4-cornfield-path-and-spooky-forest-bridge: backlog
+  10-5-trends-and-lifetime-stats-screen: backlog
+  epic-10-retrospective: optional
+
+  epic-11: backlog
+  11-1-name-the-existing-zombie: backlog
+  11-2-whos-playing-picker-and-new-zombies: backlog
+  11-3-fully-separate-zombies: backlog
+  11-4-zombie-name-on-menu-and-report-card: backlog
+  epic-11-retrospective: optional
