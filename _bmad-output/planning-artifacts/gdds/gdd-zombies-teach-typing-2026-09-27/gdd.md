@@ -95,7 +95,7 @@ A passion project the author has held for a few years, built by one developer on
 
 ### Win/Loss Conditions
 
-There is no game-level win or loss. Levels are standalone and replayable forever, and nothing is locked. Per run:
+There is no game-level win or loss. Levels are standalone and replayable forever. Each level after the first opens once the previous level has one completed run (see Level Progression); nothing else is ever locked. Per run:
 
 | Level | Run ends when | "Win" framing | Loss? |
 |---|---|---|---|
@@ -141,11 +141,11 @@ Live HUD WPM updates once per second and appears only after 5 s of run time, to 
 
 #### M2b. Shared HUD (all levels)
 
-The bottom band (104 px of the 360 px logical height) always holds, left to right: the **pet slot** · the **target area** (a letter, a word or a 2-line text window, always in the same spot) with the **zombie hands** below it · a stats column with **Timer**, **Keys Typed**, **WPM** and **Errors**. A **pause button** sits in the top-right corner of the playfield. Zombie Run adds a brain counter next to the stats.
+The bottom band (104 px of the 360 px logical height) always holds, left to right: the **pet slot** · the **target area** (a letter, a word or a 2-line text window, always in the same spot) with the **zombie hands** below it · a stats column with **Timer**, **Keys Typed**, **WPM** and **Errors**, with the **brain counter** (this run's brains) beside it in every level. A **pause button** sits in the top-right corner of the playfield.
 
 #### M4. Brains and the Crypt Closet (meta)
 
-- Brains are the single currency. Only cosmetics can be bought; no learning content is ever gated.
+- Brains are the single currency. Only cosmetics can be bought; brains never gate learning content (level order is the only gate, see Level Progression).
 - Earning rates per level are in *Economy and Resources*. Brains persist in the save and are never lost.
 - **Cosmetic slots:** 1 hat (drawn on the zombie in every level, on all Horde Rush copies and on Professor Zombie) and 1 pet (sits in the HUD next to the target, with an idle animation, and also appears on the report card). Either slot can be empty.
 
@@ -175,7 +175,7 @@ The bottom band (104 px of the 360 px logical height) always holds, left to righ
 
 The curriculum runs along two axes:
 
-- **Across levels (content type):** letters (Zombie Run) → lowercase words (Horde Rush) → real writing with capitals, punctuation and numbers (Pitchfork Panic). The level menu doubles as a skill ladder, but all levels are open from the start.
+- **Across levels (content type):** letters (Zombie Run) → lowercase words (Horde Rush) → real writing with capitals, punctuation and numbers (Pitchfork Panic). The level menu doubles as a skill ladder: each level opens after one completed run of the one before it.
 - **Across difficulty (keys in play):** home row → + top row → + bottom row, then longer words and richer punctuation. See *Adaptive Difficulty*.
 
 | Row | Keys (lowercase levels) |
@@ -254,7 +254,7 @@ Punctuation and numbers appear only in Pitchfork Panic. **MVP:** Zombie Run uses
 
 ### Difficulty Curve
 
-- **Across levels:** calm → rising pressure → panic, in step with letters → words → paragraphs. Players choose freely; nothing is gated.
+- **Across levels:** calm → rising pressure → panic, in step with letters → words → paragraphs. Each level opens after one completed run of the previous one; after that, players choose freely between open levels.
 - **Within a run:** Zombie Run is flat by design (a warm-up and measuring stick). Horde Rush tension comes from the kid's own speed against a fixed defender. Pitchfork Panic's mob accelerates, so every run ends in a crescendo.
 - **Across sessions:** handled by adaptive difficulty *(post-MVP)*. The MVP difficulty is the full keyboard for everyone. [NOTE FOR DESIGNER: watch 6-year-old playtesters in the MVP. If the full keyboard frustrates them, pull forward a simple home-row-only first run.]
 
@@ -341,7 +341,9 @@ The MVP Closet shows both 3×3 grids. The Pumpkin hat and Cute ghost are live; t
 
 ### Level Progression
 
-- All levels are unlocked from the start. The main menu is a *Mario Teaches Typing*-style level select. In the MVP, Horde Rush and Pitchfork Panic appear with a "Coming soon" sign and cannot be selected.
+- The main menu is a *Mario Teaches Typing*-style level select.
+- **Level unlocks** *(post-MVP, UX D12)*: Horde Rush opens after the first Zombie Run that reaches 0:00; Pitchfork Panic opens after the first Horde Rush that reaches 0:00. Quit runs never unlock. An unlock is saved permanently and plays a one-time unlock moment on the menu. Unlocks gate access only; no difficulty labels are shown (Pillar 3).
+- In the MVP, Horde Rush and Pitchfork Panic appear with a "Coming soon" sign and cannot be selected. "Coming soon" takes precedence over Locked, so no lock ever shows in the MVP.
 - **Art rotation** *(post-MVP)*: each level picks one of its 3 themes at random each run and avoids repeating the previous theme. Rules never change with the theme.
 - **Zombie Run themes:** Sunny Village Green (MVP, the only theme at launch), Pumpkin Patch Farm, Snowy Town.
 
@@ -394,7 +396,7 @@ The MVP Closet shows both 3×3 grids. The Pumpkin hat and Cute ghost are live; t
 - **Web (primary):** HTML5 export that runs on **plain static hosting with no special server headers** [ASSUMPTION: A2 hosting on itch.io or GitHub Pages]. Desktop Chrome, Edge and Firefox are supported; Safari is best-effort; mobile and touch are unsupported.
 - **Saves:** stored in browser storage per browser and per device. Clearing site data erases progress, which is accepted for a family project. No accounts, no network, no analytics.
 - **Windows (fallback):** a desktop export, used only if a web constraint blocks a feature. It uses the same save contents.
-- **Save contents (single zombie in the MVP):** brains; owned items; equipped hat and pet; welcome-bonus-claimed flag; tutorial-seen flag; placement-done flag; current tier (post-MVP); settings (music, sound); per-level best WPM; **run history** (last 500 runs: date/time, level, duration, keys typed, errors, WPM, accuracy, brains earned, letter pool or tier, per-key attempts and errors, end reason). Profiles post-MVP will hold one such record per zombie.
+- **Save contents (single zombie in the MVP):** brains; owned items; equipped hat and pet; welcome-bonus-claimed flag; tutorial-seen flag; placement-done flag; level unlocks (post-MVP: per level, unlocked + unlock-moment-seen + first-chosen); current tier (post-MVP); settings (music, sound); per-level best WPM; **run history** (last 500 runs: date/time, level, duration, keys typed, errors, WPM, accuracy, brains earned, letter pool or tier, per-key attempts and errors, end reason). Profiles post-MVP will hold one such record per zombie.
 
 ### Asset Requirements
 
@@ -406,7 +408,7 @@ The MVP Closet shows both 3×3 grids. The Pumpkin hat and Cute ghost are live; t
 | Props | Brain block (idle, bonk 3f), brain pop, down-arrow marker |
 | Cosmetics | Pumpkin hat (overlay); Cute ghost pet (idle float 4f) |
 | Backdrop | Sunny Village Green (sky, far layer, near layer, ground tiles) |
-| UI | Title logo, main menu, 3 level cards (2 with "Coming soon" sign), HUD bar, zombie hands (2 hands + 10 finger-glow states + f/j bumps), chalkboard report card, Closet grids + locked "?" silhouette, buttons, brain icon, "New best!" stamp, Welcome Gift card, pause panel |
+| UI | Title logo, boot splash (logo on night, pumpkin progress bar), main menu, 3 level cards (2 with "Coming soon" sign), HUD bar, zombie hands (2 hands + 10 finger-glow states + f/j bumps), chalkboard report card, Closet grids + locked "?" silhouette, buttons, brain icon, "New best!" stamp, Welcome Gift card, pause panel |
 | Font | One readable pixel font under the SIL Open Font License, with clear `l`/`I`/`1` and `O`/`0` distinction |
 | Audio | 4 groans, 2 "Brainsss" lines, bonk, hug-poof, wrong-key tick, purchase jingle, report chime, UI click, menu loop, Zombie Run loop |
 

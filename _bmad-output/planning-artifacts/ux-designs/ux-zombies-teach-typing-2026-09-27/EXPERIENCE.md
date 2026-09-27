@@ -197,7 +197,7 @@ Decision D12 (developer), overriding the GDD's "all levels unlocked from start";
 - **Precedence:** a level with `available = false` shows **Coming soon** regardless of lock state. In the MVP, Levels 2 and 3 are Coming soon, so no Locked card and no unlock moment ever appear in the MVP build.
 - **Locked card:** padlock only on the card (D14). While the card has focus (arrow focus or hover), a hint sign below it names the level to finish; it hides when focus leaves. Enter/click → wiggle, no start.
 - **Unlock moment:** plays the **first time the main menu is shown after the qualifying run**, whatever the route (Report Card → Menu, Pause → never qualifies, Welcome Gift → Closet → Esc → Menu, or after several Play Agains). Sequence `[ASSUMPTION — motion values]`: menu fades in normally → ~0.3 s beat → padlock on the card wiggles, pops off and falls away (a showing hint sign leaves with it `[ASSUMPTION]`) → purple tint clears to full color → "New!" badge thumps on with a short jingle → keyboard focus moves to the newly unlocked card. **Input is live throughout**: any arrow/Enter/Esc/click completes the animation instantly and is processed normally.
-- **Persistence:** "unlock seen" must be saved per level so the moment plays once; requires a save field (see Upstream changes required). Saves that already contain a qualifying run when the feature ships see the moment on their next menu visit `[ASSUMPTION]`.
+- **Persistence:** the unlock itself is saved per level (`level_unlocks`, save schema v2, Story 6.8) together with moment-seen and first-chosen, so the moment plays once and the "New!" badge clears on first choice. It is **not** derived from run history, which is capped at 500 runs and would eventually drop the qualifying run. Saves that already contain a qualifying run when the feature ships see the moment on their next menu visit `[ASSUMPTION]`.
 - **Storage not persistent:** unlocks follow the save; if the save is lost, the level re-locks. Accepted (same as brains).
 
 ## Accessibility Floor
@@ -265,6 +265,8 @@ Failure / edge paths: quit mid-run → no unlock (step 5); storage not persisten
 Failure path: if he presses Esc before wearing anything, the tutorial ends anyway (`tutorial_seen` set) and never returns; the hat can still be bought any time.
 
 ## Upstream changes required
+
+> **Routed (2026-09-27):** items 1–4 below were applied upstream via `planning-artifacts/sprint-change-proposal-2026-09-27-b.md` (GDD, epics FR79 + Story 6.8, architecture). Open Questions 2 (unlock condition: confirmed as written) and 7 ("New!" badge lasts until the card is first chosen) are resolved there.
 
 Route through **gds-correct-course** after this UX is finalized:
 

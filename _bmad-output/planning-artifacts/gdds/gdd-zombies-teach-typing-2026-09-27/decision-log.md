@@ -40,3 +40,11 @@
   - **Readability (U2):** the 32 px minimum applies to letter and word targets; Pitchfork Panic's 2-line paragraph text is ≥ 24 px so both lines and the zombie hands fit the 104 px HUD band.
   - **Passage join (G7):** passages are joined by a single typed Space (counts as a key); no new input rule needed.
 - **Status:** stays final (clarifications only; no scope change).
+
+## 2026-09-27 — Course correction #2 (gds-correct-course, UX spine upstream changes)
+
+- **Trigger:** UX spines finalized (`ux-designs/ux-zombies-teach-typing-2026-09-27/`, decision log D11, D12, D14, D15). Full proposal: `planning-artifacts/sprint-change-proposal-2026-09-27-b.md`. All edits approved by Smuck in incremental review.
+- **Level unlocks (D12, D14):** replaces "all levels unlocked from the start / nothing is gated". Horde Rush opens after the first Zombie Run that reaches 0:00; Pitchfork Panic after the first Horde Rush that reaches 0:00; quit runs never unlock. Saved permanently (not derived from the 500-run history). Post-MVP (Epic 6, Story 6.8); in the MVP "Coming soon" takes precedence, so no lock shows. Updated: Win/Loss, M4, Curriculum Model, Difficulty Curve, Level Progression, Save contents. Pillar 3 unchanged (unlocks show no difficulty labels).
+- **Brain counter in every level (D15):** M2b now puts the brain counter in the shared HUD for every level (was Zombie Run only).
+- **Styled web boot splash (D11):** added to the MVP asset list; supersedes the deferral in the first course correction.
+- **Status:** stays final (v1.1 clarifications; MVP scope unchanged).

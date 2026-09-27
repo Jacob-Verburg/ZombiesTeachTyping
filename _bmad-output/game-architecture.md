@@ -114,7 +114,7 @@ No starter template. The existing project is used, with these settings corrected
 - `rendering/textures/canvas_textures/default_texture_filter = Nearest`
 - `rendering/2d/snap/snap_2d_transforms_to_pixel = true`
 - Remove the unused `[dotnet]` section; 3D physics setting is irrelevant (no 3D)
-- Web export preset: Thread Support **off**, VRAM compression for desktop only
+- Web export preset: Thread Support **off**, VRAM compression for desktop only; loading-page styling via `html/head_include` (Story 5.0), with project boot-splash bg `#2B1D3F`
 
 ### Engine-Provided Architecture
 
@@ -172,7 +172,7 @@ No starter template. The existing project is used, with these settings corrected
 
 **Approach:** Autoload services for persistent state; enum state machine for the run.
 
-- `PlayerData` is the single in-memory source of truth for the active profile (brains, owned/equipped cosmetics, flags, settings, bests, run history). All mutations go through its methods (`add_brains()`, `buy_item()`, `equip()`, `record_run()`, `set_setting()`, `set_flag()`; flags are read with `get_flag()`), each of which emits a typed change signal and requests a save. No other code writes save fields directly.
+- `PlayerData` is the single in-memory source of truth for the active profile (brains, owned/equipped cosmetics, flags, settings, bests, run history). All mutations go through its methods (`add_brains()`, `buy_item()`, `equip()`, `record_run()`, `set_setting()`, `set_flag()`, and from Epic 6 `mark_unlock_seen()` / `mark_level_chosen()`; flags are read with `get_flag()`, unlocks with `get_unlock_state(level_id)`). `record_run()` applies the level unlock rule (FR79) and emits `level_unlocked(level_id)`, each of which emits a typed change signal and requests a save. No other code writes save fields directly.
 - The run lifecycle lives in `RunFrame` as an enum state machine:
   `WAITING_FIRST_KEY → RUNNING ⇄ PAUSED → COUNTDOWN → RUNNING … → ENDING → DONE`
   - `WAITING_FIRST_KEY`: first target shown, clock stopped, "Type the letter to start!"
@@ -218,6 +218,7 @@ RunFrame (scene)
 ```gdscript
 class_name LevelBase extends Node2D
 signal end_requested(reason: StringName)          # e.g. &"caught"
+signal brains_earned_changed(total: int)       # emitted whenever the level's run total changes; RunFrame forwards it to the HUD
 func get_level_config() -> LevelConfig             # duration, case rule, target mode, bonuses
 func create_target_source(rng: RandomNumberGenerator) -> TargetSource
 func on_run_started() -> void
@@ -231,7 +232,7 @@ func get_brains_earned() -> int
 - **`TypingInput` configuration:** `RunFrame` configures it from the level's `LevelConfig` (`case_sensitive`, `space_is_input`). In lowercase levels, letters are lowercased and Space is ignored; in Pitchfork Panic, case is kept and Space is input.
 - **Caps Lock hint:** `TypingInput` emits `caps_lock_suspected` after 3 consecutive capital letters (checked on the raw character, before lowercasing) and `caps_lock_cleared` on the next lowercase; `Hud` shows or hides the hint.
 - **Rules:** levels never read input, never touch the clock, and never write to `PlayerData`. `RunFrame` awards brains and records the run.
-- **Brains during a run:** the in-run brain counter shows the level's local total. Brains reach `PlayerData` only at run end or quit, so closing the tab mid-run loses that run's brains. This is intended and matches the GDD save points.
+- **Brains during a run:** the shared HUD's brain counter (every level, UX D15) shows the level's local total, fed by `LevelBase.brains_earned_changed`, never by `PlayerData.brains_changed`. The menu and Closet counters use `PlayerData`. Brains reach `PlayerData` only at run end or quit, so closing the tab mid-run loses that run's brains. This is intended and matches the GDD save points.
 - **Feedback latency:** `char_accepted` is emitted synchronously inside the input callback, and levels start their reaction in the same frame. Animations are fire-and-forget (Tweens and AnimatedSprite2D); nothing awaits an animation before the next input.
 - **Randomness:** each run creates one `RandomNumberGenerator`, which is passed to the target source and the level; tests inject a fixed seed.
 
@@ -260,6 +261,8 @@ func get_brains_earned() -> int
 ```
 
 - **Run record:** `{ timestamp, level_id, duration_s, keys_typed, errors, wpm, accuracy, brains, letter_pool_or_tier, per_key: { "f": [attempts, errors, { "g": 2, "d": 1 }] }, end_reason }`. The history is capped at the newest 500 runs. Quit runs are not recorded; the brains from a quit run are still saved.
+- **End reasons:** `&"timer"` (the level's clock reached its duration: Zombie Run, Horde Rush), `&"caught"` and `&"escaped"` (Pitchfork Panic). Quit runs are never recorded, so there is no quit reason in history. Defined once as constants in `GameConstants`.
+- **Schema v2 (Epic 6, Story 6.8):** adds `"level_unlocks": { "horde_rush": { "moment_seen": false, "chosen": false } }` to each profile. A level's key being present means it is unlocked, and it is never removed. `migrate_1_to_2` backfills it from `run_history` (any `&"timer"` run of the `unlocked_by` level). Unlocks are saved permanently rather than derived from history, because history is capped at 500 runs.
 - **Write strategy:** serialize → write `save.tmp` → rename it over `save.json`, keeping the previous file as `save.bak`. On load, fall back to `.bak` if the main file fails to parse. If renaming proves unreliable on the web file system in Epic 1, switch to direct write plus backup.
 - **Save export:** `SaveService.export_json() -> String` returns the current save text for the save export (see Debug tooling). Only `SaveService` reads files; `WebPlatform` delivers the bytes.
 - **When to save:** run end, quitting a run, purchase or equip, settings change, `WebPlatform.visibility_hidden`, and `NOTIFICATION_WM_CLOSE_REQUEST`.
@@ -590,7 +593,7 @@ zombies-teach-typing/
 │   │   ├── hat_pumpkin.tres
 │   │   └── pet_cute_ghost.tres      # + 16 placeholder "coming soon" entries
 │   ├── levels/
-│   │   ├── level_registry.tres      # level_id → scene + card art + available flag
+│   │   ├── level_registry.tres      # level_id → scene + card art + available flag + unlocked_by (Epic 6)
 │   │   └── zombie_run.tres          # LevelConfig
 │   ├── anchors/
 │   │   ├── zombie_anchors.tres      # SpriteAnchors (head point per anim frame)

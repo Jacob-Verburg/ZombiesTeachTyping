@@ -43,7 +43,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 
 **Shared HUD (M2b) and finger guide**
 
-- FR14 [MVP]: The bottom band (104 px of 360) holds, left to right: the pet slot; the target area (letter, word or 2-line text window, always in the same spot) with the zombie hands below it; and a stats column with Timer, Keys Typed, WPM and Errors. A pause button sits in the top-right of the playfield. Zombie Run adds a brain counter next to the stats.
+- FR14 [MVP]: The bottom band (104 px of 360) holds, left to right: the pet slot; the target area (letter, word or 2-line text window, always in the same spot) with the zombie hands below it; and a stats column with Timer, Keys Typed, WPM and Errors. A pause button sits in the top-right of the playfield. A brain counter beside the stats shows this run's brains in every level.
 - FR15 [MVP]: Two cartoon green zombie hands show the finger for the next character with a brighter green plus a pulsing outline, and the highlight moves along as words and paragraphs are typed.
 - FR16 [MVP]: The finger map follows the GDD touch-typing table (left/right pinky, ring, middle, index; Space on both thumbs).
 - FR17 [MVP]: For capitals and shifted symbols, the character's finger and the opposite hand's pinky (Shift) both light.
@@ -61,7 +61,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 - FR23 [MVP]: The title screen says "Click or press any key"; any key or click advances to the main menu and unlocks browser audio.
 - FR24 [MVP]: Flow: Title → Main Menu → Level → Report Card → (Welcome Gift → Crypt Closet, first completed run only) → Play Again (same level) or Menu. The Crypt Closet is also reachable from the main menu.
 - FR25 [MVP]: In menus and the Closet, arrow keys move focus, Enter selects and Esc goes back; mouse clicks also work.
-- FR26 [MVP]: The main menu shows the title logo, the player's zombie wearing the equipped hat with the pet beside it, the brain counter, 3 level cards, a Crypt Closet button, and Music, Sound and Fullscreen toggles. In the MVP, Horde Rush and Pitchfork Panic cards show a "Coming soon" sign and cannot be selected.
+- FR26 [MVP]: The main menu shows the title logo, the player's zombie wearing the equipped hat with the pet beside it, the brain counter, 3 level cards, a Crypt Closet button, and Music, Sound and Fullscreen toggles. In the MVP, Horde Rush and Pitchfork Panic cards show a "Coming soon" sign and cannot be selected. "Coming soon" (driven by `available = false`) always takes precedence over Locked (FR79).
 - FR27 [MVP]: If browser storage is not persistent, the main menu shows a small plain-words notice: "Progress may not be saved in this browser mode".
 
 **Zombie Run (Level 1)**
@@ -79,7 +79,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 
 **Brains, Crypt Closet and cosmetics (M4, M5)**
 
-- FR38 [MVP]: Brains are the single currency, spent only on cosmetics; no learning content is ever gated. Brains persist in the save and are never lost. In-run brains are committed at run end or quit.
+- FR38 [MVP]: Brains are the single currency, spent only on cosmetics; brains never gate learning content (level order is the only gate, FR79). Brains persist in the save and are never lost. In-run brains are committed at run end or quit.
 - FR39 [MVP]: The Crypt Closet shows a 3×3 hat grid and a 3×3 pet grid (row prices 100 / 200 / 300), the brain counter, and a preview of the zombie wearing the selected item.
 - FR40 [MVP]: Each Closet item shows one state: Locked (coming soon), Can't afford ("Need N more"), Buy, Wear, or Wearing (click to take off).
 - FR41 [MVP]: Buying goes Buy → confirm → owned (brains deducted); Wear equips it. Purchases and equips are saved immediately. Items are never sold back.
@@ -141,6 +141,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 - FR76 [Post-MVP]: Each level has 3 art themes and picks one at random per run, never repeating the previous theme. Rules never change with the theme.
 - FR77 [Post-MVP]: A trends screen shows WPM, accuracy and practice time over recent runs, plus lifetime totals (keys typed, best WPM, total brains, time practiced).
 - FR78 [Post-MVP]: A "Who's playing?" picker lets kids create a named zombie (plain-word, length-limited). Each zombie has its own brains, cosmetics, run history and tier, and its name shows on the menu and report card. The MVP save becomes the first profile.
+- FR79 [Post-MVP]: A level after the first is **Locked** until the previous level has one run that ended because its timer reached 0:00 (Horde Rush ← Zombie Run; Pitchfork Panic ← Horde Rush). Quit runs never unlock. An unlock is saved permanently, not worked out from the 500-run history. A Locked card shows only a padlock; while the card has focus, a hint sign below it names the level to finish, and Enter or a click on it only makes the card wiggle. The first time the menu is shown after an unlock, a one-time unlock moment plays: the padlock pops off, the tint clears, a "New!" badge appears and focus moves to the card. Input stays live, so any key finishes the animation instantly. The "New!" badge stays until the card is chosen the first time. (UX D12, D14; EXPERIENCE.md Level Unlocks)
 
 ### NonFunctional Requirements
 
@@ -218,7 +219,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 
 ### UX Design Requirements
 
-No UX design document exists for this project. HUD, menu, report card and Closet layout requirements are captured from the GDD as functional requirements (FR14–FR27, FR39–FR45) and NFR7–NFR11.
+The UX spines in `ux-designs/ux-zombies-teach-typing-2026-09-27/` (called `UX/` below) are the visual and interaction contract for every screen: `UX/DESIGN.md` (look: palette, typography, components, layout) and `UX/EXPERIENCE.md` (behaviour: flows, states, input, Level Unlocks). Key-screen mocks: `UX/mockups/key-main-menu.html`, `key-run-hud.html`, `key-report-card.html`. On any conflict, spines > mocks > layout sketches. FRs stay the testable requirements; the spines say how they look and behave.
 
 ### FR Coverage Map
 
@@ -300,6 +301,7 @@ FR75: Epic 9 - All 18 cosmetics
 FR76: Epic 10 - 3 themes per level with rotation
 FR77: Epic 10 - Trends and lifetime stats screen
 FR78: Epic 11 - Profiles and zombie naming
+FR79: Epic 6 - Level unlocks (Locked / New card states, unlock moment, save)
 
 ## Epic List
 
@@ -327,7 +329,7 @@ The public MVP link: UI art pass, full audio pass, performance and save-integrit
 
 ### Epic 6: Horde Rush (Post-MVP)
 Horde Rush is selectable and playable end to end: words spawn zombie copies down 5 lanes against the Farmer defender, and arrivals earn brains. Includes the offline word-tagging tool and a tagged starter word list (fixed 3–5 letter band).
-**FRs covered:** FR53–FR59, FR66 (tool + starter list). NFR1 (30-zombie stress), NFR15.
+**FRs covered:** FR53–FR59, FR66 (tool + starter list), FR79. NFR1 (30-zombie stress), NFR15.
 
 ### Epic 7: Adaptive Curriculum (Post-MVP)
 A new save's placement run sets a hidden tier, and later runs silently use the right keyboard rows (Zombie Run) and word lengths (Horde Rush). Full 1,500-word list with validated tier pools.
@@ -718,7 +720,7 @@ So that I never lose time before I'm ready.
 
 **Acceptance Criteria:**
 
-**Given** `LevelBase` (extends Node2D) with the architecture's contract (`get_level_config`, `create_target_source`, `on_run_started`, `on_char_accepted`, `on_char_rejected`, `on_target_completed`, `on_run_ending`, `get_brains_earned`, `end_requested` signal)
+**Given** `LevelBase` (extends Node2D) with the architecture's contract (`get_level_config`, `create_target_source`, `on_run_started`, `on_char_accepted`, `on_char_rejected`, `on_target_completed`, `on_run_ending`, `get_brains_earned`, `end_requested` and `brains_earned_changed` signals)
 **When** `RunFrame` starts with a `RUN` payload `{ "level_id": ... }`
 **Then** it instances the level from `level_registry.tres`, creates one `RandomNumberGenerator` for the run (seeded from the payload's optional `seed`, randomised otherwise), builds the `TypingSession`, configures `TypingInput` from the `LevelConfig`, and connects the signals in code
 
@@ -742,6 +744,7 @@ So that I never lose time before I'm ready.
 **Given** a `test_level` (registered in the level registry, not shown on the real menu) that displays the current letter from a `LetterBagSource` with a 2:00 `LevelConfig`
 **When** "Test level" is chosen on the placeholder menu (the button exists only in debug builds)
 **Then** a full run can be typed from start to end
+**And** the test level emits `brains_earned_changed` +1 for every 4th correct key so the HUD counter can be seen working
 
 **Given** `tests/integration/test_run_frame.gd`
 **When** GUT runs with a fixed seed and synthetic input
@@ -755,13 +758,13 @@ So that I always know what to type and how I'm doing.
 
 **Acceptance Criteria:**
 
-**Given** a layout sketch (ASCII or PNG) of the HUD band at 640×360 for letter, word and 2-line paragraph modes
-**When** it is reviewed
-**Then** Smuck approves it in the story file before the HUD is built
+**Given** the HUD band in `UX/DESIGN.md` (Layout, HUD band component) and the Run HUD mock (letter and word modes)
+**When** the HUD is built
+**Then** it matches them, including the brain counter in every mode (D15); and a layout sketch of the **2-line paragraph mode** (not mocked) that follows DESIGN.md is approved by Smuck in the story file before that mode is built
 
 **Given** the HUD inside `RunFrame`
 **When** a run is shown at 640×360
-**Then** the bottom 104 px band holds, left to right, a pet slot (empty for now), the target area with a space for the zombie hands below it, and a stats column with Timer, Keys Typed, WPM and Errors; a pause button sits in the playfield's top-right (FR14)
+**Then** the bottom 104 px band holds, left to right, a pet slot (empty for now), the target area with a space for the zombie hands below it, a stats column with Timer, Keys Typed, WPM and Errors, and the brain counter beside it (starts at 0 and updates on `brains_earned_changed` in the same frame); a pause button sits in the playfield's top-right (FR14)
 **And** the target character is at least 32 px tall and all HUD text at least 16 px (NFR7)
 **And** the target area's size comes from the target mode: 32 px for letter and word targets, and 2 lines of 24 px for paragraph mode, with the zombie hands below in every mode (Epic 8 needs no HUD rework)
 
@@ -872,9 +875,9 @@ So that I feel proud and want to play again.
 
 **Acceptance Criteria:**
 
-**Given** a layout sketch of the report card at 640×360 (chalkboard stats, Professor Zombie, pet slot, "New best!" stamp spot, both buttons)
-**When** it is reviewed
-**Then** Smuck approves it in the story file before the screen is built, with every text at 16 px or more
+**Given** the Report Card mock and `UX/DESIGN.md` (chalkboard, Professor Zombie, "New best!" stamp, buttons)
+**When** the screen is built
+**Then** it matches them (the level name as the heading, night classroom backdrop, mortarboard stacked on the worn hat, D16), with every text at 16 px or more. No separate sketch is needed; the mock is the approved layout
 
 **Given** a `REPORT_CARD` payload with a `RunResult`
 **When** the screen opens
@@ -984,9 +987,9 @@ So that I earn brains while I type.
 **Then** `AudioManager.play_voice(&"vo_brainsss")` is requested; this story implements `play_voice()`, which drops any voice line within 8 s of the last one
 **And** `test_audio_manager.gd` covers the 8 s spacing with a fake clock
 
-**Given** the Zombie Run HUD
-**When** brains are collected
-**Then** a brain counter next to the stats shows the level's running total (FR14)
+**Given** a brain is collected
+**When** the level's total changes
+**Then** Zombie Run emits `brains_earned_changed(total)` and the shared HUD counter from Story 2.5 shows it (FR14)
 
 **Given** the sprites this story needs (brain block, bonk, brain pop, zombie hop)
 **When** final art isn't ready yet
@@ -1156,14 +1159,14 @@ So that I can choose what to do next.
 
 **Acceptance Criteria:**
 
-**Given** a layout sketch of the main menu at 640×360 (logo, zombie with hat and pet, brain counter, 3 level cards, Closet button, Music/Sound/Fullscreen toggles)
-**When** it is reviewed
-**Then** Smuck approves it in the story file before the screen is built
+**Given** the Main Menu mock (section A, MVP) and `UX/DESIGN.md` Layout and Components (level-card states, Closet button on the signpost, toggles bottom-right)
+**When** the screen is built
+**Then** it matches them. No separate sketch is needed; the mock is the approved layout
 
 **Given** the main menu
 **When** it opens
 **Then** it shows the title logo, the player's zombie, the brain counter, 3 level cards (Zombie Run, Horde Rush, Pitchfork Panic), a Crypt Closet button, and Music, Sound and Fullscreen toggles (FR26)
-**And** Horde Rush and Pitchfork Panic show a "Coming soon" sign and cannot be selected; the cards are driven by the `available` flag in `level_registry.tres`
+**And** Horde Rush and Pitchfork Panic show a "Coming soon" sign and cannot be selected; the cards are driven by the `available` flag in `level_registry.tres`, and the level card is built as a single component with a state enum (Available / Coming soon, with Locked and New added in Story 6.8) so Epic 6 adds states rather than rebuilding the card
 
 **Given** the menu
 **When** arrow keys, Enter and Esc are used, or items are clicked
@@ -1222,7 +1225,7 @@ So that my brains turn into something fun.
 
 **Acceptance Criteria:**
 
-**Given** a layout sketch of the Closet at 640×360 (two 3×3 grids with prices, tile states, preview zombie, brain counter, the tutorial arrow's positions)
+**Given** a layout sketch of the Closet at 640×360 that follows `UX/DESIGN.md` (closet-item-tile states and colors, brain counter pill, panel materials) and `UX/EXPERIENCE.md` (grid navigation, confirm prompt with default focus on Yes, first-visit tutorial) (two 3×3 grids with prices, tile states, preview zombie, brain counter, the tutorial arrow's positions)
 **When** it is reviewed
 **Then** Smuck approves it in the story file before the screen is built, with every text at 16 px or more
 
@@ -1291,11 +1294,20 @@ So that the whole game feels finished, not just the level.
 
 **Given** the GDD's MVP UI asset list
 **When** this story is done
-**Then** final art replaces the placeholders for: title logo; 3 level cards (2 with a "Coming soon" sign); HUD band frame; zombie hands (2 hands, 10 finger-glow states with pulsing outline, f/j bumps); chalkboard report card and "New best!" stamp; Closet grid tiles, the locked "?" silhouette and all 5 tile states; buttons (normal/focus/pressed); the brain icon; the Welcome Gift card; the pause panel; and the Music/Sound/Fullscreen toggle icons
+**Then** final art replaces the placeholders for: title logo; 3 level cards (2 with a "Coming soon" sign); HUD band frame; zombie hands (2 hands, 10 finger-glow states with pulsing outline, f/j bumps); chalkboard report card and "New best!" stamp; Closet grid tiles, the locked "?" silhouette and all 5 tile states; buttons (normal/focus/pressed); the brain icon; the Welcome Gift card; the pause panel; the Music/Sound/Fullscreen toggle icons; and the web loading page + boot splash (logo on night, pumpkin progress bar)
+
+**Given** the web build loading on a slow connection
+**When** the page opens
+**Then** the loading screen matches the title screen: a night (`#2B1D3F`) page, the title logo, and a chunky pumpkin (`#F07A1C`) progress bar on a dusk (`#4A3366`) track, with no text beyond the logo and no default Godot logo (DESIGN.md boot-splash, UX D11)
+**And** it is done through the Web export preset's `html/head_include` CSS, which restyles the default shell's `#status`, `#status-progress` and `#status-notice` elements. A full `html/custom_html_shell` is used only if the head-include approach can't reach the look, and the reason is noted in the story file
+
+**Given** the engine has loaded
+**When** Godot's own boot splash shows
+**Then** `application/boot_splash/bg_color` is `#2B1D3F`, the image is the title logo (Nearest filter, no stretch), and the change from loading page → boot splash → title screen has no white or grey flash on Chrome, Edge and Firefox. The Windows fallback uses the same boot splash settings
 
 **Given** every asset
 **When** it is checked against the style sheet from Story 1.9
-**Then** it uses only palette colors, the 1 px outline rule and the pixel font, and matches the approved layout sketches from Stories 2.5, 2.9, 4.2 and 4.4 (NFR13)
+**Then** it uses only palette colors, the 1 px outline rule and the pixel font, and matches `UX/DESIGN.md` (palette tokens, typography, component states), the three key-screen mocks, and the approved layout sketches from Stories 2.5 (paragraph mode) and 4.4 (NFR13); screens without a mock or sketch (title, boot splash, pause panel and countdown, Welcome Gift) follow the spines directly
 
 **Given** the zombie hands and HUD in grayscale
 **When** they are reviewed
@@ -1544,6 +1556,7 @@ So that getting through the defence pays off.
 **Given** a zombie reaches the house door
 **When** it arrives
 **Then** it shuffles in, requests a (throttled) "Brainsss" and pops its size class's brains (1 / 2 / 3), adding them to the level's total (FR57)
+**And** the level emits `brains_earned_changed` on every award, so the shared HUD counter updates (FR14)
 
 **Given** the clock reaches 5:00
 **When** the run ends
@@ -1593,7 +1606,47 @@ So that no level becomes the one kids grind.
 
 **Given** tuning is done and the kid playtest passed
 **When** `horde_rush.available` is set to true
-**Then** the menu card is selectable, and the next version tag publishes it
+**Then** the menu card is selectable once unlocked (Story 6.8), and the next version tag after Story 6.8 publishes it
+
+### Story 6.8: Level Unlocks
+
+As a kid,
+I want the next level to open after I finish the one before it, with a fun moment when it does,
+So that I have something to aim for, and a surprise when I get there.
+
+**Acceptance Criteria:**
+
+**Given** `LevelDef` in `level_registry.tres`
+**When** it is inspected
+**Then** each level has an `unlocked_by: StringName` (empty for Zombie Run, `&"zombie_run"` for Horde Rush, `&"horde_rush"` for Pitchfork Panic)
+
+**Given** save schema v2
+**When** a v1 save loads
+**Then** `migrate_1_to_2` adds `level_unlocks: {}` and backfills it: every level whose `unlocked_by` level has a run in `run_history` with `end_reason == &"timer"` is saved as unlocked with its moment not yet seen (so existing players see the moment on their next menu visit)
+**And** `test_save_schema.gd` covers the migration with a fixture file
+
+**Given** `PlayerData.record_run(result)`
+**When** the result's `end_reason` is `&"timer"` and a level has `unlocked_by == result.level_id` and is not yet unlocked
+**Then** that level is saved as unlocked and `level_unlocked(level_id)` is emitted; quit runs never reach this path (FR13, FR79)
+
+**Given** a level card whose level is `available` but not unlocked
+**When** the menu shows it
+**Then** it shows the Locked state (dusk tint and padlock only); while it has focus a hint sign hangs below it ("Finish Zombie Run to open!"); Enter or a click only wiggles the card (FR79, DESIGN.md level-card)
+**And** a level with `available = false` shows Coming soon whatever its lock state
+
+**Given** an unlocked level whose moment has not been seen
+**When** the main menu is shown (from any route)
+**Then** the unlock moment plays once (EXPERIENCE.md Level Unlocks), `PlayerData.mark_unlock_seen(level_id)` saves it, and focus moves to that card
+**And** any arrow key, Enter, Esc or click during the animation finishes it instantly and is then handled normally
+
+**Given** a card showing "New!"
+**When** it is chosen for the first time
+**Then** the badge is cleared and that is saved
+
+**Given** `test_player_data.gd` and `test_level_unlocks.gd`
+**When** GUT runs
+**Then** the unlock-on-timer, no-unlock-on-quit, one-time-moment and backfill cases pass
+**And** the debug overlay gains "Unlock all / Relock all" (debug builds only)
 
 ---
 
@@ -1800,6 +1853,7 @@ So that typing more earns more.
 **Given** the zombie's logical position reaches a pickup
 **When** it is collected
 **Then** 5 brains are added, a pickup sound plays and the brain total updates
+**And** the level emits `brains_earned_changed` on every award, so the shared HUD counter updates (FR14)
 
 ### Story 8.5: Caught and Escaped! Endings
 
@@ -1821,6 +1875,7 @@ So that every chase ends with a laugh and I keep what I earned.
 **When** the result is built
 **Then** a +10 finished-run bonus is added and the end reason (`caught` / `escaped`) is recorded (FR73)
 **And** a quit run gets no bonus and no history record (FR13)
+**And** the Pitchfork Panic card follows FR79 (Locked until a Horde Rush reaches 0:00) with no new code
 
 ### Story 8.6: Moonlit Village, Mob and Chase Music
 
