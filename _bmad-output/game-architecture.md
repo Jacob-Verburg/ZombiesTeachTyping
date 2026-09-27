@@ -9,7 +9,7 @@ status: 'complete'
 
 # Source Documents
 gdd: '_bmad-output/planning-artifacts/gdds/gdd-zombies-teach-typing-2026-09-27/gdd.md'
-epics: '_bmad-output/planning-artifacts/gdds/gdd-zombies-teach-typing-2026-09-27/epics.md'
+epics: '_bmad-output/planning-artifacts/gdds/gdd-zombies-teach-typing-2026-09-27/gdd-epics-overview.md'
 brief: '_bmad-output/planning-artifacts/briefs/brief-zombies-teach-typing-2026-09-27/brief.md'
 engine: 'Godot 4.7 (Compatibility renderer, GDScript)'
 platform: 'Web (HTML5, GitHub Pages) primary; Windows desktop fallback'

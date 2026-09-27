@@ -418,7 +418,7 @@ The MVP Closet shows both 3×3 grids. The Pumpkin hat and Cute ghost are live; t
 
 ### Epic Structure
 
-Details, stories and dependencies are in [epics.md](epics.md).
+Details, stories and dependencies are in [gdd-epics-overview.md](gdd-epics-overview.md).
 
 | # | Epic | Phase | Playable deliverable |
 |---|---|---|---|

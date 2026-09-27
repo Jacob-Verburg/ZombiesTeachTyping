@@ -3,7 +3,7 @@ stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/planning-artifacts/gdds/gdd-zombies-teach-typing-2026-09-27/gdd.md
   - _bmad-output/game-architecture.md
-  - _bmad-output/planning-artifacts/gdds/gdd-zombies-teach-typing-2026-09-27/epics.md
+  - _bmad-output/planning-artifacts/gdds/gdd-zombies-teach-typing-2026-09-27/gdd-epics-overview.md
   - _bmad-output/planning-artifacts/gdds/gdd-zombies-teach-typing-2026-09-27/decision-log.md
 ---
 
@@ -13,7 +13,7 @@ inputDocuments:
 
 This document provides the complete epic and story breakdown for zombies-teach-typing, decomposing the requirements from the GDD, UX Design if it exists, and Architecture requirements into implementable stories.
 
-The GDD's epic sketch (`gdds/.../epics.md`, 11 epics, MVP = Epics 1–5) is used as the skeleton. Each requirement is tagged **[MVP]** or **[Post-MVP]**.
+The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1–5) is used as the skeleton. Each requirement is tagged **[MVP]** or **[Post-MVP]**.
 
 ## Requirements Inventory
 
