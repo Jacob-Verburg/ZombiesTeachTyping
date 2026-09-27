@@ -36,7 +36,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 
 **Pause (M3) and quitting**
 
-- FR10 [MVP]: Esc or the pause button pauses the run: the timer stops and the world freezes. The pause panel offers Resume and Quit to Menu.
+- FR10 [MVP]: Esc or the pause button pauses the run: the timer stops and the world freezes. The pause panel offers Resume, Quit to Menu, and the Music and Sound toggles.
 - FR11 [MVP]: The run auto-pauses when the browser tab or window loses focus.
 - FR12 [MVP]: Resuming shows a 3-2-1 countdown (0.5 s per number); typing input is rejected until it finishes, and focus loss during the countdown returns to the paused state.
 - FR13 [MVP]: Quitting mid-run keeps brains already collected, awards no completion bonus, and does not record the run in stats history.
@@ -61,7 +61,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 - FR23 [MVP]: The title screen says "Click or press any key"; any key or click advances to the main menu and unlocks browser audio.
 - FR24 [MVP]: Flow: Title → Main Menu → Level → Report Card → (Welcome Gift → Crypt Closet, first completed run only) → Play Again (same level) or Menu. The Crypt Closet is also reachable from the main menu.
 - FR25 [MVP]: In menus and the Closet, arrow keys move focus, Enter selects and Esc goes back; mouse clicks also work.
-- FR26 [MVP]: The main menu shows the title logo, the player's zombie wearing the equipped hat with the pet beside it, the brain counter, 3 level cards, a Crypt Closet button, and Music/Sound toggles. In the MVP, Horde Rush and Pitchfork Panic cards show a "Coming soon" sign and cannot be selected.
+- FR26 [MVP]: The main menu shows the title logo, the player's zombie wearing the equipped hat with the pet beside it, the brain counter, 3 level cards, a Crypt Closet button, and Music, Sound and Fullscreen toggles. In the MVP, Horde Rush and Pitchfork Panic cards show a "Coming soon" sign and cannot be selected.
 - FR27 [MVP]: If browser storage is not persistent, the main menu shows a small plain-words notice: "Progress may not be saved in this browser mode".
 
 **Zombie Run (Level 1)**
@@ -90,7 +90,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 
 **Audio & settings**
 
-- FR46 [MVP]: Separate Music and Sound toggles are saved, and the game is fully playable muted.
+- FR46 [MVP]: Separate Music and Sound toggles (main menu and pause panel) are saved, and the game is fully playable muted.
 - FR47 [MVP]: No audio plays before the first key or click on the title screen.
 - FR48 [MVP]: Zombie groans play at random every 3–8 s during a run (never on every keypress) and are muted within 2 s of a voice line; voice lines are at least 8 s apart.
 - FR49 [MVP]: Music: one menu loop and one loop per level (Zombie Run calm loop in the MVP), each 60–120 s.
@@ -128,7 +128,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 
 **Pitchfork Panic (Level 3)**
 
-- FR69 [Post-MVP]: The target area shows a 2-line text window: typed characters green, the next character underlined, the next line dimmed. Passages flow continuously.
+- FR69 [Post-MVP]: The target area shows a 2-line text window: typed characters green, the next character underlined, the next line dimmed. Passages flow continuously, joined by a single typed Space.
 - FR70 [Post-MVP]: Each correct character moves the zombie 1 step. The mob starts 15 steps behind at 4 WPM-eq (1 WPM-eq = 5 steps/min) and gains +1 WPM-eq every 10 s.
 - FR71 [Post-MVP]: The camera keeps the zombie at 60% of screen width; the mob's distance is always readable and the mob is on screen once the gap is under 20 steps.
 - FR72 [Post-MVP]: Brain pickups are placed every 10–30 steps (uniform random from the previous pickup) and give 5 brains each.
@@ -150,13 +150,13 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 - NFR4 (Save integrity): Zero data loss across 10 consecutive browser reloads and 10 tab closes mid-menu, on Chrome and Firefox.
 - NFR5 (Platform): The HTML5 build runs on plain static hosting with no special server headers (single-threaded). Desktop Chrome, Edge and Firefox are supported; Safari is best-effort; mobile and touch are unsupported. Windows desktop is a fallback with the same save contents.
 - NFR6 (Hardware/layout): A physical keyboard is required. The finger guide assumes US QWERTY; other layouts can play because matching is by character.
-- NFR7 (Readability): The target character or word is at least 32 px tall and UI text at least 16 px at the 640×360 logical resolution. The pixel font clearly distinguishes `l`/`I`/`1` and `O`/`0`.
+- NFR7 (Readability): The target character or word (letter and word levels) is at least 32 px tall, Pitchfork Panic paragraph text at least 24 px, and UI text at least 16 px at the 640×360 logical resolution. The pixel font clearly distinguishes `l`/`I`/`1` and `O`/`0`.
 - NFR8 (Color accessibility): Finger and typed-text states use brightness plus shape or underline, never color alone.
 - NFR9 (Reading level): All UI text uses words a 6-year-old can read. Zombie slang appears only in voice and flavor, never in menu labels. The player never sees technical error text.
 - NFR10 (Tone): Kid-safe cartoon only — no gore, blood or body-part gags, no guns; defeat is melting, dust clouds or dizzy stars. Goofy, never scary for a 6-year-old, never babyish for a 13-year-old. No difficulty labels, ranks or "easy mode" anywhere.
 - NFR11 (Pressure): No timers outside runs (menus, report card, Closet). Session target 5–15 minutes; the longest run is 5:00.
 - NFR12 (Privacy): No network, accounts, cloud saves or analytics. No personal data is logged.
-- NFR13 (Art standard): 640×360 logical, integer scaling where possible; one shared palette of at most 32 colors; characters 32×32 (brutes 48×48), tiles 16×16, 1 px dark outline on characters and props; animations 2–6 frames at 8–12 fps; nearest-neighbour filtering. The palette, zombie and one villager are approved before any other art is produced.
+- NFR13 (Art standard): 640×360 logical, fractional scaling with nearest filtering plus a fullscreen toggle; one shared palette of at most 32 colors; characters 32×32 (brutes 48×48), tiles 16×16, 1 px dark outline on characters and props; animations 2–6 frames at 8–12 fps; nearest-neighbour filtering. The palette, zombie and one villager are approved before any other art is produced.
 - NFR14 (Audio mix): Music is mixed below SFX; audio uses CC0-style free sources or self-recorded voice lines.
 - NFR15 (Economy parity): Every level pays within ±20% of Zombie Run's brains per minute at the same WPM.
 - NFR16 (Robustness): Errors never pause the game; a missing sound, sprite or cosmetic never stops a run; a failed screen load returns to the main menu with brains kept.
@@ -166,7 +166,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 
 **Project setup (no starter template; the existing Godot project is used — affects Epic 1 Story 1)**
 
-- Fix `project.godot`: 640×360 viewport; stretch mode `viewport`, aspect `keep`, scale mode `integer`; default canvas texture filter Nearest; `snap_2d_transforms_to_pixel = true`; remove the `[dotnet]` section; set `debug/gdscript/warnings/untyped_declaration = Error`.
+- Fix `project.godot`: 640×360 viewport; stretch mode `viewport`, aspect `keep`, scale mode `fractional`; default canvas texture filter Nearest; `snap_2d_transforms_to_pixel = true`; remove the `[dotnet]` section; set `debug/gdscript/warnings/untyped_declaration = Error`.
 - Godot 4.7.2 (standard build), Compatibility renderer, GDScript only.
 - Export presets: Web (Thread Support off, no PWA, VRAM compression desktop only) and Windows Desktop, both excluding `addons/gut/*`, `tests/*`, `tools/*`, `docs/*`, `_bmad/*`, `_bmad-output/*`, `build/*`.
 - Create the folder skeleton (hybrid: `scenes/`, `scripts/`, `data/`, `assets/` with mirrored feature folders), `Log` (static class) and `GameConstants`.
@@ -174,7 +174,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 **Build, hosting & CI**
 
 - Host on GitHub Pages from a public repository, deployed by GitHub Actions (ADR-4; resolves GDD assumption A2).
-- `.github/workflows/build.yml` on push to `main`: download Godot 4.7.2 headless + templates → headless import → run GUT (fail on any failure) → export Web → deploy to Pages. Pin and verify current major versions of `actions/checkout`, `actions/upload-pages-artifact`, `actions/deploy-pages`.
+- `.github/workflows/build.yml` on push to `main` and PRs: download Godot 4.7.2 headless + templates → headless import → run GUT (fail on any failure) → export Web → upload as a workflow artifact; on a `v*` tag, the same steps plus deploy to Pages. Pin and verify current major versions of `actions/checkout`, `actions/upload-pages-artifact`, `actions/deploy-pages`.
 - Record compressed transfer size and first-load time in Epic 1; if over 10 s, backlog a custom export template with 3D disabled.
 - Verify whether `rename` is reliable on the web file system; if not, switch the save to direct write plus backup.
 - Verify whether the Godot canvas already prevents browser defaults for Space, `'`, `/`, Backspace and Tab; if not, `WebPlatform` installs a JS `keydown` listener that calls `preventDefault()` while `capture_keys = true`.
@@ -193,7 +193,7 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 - `TypingInput` is configured from `LevelConfig` (`case_sensitive`, `space_is_input`) and emits `caps_lock_suspected` / `caps_lock_cleared`.
 - `RunFrame` state machine: `WAITING_FIRST_KEY → RUNNING ⇄ PAUSED → COUNTDOWN → RUNNING … → ENDING → DONE`, all transitions via `_set_state()`. The tree stays paused through `COUNTDOWN` and is unpaused only on entering `RUNNING`. `RunClock` accumulates `delta` only while running.
 - "Logic leads, visuals chase": logical state updates synchronously in the typing callback; one retargeting tween per moving actor; one-shot effects are self-freeing; never `await` in typing callbacks.
-- One `RandomNumberGenerator` per run, injected into the target source and level; `RunFrame.debug_seed` for replay. No global `randi()`/`randf()` in gameplay.
+- One `RandomNumberGenerator` per run, injected into the target source and level; a `debug_seed` from the debug overlay is passed as the run payload's `seed` for replay (Story 2.10). No global `randi()`/`randf()` in gameplay.
 
 **Data**
 
@@ -322,7 +322,7 @@ A new save goes run → welcome gift → guided purchase → wears the Pumpkin h
 **FRs covered:** FR24 (full flow), FR25, FR26, FR38–FR46. NFR9, NFR11.
 
 ### Epic 5: MVP Polish & First Link (MVP)
-The public MVP link: full audio pass, performance and save-integrity checks on 3 family computers, a kid playtest, fixes, publish.
+The public MVP link: UI art pass, full audio pass, performance and save-integrity checks on 3 family computers, a kid playtest, fixes, publish.
 **FRs covered:** FR49, FR50. Verifies NFR1–NFR4, NFR7–NFR9, NFR14, NFR17.
 
 ### Epic 6: Horde Rush (Post-MVP)
@@ -365,7 +365,7 @@ So that every later story starts from correct settings and can be unit-tested.
 
 **Given** the existing `project.godot`
 **When** the story is complete
-**Then** the viewport is 640×360, stretch mode `viewport`, aspect `keep`, scale mode `integer`, default canvas texture filter Nearest and `snap_2d_transforms_to_pixel = true`
+**Then** the viewport is 640×360, stretch mode `viewport`, aspect `keep`, scale mode `fractional`, default canvas texture filter Nearest and `snap_2d_transforms_to_pixel = true`
 **And** the `[dotnet]` section is removed and `debug/gdscript/warnings/untyped_declaration` is set to Error
 
 **Given** the architecture's Project Structure
@@ -386,8 +386,8 @@ So that every later story starts from correct settings and can be unit-tested.
 ### Story 1.2: Web Export, CI and GitHub Pages Deploy
 
 As the developer,
-I want every push to `main` to run the tests, export the web build and publish it to GitHub Pages,
-So that there is always a shareable link and broken tests never ship.
+I want every push to `main` to run the tests and export the web build, and every version tag to publish it to GitHub Pages,
+So that broken tests never ship and kids only ever see finished releases.
 
 **Acceptance Criteria:**
 
@@ -397,8 +397,10 @@ So that there is always a shareable link and broken tests never ship.
 **And** both exclude `addons/gut/*`, `tests/*`, `tools/*`, `docs/*`, `_bmad/*`, `_bmad-output/*` and `build/*`
 
 **Given** `.github/workflows/build.yml`
-**When** a commit is pushed to `main`
-**Then** the workflow downloads Godot 4.7.2 headless and its export templates, imports the project, runs GUT, exports the Web preset and deploys it to GitHub Pages
+**When** a commit is pushed to `main` or a pull request is opened
+**Then** the workflow downloads Godot 4.7.2 headless and its export templates, imports the project, runs GUT, exports the Web preset and uploads it as a workflow artifact, without deploying
+**And** when a tag matching `v*` is pushed, the same steps run and the build is deployed to GitHub Pages
+**And** the hello-world is published by tagging `v0.0.1`
 **And** the current major versions of `actions/checkout`, `actions/upload-pages-artifact` and `actions/deploy-pages` are pinned and noted in the story file
 
 **Given** a failing GUT test
@@ -409,6 +411,10 @@ So that there is always a shareable link and broken tests never ship.
 **When** it is opened in desktop Chrome, Edge and Firefox from the Pages URL
 **Then** it runs without any special server headers (NFR5)
 **And** the compressed transfer size and the first-load and cached-load times at 25 Mbit/s (throttled dev tools) are recorded in the story file against the ≤ 10 s / ≤ 3 s / ≤ 40 MB targets (NFR3); if over 10 s, a "custom export template without 3D" item is added to the backlog
+
+**Given** the deployed page in a maximised Chrome, Edge and Firefox window on a 1366×768 screen (or a dev-tools emulation of it)
+**When** the title screen is shown
+**Then** the game fills the available height with fractional scaling and nearest filtering, with no blurry pixels, and a screenshot per browser is kept in the story file
 
 ### Story 1.3: Screen Router and Title Screen
 
@@ -425,8 +431,13 @@ So that the game starts the way I expect.
 
 **Given** the title screen
 **When** it is shown
-**Then** it displays a placeholder logo and the text "Click or press any key" in a pixel font at 16 px or larger
+**Then** it displays a placeholder logo and the text "Click or press any key" in the project pixel font at 16 px or larger
 **And** any key press or mouse click goes to the main menu (FR23)
+
+**Given** an SIL OFL pixel font in `assets/fonts/` with its license file
+**When** `l`, `I`, `1`, `O` and `0` are rendered at 16 px and 32 px
+**Then** each is clearly distinguishable (NFR7)
+**And** `data/ui_theme.tres` uses it as the default font and is set as the project's custom theme
 
 **Given** placeholder scenes for Main Menu, Run, Report Card, Welcome Gift and Crypt Closet
 **When** the placeholder buttons are used
@@ -484,6 +495,19 @@ So that my typing always goes to the game.
 **And** every printable character typed is echoed on screen
 **And** the story file records whether the Godot canvas already prevented these defaults or whether a JS `keydown` listener with `preventDefault()` was installed
 
+**Given** `WebPlatform.capture_keys`
+**When** the game starts
+**Then** it is false, and only the keyboard test screen (here) and `RunFrame` (Story 2.4) set it to true
+
+**Given** `WebPlatform.toggle_fullscreen()` called from a click or key handler
+**When** it runs on the web build in Chrome, Edge and Firefox
+**Then** the page enters and leaves browser fullscreen, `is_fullscreen()` reports it, and Esc (the browser's exit) is reflected the next time `is_fullscreen()` is called
+**And** the keyboard test screen gets a temporary Fullscreen button to prove it
+
+**Given** `WebPlatform.offer_download(bytes, file_name)`
+**When** it is called on web
+**Then** the browser downloads the file; on desktop the `user://` folder opens
+
 ### Story 1.6: Versioned Save File
 
 As a kid,
@@ -513,6 +537,10 @@ So that I never lose my brains or hats.
 **When** the frame ends
 **Then** exactly one write happens
 **And** on `WebPlatform.visibility_hidden` or `NOTIFICATION_WM_CLOSE_REQUEST` the save is written immediately (FR52)
+
+**Given** `SaveService.export_json()`
+**When** it is called
+**Then** it returns the current save as the same pretty-printed JSON that is written to `save.json`, without touching the file system
 
 **Given** fixtures `save_v1_fresh.json`, `save_v1_full.json` and `save_corrupt.json`
 **When** the GUT tests run
@@ -544,11 +572,11 @@ So that I trust the game with my progress.
 **When** the GUT tests run
 **Then** `add_brains`, `set_setting` and their signals are covered and pass
 
-### Story 1.8: Debug Overlay
+### Story 1.8: Debug Overlay and Save Export
 
 As the developer,
-I want a debug-only overlay with frame timing, save status and a few cheats,
-So that I can check performance and test saves quickly without shipping cheats.
+I want a debug-only overlay with frame timing, save status and a few cheats, plus a save export that also works in release,
+So that I can check performance, test saves quickly and pull playtest run history, without shipping cheats.
 
 **Acceptance Criteria:**
 
@@ -560,10 +588,15 @@ So that I can check performance and test saves quickly without shipping cheats.
 **When** F5 is pressed
 **Then** 100 brains are added through `PlayerData.add_brains()`
 **And** F8 asks for confirmation and then resets the save to defaults
+**And** F9 exports the save (as below)
+
+**Given** any build (debug or release) on the main menu (placeholder for now)
+**When** Ctrl+Shift+E is pressed
+**Then** `SaveService.export_json()` is passed to `WebPlatform.offer_download()` as `zts-save-YYYYMMDD.json`, and nothing on screen changes (no visible UI for kids)
 
 **Given** a release export
 **When** it runs
-**Then** the overlay scene is never instanced and F3/F5/F8 do nothing (gated by `OS.is_debug_build()`)
+**Then** the overlay scene is never instanced and F3/F5/F8/F9 do nothing (gated by `OS.is_debug_build()`), while Ctrl+Shift+E still works
 
 ### Story 1.9: Art-Style Sheet and Prototype Sprites (Review Gate)
 
@@ -577,15 +610,14 @@ So that every later asset looks like one consistent game.
 **When** it is inspected
 **Then** it holds at most 32 colors, and a style sheet in `docs/` records the palette, sprite sizes (characters 32×32, brutes 48×48, tiles 16×16), the 1 px dark outline rule and animation limits (2–6 frames at 8–12 fps) (NFR13)
 
-**Given** an SIL OFL pixel font in `assets/fonts/` with its license file
-**When** `l`, `I`, `1`, `O` and `0` are rendered at 16 px and 32 px
-**Then** each is clearly distinguishable (NFR7)
-**And** `data/ui_theme.tres` uses it as the default font
+**Given** the pixel font chosen in Story 1.3
+**When** the style sheet is written
+**Then** it records the font, its sizes (16 px UI, 32 px targets, 24 px paragraph text) and license
 
 **Given** prototype sprites of the player zombie (idle 2f, walk 4f) and one villager (idle/wave 2f), using only palette colors
-**When** they are shown in-game at integer scale with nearest filtering
+**When** they are shown in-game with the project's fractional scaling and nearest filtering
 **Then** they are crisp, kid-safe (no gore) and readable against a plain background
-**And** Smuck records approval (or requested changes) in the story file; no other art is produced until approval is given
+**And** Smuck records approval (or requested changes) in the story file; no final art is produced until approval is given; placeholder art (plain shapes in palette colors) is allowed in any story before its final-art story (3.6, 4.3, 5.0)
 
 ---
 
@@ -688,7 +720,11 @@ So that I never lose time before I'm ready.
 
 **Given** `LevelBase` (extends Node2D) with the architecture's contract (`get_level_config`, `create_target_source`, `on_run_started`, `on_char_accepted`, `on_char_rejected`, `on_target_completed`, `on_run_ending`, `get_brains_earned`, `end_requested` signal)
 **When** `RunFrame` starts with a `RUN` payload `{ "level_id": ... }`
-**Then** it instances the level from `level_registry.tres`, creates one `RandomNumberGenerator` for the run (honouring `debug_seed`), builds the `TypingSession`, configures `TypingInput` from the `LevelConfig`, and connects the signals in code
+**Then** it instances the level from `level_registry.tres`, creates one `RandomNumberGenerator` for the run (seeded from the payload's optional `seed`, randomised otherwise), builds the `TypingSession`, configures `TypingInput` from the `LevelConfig`, and connects the signals in code
+
+**Given** `RunFrame` enters the scene tree
+**When** the run screen is shown
+**Then** it sets `WebPlatform.capture_keys = true`, and sets it back to false in `_exit_tree()` (report card, quit to menu or a failed load) (FR29 key swallowing)
 
 **Given** the run is in `WAITING_FIRST_KEY`
 **When** the scene loads
@@ -703,14 +739,13 @@ So that I never lose time before I'm ready.
 **When** the run ends
 **Then** the state becomes `ENDING`, input is rejected, the frame waits the outro time returned by `on_run_ending`, builds a `RunResult` and calls `Router.go(REPORT_CARD, { "result": ... })`
 
-**Given** a `test_level` (registered in the level registry, not shown on the menu) that displays the current letter from a `LetterBagSource` with a 2:00 `LevelConfig`
-**When** it is played
+**Given** a `test_level` (registered in the level registry, not shown on the real menu) that displays the current letter from a `LetterBagSource` with a 2:00 `LevelConfig`
+**When** "Test level" is chosen on the placeholder menu (the button exists only in debug builds)
 **Then** a full run can be typed from start to end
-**And** the debug overlay now also shows the run state, clock, current and next 3 targets, keys/errors/WPM and the seed; F6 ends the run and F7 toggles verbose typing logs
 
 **Given** `tests/integration/test_run_frame.gd`
 **When** GUT runs with a fixed seed and synthetic input
-**Then** the state transitions, clock start on first key and run end are covered and pass
+**Then** the state transitions, clock start on first key and run end are covered and pass, and `capture_keys` is true during the run and false after it
 
 ### Story 2.5: Shared HUD with Wrong-Key Feedback
 
@@ -720,10 +755,15 @@ So that I always know what to type and how I'm doing.
 
 **Acceptance Criteria:**
 
+**Given** a layout sketch (ASCII or PNG) of the HUD band at 640×360 for letter, word and 2-line paragraph modes
+**When** it is reviewed
+**Then** Smuck approves it in the story file before the HUD is built
+
 **Given** the HUD inside `RunFrame`
 **When** a run is shown at 640×360
 **Then** the bottom 104 px band holds, left to right, a pet slot (empty for now), the target area with a space for the zombie hands below it, and a stats column with Timer, Keys Typed, WPM and Errors; a pause button sits in the playfield's top-right (FR14)
 **And** the target character is at least 32 px tall and all HUD text at least 16 px (NFR7)
+**And** the target area's size comes from the target mode: 32 px for letter and word targets, and 2 lines of 24 px for paragraph mode, with the zombie hands below in every mode (Epic 8 needs no HUD rework)
 
 **Given** the run is waiting for the first key
 **When** the HUD is shown
@@ -737,6 +777,7 @@ So that I always know what to type and how I'm doing.
 **Given** a wrong printable key
 **When** it is judged
 **Then** the target character shakes for 0.2 s and `AudioManager` plays the wrong-key tick, at most once per 150 ms (throttled inside `AudioManager`) (FR2)
+**And** `tests/unit/test_audio_manager.gd` covers the 150 ms wrong-key throttle with a fake clock
 
 **Given** `caps_lock_suspected`
 **When** it is emitted
@@ -778,7 +819,7 @@ So that I never lose time when something interrupts me.
 
 **Given** a running run
 **When** Esc or the pause button is pressed
-**Then** the state becomes `PAUSED`, the clock stops, the tree is paused and the pause panel shows Resume and Quit to Menu (FR10)
+**Then** the state becomes `PAUSED`, the clock stops, the tree is paused and the pause panel shows Resume, Quit to Menu, and Music and Sound toggles that work like the menu ones (bus mute plus `PlayerData.set_setting()`) (FR10, FR46)
 
 **Given** a running run or a countdown
 **When** `WebPlatform.focus_lost` fires
@@ -831,6 +872,10 @@ So that I feel proud and want to play again.
 
 **Acceptance Criteria:**
 
+**Given** a layout sketch of the report card at 640×360 (chalkboard stats, Professor Zombie, pet slot, "New best!" stamp spot, both buttons)
+**When** it is reviewed
+**Then** Smuck approves it in the story file before the screen is built, with every text at 16 px or more
+
 **Given** a `REPORT_CARD` payload with a `RunResult`
 **When** the screen opens
 **Then** a chalkboard shows Keys Typed, Errors, WPM, Accuracy, Lesson Time and Brains Collected, with bonus brains on a separate "+N bonus" line (FR19)
@@ -848,6 +893,32 @@ So that I feel proud and want to play again.
 **Given** all report card text
 **When** it is read
 **Then** it uses plain words a 6-year-old can read and meets the 16 px minimum (NFR7, NFR9)
+
+### Story 2.10: Run Debug Tools and Seed Replay
+
+As the developer,
+I want the debug overlay to show what the run is doing and to replay a run with a fixed seed,
+So that I can reproduce and diagnose typing bugs quickly.
+
+*Placement:* last in Epic 2 because no story depends on it; it may be pulled forward any time after Story 2.4.
+
+**Acceptance Criteria:**
+
+**Given** a debug build during a run
+**When** the overlay (F3) is open
+**Then** it also shows the run state, clock, current and next 3 targets, keys/errors/WPM and the run seed
+
+**Given** the overlay
+**When** F6 is pressed during a run
+**Then** the run ends as if the clock ran out; F7 toggles verbose typing logs (`Log.debug` per judgment)
+
+**Given** a `debug_seed` set in the overlay
+**When** the next run starts
+**Then** `RunFrame` passes it as the payload `seed`, and the same inputs produce the same target sequence
+
+**Given** a release export
+**When** it runs
+**Then** none of these fields or keys exist (gated by `OS.is_debug_build()`)
 
 ---
 
@@ -886,6 +957,10 @@ So that fast typing makes my zombie race along.
 **Then** the logical target index advances in the same frame, the target resolves, and the zombie's move tween is killed and restarted from its current position to the next approach point over 0.15 s; repeated fast keys chain scoots so walking never caps typing speed (FR1, FR31)
 **And** the camera follows the zombie so upcoming targets never scroll out of view, and resolved targets are freed once off screen
 
+**Given** the sprites this story needs (player zombie, generic targets, down-arrow marker)
+**When** final art isn't ready yet
+**Then** placeholder sprites in palette colors are used; final frames arrive in Story 3.6
+
 ### Story 3.2: Brain Blocks and the Brain Counter
 
 As a kid,
@@ -906,11 +981,16 @@ So that I earn brains while I type.
 
 **Given** a brain is collected
 **When** the 20% chance passes (rolled by the level with the run RNG)
-**Then** `AudioManager.play_voice(&"vo_brainsss")` is requested and `AudioManager` enforces at least 8 s between voice lines
+**Then** `AudioManager.play_voice(&"vo_brainsss")` is requested; this story implements `play_voice()`, which drops any voice line within 8 s of the last one
+**And** `test_audio_manager.gd` covers the 8 s spacing with a fake clock
 
 **Given** the Zombie Run HUD
 **When** brains are collected
 **Then** a brain counter next to the stats shows the level's running total (FR14)
+
+**Given** the sprites this story needs (brain block, bonk, brain pop, zombie hop)
+**When** final art isn't ready yet
+**Then** placeholder sprites in palette colors are used; final frames arrive in Story 3.6
 
 ### Story 3.3: Villager Hugs and Party-Hat Zombies
 
@@ -929,9 +1009,9 @@ So that every correct letter feels like goofy mischief.
 **When** the next key arrives before the hug ends
 **Then** the hug is cut short and the zombie scoots on; the poof and party-hat zombie still complete as fire-and-forget effects
 
-**Given** the villager and party-hat zombie art
-**When** it is reviewed
-**Then** the party-hat zombie is the villager sprite recolored plus a party hat, using only palette colors, with no scary or gory details (NFR10, NFR13)
+**Given** the sprites this story needs (villager, hug, poof, party-hat zombie)
+**When** final art isn't ready yet
+**Then** placeholder sprites in palette colors are used; final frames arrive in Story 3.6
 
 ### Story 3.4: Conga Line
 
@@ -1001,7 +1081,11 @@ So that the level feels calm and inviting.
 
 **Given** the target letters over the backdrop
 **When** they are viewed at 1× scale
-**Then** each letter is readable against every part of the backdrop
+**Then** each letter is readable against every part of the backdrop, checked against a named manual checklist written in the story file (what to look for, pass/fail per item)
+
+**Given** the villager and party-hat zombie art
+**When** it is reviewed
+**Then** the party-hat zombie is the villager sprite recolored plus a party hat, using only palette colors, with no scary or gory details (NFR10, NFR13)
 
 ### Story 3.7: Zombie Groans and Voice Spacing
 
@@ -1012,7 +1096,7 @@ So that it sounds funny without getting annoying.
 **Acceptance Criteria:**
 
 **Given** a Zombie Run in `RUNNING`
-**When** `AudioManager.start_ambience()` is active
+**When** `AudioManager.start_ambience()` is active (this story implements `start_ambience()` and `stop_ambience()`)
 **Then** a random groan from 4 plays every 3–8 s (random interval), never tied to keypresses (FR48)
 
 **Given** a voice line has just played
@@ -1025,7 +1109,7 @@ So that it sounds funny without getting annoying.
 
 **Given** `AudioManager` throttling rules
 **When** the unit tests run with a fake clock
-**Then** the wrong-key 150 ms throttle, the 8 s voice spacing and the 2 s groan mute all pass
+**Then** the 3–8 s groan interval and the 2 s groan mute after a voice line pass (the throttle and voice tests live in Stories 2.5 and 3.2)
 
 ---
 
@@ -1051,6 +1135,11 @@ So that I can trust the shop.
 **Then** it returns `OK` and deducts the price when the item is available, not owned and affordable; otherwise it returns `NOT_ENOUGH_BRAINS`, `ALREADY_OWNED` or `UNAVAILABLE` and changes nothing (FR38, FR41)
 **And** a successful buy emits `brains_changed` and `inventory_changed` and requests a save
 
+**Given** `PlayerData.set_flag(name: StringName, value: bool)` and `get_flag(name)`
+**When** a known flag (`welcome_bonus_claimed`, `tutorial_seen`, `placement_done`) is set
+**Then** it emits `flags_changed(name, value)` and requests a save
+**And** an unknown flag name logs `Log.error()` and changes nothing; the tests cover both cases
+
 **Given** `PlayerData.equip(item_id)` and `unequip(slot)`
 **When** they are called
 **Then** only owned items can be equipped, one hat and one pet at most, either slot can be empty, and `equipment_changed(slot, item_id)` is emitted and a save requested (FR43)
@@ -1067,9 +1156,13 @@ So that I can choose what to do next.
 
 **Acceptance Criteria:**
 
+**Given** a layout sketch of the main menu at 640×360 (logo, zombie with hat and pet, brain counter, 3 level cards, Closet button, Music/Sound/Fullscreen toggles)
+**When** it is reviewed
+**Then** Smuck approves it in the story file before the screen is built
+
 **Given** the main menu
 **When** it opens
-**Then** it shows the title logo, the player's zombie, the brain counter, 3 level cards (Zombie Run, Horde Rush, Pitchfork Panic), a Crypt Closet button, and Music and Sound toggles (FR26)
+**Then** it shows the title logo, the player's zombie, the brain counter, 3 level cards (Zombie Run, Horde Rush, Pitchfork Panic), a Crypt Closet button, and Music, Sound and Fullscreen toggles (FR26)
 **And** Horde Rush and Pitchfork Panic show a "Coming soon" sign and cannot be selected; the cards are driven by the `available` flag in `level_registry.tres`
 
 **Given** the menu
@@ -1079,6 +1172,14 @@ So that I can choose what to do next.
 **Given** the Music or Sound toggle
 **When** it is switched
 **Then** the matching bus is muted or unmuted, `PlayerData.set_setting()` saves it, and the setting is restored on the next launch (FR46)
+
+**Given** the Fullscreen toggle
+**When** it is clicked or selected with Enter
+**Then** `WebPlatform.toggle_fullscreen()` is called from that input and the toggle shows the current state
+
+**Given** the real main menu
+**When** Ctrl+Shift+E is pressed
+**Then** the save export from Story 1.8 still works
 
 **Given** storage is not persistent
 **When** the menu opens
@@ -1111,7 +1212,7 @@ So that my reward is always on screen.
 
 **Given** the Pumpkin hat overlay and the Cute ghost pet (idle float 4f)
 **When** they are drawn
-**Then** they follow the style sheet and look right on every zombie pose, checked by a debug fit-check scene that shows the hat on every frame
+**Then** they follow the style sheet and look right on every zombie pose, checked by a debug fit-check scene that shows the hat on every frame and a named manual checklist written in the story file (what to look for, pass/fail per item)
 
 ### Story 4.4: Crypt Closet
 
@@ -1120,6 +1221,10 @@ I want a closet where I can see every hat and pet, buy the ones I can afford and
 So that my brains turn into something fun.
 
 **Acceptance Criteria:**
+
+**Given** a layout sketch of the Closet at 640×360 (two 3×3 grids with prices, tile states, preview zombie, brain counter, the tutorial arrow's positions)
+**When** it is reviewed
+**Then** Smuck approves it in the story file before the screen is built, with every text at 16 px or more
 
 **Given** the Crypt Closet (from the menu's Closet button)
 **When** it opens
@@ -1152,13 +1257,13 @@ So that I get a hat right away and understand what brains are for.
 
 **Given** a save whose `welcome_bonus_claimed` flag is false
 **When** the first completed (not quit) run's report card moves on (Play Again or Menu)
-**Then** the "Welcome gift!" card appears instead, grants +100 brains and sets the flag, and its only button, "Open the Crypt Closet", goes to the Closet (FR44, FR24)
+**Then** the "Welcome gift!" card appears instead, grants +100 brains and calls `PlayerData.set_flag(&"welcome_bonus_claimed", true)`, and its only button, "Open the Crypt Closet", goes to the Closet (FR44, FR24)
 **And** after that, later runs never show the gift again
 
 **Given** the Closet opened from the Welcome gift with `tutorial_seen` false
 **When** it opens
 **Then** an arrow points at the first affordable item, then at Buy, confirm and Wear in turn (FR45)
-**And** the guide ends and `tutorial_seen` is set when the first item is worn or when the kid leaves the Closet
+**And** the guide ends and `PlayerData.set_flag(&"tutorial_seen", true)` is called when the first item is worn or when the kid leaves the Closet
 
 **Given** a fresh save
 **When** it plays one Zombie Run, takes the gift and follows the guide
@@ -1168,11 +1273,37 @@ So that I get a hat right away and understand what brains are for.
 **When** it is read
 **Then** it uses plain words a 6-year-old can read (NFR9)
 
+> Design note: after the first purchase, the way to play with the new hat is Closet → (Esc) Menu → level card. That's 2 steps, and it's deliberate for the MVP. A "Play with it!" button after Wear is a post-MVP idea if playtests show kids get lost.
+
 ---
 
 ## Epic 5: MVP Polish & First Link
 
-The public MVP link: full audio pass, performance and save-integrity checks on 3 family computers, a kid playtest, fixes, publish.
+The public MVP link: UI art pass, full audio pass, performance and save-integrity checks on 3 family computers, a kid playtest, fixes, publish.
+
+### Story 5.0: MVP UI Art Pass
+
+As a kid,
+I want every screen to look as good as the zombie does,
+So that the whole game feels finished, not just the level.
+
+**Acceptance Criteria:**
+
+**Given** the GDD's MVP UI asset list
+**When** this story is done
+**Then** final art replaces the placeholders for: title logo; 3 level cards (2 with a "Coming soon" sign); HUD band frame; zombie hands (2 hands, 10 finger-glow states with pulsing outline, f/j bumps); chalkboard report card and "New best!" stamp; Closet grid tiles, the locked "?" silhouette and all 5 tile states; buttons (normal/focus/pressed); the brain icon; the Welcome Gift card; the pause panel; and the Music/Sound/Fullscreen toggle icons
+
+**Given** every asset
+**When** it is checked against the style sheet from Story 1.9
+**Then** it uses only palette colors, the 1 px outline rule and the pixel font, and matches the approved layout sketches from Stories 2.5, 2.9, 4.2 and 4.4 (NFR13)
+
+**Given** the zombie hands and HUD in grayscale
+**When** they are reviewed
+**Then** the active finger is still clear without color (NFR8)
+
+**Given** the new art in game
+**When** the MVP flow is walked end to end
+**Then** no screen still shows placeholder art, and Smuck records approval in the story file
 
 ### Story 5.1: MVP Audio Pass and Mix
 
@@ -1191,9 +1322,13 @@ So that the game feels alive and fun to play again.
 **When** it happens
 **Then** the matching sound plays through `AudioManager` (bonk on brain block, hug-poof on villager, chime and chalk-scratch on the report card, click on UI buttons, jingle on purchase)
 
+**Given** the screens and runs
+**When** they are entered
+**Then** the menu loop plays on the title, menu, Closet, Welcome Gift and report card; the Zombie Run loop plays during a run (paused runs keep it at a lower volume); and switching between them is a 0.5 s crossfade, with the same loop never restarting when it's already playing
+
 **Given** a full Zombie Run at 30+ WPM
 **When** it is played
-**Then** music sits below the effects, the wrong-key tick is quiet, and no sound stacks into noise (NFR14)
+**Then** music sits below the effects, the wrong-key tick is quiet, and no sound stacks into noise, checked against a named manual checklist written in the story file (what to look for, pass/fail per item) (NFR14)
 **And** with both toggles off, the whole game is still fully playable (FR46)
 
 ### Story 5.2: Readability, Color and Plain-Words Check
@@ -1241,6 +1376,18 @@ So that I can share the link with confidence.
 **When** 10 consecutive reloads and 10 tab closes mid-menu are done after earning brains and buying an item
 **Then** no data is lost (NFR4)
 
+**Given** a real Zombie Run (not the test screen) in Chrome and Firefox
+**When** Space, `'`, `/`, Backspace and Tab are pressed during a run and while paused
+**Then** the page never scrolls and quick-find never opens; in the menu afterwards, normal browser keys work again
+
+**Given** the target laptop's 1366×768 screen
+**When** the game runs windowed and in fullscreen
+**Then** it fills the window, and the 16 px text is readable from a normal seating distance (a note per browser goes in the story file)
+
+**Given** the Windows Desktop export
+**When** it is run on one Windows PC
+**Then** it starts, plays a Zombie Run and keeps its save across a restart (NFR8 fallback smoke check)
+
 **Given** 3 different family computers
 **When** someone opens the link
 **Then** the game loads and plays without help (NFR17)
@@ -1257,7 +1404,7 @@ So that I learn whether it's fun and fix what confuses them.
 **Given** a playtest plan in the story file (observer checklist, no coaching, questions for after play)
 **When** at least 1 kid aged 6–13 plays a first session
 **Then** the notes record whether they started a second Zombie Run unprompted and bought an item in the first session (core hypothesis)
-**And** the notes record accuracy from saved run history, any moment of confusion, and whether they found anything scary or (for 11–13) "babyish"
+**And** after the session the save is exported with Ctrl+Shift+E, and the notes record accuracy from its run history, any moment of confusion, and whether they found anything scary or (for 11–13) "babyish"
 
 **Given** a 6-year-old playtester (if available)
 **When** they play with the full keyboard
@@ -1286,7 +1433,7 @@ So that family and friends can play Zombies Teach Typing.
 
 **Given** the published link
 **When** it is shared
-**Then** the version is tagged in git, and a short plain-words "how to play" note (physical keyboard, desktop Chrome/Edge/Firefox) accompanies the link
+**Then** the release is published by pushing the `v1.0.0` tag (the CI deploys only from tags), and a short plain-words "how to play" note (physical keyboard, desktop Chrome/Edge/Firefox) accompanies the link
 
 ---
 
@@ -1348,9 +1495,9 @@ So that fast typing builds a bigger horde.
 
 **Acceptance Criteria:**
 
-**Given** `horde_rush` extending `LevelBase`, registered in `level_registry.tres` with `available = true`, and `data/levels/horde_rush.tres`
-**When** the main menu opens
-**Then** the Horde Rush card is selectable and starts a 5:00 run on a 5-lane field with zombies entering at the left and the house on the right edge (FR53, FR59)
+**Given** `horde_rush` extending `LevelBase`, registered in `level_registry.tres` with `available = false` (the menu still shows "Coming soon"), and `data/levels/horde_rush.tres`
+**When** it is started from the debug "Test level" menu with `level_id = &"horde_rush"`
+**Then** a 5:00 run starts on a 5-lane field with zombies entering at the left and the house on the right edge (FR53, FR59)
 
 **Given** a completed word
 **When** `on_target_completed` runs
@@ -1442,13 +1589,19 @@ So that no level becomes the one kids grind.
 **Given** a stress scene with 30 zombies on screen
 **When** it runs on the web build
 **Then** no frame exceeds 33 ms (NFR1); if it does, pooling is added for zombie copies
-**And** a kid playtest confirms the defender feels goofy, not frustrating
+**And** a kid playtest confirms the defender feels goofy, not frustrating, checked against a named manual checklist written in the story file (what to look for, pass/fail per item)
+
+**Given** tuning is done and the kid playtest passed
+**When** `horde_rush.available` is set to true
+**Then** the menu card is selectable, and the next version tag publishes it
 
 ---
 
 ## Epic 7: Adaptive Curriculum
 
 A new save's placement run sets a hidden tier, and later runs silently use the right keyboard rows (Zombie Run) and word lengths (Horde Rush). Full 1,500-word list with validated tier pools.
+
+New save fields go inside the profile, never at the top level, so Epic 11 needs no migration.
 
 ### Story 7.1: Tier Calculator with Hysteresis
 
@@ -1471,7 +1624,7 @@ So that practice always feels just right and never feels like a demotion.
 **When** GUT runs
 **Then** rising, holding in the hysteresis band, single drops, multi-tier drops, fewer than 5 runs and quit-run exclusion all pass
 
-**Given** saved run history from MVP play
+**Given** run history exported (Ctrl+Shift+E) from the playtest saves
 **When** per-level WPM is reviewed before this story closes
 **Then** the story file records whether per-level weighting is needed (GDD designer note), and any weighting is added to the config and tests
 
@@ -1564,6 +1717,8 @@ So that I learn one keyboard row at a time.
 
 Pitchfork Panic is selectable and playable: tier-appropriate paragraphs or generated sentences, a step-by-step chase from an accelerating mob, brain pickups, and Caught / Escaped! endings.
 
+New save fields go inside the profile, never at the top level, so Epic 11 needs no migration.
+
 ### Story 8.1: Paragraphs and Sentence Generator
 
 As a kid,
@@ -1593,6 +1748,8 @@ So that I can read ahead and keep my place.
 **Given** `ParagraphSource` (a `TargetSource`) for the profile's tier
 **When** text is shown
 **Then** the target area shows a 2-line window: typed characters green, the next character underlined, the next line dimmed; passages flow continuously and the next passage starts when one ends (FR69)
+**And** paragraph lines are at least 24 px tall and both lines plus the zombie hands fit in the 104 px band
+**And** passages are joined by a single Space: the last line ends with a visible space marker, typing Space starts the next passage, and that Space counts as a typed key
 
 **Given** Pitchfork Panic's `LevelConfig` (`case_sensitive = true`, `space_is_input = true`)
 **When** capitals, punctuation and Space are typed
@@ -1611,9 +1768,9 @@ So that typing faster really feels like escaping.
 
 **Acceptance Criteria:**
 
-**Given** `pitchfork_panic` extending `LevelBase`, registered with `available = true`, and `data/levels/pitchfork_panic.tres`
-**When** the main menu opens
-**Then** its card is selectable (FR74)
+**Given** `pitchfork_panic` extending `LevelBase`, registered with `available = false` (the menu still shows "Coming soon"), and `data/levels/pitchfork_panic.tres`
+**When** it is started from the debug "Test level" menu with `level_id = &"pitchfork_panic"`
+**Then** a chase run starts (the menu card is enabled in Story 8.7) (FR74)
 
 **Given** a running chase
 **When** a correct character is typed
@@ -1696,6 +1853,10 @@ So that every run ends in a fun crescendo.
 **Given** the economy parity rule
 **When** brains per minute are compared with Zombie Run at the same WPM
 **Then** Pitchfork Panic is within ±20% (NFR15), and the final numbers are recorded in the story file
+
+**Given** tuning is done
+**When** `pitchfork_panic.available` is set to true
+**Then** the menu card is selectable (FR74), and the next version tag publishes it
 
 ---
 
@@ -1888,7 +2049,7 @@ So that one kid's bad day never changes the other kid's game.
 
 **Given** two profiles
 **When** each plays runs, buys items and gets a welcome gift
-**Then** brains, owned and equipped items, flags, settings, bests, history, tier and used passages stay separate per profile (FR78)
+**Then** every profile field that exists at the time (brains, owned and equipped items, flags, settings, bests, history, and tier and used passages if Epics 7 and 8 have landed) stays separate per profile (FR78)
 **And** GUT tests cover switching profiles and confirm no data crosses between them
 
 ### Story 11.4: Zombie Name on Menu and Report Card

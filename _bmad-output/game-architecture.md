@@ -27,7 +27,7 @@ platform: 'Web (HTML5, GitHub Pages) primary; Windows desktop fallback'
 - **Versioned, profile-shaped JSON save** in `user://`, with atomic writes, a backup, ordered migrations and coalesced writes, owned by `SaveService`/`PlayerData` (ADR-2, ADR-3).
 - **"Logic leads, visuals chase":** game state updates on the same frame as a correct key; animations retarget and never gate input (17 ms feedback target).
 - **Five autoloads** (`WebPlatform`, `SaveService`, `PlayerData`, `AudioManager`, `Router`), local typed signals, and no global event bus (ADR-5).
-- **GitHub Actions CI:** GUT tests → web export → GitHub Pages deploy (ADR-4).
+- **GitHub Actions CI:** GUT tests → web export → GitHub Pages deploy on version tags only (ADR-4).
 
 **Project Structure:** Hybrid organization (type folders with mirrored feature folders), with 16 core systems mapped to locations.
 
@@ -74,7 +74,7 @@ platform: 'Web (HTML5, GitHub Pages) primary; Windows desktop fallback'
 - **Frame rate:** 60 FPS steady; no frame > 33 ms over a full 2:00 Zombie Run with 12 conga followers (post-MVP: 30-zombie stress scene)
 - **Input latency:** correct keystroke → visible feedback on the next rendered frame (≤ 17 ms); animations never gate input (≈5+ keys/s)
 - **Input edge cases:** key-repeat (echo) events are ignored entirely (neither progress nor error); events with no printable character (`unicode == 0`, dead keys, IME composition) are ignored; matching is by typed character, not physical key
-- **Resolution:** 640×360 logical, integer scaling where possible, 32-color palette, pixel-perfect sprites
+- **Resolution:** 640×360 logical, fractional scaling with nearest filtering plus a fullscreen toggle, 32-color palette, pixel-perfect sprites
 - **Load:** first load ≤ 10 s @ 25 Mbit/s (the governing budget, ≈30 MB compressed on the wire); cached ≤ 3 s; hard cap on total download ≤ 500 MB; measured in Epic 1
 - **Save integrity:** zero loss across 10 reloads + 10 tab closes; writes at run end, quit, purchase/equip, settings change
 - **Audio (web):** playback uses Web Audio samples; per-bus volume/mute supported, bus effects not relied upon
@@ -110,7 +110,7 @@ platform: 'Web (HTML5, GitHub Pages) primary; Windows desktop fallback'
 No starter template. The existing project is used, with these settings corrected in Epic 1:
 
 - `display/window/size/viewport_width = 640`, `viewport_height = 360`
-- `display/window/stretch/mode = "viewport"`, `aspect = "keep"`, `scale_mode = "integer"`
+- `display/window/stretch/mode = "viewport"`, `aspect = "keep"`, `scale_mode = "fractional"` (nearest filtering keeps pixels sharp; slight unevenness at non-whole scales is accepted so 1366×768 laptops fill the window instead of rendering at 1×)
 - `rendering/textures/canvas_textures/default_texture_filter = Nearest`
 - `rendering/2d/snap/snap_2d_transforms_to_pixel = true`
 - Remove the unused `[dotnet]` section; 3D physics setting is irrelevant (no 3D)
@@ -120,7 +120,7 @@ No starter template. The existing project is used, with these settings corrected
 
 | Component | Solution | Notes |
 | --------- | -------- | ----- |
-| Rendering | Compatibility renderer (OpenGL ES 3 / WebGL 2), 2D canvas | Pixel-perfect via viewport stretch + integer scale + nearest filtering |
+| Rendering | Compatibility renderer (OpenGL ES 3 / WebGL 2), 2D canvas | Pixel art via viewport stretch + fractional scale + nearest filtering |
 | Physics | Not used | No collisions needed; movement is scripted/tweened |
 | Audio | AudioServer with buses; web uses sample playback | Per-bus volume/mute only; no bus effects; audio starts after first user gesture |
 | Input | InputEvent pipeline (`_input` / `_unhandled_input`), `InputEventKey.unicode`, `echo` | Typing reads characters, not InputMap actions; menus use InputMap (`ui_*`) |
@@ -165,14 +165,14 @@ No starter template. The existing project is used, with these settings corrected
 | D6 | Cosmetic Anchoring | `SpriteAnchors` resource (head point per animation frame) + `HatSlot` following `frame_changed` | — | Any hat fits every pose without redrawing sprites |
 | D7 | Audio | `Master → Music / SFX` buses; pooled SFX players; throttling centralized in `AudioManager`; OGG music, WAV SFX | — | Works within web sample playback; one place for audio rules |
 | D8 | Hosting & Deploy | GitHub Pages (public repo) via GitHub Actions | — | Automatic gzip for load budget; avoids itch.io iframe storage risk |
-| D9 | Testing & CI | GUT in `addons/gut`; GitHub Actions: official Godot headless → GUT → web export → Pages deploy | GUT 9.7.1, Godot 4.7.2 (verified 2026-09-27) | Pure logic is unit-tested; feel is playtested |
+| D9 | Testing & CI | GUT in `addons/gut`; GitHub Actions: official Godot headless → GUT → web export → Pages deploy (tags only) | GUT 9.7.1, Godot 4.7.2 (verified 2026-09-27) | Pure logic is unit-tested; feel is playtested |
 | D10 | Asset Loading | Per-scene `preload`; no streaming or threaded loading | — | Small game; single-threaded web build |
 
 ### State Management
 
 **Approach:** Autoload services for persistent state; enum state machine for the run.
 
-- `PlayerData` is the single in-memory source of truth for the active profile (brains, owned/equipped cosmetics, flags, settings, bests, run history). All mutations go through its methods (`add_brains()`, `buy_item()`, `equip()`, `record_run()`, `set_setting()`), each of which emits a typed change signal and requests a save. No other code writes save fields directly.
+- `PlayerData` is the single in-memory source of truth for the active profile (brains, owned/equipped cosmetics, flags, settings, bests, run history). All mutations go through its methods (`add_brains()`, `buy_item()`, `equip()`, `record_run()`, `set_setting()`, `set_flag()`; flags are read with `get_flag()`), each of which emits a typed change signal and requests a save. No other code writes save fields directly.
 - The run lifecycle lives in `RunFrame` as an enum state machine:
   `WAITING_FIRST_KEY → RUNNING ⇄ PAUSED → COUNTDOWN → RUNNING … → ENDING → DONE`
   - `WAITING_FIRST_KEY`: first target shown, clock stopped, "Type the letter to start!"
@@ -261,6 +261,7 @@ func get_brains_earned() -> int
 
 - **Run record:** `{ timestamp, level_id, duration_s, keys_typed, errors, wpm, accuracy, brains, letter_pool_or_tier, per_key: { "f": [attempts, errors, { "g": 2, "d": 1 }] }, end_reason }`. The history is capped at the newest 500 runs. Quit runs are not recorded; the brains from a quit run are still saved.
 - **Write strategy:** serialize → write `save.tmp` → rename it over `save.json`, keeping the previous file as `save.bak`. On load, fall back to `.bak` if the main file fails to parse. If renaming proves unreliable on the web file system in Epic 1, switch to direct write plus backup.
+- **Save export:** `SaveService.export_json() -> String` returns the current save text for the save export (see Debug tooling). Only `SaveService` reads files; `WebPlatform` delivers the bytes.
 - **When to save:** run end, quitting a run, purchase or equip, settings change, `WebPlatform.visibility_hidden`, and `NOTIFICATION_WM_CLOSE_REQUEST`.
 - **Coalescing:** `SaveService.request_save()` sets a dirty flag and schedules one write with `call_deferred`, so several changes in the same frame (buy then equip) produce a single write. `visibility_hidden` and close requests write immediately.
 - **Migration:** `SaveService` runs ordered `migrate_N_to_N1(data: Dictionary) -> Dictionary` functions up to `CURRENT_SCHEMA`. Every migration has a GUT test with a fixture file.
@@ -306,17 +307,23 @@ func get_brains_earned() -> int
 
 - Emits `focus_lost` and `visibility_hidden` from browser blur and visibility events, via `JavaScriptBridge` callbacks.
 - **Key swallowing:** during a run, Space, `'`, `/`, Backspace and Tab must not trigger browser actions. Epic 1 checks whether the Godot canvas already prevents these defaults; if not, `WebPlatform` installs a JS `keydown` listener that calls `preventDefault()` for those keys while `WebPlatform.capture_keys = true`.
+- **`capture_keys` lifecycle:** defaults to false. `RunFrame` sets it true in `_ready()` and false in `_exit_tree()`, so keys are swallowed for the whole run (including pause and countdown) and never in menus.
+- **Fullscreen:** `toggle_fullscreen()` / `is_fullscreen()` wrap `DisplayServer.window_set_mode`. On web they must be called from an input callback (browser user-gesture rule). The state is not saved; browsers always start windowed.
+- **Download:** `offer_download(bytes: PackedByteArray, file_name: String)` uses `JavaScriptBridge.download_buffer()` on web; on desktop it opens the `user://` folder with `OS.shell_open()`.
 - Exposes `is_storage_persistent()`.
 
 ### Hosting, Build & CI
 
 - **Host:** GitHub Pages from a public repository; the web export is published by GitHub Actions and Pages serves it gzip-compressed.
 - **Export:** a `Web` preset with Thread Support off and no PWA. A `Windows Desktop` preset is kept as a fallback.
-- **CI workflow** (`.github/workflows/build.yml`) on each push to `main`:
+- **CI workflow** (`.github/workflows/build.yml`):
   1. Download the official Godot 4.7.2 Linux headless build and export templates.
   2. Import the project headlessly, then run GUT (`-s addons/gut/gut_cmdln.gd`); fail the build on any test failure.
   3. Export the Web preset.
   4. Deploy to GitHub Pages.
+  - On each push to `main` and each pull request: steps 1–3, and the web build is uploaded as a workflow artifact. Nothing is deployed.
+  - On a pushed tag matching `v*`: steps 1–4.
+  - Publishing is a deliberate act (`git tag vX.Y.Z && git push --tags`), so unfinished levels on `main` never reach kids.
 - **Action versions:** Epic 1 story 1 pins and verifies the current major versions of `actions/checkout`, `actions/upload-pages-artifact` and `actions/deploy-pages`.
 - **Load-budget check:** Epic 1 records the compressed transfer size and first-load time. If the time is over 10 s, a custom export template with 3D disabled goes on the backlog.
 
@@ -331,7 +338,7 @@ func get_brains_earned() -> int
 - **ADR-1: Levels never read input (D3).** *Context:* 3 levels must share identical typing rules. *Decision:* a single `TypingInput` + `TypingSession` feeds levels through `LevelBase` callbacks. *Consequence:* a new level only implements `LevelBase`; typing-rule fixes happen in one place.
 - **ADR-2: Profile-shaped save from v1 (D4).** *Context:* Epic 11 adds profiles. *Decision:* `profiles` map with one entry in the MVP. *Consequence:* no data migration needed for profiles; one extra indirection in `PlayerData`.
 - **ADR-3: JSON saves, Resource static data (D4/D5).** *Context:* saves must survive code changes; static data benefits from the Inspector. *Decision:* split the formats by purpose. *Consequence:* the save needs manual serialization code; static data is type-checked.
-- **ADR-4: GitHub Pages over itch.io (D8).** *Context:* 10 s load budget; itch.io iframe can block IndexedDB. *Decision:* GitHub Pages via Actions. *Consequence:* public repository; no itch.io discoverability (acceptable: friends-and-family distribution).
+- **ADR-4: GitHub Pages over itch.io (D8).** *Context:* 10 s load budget; itch.io iframe can block IndexedDB. *Decision:* GitHub Pages via Actions. *Consequence:* public repository; no itch.io discoverability (acceptable: friends-and-family distribution). Deploys run only from version tags, so the public link changes only on purpose.
 - **ADR-5: No global EventBus (D2).** *Context:* small game, AI agents implementing features. *Decision:* signals stay local (parent/child, or on the owning autoload). *Consequence:* the flow is explicit; cross-screen communication goes through `Router` payloads and `PlayerData` signals.
 
 ## Cross-cutting Concerns
@@ -526,13 +533,15 @@ func _on_brains_changed(total: int, _delta: int) -> void:
   - F6: end the run now
   - F7: toggle verbose typing logs
   - F8: reset the save (asks for confirmation)
-- **Fixed seed:** `RunFrame.debug_seed` (exported; `-1` means random) replays the same letter sequence.
+  - F9: export the save (same as below)
+- **Fixed seed:** a `debug_seed` set in the overlay (`-1` means random) is passed as the run payload's `seed`, replaying the same letter sequence (Story 2.10).
+- **Save export (release-safe):** Ctrl+Shift+E on the main menu downloads `zts-save-YYYYMMDD.json` (`SaveService.export_json()` → `WebPlatform.offer_download()`). It is the only debug-style feature kept in release builds, because playtest metrics need it. It is read-only and shows no UI.
 - **Engine tools:**
   - The Godot editor debugger and profiler for desktop runs.
   - Browser developer tools (Performance tab) for the web frame-time check in Epic 5.
   - The Godot MCP server's `get_debug_output` for AI-driven runs.
 
-**Activation:** F3 toggles the overlay. Everything is gated by `OS.is_debug_build()`. The overlay scene is instanced only in debug builds, so release web exports carry none of the cheat code paths.
+**Activation:** F3 toggles the overlay. Everything except the save export is gated by `OS.is_debug_build()`. The overlay scene is instanced only in debug builds, so release web exports carry none of the cheat code paths.
 
 ## Project Structure
 
@@ -546,7 +555,7 @@ func _on_brains_changed(total: int, _delta: int) -> void:
 
 ```
 zombies-teach-typing/
-├── .github/workflows/build.yml      # CI: GUT → web export → GitHub Pages
+├── .github/workflows/build.yml      # CI: GUT → web export → GitHub Pages (tags only)
 ├── addons/
 │   └── gut/                         # GUT 9.7.1 (editor/test only; excluded from export)
 ├── assets/                          # Raw imported media only (no .tres/.gd)
@@ -1064,10 +1073,10 @@ godot --headless --path . --export-release "Web" build/web/index.html
 
 ### First Steps
 
-1. **Fix project settings (Epic 1):** 640×360 viewport, `viewport` stretch + `keep` aspect + `integer` scale, Nearest texture filter, pixel snap; remove `[dotnet]`; set `untyped_declaration` warnings to Error.
+1. **Fix project settings (Epic 1):** 640×360 viewport, `viewport` stretch + `keep` aspect + `fractional` scale, Nearest texture filter, pixel snap; remove `[dotnet]`; set `untyped_declaration` warnings to Error.
 2. **Create export presets:** Web (Thread Support off, no PWA) and Windows Desktop, with the export exclusions from Project Structure.
 3. **Install GUT 9.7.1** and add one passing smoke test.
-4. **Add `.github/workflows/build.yml`** (Godot 4.7.2 headless → GUT → web export → Pages), pinning the current action versions.
+4. **Add `.github/workflows/build.yml`** (Godot 4.7.2 headless → GUT → web export → Pages deploy on `v*` tags only), pinning the current action versions.
 5. **Create the folder skeleton and the 5 autoloads** in the specified order, with `Log` and `GameConstants`.
 6. **Publish the hello-world build** and record the first-load time and compressed size against the 10 s budget.
 7. Optional: configure Context7 and GoPeak per AI Tooling above.

@@ -29,3 +29,14 @@
 - **Open-items review:** 5 assumptions (A1–A5) + 5 designer notes, all tuning or playtest items tied to specific epics; **0 phase-blockers** for architecture.
 - **Polish:** no doc_standards configured; manual coherence pass done. **Narrative handoff:** not applicable (general type, no narrative flag; the brief rules out story). **External handoffs:** none configured.
 - **Status → final (v1.0).**
+
+## 2026-09-27 — Course correction (gds-correct-course)
+
+- **Trigger:** implementation-readiness-report-2026-09-27.md (NEEDS WORK, light). Full proposal: `planning-artifacts/sprint-change-proposal-2026-09-27.md`. All edits approved by Smuck in incremental review.
+- **GDD clarifications applied:**
+  - **Scaling (U1):** "whole numbers where possible" → fractional scaling with nearest filtering to fill the browser window, plus a Fullscreen toggle on the main menu. Reason: at 1366×768 the browser canvas is ~620–660 px tall, so integer scaling rendered at 1×.
+  - **Main menu (U1):** adds a Fullscreen toggle next to Music and Sound.
+  - **Pause panel (U4):** Music and Sound toggles also appear on the pause panel (kids want to mute mid-run).
+  - **Readability (U2):** the 32 px minimum applies to letter and word targets; Pitchfork Panic's 2-line paragraph text is ≥ 24 px so both lines and the zombie hands fit the 104 px HUD band.
+  - **Passage join (G7):** passages are joined by a single typed Space (counts as a key); no new input rule needed.
+- **Status:** stays final (clarifications only; no scope change).
