@@ -15,7 +15,7 @@
 ## Deferred from: dev of story-1-3 (2026-10-02)
 
 - Godot imports files inside `build/` (e.g. `build/web/index.icon.png.import` exists since the 1.2 export). Harmless: `build/` is gitignored and export-excluded. Add an empty `build/.gdignore` (recreated after each clean) or export outside the project if it ever slows imports.
-- Font is Press Start 2P (wide, arcade look) because Pixelify Sans failed the O/0 check. If Story 1.9 or 5.0 wants a rounder face, any replacement must pass `test_ui_theme.gd` and have a native size that divides 16/24/32/64.
+- ~~Font is Press Start 2P (wide, arcade look) because Pixelify Sans failed the O/0 check. If Story 1.9 or 5.0 wants a rounder face, any replacement must pass `test_ui_theme.gd` and have a native size that divides 16/24/32/64.~~ Settled at the Story 1.9 art gate (2026-10-03): Smuck approved keeping Press Start 2P.
 
 ## Deferred from: code review of 1-3-screen-router-and-title-screen (2026-10-02)
 
@@ -98,3 +98,18 @@
 - Router tests each add an overlay instance, and `test_debug_build_adds_one_hidden_overlay` assumes a debug runner.
 - "Worst 10 s" is pinned by one huge frame after a hidden tab is restored; F-keys may conflict with typing screens in Story 2.1.
 - F8 reset on a read-only (newer-schema) save clears `_read_only`; the next write copies the newer-build `save.json` to `save.bak`, and a second reset overwrites that only copy. Kept as specified (spec 2.3), dev-only trigger. Revisit if profile/save migration across builds becomes a real playtest scenario.
+
+## Deferred from: dev of story-1-9 (2026-10-03)
+
+- Art gate approved by Smuck (palette, Press Start 2P, zombie idle/walk, villager wave, style sheet). The 8–12 fps rule stands, including 8 fps for 2-frame idles; no slower-idle exception.
+- On `night` and `chalkboard` backgrounds the ink outline (#1E1428) is barely distinct from the backdrop; characters read by their fills. Accepted at the gate. Revisit in Story 3.6 / 8.6 (night levels) if characters get lost against dark scenery.
+- Brute size class: 48×48 is recorded in the style sheet, but "Horde Rush copies = player sprite scaled" gives uneven pixels at 1.5×. Story 6.3 decides between redrawn 48×48 brutes and an integer scale.
+- `process/fix_alpha_border=true` (Godot default) is on in the sprite `.import` files. It only changes the RGB of fully transparent pixels and is harmless with hard alpha and Nearest; untested.
+- The art review scene (`scenes/debug/art_review.tscn`) ships in release exports (all resources) but nothing routes to it. Remove or exclude it with the Keyboard Test screen before the MVP link if export size matters.
+
+## Deferred from: code review of 1-9-art-style-sheet-and-prototype-sprites-review-gate (2026-10-03)
+
+- Esc in `scripts/debug/art_review.gd` calls `get_tree().quit()`, which does nothing in a web build. Scene is unrouted and dev-only.
+- `tests/unit/test_art_style_sheet.gd` checks palette hexes by substring only, so a wrong name or index in a table row passes. `palette_32.png` is the master data.
+- The 32 palette hexes are duplicated in `tools/gen_art_prototypes.gd` and two tests, and no test reads `DESIGN.md`. Intentional independent oracle; revisit if the palette changes.
+- `fix_alpha_border` and Nearest filtering are not asserted in the sprite `.import` tests (see the dev note above).
