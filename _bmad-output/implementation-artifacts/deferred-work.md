@@ -2,7 +2,7 @@
 ## Deferred from: code review of story-1-1 (2026-10-02)
 
 - `test_debug_disabled_in_release` does not verify that nothing printed; only the `is_level_enabled` seam is tested.
-- `Log.verbose_typing` is declared but not consumed; wire it up when per-keystroke logging arrives (Epic 2).
+- ~~`Log.verbose_typing` is declared but not consumed; wire it up when per-keystroke logging arrives (Epic 2).~~ Done in 2.1: `TypingInput` logs each emitted character at DEBUG while it is on.
 - `directory_rules={"res://addons": 0}` not persisted in `project.godot`; relies on the Godot 4.7 default.
 - `Log.debug` evaluates its `msg` argument even when DEBUG is disabled; keep calls out of hot paths.
 - GUT plugin is enabled in `project.godot`; confirm the web export (Story 1.2) excludes `addons/gut`.
@@ -96,7 +96,7 @@
 - `reset_to_defaults()` writes via the deferred `request_save()`: a tab close in the same frame could lose it, and a failed write has no UI feedback.
 - `PlayerData.reset_all()` does not re-apply settings (e.g. audio mute) to other systems; revisit when a settings UI exists.
 - Router tests each add an overlay instance, and `test_debug_build_adds_one_hidden_overlay` assumes a debug runner.
-- "Worst 10 s" is pinned by one huge frame after a hidden tab is restored; F-keys may conflict with typing screens in Story 2.1.
+- "Worst 10 s" is pinned by one huge frame after a hidden tab is restored; ~~F-keys may conflict with typing screens in Story 2.1.~~ Resolved in 2.1: `TypingInput` ignores F1–F35, and the overlay reads them first in `_input`.
 - F8 reset on a read-only (newer-schema) save clears `_read_only`; the next write copies the newer-build `save.json` to `save.bak`, and a second reset overwrites that only copy. Kept as specified (spec 2.3), dev-only trigger. Revisit if profile/save migration across builds becomes a real playtest scenario.
 
 ## Deferred from: dev of story-1-9 (2026-10-03)
@@ -113,3 +113,16 @@
 - `tests/unit/test_art_style_sheet.gd` checks palette hexes by substring only, so a wrong name or index in a table row passes. `palette_32.png` is the master data.
 - The 32 palette hexes are duplicated in `tools/gen_art_prototypes.gd` and two tests, and no test reads `DESIGN.md`. Intentional independent oracle; revisit if the palette changes.
 - `fix_alpha_border` and Nearest filtering are not asserted in the sprite `.import` tests (see the dev note above).
+
+## Deferred from: dev of story-2-1 (2026-10-03)
+
+- AltGr limitation: on Windows AltGr arrives as Ctrl+Alt, so AltGr characters (e.g. `@` on German layouts) are ignored by `TypingInput`'s modifier rule. Fine for the lowercase-letter MVP; revisit for Epic 8 (Pitchfork Panic punctuation). Not checked in a real browser yet.
+- `TypingInput.configure(null)`'s assert + `Log.error` guard is covered by code review only; calling it in a GUT test would trip the debug `assert`.
+- Story 2.4: the `RunFrame` run is the first end-to-end keyboard check of `TypingInput` (no scene or caller exists until then). Run-screen buttons must be `FOCUS_NONE` so Space/Enter can't press them.
+
+## Deferred from: code review of story-2-1-typing-input-filtering (2026-10-03)
+
+- `TypingInput` keeps the Caps Lock streak and `_caps_suspected` across focus loss or pause; only `configure()` resets them. Handle in Story 2.4/2.7.
+- `TypingInput._unhandled_input` marks printable keys handled whenever the node is in the tree, and an unconfigured node behaves as lowercase. Add an enabled / active-run gate in Story 2.4.
+- Web Caps Lock state is not read directly (no `getModifierState`); the hint relies on the capital streak only. Revisit in web QA.
+- Caps Lock hint counts Shift-held capitals (e.g. "NASA") as evidence of Caps Lock, as AC 6 specifies. Kept by decision; revisit after playtests (option: count only capitals typed without Shift).

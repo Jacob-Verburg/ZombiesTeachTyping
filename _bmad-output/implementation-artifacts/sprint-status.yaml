@@ -54,8 +54,8 @@ development_status:
   1-9-art-style-sheet-and-prototype-sprites-review-gate: done
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-typing-input-filtering: backlog
+  epic-2: in-progress
+  2-1-typing-input-filtering: done
   2-2-judgment-session-and-letter-bag: backlog
   2-3-stats-calculator-and-run-result: backlog
   2-4-run-frame-level-contract-and-test-level: backlog
