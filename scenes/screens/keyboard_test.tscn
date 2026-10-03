@@ -35,7 +35,7 @@ offset_bottom = 200.0
 grow_horizontal = 2
 grow_vertical = 2
 alignment = 1
-theme_override_constants/separation = 8
+theme_override_constants/separation = 4
 
 [node name="Heading" type="Label" parent="Box"]
 layout_mode = 2
@@ -43,7 +43,6 @@ theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
 theme_override_font_sizes/font_size = 24
 text = "Keyboard Test"
 horizontal_alignment = 1
-
 
 [node name="InstructionLabel" type="Label" parent="Box"]
 unique_name_in_owner = true
@@ -94,6 +93,26 @@ theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
 text = "Fullscreen: ?"
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="BrainsLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "Brains: ?"
+horizontal_alignment = 1
+
+[node name="SaveStatusLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "Last save: never"
+horizontal_alignment = 1
+
+[node name="BrainButton" type="Button" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+text = "+1 brain"
 
 [node name="FullscreenButton" type="Button" parent="Box"]
 unique_name_in_owner = true

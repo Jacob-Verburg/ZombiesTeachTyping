@@ -43,14 +43,14 @@
 - The temporary Keyboard Test button on the main menu ships in release builds (desktop Download opens Explorer, Fullscreen flips the window). Gate on `OS.is_debug_build()` or remove the screen in 1.8/5.0.
 - `test_unlock_is_idempotent` (passes with or without the guard) and the `is_fullscreen` test (expected value computed with the same expression) can't fail. Needs the same playing/mode seam as the 1.4 deferrals.
 - One tab switch fires both `focus_lost` and `visibility_hidden`. Story 2.7's auto-pause must be idempotent (or listen to one signal).
-- Story 1.5 browser evidence not recorded: Firefox per-key table (quick-find on `'` and `/`, Tab focus, Backspace), Esc-in-fullscreen in Chrome/Edge/Firefox (incl. whether the first Esc reaches the game; UX open question 4), and `is_storage_persistent()` in normal and private windows. The JS key listener ships enabled as a hedge. Reason: Firefox not installed; verify alongside Story 1.7, which needs Firefox anyway.
+- Story 1.5 browser evidence not recorded: Firefox per-key table (quick-find on `'` and `/`, Tab focus, Backspace), Esc-in-fullscreen in Chrome/Edge/Firefox (incl. whether the first Esc reaches the game; UX open question 4), and `is_storage_persistent()` in normal and private windows. The JS key listener ships enabled as a hedge. Reason: Firefox not installed; verify alongside Story 1.7, which needs Firefox anyway. **Story 1.7 (2026-10-03):** Esc-in-fullscreen (Chrome, Edge) and `is_storage_persistent()` in normal/private windows checked by Smuck and reported fine. Still open: the Firefox per-key table and Firefox Esc-in-fullscreen (Firefox still not installed).
 
 ## Deferred from: dev of story-1-6 (2026-10-03)
 
-- **Web: a write made inside the `visibility_hidden` handler may not reach IndexedDB.** Godot syncs `user://` to IndexedDB asynchronously from its main loop, and a hidden tab stops `requestAnimationFrame`. `SaveService` writes synchronously on `visibility_hidden`, but nothing proves the sync completes before a tab close. Story 1.7's 10-reload / 10-tab-close test (NFR4) must measure it, along with whether `DirAccess.rename_absolute` is reliable on the web file system (the direct-write fallback logs `rename failed` if not). If data is lost, the fix belongs in `WebPlatform` (Boundary 3).
+- ~~**Web: a write made inside the `visibility_hidden` handler may not reach IndexedDB.** Godot syncs `user://` to IndexedDB asynchronously from its main loop, and a hidden tab stops `requestAnimationFrame`. `SaveService` writes synchronously on `visibility_hidden`, but nothing proves the sync completes before a tab close. Story 1.7's 10-reload / 10-tab-close test (NFR4) must measure it, along with whether `DirAccess.rename_absolute` is reliable on the web file system (the direct-write fallback logs `rename failed` if not). If data is lost, the fix belongs in `WebPlatform` (Boundary 3).~~ Measured in Story 1.7 (Chrome + Edge, 10 reloads + 10 tab closes each, including fast and mid-menu closes): no data lost, no `rename failed`; rename is reliable, SaveService unchanged.
 - The `save_now()` failure paths (tmp write failure, rename failure → direct write, backup copy failure) are covered by code review only; GUT can't easily make `FileAccess`/`DirAccess` fail on desktop. A small IO seam would make them testable if a real failure ever shows up.
 - Desktop `WebPlatform.offer_download()` (see 1.5 deferral): when 1.8 writes the export to `user://`, route the file write through `SaveService` so the "only `SaveService` touches files" rule holds.
-- Pre-existing: `tests/unit/test_keyboard_test.gd` uses the deprecated GUT `wait_frames` (the suite's single "Deprecated" line). Swap for `wait_process_frames` or `wait_physics_frames` when that file is next touched.
+- ~~Pre-existing: `tests/unit/test_keyboard_test.gd` uses the deprecated GUT `wait_frames` (the suite's single "Deprecated" line). Swap for `wait_process_frames` or `wait_physics_frames` when that file is next touched.~~ Done in Story 1.7.
 
 ## Deferred from: code review of story-1-6-versioned-save-file (2026-10-03)
 
@@ -60,4 +60,17 @@
 - A UTF-8 BOM in a hand-edited or imported save fails to parse. Strip it in Story 1.8's import.
 - `SaveService.load_save()` is public and does not assign `_data`. Make it private once nothing else calls it.
 - The close-request hook misses `get_tree().quit()`, mobile pause and focus-out. Revisit with a Quit button or a mobile target.
-- Web: two tabs share one IndexedDB (last writer wins), `run_history` is unbounded, and storage-unavailable (private window, quota) is only logged. Cover in Story 1.7 browser evidence and Epic 5.
+- Web: two tabs share one IndexedDB (last writer wins), `run_history` is unbounded, and storage-unavailable (private window, quota) is only logged. Cover in Story 1.7 browser evidence and Epic 5. **Story 1.7:** two-tab and private-window checks done by Smuck, reported fine (no surprises). `run_history` bounds and quota handling still open for Epic 5.
+
+## Deferred from: dev of story-1-7 (2026-10-03)
+
+- **AC 2's second browser was Edge, not Firefox** (Smuck's call; Firefox still not installed). Edge runs on Chromium like Chrome, so Firefox's IndexedDB/MEMFS persistence (NFR4) is still unmeasured. Re-run the 10-reload / 10-tab-close check in Firefox when it is installed, together with the 1.2 and 1.5 Firefox checks.
+- NFR4 browser results were reported as an overall pass ("all good"), with no per-round counter values. If a later regression needs a baseline, re-run with a per-round table.
+- The storage notice lives on the placeholder main menu. Story 4.2's real menu must keep `%StorageNotice` (bottom-right parchment note, `mouse_filter` ignore, hidden when `WebPlatform.is_storage_persistent()`).
+- The temporary brain counter and "Last save" label on the Keyboard Test screen write to the real save (a dev wallet). Remove them with the screen (see the 1.5 deferral about gating it out of release builds).
+
+## Deferred from: code review of 1-7-player-data-service-and-reload-proof-counter (2026-10-03)
+
+- `add_brains` has no int64 overflow guard (`get_brains() + amount` can wrap with a huge amount). Theoretical: no caller passes such values. Clamp if Epic 2/4 ever adds bulk rewards.
+- `PlayerData` emits no "profile replaced" signal, so UI bound to `brains_changed` goes stale when Story 1.8's F8 reset (or Epic 11's profile switch) swaps `SaveService` data. Add one when 1.8 lands.
+- `add_brains` keeps counting and emitting `brains_changed` on a read-only (newer-schema) save, so nothing persists. Accepted for the dev-only counter in Story 1.7; revisit when real brain rewards ship (Epic 2/4).

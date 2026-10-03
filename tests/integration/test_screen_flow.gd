@@ -9,7 +9,7 @@ const FLOW_BUTTONS: Dictionary = {
 	"REPORT_CARD": ["%PlayAgainButton", "%MenuButton"],
 	"WELCOME_GIFT": ["%OpenClosetButton"],
 	"CRYPT_CLOSET": ["%BackButton"],
-	"KEYBOARD_TEST": ["%FullscreenButton", "%DownloadButton", "%BackButton"],
+	"KEYBOARD_TEST": ["%FullscreenButton", "%DownloadButton", "%BackButton", "%BrainButton"],
 }
 
 

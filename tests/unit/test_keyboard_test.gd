@@ -1,5 +1,6 @@
 extends GutTest
 ## Keyboard test screen (Story 1.5): capture_keys lifecycle, echo rule, focus-free buttons.
+## Brain counter (Story 1.7): read-only on the live PlayerData; the button is never pressed here.
 
 const SCENE_PATH: String = "res://scenes/screens/keyboard_test.tscn"
 const KeyboardTestScript := preload("res://scripts/screens/keyboard_test.gd")
@@ -38,7 +39,7 @@ func test_freeing_while_in_tree_restores_capture_keys() -> void:
 	var node: Control = _instance()
 	add_child(node)
 	node.queue_free()
-	await wait_frames(2)
+	await wait_process_frames(2)
 	assert_false(WebPlatform.capture_keys)
 
 
@@ -74,7 +75,7 @@ func test_echo_keeps_only_the_last_characters() -> void:
 func test_buttons_do_not_take_focus() -> void:
 	var node: Control = _instance()
 	add_child_autofree(node)
-	for path: String in ["%FullscreenButton", "%DownloadButton", "%BackButton"]:
+	for path: String in ["%FullscreenButton", "%DownloadButton", "%BackButton", "%BrainButton"]:
 		var button: Button = node.get_node(path) as Button
 		assert_eq(button.focus_mode, Control.FOCUS_NONE, path)
 
@@ -84,3 +85,26 @@ func test_apply_key_ignores_modifier_combos() -> void:
 		var event: InputEventKey = _key(KEY_A, 97)
 		event.set(modifier, true)
 		assert_eq(KeyboardTestScript.apply_key("x", event), "x", modifier)
+
+
+func test_brain_counter_shows_player_data_total() -> void:
+	var node: Control = _instance()
+	add_child_autofree(node)
+	var label: Label = node.get_node("%BrainsLabel") as Label
+	assert_eq(label.text, "Brains: %d" % PlayerData.get_brains())
+
+
+func test_brain_counter_follows_the_signal_handler() -> void:
+	var node: Control = _instance()
+	add_child_autofree(node)
+	node.call("_on_player_data_brains_changed", 123, 1)
+	assert_eq((node.get_node("%BrainsLabel") as Label).text, "Brains: 123")
+
+
+func test_disconnects_from_player_data_when_freed() -> void:
+	var before: int = PlayerData.brains_changed.get_connections().size()
+	var node: Control = _instance()
+	add_child_autofree(node)
+	assert_eq(PlayerData.brains_changed.get_connections().size(), before + 1)
+	remove_child(node)
+	assert_eq(PlayerData.brains_changed.get_connections().size(), before)

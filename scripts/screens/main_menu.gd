@@ -1,5 +1,9 @@
 extends Control
-## Placeholder main menu (Story 1.3): walks the FR24 screen flow. Story 4.2 builds the real one.
+## Placeholder main menu (Story 1.3): walks the FR24 screen flow. Story 4.2 builds the real one
+## and must keep the FR27 storage notice (Story 1.7): a non-interactive corner note shown only when
+## WebPlatform.is_storage_persistent() is false.
+
+const STORAGE_NOTICE_TEXT: String = "Progress may not be saved in this browser mode"
 
 
 func _ready() -> void:
@@ -9,7 +13,13 @@ func _ready() -> void:
 	%ClosetButton.pressed.connect(_on_closet_button_pressed)
 	%GiftButton.pressed.connect(_on_gift_button_pressed)
 	%KeyboardTestButton.pressed.connect(_on_keyboard_test_button_pressed)
+	%StorageNoticeLabel.text = STORAGE_NOTICE_TEXT
+	_show_storage_notice(WebPlatform.is_storage_persistent())
 	%PlayButton.grab_focus()
+
+
+func _show_storage_notice(persistent: bool) -> void:
+	%StorageNotice.visible = not persistent
 
 
 func _on_play_button_pressed() -> void:

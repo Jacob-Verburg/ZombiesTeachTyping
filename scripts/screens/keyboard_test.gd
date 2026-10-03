@@ -3,11 +3,16 @@ extends Control
 ## the browser, and exercises WebPlatform's fullscreen and download.
 ## Temporary: the Fullscreen and Download buttons stay until Story 4.2 (real Fullscreen toggle) and
 ## Story 1.8 (real save download) replace them. Not the typing pipeline (that is Story 2.1).
+## Temporary brain counter (Story 1.7, NFR4 reload measurement): "+1 brain" calls PlayerData.add_brains(1)
+## and the label updates only through PlayerData.brains_changed; "Last save" reads
+## SaveService.last_write_ticks_msec. Both go away with this screen.
 
 const ECHO_MAX_CHARS: int = 20
 const REFRESH_SEC: float = 0.5
 const DOWNLOAD_NAME: String = "zts-test.txt"
 const DOWNLOAD_TEXT: String = "zombies-teach-typing download test\n"
+## The test counter's step (NFR4 measurement), not a balance number.
+const BRAIN_STEP: int = 1
 
 var _echo: String = ""
 
@@ -33,6 +38,9 @@ func _ready() -> void:
 	%FullscreenButton.pressed.connect(_on_fullscreen_button_pressed)
 	%DownloadButton.pressed.connect(_on_download_button_pressed)
 	%BackButton.pressed.connect(_on_back_button_pressed)
+	%BrainButton.pressed.connect(_on_brain_button_pressed)
+	PlayerData.brains_changed.connect(_on_player_data_brains_changed)
+	_show_brains(PlayerData.get_brains())
 	%RefreshTimer.wait_time = REFRESH_SEC
 	%RefreshTimer.timeout.connect(_refresh_status)
 	_refresh_status()
@@ -40,6 +48,8 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	WebPlatform.capture_keys = false
+	if PlayerData.brains_changed.is_connected(_on_player_data_brains_changed):
+		PlayerData.brains_changed.disconnect(_on_player_data_brains_changed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -74,6 +84,15 @@ func _refresh_status() -> void:
 		WebPlatform.capture_keys, WebPlatform.is_key_capture_active()
 	]
 	%FullscreenLabel.text = "Fullscreen: %s" % ("on" if WebPlatform.is_fullscreen() else "off")
+	var last_write: int = SaveService.last_write_ticks_msec
+	if last_write < 0:
+		%SaveStatusLabel.text = "Last save: never"
+	else:
+		%SaveStatusLabel.text = "Last save: %.1f s ago" % ((Time.get_ticks_msec() - last_write) / 1000.0)
+
+
+func _show_brains(total: int) -> void:
+	%BrainsLabel.text = "Brains: %d" % total
 
 
 func _on_fullscreen_button_pressed() -> void:
@@ -87,3 +106,11 @@ func _on_download_button_pressed() -> void:
 
 func _on_back_button_pressed() -> void:
 	Router.go(Router.Screen.MAIN_MENU)
+
+
+func _on_brain_button_pressed() -> void:
+	PlayerData.add_brains(BRAIN_STEP)
+
+
+func _on_player_data_brains_changed(total: int, _delta: int) -> void:
+	_show_brains(total)
