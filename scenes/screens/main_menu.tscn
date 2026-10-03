@@ -65,3 +65,8 @@ text = "Crypt Closet"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Welcome Gift"
+
+[node name="KeyboardTestButton" type="Button" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Keyboard Test"

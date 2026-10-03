@@ -4,16 +4,27 @@ extends GutTest
 ## Instances are disabled so real input during the run can't press a focused button.
 
 const FLOW_BUTTONS: Dictionary = {
-	"MAIN_MENU": ["%PlayButton", "%ClosetButton", "%GiftButton"],
+	"MAIN_MENU": ["%PlayButton", "%ClosetButton", "%GiftButton", "%KeyboardTestButton"],
 	"RUN": ["%FinishButton", "%QuitButton"],
 	"REPORT_CARD": ["%PlayAgainButton", "%MenuButton"],
 	"WELCOME_GIFT": ["%OpenClosetButton"],
 	"CRYPT_CLOSET": ["%BackButton"],
+	"KEYBOARD_TEST": ["%FullscreenButton", "%DownloadButton", "%BackButton"],
 }
+
+
+# The keyboard test screen sets capture_keys in _ready(); every freed instance must have reset it.
+# Checked before each test and after all, because autofree runs after after_each().
+func before_each() -> void:
+	assert_false(WebPlatform.capture_keys, "keyboard test left capture_keys on")
 
 
 func after_each() -> void:
 	Router.take_payload()
+
+
+func after_all() -> void:
+	assert_false(WebPlatform.capture_keys, "keyboard test left capture_keys on")
 
 
 func _instance(screen: Router.Screen) -> Control:

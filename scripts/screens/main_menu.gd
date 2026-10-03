@@ -8,6 +8,7 @@ func _ready() -> void:
 	%PlayButton.pressed.connect(_on_play_button_pressed)
 	%ClosetButton.pressed.connect(_on_closet_button_pressed)
 	%GiftButton.pressed.connect(_on_gift_button_pressed)
+	%KeyboardTestButton.pressed.connect(_on_keyboard_test_button_pressed)
 	%PlayButton.grab_focus()
 
 
@@ -21,3 +22,7 @@ func _on_closet_button_pressed() -> void:
 
 func _on_gift_button_pressed() -> void:
 	Router.go(Router.Screen.WELCOME_GIFT)
+
+
+func _on_keyboard_test_button_pressed() -> void:
+	Router.go(Router.Screen.KEYBOARD_TEST)

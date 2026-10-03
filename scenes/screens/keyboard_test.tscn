@@ -1,0 +1,119 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/screens/keyboard_test.gd" id="1_script"]
+
+[node name="KeyboardTest" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.16862746, 0.11372549, 0.24705882, 1)
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -200.0
+offset_right = 320.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="Heading" type="Label" parent="Box"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_font_sizes/font_size = 24
+text = "Keyboard Test"
+horizontal_alignment = 1
+
+
+[node name="InstructionLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "Type Space, apostrophe, slash, Backspace and Tab. Esc goes back."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="EchoLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_font_sizes/font_size = 20
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="VisibleLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_font_sizes/font_size = 16
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="LastKeyLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "Last key: none"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="CaptureLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "capture_keys: ?"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="FullscreenLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "Fullscreen: ?"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="FullscreenButton" type="Button" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+text = "Fullscreen"
+
+[node name="DownloadButton" type="Button" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+text = "Download test"
+
+[node name="BackButton" type="Button" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+text = "Back"
+
+[node name="RefreshTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 0.5
+autostart = true

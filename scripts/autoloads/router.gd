@@ -2,10 +2,11 @@ extends Node
 ## Screen flow: one fade-covered scene swap at a time.
 ## go() stores a payload; the incoming screen reads it once with take_payload() in _ready().
 ## A screen that fails to load is logged and replaced by MAIN_MENU (never loops).
+## KEYBOARD_TEST is a temporary dev screen (Story 1.5); Story 1.8 or 5.0 may remove it.
 
 signal screen_changed(screen: Screen)
 
-enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET }
+enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET, KEYBOARD_TEST }
 
 ## Paths, not preloads: a failed preload is a parse error, so the MAIN_MENU fallback could never run.
 const SCREEN_PATHS: Dictionary[Screen, String] = {
@@ -15,6 +16,7 @@ const SCREEN_PATHS: Dictionary[Screen, String] = {
 	Screen.REPORT_CARD: "res://scenes/screens/report_card.tscn",
 	Screen.WELCOME_GIFT: "res://scenes/screens/welcome_gift.tscn",
 	Screen.CRYPT_CLOSET: "res://scenes/screens/crypt_closet.tscn",
+	Screen.KEYBOARD_TEST: "res://scenes/screens/keyboard_test.tscn",
 }
 const FADE_OUT_SEC: float = 0.15
 const FADE_IN_SEC: float = 0.15

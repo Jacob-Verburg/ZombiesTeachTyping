@@ -1,5 +1,5 @@
 # generated: 2026-09-27 12:21
-# last_updated: 2026-10-02
+# last_updated: 2026-10-03
 # project: zombies-teach-typing
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-09-27 12:21
-last_updated: 2026-10-02
+last_updated: 2026-10-03
 project: zombies-teach-typing
 project_key: NOKEY
 tracking_system: file-system
@@ -46,8 +46,8 @@ development_status:
   1-1-project-settings-folder-skeleton-and-test-harness: done
   1-2-web-export-ci-and-github-pages-deploy: done
   1-3-screen-router-and-title-screen: done
-  1-4-audio-manager-and-browser-audio-unlock: backlog
-  1-5-web-platform-service-and-keyboard-capture-test: backlog
+  1-4-audio-manager-and-browser-audio-unlock: done
+  1-5-web-platform-service-and-keyboard-capture-test: done
   1-6-versioned-save-file: backlog
   1-7-player-data-service-and-reload-proof-counter: backlog
   1-8-debug-overlay-and-save-export: backlog
