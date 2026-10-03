@@ -15,6 +15,14 @@ run/main_scene="res://scenes/screens/title.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+WebPlatform="*res://scripts/autoloads/web_platform.gd"
+SaveService="*res://scripts/autoloads/save_service.gd"
+PlayerData="*res://scripts/autoloads/player_data.gd"
+AudioManager="*res://scripts/autoloads/audio_manager.gd"
+Router="*res://scripts/autoloads/router.gd"
+
 [debug]
 
 gdscript/warnings/untyped_declaration=2
@@ -32,6 +40,10 @@ window/stretch/scale_mode="fractional"
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/gut/plugin.cfg")
+
+[gui]
+
+theme/custom="res://data/ui_theme.tres"
 
 [physics]
 

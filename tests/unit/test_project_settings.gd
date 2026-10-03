@@ -44,6 +44,28 @@ func test_dotnet_section_removed() -> void:
 	assert_false(ProjectSettings.has_setting("dotnet/project/assembly_name"))
 
 
+## Order matters: an autoload may only use earlier ones in _ready() (architecture D2).
+func test_autoloads_registered_in_order() -> void:
+	var names: Array[String] = []
+	for prop: Dictionary in ProjectSettings.get_property_list():
+		var prop_name: String = prop["name"]
+		if prop_name.begins_with("autoload/"):
+			names.append(prop_name)
+	assert_eq(names, [
+		"autoload/WebPlatform",
+		"autoload/SaveService",
+		"autoload/PlayerData",
+		"autoload/AudioManager",
+		"autoload/Router",
+	])
+
+
+func test_autoloads_are_enabled_singletons() -> void:
+	for autoload_name: String in ["WebPlatform", "SaveService", "PlayerData", "AudioManager", "Router"]:
+		var value: String = ProjectSettings.get_setting("autoload/" + autoload_name, "")
+		assert_true(value.begins_with("*res://scripts/autoloads/"), "%s -> %s" % [autoload_name, value])
+
+
 func test_main_scene_is_set_and_loads() -> void:
 	var path: String = ProjectSettings.get_setting("application/run/main_scene", "")
 	assert_ne(path, "", "application/run/main_scene must be set so the export has something to run")
