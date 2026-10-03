@@ -4,3 +4,6 @@
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Local export output
+build/
