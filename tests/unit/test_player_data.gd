@@ -166,3 +166,28 @@ func test_uses_live_save_service_by_default() -> void:
 	var sut: PlayerDataScript = PlayerDataScript.new()
 	add_child_autofree(sut)
 	assert_eq(sut.save_service, SaveService)
+
+
+func test_reset_all_returns_to_defaults_and_emits() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.add_brains(5)
+	sut.set_setting(&"music_on", false)
+	await wait_process_frames(2)
+	watch_signals(sut)
+	watch_signals(_save)
+	sut.reset_all()
+	assert_eq(sut.get_brains(), 0)
+	assert_true(sut.get_setting(&"music_on"))
+	assert_signal_emit_count(sut, "profile_replaced", 1)
+	await wait_process_frames(2)
+	assert_signal_emit_count(_save, "save_written", 1)
+	assert_eq(int(_written_profile()["brains"]), 0)
+
+
+func test_reset_all_emits_no_delta_signals() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.add_brains(5)
+	watch_signals(sut)
+	sut.reset_all()
+	assert_signal_not_emitted(sut, "brains_changed")
+	assert_signal_not_emitted(sut, "settings_changed")

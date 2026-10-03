@@ -4,7 +4,8 @@ extends Control
 ## Temporary: the Fullscreen and Download buttons stay until Story 4.2 (real Fullscreen toggle) and
 ## Story 1.8 (real save download) replace them. Not the typing pipeline (that is Story 2.1).
 ## Temporary brain counter (Story 1.7, NFR4 reload measurement): "+1 brain" calls PlayerData.add_brains(1)
-## and the label updates only through PlayerData.brains_changed; "Last save" reads
+## and the label updates only through PlayerData.brains_changed (and re-reads on profile_replaced, the
+## debug overlay's F8 reset, Story 1.8); "Last save" reads
 ## SaveService.last_write_ticks_msec. Both go away with this screen.
 
 const ECHO_MAX_CHARS: int = 20
@@ -40,6 +41,7 @@ func _ready() -> void:
 	%BackButton.pressed.connect(_on_back_button_pressed)
 	%BrainButton.pressed.connect(_on_brain_button_pressed)
 	PlayerData.brains_changed.connect(_on_player_data_brains_changed)
+	PlayerData.profile_replaced.connect(_on_player_data_profile_replaced)
 	_show_brains(PlayerData.get_brains())
 	%RefreshTimer.wait_time = REFRESH_SEC
 	%RefreshTimer.timeout.connect(_refresh_status)
@@ -50,6 +52,8 @@ func _exit_tree() -> void:
 	WebPlatform.capture_keys = false
 	if PlayerData.brains_changed.is_connected(_on_player_data_brains_changed):
 		PlayerData.brains_changed.disconnect(_on_player_data_brains_changed)
+	if PlayerData.profile_replaced.is_connected(_on_player_data_profile_replaced):
+		PlayerData.profile_replaced.disconnect(_on_player_data_profile_replaced)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -114,3 +118,7 @@ func _on_brain_button_pressed() -> void:
 
 func _on_player_data_brains_changed(total: int, _delta: int) -> void:
 	_show_brains(total)
+
+
+func _on_player_data_profile_replaced() -> void:
+	_show_brains(PlayerData.get_brains())

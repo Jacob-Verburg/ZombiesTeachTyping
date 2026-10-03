@@ -2,7 +2,11 @@ extends Node
 ## Screen flow: one fade-covered scene swap at a time.
 ## go() stores a payload; the incoming screen reads it once with take_payload() in _ready().
 ## A screen that fails to load is logged and replaced by MAIN_MENU (never loops).
-## KEYBOARD_TEST is a temporary dev screen (Story 1.5); Story 1.8 or 5.0 may remove it.
+## KEYBOARD_TEST is a temporary dev screen (Story 1.5); Story 5.0 may remove it.
+## Debug overlay hook (Story 1.8, Boundary 7): in debug builds only, _ready() adds
+## scenes/debug/debug_overlay.tscn as a child, so it sits above every screen and survives scene swaps.
+## The Router hosts it because the autoload list is fixed at five (test_project_settings.gd); this
+## hook is the Router's only non-navigation code. _is_debug_build() is the test seam.
 
 signal screen_changed(screen: Screen)
 
@@ -22,11 +26,14 @@ const FADE_OUT_SEC: float = 0.15
 const FADE_IN_SEC: float = 0.15
 const FADE_COLOR: Color = Color("#2B1D3F")  # night
 const FADE_LAYER: int = 100
+## A path, not a preload, like SCREEN_PATHS: a missing overlay must log, not break the parse.
+const DEBUG_OVERLAY_PATH: String = "res://scenes/debug/debug_overlay.tscn"
 
 ## The title is the main scene and is never reached through go() at boot.
 var current_screen: Screen = Screen.TITLE
 
 var _paths: Dictionary[Screen, String] = SCREEN_PATHS.duplicate()
+var _debug_overlay_path: String = DEBUG_OVERLAY_PATH
 var _payload: Dictionary = {}
 var _transitioning: bool = false
 var _fade_layer: CanvasLayer
@@ -49,6 +56,8 @@ func _ready() -> void:
 	_fade_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_fade_layer.add_child(_fade_rect)
 	add_child(_fade_layer)
+	if _is_debug_build():
+		_add_debug_overlay()
 
 
 func go(screen: Screen, payload: Dictionary = {}) -> void:
@@ -137,6 +146,23 @@ func _swap_to(screen: Screen) -> bool:
 	current_screen = target
 	Log.info(&"router", "-> %s" % Screen.keys()[target])
 	return true
+
+
+## The only OS.is_debug_build() gate for the overlay; also the test seam.
+func _is_debug_build() -> bool:
+	return OS.is_debug_build()
+
+
+func _add_debug_overlay() -> void:
+	var packed: PackedScene = null
+	if ResourceLoader.exists(_debug_overlay_path):
+		packed = ResourceLoader.load(_debug_overlay_path) as PackedScene
+	if packed == null:
+		Log.error(&"router", "debug overlay failed to load")
+		return
+	var overlay: Node = packed.instantiate()
+	overlay.name = "DebugOverlay"
+	add_child(overlay)
 
 
 func _fade_to(alpha: float, duration: float) -> void:

@@ -255,3 +255,80 @@ func test_disconnects_on_exit() -> void:
 	remove_child(sut)
 	assert_false(WebPlatform.visibility_hidden.is_connected(handler))
 	sut.free()
+
+
+func test_export_file_name_format() -> void:
+	var unix_time: float = Time.get_unix_time_from_datetime_string("2026-03-05T12:00:00")
+	var name: String = SaveServiceScript.export_file_name(unix_time)
+	var regex: RegEx = RegEx.create_from_string(r"^zts-save-\d{8}\.json$")
+	assert_not_null(regex.search(name), name)
+	var bias_min: int = int(Time.get_time_zone_from_system()["bias"])
+	var local: Dictionary = Time.get_date_dict_from_unix_time(int(unix_time) + bias_min * 60)
+	assert_eq(name, "zts-save-%04d%02d%02d.json" % [local["year"], local["month"], local["day"]])
+	assert_true(name.begins_with("zts-save-202603"), "zero-padded month")
+
+
+func test_export_file_name_defaults_to_today() -> void:
+	var name: String = SaveServiceScript.export_file_name()
+	var today: Dictionary = Time.get_date_dict_from_system()
+	assert_eq(name, "zts-save-%04d%02d%02d.json" % [today["year"], today["month"], today["day"]])
+
+
+func test_reset_to_defaults_replaces_data_and_saves() -> void:
+	_put("save.json", _fixture(FULL_PATH))
+	var sut: SaveServiceScript = _make()
+	watch_signals(sut)
+	assert_eq(int(sut.get_active_profile()["brains"]), 340)
+	sut.reset_to_defaults()
+	assert_eq(int(sut.get_active_profile()["brains"]), 0)
+	assert_eq_deep(sut.get_data(), SaveSchema.defaults())
+	await wait_process_frames(2)
+	assert_signal_emit_count(sut, "save_written", 1)
+	assert_eq_deep(JSON.parse_string(_read("save.json")), JSON.parse_string(JSON.stringify(SaveSchema.defaults())))
+	var bak: Dictionary = JSON.parse_string(_read("save.bak"))
+	assert_eq(int(bak["profiles"]["p1"]["brains"]), 340, "the reset save is still recoverable")
+
+
+func test_reset_clears_read_only() -> void:
+	var future: Dictionary = SaveSchema.defaults()
+	future["schema_version"] = GameConstants.CURRENT_SCHEMA + 1
+	_put("save.json", JSON.stringify(future, "	"))
+	var sut: SaveServiceScript = _make()
+	watch_signals(sut)
+	sut.reset_to_defaults()
+	await wait_process_frames(2)
+	assert_signal_emit_count(sut, "save_written", 1)
+	var written: Dictionary = JSON.parse_string(_read("save.json"))
+	assert_eq(int(written["schema_version"]), GameConstants.CURRENT_SCHEMA)
+
+
+func test_offer_export_writes_file_on_desktop() -> void:
+	var sut: SaveServiceScript = _make()
+	var calls: Array[Dictionary] = []
+	sut.offer_download = func(bytes: PackedByteArray, file_name: String) -> void:
+		calls.append({"bytes": bytes, "name": file_name})
+	sut.get_active_profile()["brains"] = 9
+	sut.offer_export()
+	var file_name: String = SaveServiceScript.export_file_name()
+	assert_true(_exists(file_name), "desktop writes the export next to the save")
+	assert_eq(_read(file_name), sut.export_json())
+	assert_eq(calls.size(), 1)
+	assert_eq(calls[0]["name"], file_name)
+	assert_eq(calls[0]["bytes"], sut.export_json().to_utf8_buffer())
+
+
+func test_offer_export_never_changes_the_save() -> void:
+	var sut: SaveServiceScript = _make()
+	sut.offer_download = func(_bytes: PackedByteArray, _file_name: String) -> void: pass
+	watch_signals(sut)
+	var before: String = sut.export_json()
+	sut.offer_export()
+	await wait_process_frames(2)
+	assert_eq(sut.export_json(), before)
+	assert_signal_not_emitted(sut, "save_written")
+	assert_false(_exists("save.json"))
+
+
+func test_offer_download_defaults_to_web_platform() -> void:
+	var sut: SaveServiceScript = _make()
+	assert_eq(sut.offer_download, Callable(WebPlatform, "offer_download"))

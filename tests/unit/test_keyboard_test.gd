@@ -108,3 +108,21 @@ func test_disconnects_from_player_data_when_freed() -> void:
 	assert_eq(PlayerData.brains_changed.get_connections().size(), before + 1)
 	remove_child(node)
 	assert_eq(PlayerData.brains_changed.get_connections().size(), before)
+
+
+func test_brain_counter_rereads_on_profile_replaced() -> void:
+	var node: Control = _instance()
+	add_child_autofree(node)
+	var label: Label = node.get_node("%BrainsLabel") as Label
+	label.text = "stale"
+	node.call("_on_player_data_profile_replaced")
+	assert_eq(label.text, "Brains: %d" % PlayerData.get_brains())
+
+
+func test_disconnects_from_profile_replaced_when_freed() -> void:
+	var before: int = PlayerData.profile_replaced.get_connections().size()
+	var node: Control = _instance()
+	add_child_autofree(node)
+	assert_eq(PlayerData.profile_replaced.get_connections().size(), before + 1)
+	remove_child(node)
+	assert_eq(PlayerData.profile_replaced.get_connections().size(), before)

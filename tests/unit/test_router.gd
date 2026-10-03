@@ -93,3 +93,41 @@ func test_router_runs_while_paused() -> void:
 func test_starts_on_title_and_idle() -> void:
 	assert_eq(_router.current_screen, RouterScript.Screen.TITLE)
 	assert_false(_router.is_transitioning())
+
+
+class ReleaseRouter:
+	extends "res://scripts/autoloads/router.gd"
+
+	func _is_debug_build() -> bool:
+		return false
+
+
+func _debug_overlays(router: Node) -> Array[Node]:
+	var found: Array[Node] = []
+	for child: Node in router.get_children():
+		if child.name == &"DebugOverlay":
+			found.append(child)
+	return found
+
+
+func test_debug_build_adds_one_hidden_overlay() -> void:
+	var overlays: Array[Node] = _debug_overlays(_router)
+	assert_eq(overlays.size(), 1)
+	assert_true(overlays[0] is CanvasLayer)
+	assert_false((overlays[0] as CanvasLayer).visible)
+	assert_eq(RouterScript.DEBUG_OVERLAY_PATH, "res://scenes/debug/debug_overlay.tscn")
+
+
+func test_release_build_never_instances_the_overlay() -> void:
+	var release: ReleaseRouter = ReleaseRouter.new()
+	add_child_autofree(release)
+	assert_eq(_debug_overlays(release).size(), 0)
+	assert_not_null(release._fade_layer, "the rest of _ready() still runs")
+
+
+func test_missing_overlay_logs_and_carries_on() -> void:
+	var router: RouterScript = RouterScript.new()
+	router._debug_overlay_path = MISSING_PATH
+	add_child_autofree(router)
+	assert_eq(_debug_overlays(router).size(), 0)
+	assert_push_error("[ERROR][router] debug overlay failed to load")

@@ -44,3 +44,28 @@ func test_notice_never_blocks_or_takes_focus() -> void:
 	assert_eq((_menu.get_node("%StorageNoticeLabel") as Label).mouse_filter, Control.MOUSE_FILTER_IGNORE)
 	assert_eq(_notice().focus_mode, Control.FOCUS_NONE)
 	assert_true((_menu.get_node("%PlayButton") as Button).has_focus(), "Play keeps focus")
+
+
+func _chord(keycode: Key, ctrl: bool, shift: bool, alt: bool = false, pressed: bool = true, echo: bool = false) -> InputEventKey:
+	var event: InputEventKey = InputEventKey.new()
+	event.keycode = keycode
+	event.ctrl_pressed = ctrl
+	event.shift_pressed = shift
+	event.alt_pressed = alt
+	event.pressed = pressed
+	event.echo = echo
+	return event
+
+
+func test_export_chord_is_ctrl_shift_e_only() -> void:
+	assert_true(MainMenuScript.is_export_chord(_chord(KEY_E, true, true)))
+	assert_false(MainMenuScript.is_export_chord(_chord(KEY_E, false, false)), "plain E")
+	assert_false(MainMenuScript.is_export_chord(_chord(KEY_E, true, false)), "Ctrl+E")
+	assert_false(MainMenuScript.is_export_chord(_chord(KEY_E, false, true)), "Shift+E")
+	assert_false(MainMenuScript.is_export_chord(_chord(KEY_E, true, true, true)), "Ctrl+Shift+Alt+E")
+	assert_false(MainMenuScript.is_export_chord(_chord(KEY_R, true, true)), "Ctrl+Shift+R")
+	assert_false(MainMenuScript.is_export_chord(_chord(KEY_E, true, true, false, false)), "release")
+	assert_false(MainMenuScript.is_export_chord(_chord(KEY_E, true, true, false, true, true)), "echo")
+	var meta: InputEventKey = _chord(KEY_E, true, true)
+	meta.meta_pressed = true
+	assert_false(MainMenuScript.is_export_chord(meta), "Ctrl+Shift+Meta+E")

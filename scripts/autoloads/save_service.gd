@@ -8,19 +8,26 @@ extends Node
 ## a tab hide (WebPlatform.visibility_hidden) or a desktop window close writes immediately, but only
 ## when something changed (a clean write would just rotate save.bak into a copy of save.json).
 ## A save written by a newer build is loaded read-only: it is never written back.
-## get_data()/get_active_profile() hand out the live dictionaries: PlayerData only. Nobody else
-## edits save fields.
-## save_dir is a test seam: tests point it at a temp folder before add_child.
+## get_data()/get_active_profile() hand out the live dictionaries, and reset_to_defaults() replaces
+## them: PlayerData only. Nobody else edits save fields.
+## Export (Story 1.8): offer_export() hands export_json() to the download as export_file_name()
+## (zts-save-YYYYMMDD.json, local date). Callable by the main menu (Ctrl+Shift+E) and the debug
+## overlay (F9). On desktop it first writes the file next to the save, because the desktop download
+## only opens the user:// folder. Never changes the save; never logs its contents.
+## save_dir and offer_download are test seams: tests set them before add_child.
 
 signal save_written
 
 const SAVE_FILE: String = "save.json"
 const TMP_FILE: String = "save.tmp"
 const BACKUP_FILE: String = "save.bak"
+const EXPORT_NAME_FORMAT: String = "zts-save-%04d%02d%02d.json"
 
 var save_dir: String = "user://"
 ## Time.get_ticks_msec() of the last successful write; -1 before the first one (debug overlay).
 var last_write_ticks_msec: int = -1
+## Delivers the export bytes; WebPlatform.offer_download unless a test set it before add_child.
+var offer_download: Callable = Callable()
 
 var _data: Dictionary = {}
 var _dirty: bool = false
@@ -33,6 +40,8 @@ var _read_only: bool = false
 
 func _ready() -> void:
 	_data = load_save()
+	if not offer_download.is_valid():
+		offer_download = WebPlatform.offer_download
 	WebPlatform.visibility_hidden.connect(_on_web_platform_visibility_hidden)
 
 
@@ -67,6 +76,17 @@ func load_save() -> Dictionary:
 	data = SaveSchema.prepare(data)
 	_read_only = int(data["schema_version"]) > GameConstants.CURRENT_SCHEMA
 	return data
+
+
+## The export's file name from the local date: now, or unix_time (seconds, UTC) when given.
+static func export_file_name(unix_time: float = -1.0) -> String:
+	var date: Dictionary
+	if unix_time < 0.0:
+		date = Time.get_datetime_dict_from_system()
+	else:
+		var bias_min: int = int(Time.get_time_zone_from_system()["bias"])
+		date = Time.get_date_dict_from_unix_time(int(unix_time) + bias_min * 60)
+	return EXPORT_NAME_FORMAT % [date["year"], date["month"], date["day"]]
 
 
 ## The live save. PlayerData only.
@@ -131,6 +151,29 @@ func save_now() -> Error:
 ## The save exactly as save_now() writes it. Never touches the file system.
 func export_json() -> String:
 	return _serialize()
+
+
+## Offers the save as a download (web) or writes it next to the save and opens the folder (desktop).
+func offer_export() -> void:
+	var text: String = export_json()
+	var file_name: String = export_file_name()
+	if not WebPlatform.is_web():
+		var err: Error = _ensure_dir()
+		if err == OK:
+			err = _write_text(save_dir.path_join(file_name), text)
+		if err != OK:
+			Log.error(&"save", "export write failed %s: %s" % [file_name, error_string(err)])
+			return
+	offer_download.call(text.to_utf8_buffer(), file_name)
+
+
+## Replaces the save with defaults and writes it. PlayerData only (PlayerData.reset_all()).
+## _main_valid is kept, so the next write still copies the old save.json to save.bak.
+func reset_to_defaults() -> void:
+	_data = SaveSchema.defaults()
+	_read_only = false
+	Log.info(&"save", "reset to defaults")
+	request_save()
 
 
 func _serialize() -> String:

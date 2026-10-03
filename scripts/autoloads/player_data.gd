@@ -3,6 +3,9 @@ extends Node
 ## Every mutation emits a typed signal and requests a save (SaveService.request_save(), never save_now()).
 ## Getters read through SaveService.get_active_profile() on every call: nothing is cached, so a
 ## reset (Story 1.8) or a profile switch (Epic 11) that replaces SaveService's data is picked up.
+## reset_all() is the one mutation that replaces the whole profile: it emits profile_replaced (no
+## brains_changed/settings_changed deltas), and anything showing a profile value re-reads on it.
+## Epic 11's profile switch emits the same signal.
 ## Contract violations (negative amount, unknown setting) log an error and change nothing; no assert(),
 ## which would fire in GUT's debug run and in release would vanish.
 ## save_service is a test seam: tests assign a fresh SaveService (save_dir in a temp folder) before add_child.
@@ -11,6 +14,7 @@ extends Node
 
 signal brains_changed(total: int, delta: int)
 signal settings_changed(key: StringName, value: bool)
+signal profile_replaced
 
 const SaveServiceScript: GDScript = preload("res://scripts/autoloads/save_service.gd")
 
@@ -56,6 +60,12 @@ func set_setting(key: StringName, value: bool) -> void:
 	settings[String(key)] = value
 	settings_changed.emit(key, value)
 	save_service.request_save()
+
+
+## Replaces the save with defaults (debug overlay F8). The old save.json becomes save.bak on the write.
+func reset_all() -> void:
+	save_service.reset_to_defaults()
+	profile_replaced.emit()
 
 
 func _profile() -> Dictionary:

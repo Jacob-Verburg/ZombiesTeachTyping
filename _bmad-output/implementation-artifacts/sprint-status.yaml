@@ -50,7 +50,7 @@ development_status:
   1-5-web-platform-service-and-keyboard-capture-test: done
   1-6-versioned-save-file: done
   1-7-player-data-service-and-reload-proof-counter: done
-  1-8-debug-overlay-and-save-export: backlog
+  1-8-debug-overlay-and-save-export: done
   1-9-art-style-sheet-and-prototype-sprites-review-gate: backlog
   epic-1-retrospective: optional
 
