@@ -1,0 +1,101 @@
+# CI: GUT tests -> Web export on every push to main and every PR (artifact only).
+# Version tags (v*) also deploy the Web build to GitHub Pages (ADR-4: publishing is deliberate).
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT_BIN: ${{ github.workspace }}/.godot-bin/Godot_v4.7.2-stable_linux.x86_64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache Godot + web templates
+        id: godot-cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            .godot-bin
+            ~/.local/share/godot/export_templates/4.7.2.stable
+          key: godot-4.7.2-stable-web-v1
+
+      # The full templates archive is ~1.28 GB; only the single-threaded web templates are kept and cached.
+      - name: Download Godot + web templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          templates="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p .godot-bin "$templates"
+          curl -fsSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d .godot-bin
+          rm godot.zip
+          curl -fsSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q -j templates.tpz \
+            templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt \
+            -d "$templates"
+          rm templates.tpz
+          chmod +x "$GODOT_BIN"
+          ls -la .godot-bin "$templates"
+
+      # .godot/ is not in the repo; class_name globals (GutTest, Log, ...) only exist after an import.
+      - name: Import project
+        run: '"$GODOT_BIN" --headless --path . --import'
+
+      # GUT skips a test script that fails to parse and still exits 0, so the log is checked too.
+      - name: Run GUT
+        run: |
+          set -o pipefail
+          "$GODOT_BIN" --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit 2>&1 | tee gut.log
+          if grep -E "Parse Error|Failed to load script|SCRIPT ERROR" gut.log; then
+            echo "::error::A test script failed to load (GUT skips it and still exits 0)"
+            exit 1
+          fi
+
+      # Godot can exit 0 after some export errors, so the output files are checked.
+      - name: Export Web
+        run: |
+          set -euo pipefail
+          mkdir -p build/web
+          "$GODOT_BIN" --headless --path . --export-release "Web" build/web/index.html
+          for f in index.html index.js index.wasm index.pck; do
+            test -f "build/web/$f" || { echo "::error::Web export is missing $f"; exit 1; }
+          done
+          ls -la build/web
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-build
+          path: build/web
+
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

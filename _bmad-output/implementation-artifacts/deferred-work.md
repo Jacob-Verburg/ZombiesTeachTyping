@@ -6,3 +6,7 @@
 - `directory_rules={"res://addons": 0}` not persisted in `project.godot`; relies on the Godot 4.7 default.
 - `Log.debug` evaluates its `msg` argument even when DEBUG is disabled; keep calls out of hot paths.
 - GUT plugin is enabled in `project.godot`; confirm the web export (Story 1.2) excludes `addons/gut`.
+
+## Deferred from: dev of story-1-2 (2026-10-02)
+
+- Web letterbox bars render **black**, not night `#2B1D3F` (DESIGN.md marks night bars as `[ASSUMPTION]`). Not required by Story 1.2 AC 5. Natural home: Story 5.0 (loading page / boot splash styling); options are the HTML page background in `html/head_include` plus the engine's black-bar color.

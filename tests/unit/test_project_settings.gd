@@ -42,3 +42,12 @@ func test_addons_excluded_from_warnings() -> void:
 
 func test_dotnet_section_removed() -> void:
 	assert_false(ProjectSettings.has_setting("dotnet/project/assembly_name"))
+
+
+func test_main_scene_is_set_and_loads() -> void:
+	var path: String = ProjectSettings.get_setting("application/run/main_scene", "")
+	assert_ne(path, "", "application/run/main_scene must be set so the export has something to run")
+	if path == "":
+		return
+	var scene: PackedScene = load(path) as PackedScene
+	assert_not_null(scene)
