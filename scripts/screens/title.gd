@@ -9,12 +9,18 @@ const WHEEL_BUTTONS: Array[MouseButton] = [
 var _advanced: bool = false
 
 
+func _ready() -> void:
+	# Audio is still locked here, so this only marks the loop pending; unlock() starts it (FR47).
+	AudioManager.play_music(&"mus_menu")
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _advanced or not _is_advance_event(event):
 		return
 	_advanced = true
 	get_viewport().set_input_as_handled()
 	AudioManager.unlock()
+	AudioManager.play_sfx(&"sfx_ui_click")
 	Router.go(Router.Screen.MAIN_MENU)
 
 

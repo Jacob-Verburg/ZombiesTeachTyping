@@ -75,3 +75,15 @@ func test_mouse_wheel_does_not_advance() -> void:
 
 func test_mouse_motion_does_not_advance() -> void:
 	assert_false(_title._is_advance_event(InputEventMouseMotion.new()))
+
+
+func test_title_requests_menu_music_on_ready() -> void:
+	# The live AudioManager is never unlocked under GUT, so play_music() only marks the id pending.
+	# Clear it, show a fresh title, and check the title asked for the menu loop (FR47: nothing plays yet).
+	AudioManager.stop_music()
+	assert_eq(AudioManager._pending_music, &"")
+	var title: Control = TitleScene.instantiate() as Control
+	title.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child_autofree(title)
+	assert_false(AudioManager.is_unlocked())
+	assert_eq(AudioManager._pending_music, &"mus_menu")
