@@ -48,7 +48,7 @@ development_status:
   1-3-screen-router-and-title-screen: done
   1-4-audio-manager-and-browser-audio-unlock: done
   1-5-web-platform-service-and-keyboard-capture-test: done
-  1-6-versioned-save-file: backlog
+  1-6-versioned-save-file: done
   1-7-player-data-service-and-reload-proof-counter: backlog
   1-8-debug-overlay-and-save-export: backlog
   1-9-art-style-sheet-and-prototype-sprites-review-gate: backlog

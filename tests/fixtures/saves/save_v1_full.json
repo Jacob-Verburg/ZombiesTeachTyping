@@ -1,0 +1,85 @@
+{
+	"active_profile": "p1",
+	"profiles": {
+		"p1": {
+			"best_wpm": {
+				"zombie_run": 14
+			},
+			"brains": 340,
+			"equipped": {
+				"hat": "hat_pumpkin",
+				"pet": "pet_cute_ghost"
+			},
+			"flags": {
+				"placement_done": true,
+				"tutorial_seen": true,
+				"welcome_bonus_claimed": true
+			},
+			"name": "",
+			"owned_items": [
+				"hat_pumpkin",
+				"pet_cute_ghost"
+			],
+			"run_history": [
+				{
+					"accuracy": 82,
+					"brains": 12,
+					"duration_s": 60,
+					"end_reason": "timer",
+					"errors": 9,
+					"keys_typed": 51,
+					"letter_pool_or_tier": "all",
+					"level_id": "zombie_run",
+					"per_key": {
+						"d": [
+							10,
+							0,
+							{}
+						],
+						"f": [
+							14,
+							3,
+							{
+								"d": 1,
+								"g": 2
+							}
+						]
+					},
+					"timestamp": 1790000000,
+					"wpm": 10
+				},
+				{
+					"accuracy": 91,
+					"brains": 18,
+					"duration_s": 60,
+					"end_reason": "timer",
+					"errors": 6,
+					"keys_typed": 70,
+					"letter_pool_or_tier": "all",
+					"level_id": "zombie_run",
+					"per_key": {
+						"j": [
+							20,
+							1,
+							{
+								"k": 1
+							}
+						]
+					},
+					"timestamp": 1790086400,
+					"wpm": 14
+				}
+			],
+			"settings": {
+				"music_on": false,
+				"sound_on": true
+			},
+			"tier": 0,
+			"x_future_profile": {
+				"kept": true
+			}
+		}
+	},
+	"schema_version": 1,
+	"x_future_root": "keep me"
+}
