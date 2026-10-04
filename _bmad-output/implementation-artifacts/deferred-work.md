@@ -186,3 +186,16 @@
 - `Hud`'s `%TargetLabel` has no `autowrap_mode`: paragraph text stays on one line and overflows the two-line sign. The layout only sizes the area; set `autowrap_mode` with paragraph rendering in Story 8.2.
 - Word sign width in `Hud._layout_target` is unclamped: a word over about 9 letters at 32 px overflows the 312 px target area. The MVP / Epic 6 words (max 8 letters) fit; check when Story 6.x adds longer words.
 - The wrong-key shake runs from the HUD's own `_process`. If Story 2.7 pauses through `RunFrame` state rather than the tree, the shake keeps animating; stop it with the pause.
+
+## Deferred from: dev of story-2-6 (2026-10-04)
+
+- The zombie hands are placeholder code-drawn rects (`zombie_hands.gd` `_draw()`, about 58 px wide per hand) until Story 5.0 (2 hand sprites + 10 glow states). Keep the getters (`get_lit_fingers`, `is_lit`, `get_outline_width`, `get_finger_fill`, `has_bump`) as the contract. Smuck approved the placeholder look on 2026-10-04.
+- Word and paragraph modes must pass the cursor character to the hands, not the whole target: `ZombieHands.show_char()` lights the first character of what it is given (Stories 6.2 / 8.2).
+- Unmapped keys: `` ` ~ [ ] { } \ | `` (outside the GDD table). Add them to `tools/gen_finger_map.gd` if Epic 8 paragraphs ever use them; until then they log `[WARN][hands]` and light nothing.
+- Non-US keyboard layouts still show US QWERTY fingers (GDD A1, accepted).
+- Architecture data flow says `ZombieHands` listens to `TypingSession.target_changed`; it is the HUD that forwards the target instead (`Hud.show_target`, also used by `setup`), same timing, no sibling wiring.
+
+## Deferred from: code review of story-2-6-green-zombie-hands-finger-guide (2026-10-04)
+
+- An unmapped first character (newline, tab, curly quotes, accents, `` ` ~ [ ] { } \ | ``) lights no finger and `FingerMap.fingers_for` logs a warning on every `target_changed`. The Epic 6/8 text sources decide whether such characters occur; dedupe the warning or extend the map then.
+- `ZombieHands` pulses from its own `_process`; if Story 2.7 pauses through `RunFrame` state instead of the tree, the pulse keeps animating. Stop it with the pause.

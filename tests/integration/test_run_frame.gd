@@ -397,3 +397,40 @@ func test_failed_load_hides_hud() -> void:
 	var frame: RunFrameScript = _start({"level_id": &"nope"})
 	assert_push_error("[ERROR][run]")
 	assert_false(_hud(frame).visible)
+
+
+# --- zombie hands (Story 2.6) -----------------------------------------------
+
+func _hands(frame: RunFrameScript) -> Node:
+	return _hud(frame).get_node("%ZombieHands")
+
+
+func _finger_for(frame: RunFrameScript) -> Vector2i:
+	var map: FingerMap = load("res://data/finger_map.tres") as FingerMap
+	return map.fingers_for(frame.get_session().get_current_target())[0]
+
+
+func test_hands_light_the_next_finger() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	assert_true(_hands(frame).call("is_lit", _finger_for(frame)), "waiting: first target's finger")
+	for i: int in 5:
+		_type_correct(frame)
+		var lit: Array[Vector2i] = _hands(frame).call("get_lit_fingers")
+		assert_eq(lit, [_finger_for(frame)] as Array[Vector2i], "after key %d, same call" % i)
+
+
+func test_hands_go_dark_when_the_run_ends() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	_type_correct(frame)
+	assert_false((_hands(frame).call("get_lit_fingers") as Array[Vector2i]).is_empty(), "precondition")
+	frame.get_level().end_requested.emit(GameConstants.END_REASON_ESCAPED)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_eq(_hands(frame).call("get_lit_fingers"), [] as Array[Vector2i], "no cue through the outro")
+	assert_eq(_hands(frame).call("get_outline_width"), 0)
+
+
+func test_wrong_key_keeps_the_lit_finger() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	var before: Array[Vector2i] = _hands(frame).call("get_lit_fingers")
+	_type_wrong(frame)
+	assert_eq(_hands(frame).call("get_lit_fingers"), before)

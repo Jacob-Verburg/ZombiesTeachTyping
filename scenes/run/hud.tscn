@@ -1,7 +1,8 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/run/hud.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/ui/brain_counter.tscn" id="2_brain_counter"]
+[ext_resource type="PackedScene" path="res://scenes/run/zombie_hands.tscn" id="3_zombie_hands"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_band"]
 bg_color = Color(0.35294118, 0.19607843, 0.094117647, 1)
@@ -120,6 +121,9 @@ offset_top = 52.0
 offset_right = 312.0
 offset_bottom = 100.0
 mouse_filter = 2
+
+[node name="ZombieHands" parent="TargetArea/HandsArea" instance=ExtResource("3_zombie_hands")]
+unique_name_in_owner = true
 
 [node name="Stats" type="Panel" parent="."]
 unique_name_in_owner = true

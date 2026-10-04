@@ -187,6 +187,7 @@ func _set_state(new_state: RunState) -> void:
 			%TypingInput.active = false
 			# Input is off from here, so caps_lock_cleared can never fire: clear the hint now.
 			%Hud.set_caps_hint(false)
+			%Hud.clear_hands()
 			var outro: float = _level.on_run_ending(_end_reason)
 			_outro_left = maxf(0.0, outro) if is_finite(outro) else 0.0
 		RunState.DONE:

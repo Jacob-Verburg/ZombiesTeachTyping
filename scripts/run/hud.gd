@@ -1,9 +1,10 @@
 extends Control
-## The shared HUD band every level uses (GDD Pillar 4, UX D15): pet slot, target sign with the zombie
-## hands area below it, stats column (Timer, Keys, WPM, Errors) and the brain counter, plus the start
-## prompt, the Caps Lock hint and the pause button in the playfield. Layout: the approved Story 2.5
-## sketch (ux-designs/.../sketches/hud-band-2-5.md). A view only: RunFrame calls down; the HUD never
-## reads input, never touches the TypingSession, the clock or any autoload, and only emits pause_pressed.
+## The shared HUD band every level uses (GDD Pillar 4, UX D15): pet slot, target sign with the green
+## zombie hands finger guide below it (%ZombieHands, Story 2.6), stats column (Timer, Keys, WPM,
+## Errors) and the brain counter, plus the start prompt, the Caps Lock hint and the pause button in
+## the playfield. Layout: the approved Story 2.5 sketch (ux-designs/.../sketches/hud-band-2-5.md).
+## A view only: RunFrame calls down; the HUD never reads input, never touches the TypingSession, the
+## clock or any autoload except Log, and only emits pause_pressed.
 ## Placeholder chrome until Story 5.0.
 
 ## Emitted when the pause button is clicked. Pausing itself is Story 2.7.
@@ -92,11 +93,17 @@ func setup(config: LevelConfig, first_target: String) -> void:
 	update_clock(0.0, 0)
 
 
-## Shows the current target (RunFrame, on TypingSession.target_changed). In word mode the sign grows
-## with the word.
+## Shows the current target (RunFrame, on TypingSession.target_changed; setup() for the first one) and
+## lights its finger on the zombie hands. In word mode the sign grows with the word.
 func show_target(target: String) -> void:
 	%TargetLabel.text = target
 	_layout_target()
+	%ZombieHands.show_char(target)
+
+
+## Stops the finger guide (RunFrame, when the run ends: input is off, so no key is expected).
+func clear_hands() -> void:
+	%ZombieHands.show_char("")
 
 
 ## Keys Typed and Errors (RunFrame, in the same call as each judgment).

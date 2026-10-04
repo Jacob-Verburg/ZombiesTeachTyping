@@ -349,3 +349,35 @@ func test_pause_button_emits_pause_pressed() -> void:
 	watch_signals(_hud)
 	_node("%PauseButton").emit_signal("pressed")
 	assert_signal_emit_count(_hud, "pause_pressed", 1)
+
+
+# --- zombie hands (Story 2.6) -----------------------------------------------
+
+func _hands_lit() -> Array[Vector2i]:
+	return _hud.get_node("%ZombieHands").call("get_lit_fingers")
+
+
+func test_hands_follow_the_target() -> void:
+	_letter_setup()
+	assert_eq(_hands_lit(), [Vector2i(FingerMap.Hand.LEFT, FingerMap.Finger.INDEX)] as Array[Vector2i], "f after setup")
+	_hud.show_target("j")
+	assert_eq(_hands_lit(), [Vector2i(FingerMap.Hand.RIGHT, FingerMap.Finger.INDEX)] as Array[Vector2i], "j after show_target")
+
+
+func test_clear_hands_stops_the_guide() -> void:
+	_letter_setup()
+	_hud.clear_hands()
+	assert_eq(_hands_lit(), [] as Array[Vector2i])
+
+
+func test_hands_fill_the_hands_area() -> void:
+	_letter_setup()
+	assert_eq(_rect("%ZombieHands"), Rect2(64, 308, 312, 48))
+
+
+func test_hands_do_not_shake() -> void:
+	_letter_setup()
+	var before: Rect2 = _rect("%ZombieHands")
+	_hud.shake_target()
+	_hud._process(0.05)
+	assert_eq(_rect("%ZombieHands"), before)

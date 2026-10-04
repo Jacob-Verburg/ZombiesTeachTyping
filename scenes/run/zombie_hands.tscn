@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/run/zombie_hands.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/finger_map.tres" id="2_map"]
+
+[node name="ZombieHands" type="Control"]
+custom_minimum_size = Vector2(312, 48)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 312.0
+offset_bottom = 48.0
+mouse_filter = 2
+script = ExtResource("1_script")
+finger_map = ExtResource("2_map")
