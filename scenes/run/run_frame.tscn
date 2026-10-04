@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" uid="uid://co1b872p1y7t0" path="res://scripts/run/run_frame.gd" id="1_script"]
 [ext_resource type="Script" uid="uid://bx28uemi74784" path="res://scripts/typing/typing_input.gd" id="2_input"]
 [ext_resource type="Resource" path="res://data/levels/level_registry.tres" id="3_registry"]
+[ext_resource type="PackedScene" path="res://scenes/run/hud.tscn" id="4_hud"]
 
 [node name="RunFrame" type="Control"]
 layout_mode = 3
@@ -26,6 +27,10 @@ color = Color(0.16862746, 0.11372549, 0.24705882, 1)
 
 [node name="LevelHost" type="Node2D" parent="."]
 unique_name_in_owner = true
+
+[node name="Hud" parent="." instance=ExtResource("4_hud")]
+unique_name_in_owner = true
+layout_mode = 1
 
 [node name="TypingInput" type="Node" parent="."]
 unique_name_in_owner = true

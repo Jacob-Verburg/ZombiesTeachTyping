@@ -70,3 +70,18 @@ func test_real_library_ids_are_unique() -> void:
 			continue
 		assert_false(seen.has(cue.id), "duplicate id %s" % cue.id)
 		seen[cue.id] = true
+
+
+func test_real_library_wrong_key_tick() -> void:
+	var library: AudioLibrary = load(LIBRARY_PATH) as AudioLibrary
+	assert_not_null(library)
+	if library == null:
+		return
+	var tick: AudioCue = library.get_cue(&"sfx_wrong_key")
+	assert_not_null(tick, "sfx_wrong_key cue (Story 2.5)")
+	if tick == null:
+		return
+	assert_not_null(tick.stream)
+	assert_eq(tick.min_interval_s, 0.15, "at most one tick per 150 ms (FR2)")
+	var click: AudioCue = library.get_cue(&"sfx_ui_click")
+	assert_eq(click.min_interval_s, 0.0, "other cues stay unthrottled")

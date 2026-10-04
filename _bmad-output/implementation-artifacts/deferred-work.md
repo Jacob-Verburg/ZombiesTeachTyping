@@ -118,7 +118,7 @@
 
 - AltGr limitation: on Windows AltGr arrives as Ctrl+Alt, so AltGr characters (e.g. `@` on German layouts) are ignored by `TypingInput`'s modifier rule. Fine for the lowercase-letter MVP; revisit for Epic 8 (Pitchfork Panic punctuation). Not checked in a real browser yet.
 - `TypingInput.configure(null)`'s assert + `Log.error` guard is covered by code review only; calling it in a GUT test would trip the debug `assert`.
-- Story 2.4: the `RunFrame` run is the first end-to-end keyboard check of `TypingInput` (no scene or caller exists until then). Run-screen buttons must be `FOCUS_NONE` so Space/Enter can't press them. (2.4: the end-to-end check ran in a web debug build in the browser pane; the run screen still has no buttons, so `FOCUS_NONE` carries over to 2.5/2.7.)
+- ~~Story 2.4: the `RunFrame` run is the first end-to-end keyboard check of `TypingInput` (no scene or caller exists until then). Run-screen buttons must be `FOCUS_NONE` so Space/Enter can't press them. (2.4: the end-to-end check ran in a web debug build in the browser pane; the run screen still has no buttons, so `FOCUS_NONE` carries over to 2.5/2.7.)~~ Done in Story 2.5: the HUD's pause button and every other HUD control are `FOCUS_NONE` (`test_hud.gd`).
 
 ## Deferred from: code review of story-2-1-typing-input-filtering (2026-10-03)
 
@@ -154,7 +154,7 @@
 ## Deferred from: dev of story-2-4 (2026-10-04)
 
 - Completion bonus is `0` in `RunFrame._send_result()` until Story 3.5 adds it to `LevelConfig`.
-- `LevelBase.brains_earned_changed` is not connected until the HUD brain counter (Story 2.5); the result reads `get_brains_earned()` at run end.
+- ~~`LevelBase.brains_earned_changed` is not connected until the HUD brain counter (Story 2.5); the result reads `get_brains_earned()` at run end.~~ Done in Story 2.5: `RunFrame` connects it to `Hud.set_brains`.
 - `RunFrame.LETTER_POOL_ALL` (`"all"`) is a placeholder for `letter_pool_or_tier` until Epic 7.
 - The test level (`scenes/levels/test_level/`) and its `debug_only` registry entry ship in release builds but are unreachable there (the menu button is debug-only). Exclude them from release exports with the Keyboard Test and art review screens if export size matters.
 - Main menu "Play" sends `&"zombie_run"`, which is not registered until Story 3.1: `RunFrame` logs `[ERROR][run]` and returns to the menu (NFR16 path, on purpose).
@@ -168,3 +168,21 @@
 
 - A level that emits `end_requested` from `on_run_started`/`on_char_accepted` still receives `on_char_accepted` after `on_run_ending` (the session keeps judging that key), so a late brain can be counted in `get_brains_earned()`. No current level does this; revisit with Zombie Run (3.1).
 - `RunFrame._fail_to_menu`'s Router-transitioning branch and the null-`TargetSource` failure path have no automated test (tests inject `navigate`; the base `create_target_source` asserts in debug). Covered by the manual web run; add when a Router test seam exists.
+
+## Deferred from: dev of story-2-5 (2026-10-04)
+
+- HUD chrome is placeholder (flat palette `StyleBoxFlat`s, 1 px ink borders, zero corner radius, ColorRect brain icon, two-bar pause icon) until Story 5.0's 9-slice art.
+- Brain counter count-up tick and pop (EXPERIENCE.md Game Feel) are Story 5.0 / 5.1 polish; `BrainCounter.set_count()` just sets the number.
+- Word-mode progress colouring / underline (Story 6.2) and paragraph text rendering (Story 8.2) use the target area sized here (word sign grows with the word up to 9 letters; paragraph sign 304 x 48, 2 lines of 24 px).
+- Paragraph mode fits **12 characters per 24 px line** with Press Start 2P. Epic 8 must accept it, use another 8 px-grid size, or widen the target area.
+- Approved sketch deviations from DESIGN.md / FR14 (Smuck, 2026-10-04, `sketches/hud-band-2-5.md`): HUD label "Keys" (report card keeps "Keys Typed"); stats column 176 px and target area 312 px; start prompt and Caps Lock hint above the band; WPM placeholder en dash; brain counter 80 px (3 digits). DESIGN.md itself is not edited; the sketch is the override.
+- The pause button is drawn as two ink bars, not the text "II": "II" at 16 px is 32 px wide and does not fit the 24 px button (the sketch table said "II", font 16).
+- The test level's own `%StatusLabel` ("Brains: N", y 176-200) touches the Caps Lock hint (y 196-224) by 4 px. Debug level only; Zombie Run (3.1) draws its own playfield.
+- The wrong-key shake (0.2 s) was not caught on a browser-pane screenshot (too short); covered by `test_hud.gd` and `test_run_frame.gd`. The pane's `shift+<letter>` sends a lowercase `key`, so Shift capitals cannot be tested there; bare capitals (Caps Lock style) can.
+- `%Hud.pause_pressed` is not connected until Story 2.7.
+
+## Deferred from: code review of story-2-5-shared-hud-with-wrong-key-feedback (2026-10-04)
+
+- `Hud`'s `%TargetLabel` has no `autowrap_mode`: paragraph text stays on one line and overflows the two-line sign. The layout only sizes the area; set `autowrap_mode` with paragraph rendering in Story 8.2.
+- Word sign width in `Hud._layout_target` is unclamped: a word over about 9 letters at 32 px overflows the 312 px target area. The MVP / Epic 6 words (max 8 letters) fit; check when Story 6.x adds longer words.
+- The wrong-key shake runs from the HUD's own `_process`. If Story 2.7 pauses through `RunFrame` state rather than the tree, the shake keeps animating; stop it with the pause.

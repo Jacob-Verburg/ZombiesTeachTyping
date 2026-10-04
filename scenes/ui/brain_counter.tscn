@@ -1,0 +1,48 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/brain_counter.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pill"]
+bg_color = Color(0.35294118, 0.19607843, 0.094117647, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
+
+[node name="BrainCounter" type="Panel"]
+custom_minimum_size = Vector2(80, 28)
+offset_right = 80.0
+offset_bottom = 28.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill")
+script = ExtResource("1_script")
+
+[node name="Icon" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 6.0
+offset_right = 22.0
+offset_bottom = 22.0
+mouse_filter = 2
+color = Color(0.94901961, 0.60392157, 0.72156863, 1)
+
+[node name="Shade" type="ColorRect" parent="Icon"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 11.0
+offset_right = 12.0
+offset_bottom = 12.0
+mouse_filter = 2
+color = Color(0.78823529, 0.37647059, 0.49803922, 1)
+
+[node name="CountLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 26.0
+offset_top = 6.0
+offset_right = 74.0
+offset_bottom = 22.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_font_sizes/font_size = 16
+text = "0"

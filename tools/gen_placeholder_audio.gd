@@ -1,11 +1,12 @@
 extends SceneTree
-## Dev-only: writes the two placeholder sounds (CC0, replaced in Story 5.1).
+## Dev-only: writes the placeholder sounds (CC0, replaced in Story 5.1).
 ## Run: "/c/Program Files/Godot/Godot.exe" --headless --path . -s tools/gen_placeholder_audio.gd
 ## then --import, so the .wav.import files (and the menu loop settings) are applied.
 
 const MIX_RATE: int = 22050
 const CLICK_PATH: String = "res://assets/audio/sfx/sfx_ui_click.wav"
 const MUSIC_PATH: String = "res://assets/audio/music/mus_menu.wav"
+const WRONG_KEY_PATH: String = "res://assets/audio/sfx/sfx_wrong_key.wav"
 
 ## C, Am, F, G: one 8-note arpeggio per chord (MIDI note numbers).
 const ARPEGGIOS: Array[Array] = [
@@ -17,6 +18,8 @@ const ARPEGGIOS: Array[Array] = [
 const NOTE_SECONDS: float = 0.1875 # 160 bpm eighth notes; 4 chords x 8 notes = 6 s
 const MUSIC_PEAK: float = 0.25 # about -12 dBFS
 const CLICK_PEAK: float = 0.5
+## Quieter than the click: the wrong-key tick is a soft "bonk" (FR2, EXPERIENCE.md Game Feel).
+const WRONG_KEY_PEAK: float = 0.35
 
 
 func _init() -> void:
@@ -25,6 +28,7 @@ func _init() -> void:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://assets/audio/music")),
 		_save(_click_samples(), CLICK_PATH),
 		_save(_music_samples(), MUSIC_PATH),
+		_save(_wrong_key_samples(), WRONG_KEY_PATH),
 	]
 	# Non-zero exit on any failure, so a bad path or cwd doesn't look like success.
 	quit(0 if errors.all(func(err: Error) -> bool: return err == OK) else 1)
@@ -39,6 +43,21 @@ func _click_samples() -> PackedFloat32Array:
 		var t: float = float(i) / MIX_RATE
 		var envelope: float = exp(-t * 120.0) * (1.0 - float(i) / count)
 		samples[i] = sin(TAU * 1000.0 * t) * envelope * CLICK_PEAK
+	return samples
+
+
+## 70 ms, 220 Hz triangle with a short attack and a fast decay: a low, soft bonk.
+func _wrong_key_samples() -> PackedFloat32Array:
+	var count: int = int(0.07 * MIX_RATE)
+	var samples: PackedFloat32Array = PackedFloat32Array()
+	samples.resize(count)
+	for i: int in count:
+		var t: float = float(i) / MIX_RATE
+		var phase: float = 220.0 * t
+		var triangle: float = 4.0 * absf(phase - floorf(phase + 0.5)) - 1.0
+		var attack: float = minf(1.0, t / 0.003)
+		var envelope: float = attack * exp(-t * 45.0) * (1.0 - float(i) / count)
+		samples[i] = triangle * envelope * WRONG_KEY_PEAK
 	return samples
 
 

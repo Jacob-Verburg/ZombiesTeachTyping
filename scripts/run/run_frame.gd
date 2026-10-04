@@ -1,8 +1,10 @@
 extends Control
 ## The run frame: third stage of the typing pipeline (ADR-1). TypingInput -> TypingSession -> RunFrame
 ## -> level. Owns the run lifecycle (state machine), the RunClock, the run RNG, the TypingSession and
-## the level instance, and builds the RunResult at the end. The HUD (2.5), hands (2.6), pause and
-## countdown (2.7), PlayerData.record_run (2.8) and the overlay's run fields (2.10) attach here later.
+## the level instance, and builds the RunResult at the end. It drives the shared HUD (%Hud, Story 2.5)
+## by calling down: target, counts, clock, brains, shake + wrong-key tick, Caps Lock hint. Hands (2.6),
+## pause and countdown (2.7, %Hud.pause_pressed is still unconnected), PlayerData.record_run (2.8) and the
+## overlay's run fields (2.10) attach here later.
 ## Everything in the typing path is synchronous: nothing in it waits or defers a call.
 ## A level config with duration_s <= 0 means "no timer": the level must end the run with end_requested.
 
@@ -49,6 +51,8 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_clock.advance(delta)
+	if _session != null:
+		%Hud.update_clock(_clock.get_elapsed(), _session.get_keys_typed())
 	match _state:
 		RunState.RUNNING:
 			if _duration > 0.0 and _clock.get_elapsed() >= _duration:
@@ -119,6 +123,14 @@ func _start_level(payload: Dictionary) -> String:
 	_session.char_accepted.connect(_level.on_char_accepted)
 	_session.char_rejected.connect(_level.on_char_rejected)
 	_level.end_requested.connect(_on_level_end_requested)
+	# HUD after the level, so the level reacts first; all in the same call as the key.
+	%Hud.setup(config, _session.get_current_target())
+	_session.target_changed.connect(%Hud.show_target)
+	_session.char_accepted.connect(_on_session_char_accepted)
+	_session.char_rejected.connect(_on_session_char_rejected)
+	_level.brains_earned_changed.connect(%Hud.set_brains)
+	%TypingInput.caps_lock_suspected.connect(_on_typing_input_caps_lock_suspected)
+	%TypingInput.caps_lock_cleared.connect(_on_typing_input_caps_lock_cleared)
 	Log.info(&"run", "started level=%s seed=%d" % [_level_id, _seed])
 	return ""
 
@@ -141,6 +153,7 @@ func _seed_rng(requested: Variant) -> void:
 func _fail_to_menu(reason: String) -> void:
 	Log.error(&"run", "cannot start run: %s" % reason)
 	%TypingInput.active = false
+	%Hud.visible = false
 	_session = null
 	if _level != null:
 		_level.get_parent().remove_child(_level)
@@ -172,6 +185,8 @@ func _set_state(new_state: RunState) -> void:
 		RunState.ENDING:
 			_clock.pause()
 			%TypingInput.active = false
+			# Input is off from here, so caps_lock_cleared can never fire: clear the hint now.
+			%Hud.set_caps_hint(false)
 			var outro: float = _level.on_run_ending(_end_reason)
 			_outro_left = maxf(0.0, outro) if is_finite(outro) else 0.0
 		RunState.DONE:
@@ -206,6 +221,26 @@ func _on_typing_input_char_typed(c: String) -> void:
 func _on_session_run_started() -> void:
 	_set_state(RunState.RUNNING)
 	_level.on_run_started()
+	%Hud.hide_start_prompt()
+
+
+func _on_session_char_accepted(_expected: String, _index: int) -> void:
+	%Hud.set_counts(_session.get_keys_typed(), _session.get_errors())
+
+
+## Wrong key (FR2): count, shake the glyph and the quiet tick (AudioManager throttles it to 150 ms).
+func _on_session_char_rejected(_expected: String, _typed: String) -> void:
+	%Hud.set_counts(_session.get_keys_typed(), _session.get_errors())
+	%Hud.shake_target()
+	AudioManager.play_sfx(&"sfx_wrong_key")
+
+
+func _on_typing_input_caps_lock_suspected() -> void:
+	%Hud.set_caps_hint(true)
+
+
+func _on_typing_input_caps_lock_cleared() -> void:
+	%Hud.set_caps_hint(false)
 
 
 func _on_level_end_requested(reason: StringName) -> void:

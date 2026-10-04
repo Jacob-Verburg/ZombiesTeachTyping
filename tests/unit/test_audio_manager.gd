@@ -9,6 +9,8 @@ const AudioManagerScript := preload("res://scripts/autoloads/audio_manager.gd")
 var _sfx_stream: AudioStreamWAV
 var _music_stream: AudioStreamWAV
 var _am: AudioManagerScript
+## Fake clock for the per-cue throttle (Story 2.5), read through AudioManager.now_msec.
+var _now: int = 0
 
 
 func before_each() -> void:
@@ -19,6 +21,8 @@ func before_each() -> void:
 		_cue(&"sfx_test", _sfx_stream, -3.0),
 		_cue(&"mus_test", _music_stream, -9.0),
 		_cue(&"sfx_empty", null, 0.0),
+		_throttled_cue(&"sfx_tick", 0.15),
+		_throttled_cue(&"sfx_tock", 0.15),
 	]
 	_am = AudioManagerScript.new()
 	_am.library = library
@@ -247,3 +251,70 @@ func test_mute_sfx_only_mutes_sfx() -> void:
 	_am.set_sfx_muted(false)
 	assert_false(AudioServer.is_bus_mute(sfx))
 	assert_false(_am.is_sfx_muted())
+
+
+# --- per-cue throttle (Story 2.5, FR2) -------------------------------------
+
+func _throttled_cue(id: StringName, min_interval_s: float) -> AudioCue:
+	var cue: AudioCue = _cue(id, _stream(), -6.0)
+	cue.min_interval_s = min_interval_s
+	return cue
+
+
+func _use_fake_clock() -> void:
+	_now = 0
+	_am.now_msec = func() -> int: return _now
+
+
+func test_throttle_drops_plays_inside_the_interval() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	assert_not_null(_am._try_play_sfx(&"sfx_tick"), "t=0 plays")
+	_now = 100
+	assert_null(_am._try_play_sfx(&"sfx_tick"), "t=100 dropped")
+	_now = 149
+	assert_null(_am._try_play_sfx(&"sfx_tick"), "t=149 dropped")
+	_now = 150
+	assert_not_null(_am._try_play_sfx(&"sfx_tick"), "t=150 plays")
+	_now = 300
+	assert_not_null(_am._try_play_sfx(&"sfx_tick"), "t=300 plays: the gap counts from the last play")
+
+
+func test_dropped_calls_do_not_restart_the_gap() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	assert_not_null(_am._try_play_sfx(&"sfx_tick"))
+	_now = 140
+	assert_null(_am._try_play_sfx(&"sfx_tick"))
+	_now = 160
+	assert_not_null(_am._try_play_sfx(&"sfx_tick"), "the dropped call at 140 did not stamp")
+
+
+func test_throttle_is_per_cue() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	assert_not_null(_am._try_play_sfx(&"sfx_tick"))
+	assert_not_null(_am._try_play_sfx(&"sfx_tock"), "another throttled id is not blocked")
+	assert_not_null(_am._try_play_sfx(&"sfx_test"), "an unthrottled id is not blocked")
+
+
+func test_unthrottled_cue_plays_every_call() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	for i: int in 5:
+		assert_not_null(_am._try_play_sfx(&"sfx_test"), "call %d" % i)
+
+
+func test_locked_call_does_not_stamp() -> void:
+	_use_fake_clock()
+	assert_null(_am._try_play_sfx(&"sfx_tick"), "locked: dropped")
+	_now = 10
+	_am.unlock()
+	assert_not_null(_am._try_play_sfx(&"sfx_tick"), "first call after unlock plays")
+
+
+func test_default_clock_is_ticks_msec() -> void:
+	var fresh: AudioManagerScript = AudioManagerScript.new()
+	assert_true(fresh.now_msec.is_valid())
+	assert_true(fresh.now_msec.call() >= 0)
+	fresh.free()

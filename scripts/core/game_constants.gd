@@ -22,3 +22,9 @@ const END_REASON_ESCAPED: StringName = &"escaped"
 ## Runs shorter than this many seconds report 0 WPM: a one-keystroke Pitchfork Panic run would
 ## otherwise show an absurd rate (1 key in 0.016 s = 750 WPM).
 const MIN_WPM_SECONDS: float = 1.0
+## FR8: the live WPM on the HUD stays hidden for the first this-many seconds of run time.
+const LIVE_WPM_DELAY_S: float = 5.0
+## FR8: after the delay, the live WPM refreshes once per this-many seconds of run time (1 Hz).
+const LIVE_WPM_INTERVAL_S: float = 1.0
+## FR2: how long the target glyph shakes after a wrong key.
+const WRONG_KEY_SHAKE_S: float = 0.2

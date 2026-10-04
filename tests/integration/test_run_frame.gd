@@ -303,3 +303,97 @@ func test_capture_keys_reset_after_failed_load() -> void:
 	remove_child(frame)
 	frame.free()
 	assert_false(WebPlatform.capture_keys)
+
+
+# --- HUD wiring (Story 2.5) -------------------------------------------------
+
+func _hud(frame: RunFrameScript) -> Control:
+	return frame.get_node("%Hud") as Control
+
+
+func _hud_text(frame: RunFrameScript, path: String) -> String:
+	return (_hud(frame).get_node(path) as Label).text
+
+
+func _capital(c: String) -> InputEventKey:
+	var event: InputEventKey = _key(c.to_upper())
+	event.shift_pressed = true
+	return event
+
+
+func test_hud_shows_first_target_and_prompt() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	assert_true(_hud(frame).visible)
+	assert_eq(_hud_text(frame, "%TargetLabel"), frame.get_session().get_current_target())
+	assert_eq(_hud_text(frame, "%StartPromptLabel"), "Type the letter to start!")
+	assert_true((_hud(frame).get_node("%StartPrompt") as Control).visible)
+	assert_eq(_hud_text(frame, "%TimerValue"), "2:00")
+
+
+func test_wrong_key_updates_hud_in_the_same_call() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	_type_wrong(frame)
+	assert_eq(_hud_text(frame, "%ErrorsValue"), "1", "before handle_key returned")
+	_hud(frame).call("_process", 0.05)
+	assert_ne(_hud(frame).call("get_target_offset_x"), 0.0, "the glyph shakes")
+	assert_true((_hud(frame).get_node("%StartPrompt") as Control).visible, "a wrong key doesn't start the run")
+
+
+func test_first_correct_key_updates_hud() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	_type_correct(frame)
+	assert_false((_hud(frame).get_node("%StartPrompt") as Control).visible)
+	assert_eq(_hud_text(frame, "%KeysValue"), "1")
+	assert_eq(_hud_text(frame, "%TargetLabel"), frame.get_session().get_current_target())
+
+
+func test_brain_counter_follows_the_level() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	for i: int in 3:
+		_type_correct(frame)
+	assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), "0")
+	_type_correct(frame)
+	assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), "1", "same call as the 4th key")
+
+
+func test_process_drives_timer_and_live_wpm() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	frame._process(3.0)
+	assert_eq(_hud_text(frame, "%TimerValue"), "2:00", "waiting: full length")
+	_type_correct(frame)
+	for i: int in 9:
+		_type_correct(frame)
+	frame._process(4.0)
+	assert_eq(_hud_text(frame, "%TimerValue"), "1:56")
+	assert_eq(_hud_text(frame, "%WpmValue"), _hud(frame).get("WPM_PLACEHOLDER"))
+	frame._process(1.0)
+	assert_eq(_hud_text(frame, "%WpmValue"), "24", "10 keys in 5 s")
+
+
+func test_caps_lock_hint() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	var hint: Control = _hud(frame).get_node("%CapsHint") as Control
+	assert_false(hint.visible)
+	for c: String in ["q", "w", "e"]:
+		_input_node(frame).handle_key(_capital(c))
+	assert_true(hint.visible)
+	_send(frame, "x")
+	assert_false(hint.visible)
+
+
+func test_caps_lock_hint_clears_when_the_run_ends() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	var hint: Control = _hud(frame).get_node("%CapsHint") as Control
+	_type_correct(frame)
+	for c: String in ["q", "w", "e"]:
+		_input_node(frame).handle_key(_capital(c))
+	assert_true(hint.visible, "precondition: the hint is showing")
+	frame.get_level().end_requested.emit(GameConstants.END_REASON_ESCAPED)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_false(hint.visible, "the hint does not linger through the outro")
+
+
+func test_failed_load_hides_hud() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"nope"})
+	assert_push_error("[ERROR][run]")
+	assert_false(_hud(frame).visible)

@@ -3,7 +3,9 @@ extends Node
 ## Buses: Master -> Music / SFX, no effects (default_bus_layout.tres). Pool: 8 SFX players + 1 music player,
 ## and only this script creates audio players. Nothing plays until unlock(), which the title calls from its
 ## first key/click callback; music requested before that waits as pending, SFX are dropped.
-## Later: throttling (2.5 wrong-key, 3.2 voice cooldown, 3.7 groans), play_voice() (3.2),
+## Per-cue throttle (Story 2.5): a cue with min_interval_s > 0 is dropped while it played less than that
+## long ago (the wrong-key tick: 150 ms, FR2); the gap counts from the last play, never from a dropped call.
+## Later: 3.2 voice cooldown, 3.7 groans, play_voice() (3.2),
 ## start_ambience()/stop_ambience() (3.7) and the music crossfade (5.1). Audio rules live only here.
 
 const LIBRARY: AudioLibrary = preload("res://data/audio/audio_library.tres")
@@ -13,6 +15,8 @@ const SFX_BUS: StringName = &"SFX"
 
 ## Test seam: tests on a fresh instance assign a library built in code before add_child.
 var library: AudioLibrary = LIBRARY
+## Test seam: the clock the throttle reads, in milliseconds. Tests assign a fake.
+var now_msec: Callable = Time.get_ticks_msec
 
 var _unlocked: bool = false
 var _sfx_players: Array[AudioStreamPlayer] = []
@@ -20,6 +24,8 @@ var _music_player: AudioStreamPlayer
 var _current_music: StringName = &""
 var _pending_music: StringName = &""
 var _next_steal: int = 0
+## cue id -> now_msec() of its last actual play (throttled cues only).
+var _last_played_msec: Dictionary[StringName, int] = {}
 
 
 func _init() -> void:
@@ -70,6 +76,11 @@ func _try_play_sfx(id: StringName) -> AudioStreamPlayer:
 	var cue: AudioCue = _get_playable_cue(id)
 	if cue == null:
 		return null
+	if cue.min_interval_s > 0.0:
+		var now: int = now_msec.call()
+		if _last_played_msec.has(id) and now - _last_played_msec[id] < roundi(cue.min_interval_s * 1000.0):
+			return null
+		_last_played_msec[id] = now
 	var player: AudioStreamPlayer = _pick_sfx_player()
 	player.stream = cue.stream
 	player.volume_db = cue.volume_db
