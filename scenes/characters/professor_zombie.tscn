@@ -1,0 +1,48 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" uid="uid://n2k7li8ltor8" path="res://scripts/characters/professor_zombie.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dfaedu886jctv" path="res://assets/sprites/characters/professor/professor_point.png" id="2_point"]
+[ext_resource type="Texture2D" uid="uid://bp3e47j4pmky7" path="res://assets/sprites/characters/professor/professor_mortarboard.png" id="3_mortarboard"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_point_0"]
+atlas = ExtResource("2_point")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_point_1"]
+atlas = ExtResource("2_point")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_professor"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_point_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_point_1")
+}],
+"loop": true,
+"name": &"point",
+"speed": 8.0
+}]
+
+[node name="ProfessorZombie" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Body" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_professor")
+animation = &"point"
+autoplay = "point"
+centered = false
+
+[node name="HatSlot" type="Node2D" parent="Body"]
+unique_name_in_owner = true
+position = Vector2(16, 5)
+
+[node name="Mortarboard" type="Sprite2D" parent="Body"]
+texture = ExtResource("3_mortarboard")
+centered = false
+
+[node name="PetSlot" type="Node2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(44, 0)

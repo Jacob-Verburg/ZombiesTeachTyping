@@ -230,3 +230,21 @@
 ## Deferred from: code review of 2-8-run-recording-and-personal-bests (2026-10-04)
 
 - `record_run` returns `new_best = true` and emits `run_recorded` even when the save is read-only (newer `schema_version`) or the write fails, so the report card can celebrate a best that is gone after reload. Pre-existing SaveService behavior; no retry on a failed write until the next `request_save` or tab hide.
+
+## Deferred from: dev of story-2-9 (2026-10-04)
+
+- Hand-off to Story 3.1: register `zombie_run` in `data/levels/level_registry.tres` with `display_name = "Zombie Run"` (the report card heading). Without it the card falls back to `"zombie_run".capitalize()`, which happens to read the same.
+- Final chalkboard, chalk tray, "New best!" stamp (hand-lettered, pre-rotated -8°), pixel buttons, key-hint keycaps, smiling moon and night-classroom backdrop art: Story 5.0. Today they are square `StyleBoxFlat` / `ColorRect` placeholders in palette colours.
+- Chalk-scratch per revealed row, the chime, the stamp thump and menu music on the report card: Story 5.1 (no `AudioCue`s exist for them yet).
+- The worn hat and pet in Professor Zombie's `%HatSlot` / `%PetSlot`, `SpriteAnchors` for the professor, and lifting the mortarboard by the hat's height: Story 4.3.
+- First completed run goes through the Welcome Gift: Story 4.5 hooks into `report_card.gd` `_leave()`, the card's only navigation.
+- Long level names vs the stamp: at 24 px the heading has 245 px before the stamp (10 glyphs); "Pitchfork Panic" (15 glyphs = 360 px) would run under it. Epic 8 (or the 5.0 stamp art) resolves it; `test_stamp_clear_of_heading_and_rows` checks only "Test level" today.
+- Professor Zombie is 32×32 at 1× (one sprite scale rule), so he is much smaller than in the mock. An exception to the rule or a 48×48 professor sprite is Smuck's call.
+- `test_level` has no completion bonus, so the "+N bonus" line is only seen in tests until Story 3.5.
+- The pixel-button focus look is two parts: the scene's `focus` box draws only the 2 px candy-yellow ring (outside the ink outline), and `report_card.gd` swaps the `normal`/`hover` box to the pumpkin-light fill on focus. A shared pixel-button widget/theme type (Stories 4.2 / 5.0) should absorb this.
+
+## Deferred from: code review of 2-9-chalkboard-report-card (2026-10-04)
+
+- Soft-lock if navigation does nothing: `report_card.gd` `_leave()` sets `_leaving` before calling `navigate`; if the Router ignores or fails the call the card ignores all input. Router falls back to the menu, so only a missing menu scene triggers it. Reason: Router-level failure, very unlikely.
+- No hover cue on the unfocused button (hover stylebox equals normal). Reason: placeholder chrome until Story 5.0.
+- Brittle tests in `test_report_card.gd`: hard-coded `checked == 19` label count; guard boundary tests rely on 0.99 + 0.01 summing to exactly 1.0. Reason: low value.

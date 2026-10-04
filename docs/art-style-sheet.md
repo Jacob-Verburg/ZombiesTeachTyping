@@ -92,7 +92,9 @@ viewport). Only 32×32 sprites exist so far.
 **Animation limits:** **2–6 frames** per animation at **8–12 fps** (*tested* for the current prototypes only: the frame counts in
 `test_art_sprites.gd` and the fps in the art review scene; new character sheets must be added to those tests). Per-frame duration
 multipliers are not used to get below 8 fps. Current prototypes: zombie `idle` 2 frames at 8 fps,
-zombie `walk` 4 frames at 10 fps, villager `wave` 2 frames at 8 fps.
+zombie `walk` 4 frames at 10 fps, villager `wave` 2 frames at 8 fps, professor `point` 2 frames at 8 fps
+(Story 2.9), plus the one-frame `professor_mortarboard.png` overlay drawn at the body's origin (an
+overlay, not an animation; checked by the same pixel tests as `OVERLAYS`).
 
 **File naming:** `<subject>_<animation>.png` (`zombie_walk.png`, `villager_wave.png`), animation names
 are lowercase verbs (`idle`, `walk`, `wave`, `hop`, `hug`, `dance`, `poof`). Paths:

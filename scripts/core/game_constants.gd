@@ -32,3 +32,5 @@ const WRONG_KEY_SHAKE_S: float = 0.2
 const COUNTDOWN_FROM: int = 3
 ## ... and shows each number for this many seconds, while the tree stays paused.
 const COUNTDOWN_STEP_S: float = 0.5
+## FR21: Enter / Esc / clicks on the report card do nothing for this many seconds after it opens.
+const REPORT_CARD_INPUT_GUARD_S: float = 1.0

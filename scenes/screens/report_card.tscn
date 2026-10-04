@@ -1,6 +1,95 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" uid="uid://blk6yqcckri1j" path="res://scripts/screens/report_card.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/levels/level_registry.tres" id="2_registry"]
+[ext_resource type="PackedScene" path="res://scenes/characters/professor_zombie.tscn" id="3_professor"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
+bg_color = Color(0.54117647, 0.32156863, 0.15686275, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_surface"]
+bg_color = Color(0.14117647, 0.25098039, 0.18431373, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tray"]
+bg_color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stub"]
+bg_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stamp"]
+bg_color = Color(0.69019608, 0.16470588, 0.14509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stamp_inner"]
+draw_center = false
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_keycap"]
+bg_color = Color(0.96470588, 0.90588235, 0.75686275, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button"]
+bg_color = Color(0.54117647, 0.32156863, 0.15686275, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_focused"]
+bg_color = Color(1, 0.6627451, 0.29019608, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
+bg_color = Color(0.94117647, 0.47843137, 0.10980392, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_focus_ring"]
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.82352941, 0.24705882, 1)
+expand_margin_left = 2.0
+expand_margin_top = 2.0
+expand_margin_right = 2.0
+expand_margin_bottom = 2.0
 
 [node name="ReportCard" type="Control"]
 layout_mode = 3
@@ -10,53 +99,746 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
+level_registry = ExtResource("2_registry")
+button_normal = SubResource("StyleBoxFlat_button")
+button_focused = SubResource("StyleBoxFlat_button_focused")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Backdrop" type="Control" parent="."]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 640.0
+offset_bottom = 360.0
 mouse_filter = 2
-color = Color(0.16862746, 0.11372549, 0.24705882, 1)
 
-[node name="Box" type="VBoxContainer" parent="."]
+[node name="Wall" type="ColorRect" parent="Backdrop"]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -120.0
-offset_right = 200.0
-offset_bottom = 120.0
-grow_horizontal = 2
-grow_vertical = 2
-alignment = 1
-theme_override_constants/separation = 8
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 640.0
+offset_bottom = 296.0
+mouse_filter = 2
+color = Color(0.85098039, 0.7372549, 0.51764706, 1)
 
-[node name="Heading" type="Label" parent="Box"]
-layout_mode = 2
+[node name="WallLine0" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 24.0
+offset_right = 640.0
+offset_bottom = 25.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine1" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 48.0
+offset_right = 640.0
+offset_bottom = 49.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine2" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 72.0
+offset_right = 640.0
+offset_bottom = 73.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine3" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 96.0
+offset_right = 640.0
+offset_bottom = 97.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine4" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 120.0
+offset_right = 640.0
+offset_bottom = 121.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine5" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 144.0
+offset_right = 640.0
+offset_bottom = 145.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine6" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 168.0
+offset_right = 640.0
+offset_bottom = 169.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine7" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 192.0
+offset_right = 640.0
+offset_bottom = 193.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine8" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 216.0
+offset_right = 640.0
+offset_bottom = 217.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine9" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 240.0
+offset_right = 640.0
+offset_bottom = 241.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine10" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 264.0
+offset_right = 640.0
+offset_bottom = 265.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WallLine11" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 288.0
+offset_right = 640.0
+offset_bottom = 289.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="WindowOutline" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 452.0
+offset_top = 14.0
+offset_right = 624.0
+offset_bottom = 118.0
+mouse_filter = 2
+color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[node name="WindowFrame" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 453.0
+offset_top = 15.0
+offset_right = 623.0
+offset_bottom = 117.0
+mouse_filter = 2
+color = Color(0.54117647, 0.32156863, 0.15686275, 1)
+
+[node name="WindowBevel" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 453.0
+offset_top = 15.0
+offset_right = 623.0
+offset_bottom = 16.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="Glass" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 459.0
+offset_top = 21.0
+offset_right = 617.0
+offset_bottom = 111.0
+mouse_filter = 2
+color = Color(0.16862745, 0.11372549, 0.24705882, 1)
+
+[node name="MoonWide" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 580.0
+offset_top = 30.0
+offset_right = 606.0
+offset_bottom = 46.0
+mouse_filter = 2
+color = Color(1, 0.95294118, 0.69019608, 1)
+
+[node name="MoonTall" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 584.0
+offset_top = 26.0
+offset_right = 602.0
+offset_bottom = 50.0
+mouse_filter = 2
+color = Color(1, 0.95294118, 0.69019608, 1)
+
+[node name="Star0" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 472.0
+offset_top = 32.0
+offset_right = 473.0
+offset_bottom = 33.0
+mouse_filter = 2
+color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+
+[node name="Star1" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 498.0
+offset_top = 48.0
+offset_right = 500.0
+offset_bottom = 50.0
+mouse_filter = 2
+color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+
+[node name="Star2" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 520.0
+offset_top = 28.0
+offset_right = 521.0
+offset_bottom = 29.0
+mouse_filter = 2
+color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+
+[node name="Star3" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 474.0
+offset_top = 88.0
+offset_right = 475.0
+offset_bottom = 89.0
+mouse_filter = 2
+color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+
+[node name="Star4" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 556.0
+offset_top = 40.0
+offset_right = 557.0
+offset_bottom = 41.0
+mouse_filter = 2
+color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+
+[node name="Star5" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 566.0
+offset_top = 92.0
+offset_right = 568.0
+offset_bottom = 94.0
+mouse_filter = 2
+color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+
+[node name="Star6" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 600.0
+offset_top = 80.0
+offset_right = 601.0
+offset_bottom = 81.0
+mouse_filter = 2
+color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+
+[node name="BatWings" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 490.0
+offset_top = 72.0
+offset_right = 498.0
+offset_bottom = 74.0
+mouse_filter = 2
+color = Color(0.47843137, 0.29411765, 0.70196078, 1)
+
+[node name="BatBody" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 493.0
+offset_top = 71.0
+offset_right = 495.0
+offset_bottom = 75.0
+mouse_filter = 2
+color = Color(0.47843137, 0.29411765, 0.70196078, 1)
+
+[node name="MullionV" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 537.0
+offset_top = 20.0
+offset_right = 539.0
+offset_bottom = 112.0
+mouse_filter = 2
+color = Color(0.54117647, 0.32156863, 0.15686275, 1)
+
+[node name="MullionH" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 458.0
+offset_top = 65.0
+offset_right = 618.0
+offset_bottom = 67.0
+mouse_filter = 2
+color = Color(0.54117647, 0.32156863, 0.15686275, 1)
+
+[node name="Sill" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 448.0
+offset_top = 116.0
+offset_right = 628.0
+offset_bottom = 122.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="SillTop" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 448.0
+offset_top = 116.0
+offset_right = 628.0
+offset_bottom = 117.0
+mouse_filter = 2
+color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[node name="SillBottom" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 448.0
+offset_top = 121.0
+offset_right = 628.0
+offset_bottom = 122.0
+mouse_filter = 2
+color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[node name="Floor" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 296.0
+offset_right = 640.0
+offset_bottom = 360.0
+mouse_filter = 2
+color = Color(0.54117647, 0.32156863, 0.15686275, 1)
+
+[node name="FloorEdge" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 296.0
+offset_right = 640.0
+offset_bottom = 297.0
+mouse_filter = 2
+color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[node name="FloorBevel" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 297.0
+offset_right = 640.0
+offset_bottom = 298.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="FloorLine0" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 316.0
+offset_right = 640.0
+offset_bottom = 317.0
+mouse_filter = 2
+color = Color(0.35294118, 0.19607843, 0.09411765, 1)
+
+[node name="FloorLine1" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 338.0
+offset_right = 640.0
+offset_bottom = 339.0
+mouse_filter = 2
+color = Color(0.35294118, 0.19607843, 0.09411765, 1)
+
+[node name="BoardShadow" type="ColorRect" parent="."]
+layout_mode = 1
+offset_left = 18.0
+offset_top = 14.0
+offset_right = 434.0
+offset_bottom = 290.0
+mouse_filter = 2
+color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+
+[node name="Board" type="Panel" parent="."]
+layout_mode = 1
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 432.0
+offset_bottom = 288.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
+
+[node name="BevelTop" type="ColorRect" parent="Board"]
+layout_mode = 1
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 415.0
+offset_bottom = 2.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="BevelLeft" type="ColorRect" parent="Board"]
+layout_mode = 1
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 2.0
+offset_bottom = 275.0
+mouse_filter = 2
+color = Color(0.75294118, 0.51764706, 0.27843137, 1)
+
+[node name="Surface" type="Panel" parent="Board"]
+layout_mode = 1
+offset_left = 7.0
+offset_top = 7.0
+offset_right = 407.0
+offset_bottom = 261.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_surface")
+
+[node name="Heading" type="Label" parent="Board/Surface"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 20.0
+offset_top = 10.0
+offset_right = 260.0
+offset_bottom = 34.0
 theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
 theme_override_font_sizes/font_size = 24
 text = "Report Card"
-horizontal_alignment = 1
 
-[node name="PayloadLabel" type="Label" parent="Box"]
+[node name="Rule" type="ColorRect" parent="Board/Surface"]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 40.0
+offset_right = 380.0
+offset_bottom = 41.0
+mouse_filter = 2
+color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+
+[node name="Row0" type="Control" parent="Board/Surface"]
 unique_name_in_owner = true
-layout_mode = 2
+layout_mode = 1
+offset_left = 20.0
+offset_top = 48.0
+offset_right = 380.0
+offset_bottom = 64.0
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Board/Surface/Row0"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 256.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "Keys Typed"
+
+[node name="KeysValue" type="Label" parent="Board/Surface/Row0"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 210.0
+offset_top = 0.0
+offset_right = 360.0
+offset_bottom = 16.0
 theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-horizontal_alignment = 1
-autowrap_mode = 3
+text = "0"
+horizontal_alignment = 2
 
-[node name="PlayAgainButton" type="Button" parent="Box"]
+[node name="Row1" type="Control" parent="Board/Surface"]
 unique_name_in_owner = true
-layout_mode = 2
+layout_mode = 1
+offset_left = 20.0
+offset_top = 72.0
+offset_right = 380.0
+offset_bottom = 88.0
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Board/Surface/Row1"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 256.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "Errors"
+
+[node name="ErrorsValue" type="Label" parent="Board/Surface/Row1"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 210.0
+offset_top = 0.0
+offset_right = 360.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "0"
+horizontal_alignment = 2
+
+[node name="Row2" type="Control" parent="Board/Surface"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 20.0
+offset_top = 96.0
+offset_right = 380.0
+offset_bottom = 112.0
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Board/Surface/Row2"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 256.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "WPM"
+
+[node name="WpmValue" type="Label" parent="Board/Surface/Row2"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 210.0
+offset_top = 0.0
+offset_right = 360.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "0"
+horizontal_alignment = 2
+
+[node name="Row3" type="Control" parent="Board/Surface"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 20.0
+offset_top = 120.0
+offset_right = 380.0
+offset_bottom = 136.0
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Board/Surface/Row3"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 256.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "Accuracy"
+
+[node name="AccuracyValue" type="Label" parent="Board/Surface/Row3"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 210.0
+offset_top = 0.0
+offset_right = 360.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "0"
+horizontal_alignment = 2
+
+[node name="Row4" type="Control" parent="Board/Surface"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 20.0
+offset_top = 144.0
+offset_right = 380.0
+offset_bottom = 160.0
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Board/Surface/Row4"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 256.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "Lesson Time"
+
+[node name="TimeValue" type="Label" parent="Board/Surface/Row4"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 210.0
+offset_top = 0.0
+offset_right = 360.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "0"
+horizontal_alignment = 2
+
+[node name="Row5" type="Control" parent="Board/Surface"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 20.0
+offset_top = 168.0
+offset_right = 380.0
+offset_bottom = 184.0
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Board/Surface/Row5"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 256.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "Brains Collected"
+
+[node name="BrainsValue" type="Label" parent="Board/Surface/Row5"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 210.0
+offset_top = 0.0
+offset_right = 360.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "0"
+horizontal_alignment = 2
+
+[node name="Row6" type="Control" parent="Board/Surface"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 20.0
+offset_top = 192.0
+offset_right = 380.0
+offset_bottom = 208.0
+mouse_filter = 2
+
+[node name="BonusLabel" type="Label" parent="Board/Surface/Row6"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 360.0
+offset_bottom = 16.0
+theme_override_colors/font_color = Color(1, 0.82352941, 0.24705882, 1)
+text = "+0 bonus"
+horizontal_alignment = 2
+
+[node name="Tray" type="Panel" parent="Board"]
+layout_mode = 1
+offset_left = 3.0
+offset_top = 262.0
+offset_right = 411.0
+offset_bottom = 272.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_tray")
+
+[node name="ChalkStub0" type="Panel" parent="Board"]
+layout_mode = 1
+offset_left = 40.0
+offset_top = 258.0
+offset_right = 56.0
+offset_bottom = 262.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stub")
+
+[node name="ChalkStub1" type="Panel" parent="Board"]
+layout_mode = 1
+offset_left = 70.0
+offset_top = 259.0
+offset_right = 80.0
+offset_bottom = 262.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stub")
+
+[node name="Stamp" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 288.0
+offset_top = 20.0
+offset_right = 448.0
+offset_bottom = 52.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stamp")
+
+[node name="Inner" type="Panel" parent="Stamp"]
+layout_mode = 1
+offset_left = 3.0
+offset_top = 3.0
+offset_right = 157.0
+offset_bottom = 29.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stamp_inner")
+
+[node name="Text" type="Label" parent="Stamp"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 160.0
+offset_bottom = 32.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "New best!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Professor" parent="." instance=ExtResource("3_professor")]
+unique_name_in_owner = true
+position = Vector2(430, 270)
+
+[node name="PlayAgainButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 32.0
+offset_top = 308.0
+offset_right = 208.0
+offset_bottom = 340.0
+focus_neighbor_left = NodePath("../MenuButton")
+focus_neighbor_top = NodePath(".")
+focus_neighbor_right = NodePath("../MenuButton")
+focus_neighbor_bottom = NodePath(".")
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_colors/font_hover_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_colors/font_focus_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+theme_override_colors/font_pressed_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+theme_override_colors/font_hover_pressed_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus_ring")
 text = "Play Again"
 
-[node name="MenuButton" type="Button" parent="Box"]
+[node name="EnterHint" type="Label" parent="."]
 unique_name_in_owner = true
-layout_mode = 2
+layout_mode = 1
+offset_left = 216.0
+offset_top = 312.0
+offset_right = 304.0
+offset_bottom = 336.0
+theme_override_colors/font_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_keycap")
+text = "Enter"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MenuButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 328.0
+offset_top = 308.0
+offset_right = 408.0
+offset_bottom = 340.0
+focus_neighbor_left = NodePath("../PlayAgainButton")
+focus_neighbor_top = NodePath(".")
+focus_neighbor_right = NodePath("../PlayAgainButton")
+focus_neighbor_bottom = NodePath(".")
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_colors/font_hover_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_colors/font_focus_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+theme_override_colors/font_pressed_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+theme_override_colors/font_hover_pressed_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus_ring")
 text = "Menu"
+
+[node name="EscHint" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 416.0
+offset_top = 312.0
+offset_right = 472.0
+offset_bottom = 336.0
+theme_override_colors/font_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_keycap")
+text = "Esc"
+horizontal_alignment = 1
+vertical_alignment = 1

@@ -7,6 +7,7 @@
 [sub_resource type="Resource" id="Resource_test_level"]
 script = ExtResource("2_entry")
 id = &"test_level"
+display_name = "Test level"
 scene = ExtResource("3_test_level")
 debug_only = true
 

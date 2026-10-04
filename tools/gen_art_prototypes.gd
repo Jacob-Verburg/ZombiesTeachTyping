@@ -1,5 +1,6 @@
 extends SceneTree
-## Dev-only: writes the master palette and the Story 1.9 prototype sprite sheets (art-style gate).
+## Dev-only: writes the master palette, the Story 1.9 prototype sprite sheets (art-style gate) and
+## the Story 2.9 Professor Zombie (pointing sheet + mortarboard overlay).
 ## Run: "/c/Program Files/Godot/Godot.exe" --headless --path . -s tools/gen_art_prototypes.gd
 ## then --import, so the .png.import files are written (Lossless, no mipmaps; Nearest is the project default).
 ## Pixels are authored here as ASCII maps: one string per row, one character per pixel, '.' = transparent.
@@ -12,6 +13,7 @@ extends SceneTree
 const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const ZOMBIE_DIR: String = "res://assets/sprites/characters/zombie"
 const VILLAGER_DIR: String = "res://assets/sprites/characters/villager"
+const PROFESSOR_DIR: String = "res://assets/sprites/characters/professor"
 const FRAME: int = 32
 
 ## DESIGN.md -> Colors, in order (index = pixel x in palette_32.png): 24 UI colors, then 8 art colors.
@@ -229,6 +231,80 @@ const ARM_TILT: Array[String] = [
 	".......................kkkk.....",
 ]
 
+## Professor Zombie (Story 2.9): the player zombie's skin greens, a night gown with dusk folds, a
+## wood-light pointer stick, a bat-purple mortarboard tassel (never candy-yellow or stamp-red).
+const PROFESSOR_LEGEND: Dictionary[String, String] = {
+	"k": "ink",
+	"G": "zombie-green",
+	"L": "zombie-green-bright",
+	"g": "zombie-green-dark",
+	"w": "chalk",
+	"n": "night",
+	"d": "dusk",
+	"c": "wood-light",
+	"p": "bat-purple",
+}
+
+## ZOMBIE_UPPER's head mirrored, so he faces left (toward the board); drawn from row 5.
+## The flat 12 px crown (row 5) stays free for the hat slot and the mortarboard.
+const PROFESSOR_HEAD: Array[String] = [
+	"..........kkkkkkkkkkkk..........",
+	".........kGGGGGGGGLLLLk.........",
+	"........kGGGGGGGGGGGGLLk........",
+	"........kGGGkkkGGGkkkGgk........",
+	"........kGGkwwwkGkwwwkgk........",
+	"........kGGkkkwkGkkkwkgk........",
+	"........kGGkkkwkGkkkwkgk........",
+	"........kGGGkkkGGGkkkGgk........",
+	"........kGkGGGGGGGGGkGgk........",
+	"........kGGkkkkkkkkkGGgk........",
+	"........kGGGkwwwwwkwkGgk........",
+	"........kgGGkkkkkkkGGggk........",
+	".........kggGGGGGGGGggk.........",
+	"..........kkkkkkkkkkkk..........",
+]
+
+## Gown and bare green feet from row 19; soles on row 30 like every other sheet.
+const PROFESSOR_GOWN: Array[String] = [
+	".........knnnnnnnnnnnnk.........",
+	"........knnnnnnnnnnnnnnk........",
+	"........kndnnnnnnnnnndnk........",
+	"........knnnnnnnnnnnnnnk........",
+	".......kndnnnnnnnnnnnndnk.......",
+	".......knnnnnnnnnnnnnnnnk.......",
+	".......kndnnnnnnnnnnnndnk.......",
+	"......knnnnnnnnnnnnnnnnnnk......",
+	"......kkkkkkkkkkkkkkkkkkkk......",
+	"..........kgGGk..kgGGk..........",
+	".........kgGGGk..kgGGGk.........",
+	".........kkkkkk..kkkkkk.........",
+]
+
+## Raised arm and pointer stick, tip at the left margin; drawn from row 9, and from row 10 on the
+## second frame (the "tap").
+const PROFESSOR_ARM: Array[String] = [
+	".kk.............................",
+	".kck............................",
+	".kkck...........................",
+	"..kkck..........................",
+	"...kkck.........................",
+	"....kkckk.......................",
+	".....kkGGk......................",
+	".....kGGGk......................",
+	".....kknnk......................",
+	"......knnnk.....................",
+	".......knnn.....................",
+]
+
+## Mortarboard overlay from row 1: drawn at the body's origin, its cap rests on the crown (row 5).
+const MORTARBOARD: Array[String] = [
+	"......kkkkkkkkkkkkkkkkkkkk......",
+	"......kkkkkkkkkkkkkkkkkkkk......",
+	".........knnnnnnnnnnnnkkpk......",
+	".........knnnnnnnnnnnnkkpk......",
+	".........kkkkkkkkkkkkkkkkk......",
+]
+
 ## Sheet path -> legend and frames; a frame is a list of [map, first row].
 const SHEETS: Dictionary[String, Dictionary] = {
 	ZOMBIE_DIR + "/zombie_idle.png": {
@@ -254,6 +330,20 @@ const SHEETS: Dictionary[String, Dictionary] = {
 			[[VILLAGER_BODY, 4], [ARM_TILT, 6]],
 		],
 	},
+	PROFESSOR_DIR + "/professor_point.png": {
+		"legend": PROFESSOR_LEGEND,
+		"frames": [
+			[[PROFESSOR_HEAD, 5], [PROFESSOR_GOWN, 19], [PROFESSOR_ARM, 9]],
+			[[PROFESSOR_HEAD, 5], [PROFESSOR_GOWN, 19], [PROFESSOR_ARM, 10]],
+		],
+	},
+	# One frame: an overlay, not an animation.
+	PROFESSOR_DIR + "/professor_mortarboard.png": {
+		"legend": PROFESSOR_LEGEND,
+		"frames": [
+			[[MORTARBOARD, 1]],
+		],
+	},
 }
 
 
@@ -262,6 +352,7 @@ func _init() -> void:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PALETTE_PATH.get_base_dir())),
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(ZOMBIE_DIR)),
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(VILLAGER_DIR)),
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PROFESSOR_DIR)),
 		_save(_palette_image(), PALETTE_PATH),
 	]
 	for path: String in SHEETS:
