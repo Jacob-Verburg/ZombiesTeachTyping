@@ -1,0 +1,124 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/run/pause_panel.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stone"]
+bg_color = Color(0.43529412, 0.41568627, 0.50196078, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_parchment"]
+bg_color = Color(0.96470588, 0.90588235, 0.75686275, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
+
+[node name="PausePanel" type="Control"]
+process_mode = 2
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="Scrim" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.16862745, 0.11372549, 0.24705882, 0.6)
+
+[node name="Panel" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 184.0
+offset_top = 64.0
+offset_right = 456.0
+offset_bottom = 296.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stone")
+
+[node name="TitleSign" type="Panel" parent="Panel"]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 12.0
+offset_right = 224.0
+offset_bottom = 48.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_parchment")
+
+[node name="Title" type="Label" parent="Panel/TitleSign"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_top = 6.0
+offset_right = 176.0
+offset_bottom = 30.0
+theme_override_colors/font_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
+theme_override_font_sizes/font_size = 24
+text = "Paused"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ResumeButton" type="Button" parent="Panel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 60.0
+offset_right = 256.0
+offset_bottom = 92.0
+focus_neighbor_top = NodePath("../SoundToggle")
+focus_neighbor_bottom = NodePath("../QuitButton")
+theme_override_font_sizes/font_size = 16
+text = "Resume"
+
+[node name="QuitButton" type="Button" parent="Panel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 100.0
+offset_right = 256.0
+offset_bottom = 132.0
+focus_neighbor_top = NodePath("../ResumeButton")
+focus_neighbor_bottom = NodePath("../MusicToggle")
+theme_override_font_sizes/font_size = 16
+text = "Quit to Menu"
+
+[node name="MusicToggle" type="Button" parent="Panel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 140.0
+offset_right = 256.0
+offset_bottom = 172.0
+focus_neighbor_top = NodePath("../QuitButton")
+focus_neighbor_bottom = NodePath("../SoundToggle")
+theme_override_font_sizes/font_size = 16
+toggle_mode = true
+button_pressed = true
+text = "Music: on"
+
+[node name="SoundToggle" type="Button" parent="Panel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 180.0
+offset_right = 256.0
+offset_bottom = 212.0
+focus_neighbor_top = NodePath("../MusicToggle")
+focus_neighbor_bottom = NodePath("../ResumeButton")
+theme_override_font_sizes/font_size = 16
+toggle_mode = true
+button_pressed = true
+text = "Sound: on"

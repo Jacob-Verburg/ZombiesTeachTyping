@@ -42,7 +42,7 @@
 - ~~Desktop `WebPlatform.offer_download()` ignores `bytes` and only opens `user://`. Story 1.8 must write the save to `user://<file_name>` (check the FileAccess error) before opening the folder, or the desktop export silently loses data.~~ Done in Story 1.8: `SaveService.offer_export()` writes the file first (errors logged).
 - The temporary Keyboard Test button on the main menu ships in release builds (desktop Download opens Explorer, Fullscreen flips the window). Gate on `OS.is_debug_build()` or remove the screen in 1.8/5.0.
 - `test_unlock_is_idempotent` (passes with or without the guard) and the `is_fullscreen` test (expected value computed with the same expression) can't fail. Needs the same playing/mode seam as the 1.4 deferrals.
-- One tab switch fires both `focus_lost` and `visibility_hidden`. Story 2.7's auto-pause must be idempotent (or listen to one signal).
+- ~~One tab switch fires both `focus_lost` and `visibility_hidden`. Story 2.7's auto-pause must be idempotent (or listen to one signal).~~ Done in Story 2.7: both signals call one handler that pauses only `RUNNING` / `COUNTDOWN`, so a second signal while paused changes nothing.
 - Story 1.5 browser evidence not recorded: Firefox per-key table (quick-find on `'` and `/`, Tab focus, Backspace), Esc-in-fullscreen in Chrome/Edge/Firefox (incl. whether the first Esc reaches the game; UX open question 4), and `is_storage_persistent()` in normal and private windows. The JS key listener ships enabled as a hedge. Reason: Firefox not installed; verify alongside Story 1.7, which needs Firefox anyway. **Story 1.7 (2026-10-03):** Esc-in-fullscreen (Chrome, Edge) and `is_storage_persistent()` in normal/private windows checked by Smuck and reported fine. Still open: the Firefox per-key table and Firefox Esc-in-fullscreen (Firefox still not installed).
 
 ## Deferred from: dev of story-1-6 (2026-10-03)
@@ -122,7 +122,7 @@
 
 ## Deferred from: code review of story-2-1-typing-input-filtering (2026-10-03)
 
-- `TypingInput` keeps the Caps Lock streak and `_caps_suspected` across focus loss or pause; only `configure()` resets them. Handle in Story 2.4/2.7.
+- ~~`TypingInput` keeps the Caps Lock streak and `_caps_suspected` across focus loss or pause; only `configure()` resets them. Handle in Story 2.4/2.7.~~ Done in Story 2.7: `TypingInput.reset_caps_hint()`, called with the HUD hint reset when a countdown ends.
 - ~~`TypingInput._unhandled_input` marks printable keys handled whenever the node is in the tree, and an unconfigured node behaves as lowercase. Add an enabled / active-run gate in Story 2.4.~~ Done in Story 2.4: `TypingInput.active` (default true); `RunFrame` turns it off in `ENDING` and after a failed load.
 - Web Caps Lock state is not read directly (no `getModifierState`); the hint relies on the capital streak only. Revisit in web QA.
 - Caps Lock hint counts Shift-held capitals (e.g. "NASA") as evidence of Caps Lock, as AC 6 specifies. Kept by decision; revisit after playtests (option: count only capitals typed without Shift).
@@ -179,13 +179,13 @@
 - The pause button is drawn as two ink bars, not the text "II": "II" at 16 px is 32 px wide and does not fit the 24 px button (the sketch table said "II", font 16).
 - The test level's own `%StatusLabel` ("Brains: N", y 176-200) touches the Caps Lock hint (y 196-224) by 4 px. Debug level only; Zombie Run (3.1) draws its own playfield.
 - The wrong-key shake (0.2 s) was not caught on a browser-pane screenshot (too short); covered by `test_hud.gd` and `test_run_frame.gd`. The pane's `shift+<letter>` sends a lowercase `key`, so Shift capitals cannot be tested there; bare capitals (Caps Lock style) can.
-- `%Hud.pause_pressed` is not connected until Story 2.7.
+- ~~`%Hud.pause_pressed` is not connected until Story 2.7.~~ Done in Story 2.7.
 
 ## Deferred from: code review of story-2-5-shared-hud-with-wrong-key-feedback (2026-10-04)
 
 - `Hud`'s `%TargetLabel` has no `autowrap_mode`: paragraph text stays on one line and overflows the two-line sign. The layout only sizes the area; set `autowrap_mode` with paragraph rendering in Story 8.2.
 - Word sign width in `Hud._layout_target` is unclamped: a word over about 9 letters at 32 px overflows the 312 px target area. The MVP / Epic 6 words (max 8 letters) fit; check when Story 6.x adds longer words.
-- The wrong-key shake runs from the HUD's own `_process`. If Story 2.7 pauses through `RunFrame` state rather than the tree, the shake keeps animating; stop it with the pause.
+- ~~The wrong-key shake runs from the HUD's own `_process`. If Story 2.7 pauses through `RunFrame` state rather than the tree, the shake keeps animating; stop it with the pause.~~ Done in Story 2.7: the pause goes through the tree; the HUD inherits and freezes.
 
 ## Deferred from: dev of story-2-6 (2026-10-04)
 
@@ -198,4 +198,24 @@
 ## Deferred from: code review of story-2-6-green-zombie-hands-finger-guide (2026-10-04)
 
 - An unmapped first character (newline, tab, curly quotes, accents, `` ` ~ [ ] { } \ | ``) lights no finger and `FingerMap.fingers_for` logs a warning on every `target_changed`. The Epic 6/8 text sources decide whether such characters occur; dedupe the warning or extend the map then.
-- `ZombieHands` pulses from its own `_process`; if Story 2.7 pauses through `RunFrame` state instead of the tree, the pulse keeps animating. Stop it with the pause.
+- ~~`ZombieHands` pulses from its own `_process`; if Story 2.7 pauses through `RunFrame` state instead of the tree, the pulse keeps animating. Stop it with the pause.~~ Done in Story 2.7: the pause goes through the tree; the hands inherit and freeze.
+
+## Deferred from: dev of story-2-7 (2026-10-04)
+
+- Pause panel and countdown are placeholder chrome (flat stone `StyleBoxFlat`, default theme buttons, a 2 px ink shadow label behind the candy-yellow numbers); the toggles show their state in words ("Music: on/off") instead of DESIGN.md's icon + red slash. Stories 4.2 / 5.0.
+- Restoring the saved Music / Sound settings on launch is Story 4.2's AC. Until then a muted setting is saved and shown on the pause panel, but the buses start unmuted after a reload.
+- Windows-fallback auto-pause (desktop window focus) stays deferred (G5); only the web `focus_lost` / `visibility_hidden` signals pause.
+- Esc in browser fullscreen leaves fullscreen first (browser rule); whether it also pauses is Story 5.3's check.
+- Decisions in 2.7 (Smuck can overrule): Esc during the countdown is ignored; focus loss while waiting for the first key does not pause (Esc and the pause button do); the Caps Lock hint and streak reset on resume.
+- `RunFrame` unpauses the tree only when leaving `COUNTDOWN` (into `RUNNING` or `WAITING_FIRST_KEY`), not on every entry into `RUNNING`, so the first correct key never touches the tree's pause state.
+- `PausePanel.close()` calls `gui_release_focus()` explicitly; Godot already drops a control's focus when it is hidden, so that call is a second line of defence no test can tell apart (mutation (e) survived).
+- The countdown numbers draw over the test level's own big letter in the playfield centre (debug level only).
+- In the browser pane a hidden tab gets no blur / visibility event, so a long pane tab switch can deliver one large frame delta to the run clock. Real browsers fire blur first (Smuck checked a tab switch in a real browser: paused, timer frozen). If a platform ever skips both events, a max-delta clamp in `RunFrame._process` would be the fix.
+- Tests that call `_unhandled_input()` by hand mark GUT's shared viewport input as handled, and headless nothing clears it; `test_run_frame.gd` and `test_pause_panel.gd` reset it in `after_each` with a no-op `push_input`. Any future test calling `_unhandled_input()` directly needs the same.
+
+## Deferred from: code review of story-2-7 (2026-10-04)
+
+- Quit to Menu soft-locks if `Router._swap_to(MAIN_MENU)` fails: `_quitting` stays true, `Router.go` unpauses the tree, the panel is visible but frozen. Needs a Router failure contract (recover or retry) [run_frame.gd `_quit_to_menu`, router.gd `go`].
+- `RunFrame._exit_tree` does not unpause the tree if the frame is freed while PAUSED/COUNTDOWN by anything other than `Router.go` (debug jump, `change_scene`). Fine today because the Router unpauses on every swap.
+- `test_clean_resume_focus_and_caps_hint` cannot fail headless (no focus owner exists); the unit test on `PausePanel.close()` is the real check. Mutation (e) still survives.
+- `test_countdown.gd` / `test_pause_panel.gd` instances are not process-disabled (spec 6.1/6.2 said so); harmless.

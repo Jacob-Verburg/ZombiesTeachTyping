@@ -326,3 +326,21 @@ func test_inactive_node_emits_nothing() -> void:
 	_node.active = true
 	assert_true(_node.handle_key(_low_a()))
 	assert_signal_emitted_with_parameters(_node, "char_typed", ["a"])
+
+
+# --- reset_caps_hint (Story 2.7) --------------------------------------------
+
+func test_reset_caps_hint_forgets_the_streak_silently() -> void:
+	_node.configure(_lowercase())
+	for i: int in 3:
+		_node.handle_key(_cap_a())
+	assert_signal_emit_count(_node, "caps_lock_suspected", 1)
+	_node.reset_caps_hint()
+	assert_signal_emit_count(_node, "caps_lock_cleared", 0, "reset emits nothing")
+	_node.handle_key(_low_a())
+	assert_signal_emit_count(_node, "caps_lock_cleared", 0, "nothing to clear after a reset")
+	for i: int in 2:
+		_node.handle_key(_cap_a())
+	assert_signal_emit_count(_node, "caps_lock_suspected", 1, "the streak restarted from 0")
+	_node.handle_key(_cap_a())
+	assert_signal_emit_count(_node, "caps_lock_suspected", 2, "3 more capitals bring it back")

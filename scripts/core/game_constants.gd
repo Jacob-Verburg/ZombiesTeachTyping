@@ -28,3 +28,7 @@ const LIVE_WPM_DELAY_S: float = 5.0
 const LIVE_WPM_INTERVAL_S: float = 1.0
 ## FR2: how long the target glyph shakes after a wrong key.
 const WRONG_KEY_SHAKE_S: float = 0.2
+## FR12 / GDD M3: the resume countdown starts at this number ...
+const COUNTDOWN_FROM: int = 3
+## ... and shows each number for this many seconds, while the tree stays paused.
+const COUNTDOWN_STEP_S: float = 0.5

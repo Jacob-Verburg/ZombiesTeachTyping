@@ -32,6 +32,12 @@ func configure(config: LevelConfig) -> void:
 		return
 	_case_sensitive = config.case_sensitive
 	_space_is_input = config.space_is_input
+	reset_caps_hint()
+
+
+## Silently forgets the Caps Lock streak and hint (no signal). RunFrame calls it when a run resumes,
+## because Caps Lock may have changed while the game was paused.
+func reset_caps_hint() -> void:
 	_capital_streak = 0
 	_caps_suspected = false
 

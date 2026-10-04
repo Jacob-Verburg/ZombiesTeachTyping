@@ -2,9 +2,11 @@ extends Control
 ## The run frame: third stage of the typing pipeline (ADR-1). TypingInput -> TypingSession -> RunFrame
 ## -> level. Owns the run lifecycle (state machine), the RunClock, the run RNG, the TypingSession and
 ## the level instance, and builds the RunResult at the end. It drives the shared HUD (%Hud, Story 2.5)
-## by calling down: target, counts, clock, brains, shake + wrong-key tick, Caps Lock hint. Hands (2.6),
-## pause and countdown (2.7, %Hud.pause_pressed is still unconnected), PlayerData.record_run (2.8) and the
-## overlay's run fields (2.10) attach here later.
+## by calling down: target, counts, clock, brains, shake + wrong-key tick, Caps Lock hint, hands (2.6).
+## Pause (Story 2.7): Esc, the HUD pause button or focus loss -> PAUSED (tree paused, %PausePanel open);
+## Resume -> COUNTDOWN (%Countdown 3-2-1, tree still paused) -> back to the state it was paused from, and
+## only then is the tree unpaused; Quit to Menu commits the level's brains and records nothing.
+## PlayerData.record_run (2.8) and the overlay's run fields (2.10) attach here later.
 ## Everything in the typing path is synchronous: nothing in it waits or defers a call.
 ## A level config with duration_s <= 0 means "no timer": the level must end the run with end_requested.
 
@@ -12,6 +14,7 @@ enum RunState { WAITING_FIRST_KEY, RUNNING, PAUSED, COUNTDOWN, ENDING, DONE }
 
 ## MVP value for RunResult.letter_pool_or_tier; Epic 7 replaces it with the tier.
 const LETTER_POOL_ALL: String = "all"
+const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 
 ## level_id -> scene lookup (data/levels/level_registry.tres, set in run_frame.tscn).
 @export var level_registry: LevelRegistry
@@ -19,6 +22,12 @@ const LETTER_POOL_ALL: String = "all"
 ## Test seam: called as navigate.call(screen, payload). Defaults to Router.go in _ready; tests assign a
 ## recorder before add_child so the live Router never swaps GUT's scene.
 var navigate: Callable
+## Test seam: called as pause_tree.call(paused). Defaults (in _ready) to setting get_tree().paused; every
+## pause and unpause goes through it, so tests never pause GUT's tree.
+var pause_tree: Callable
+## Test seam: the PlayerData the run commits brains and settings to. Defaults to the autoload; tests
+## inject one on a temp SaveService before add_child, so no test writes the real save.
+var player_data: PlayerDataScript
 
 var _state: RunState = RunState.WAITING_FIRST_KEY
 var _clock: RunClock = RunClock.new()
@@ -31,6 +40,10 @@ var _duration: float = 0.0
 var _end_reason: StringName = &""
 var _outro_left: float = 0.0
 var _uses_router: bool = false
+## The state a pause came from; the countdown returns to it.
+var _resume_to: RunState = RunState.WAITING_FIRST_KEY
+## Set by Quit to Menu: nothing pauses, resumes or quits again after it.
+var _quitting: bool = false
 
 
 func _ready() -> void:
@@ -39,6 +52,10 @@ func _ready() -> void:
 	if not navigate.is_valid():
 		navigate = Router.go
 		_uses_router = true
+	if not pause_tree.is_valid():
+		pause_tree = func(paused: bool) -> void: get_tree().paused = paused
+	if player_data == null:
+		player_data = PlayerData
 	var payload: Dictionary = Router.take_payload()
 	var error: String = _start_level(payload)
 	if error != "":
@@ -47,6 +64,23 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	WebPlatform.capture_keys = false
+	# The autoload outlives the run: drop its connections explicitly.
+	if WebPlatform.focus_lost.is_connected(_on_web_platform_focus_lost):
+		WebPlatform.focus_lost.disconnect(_on_web_platform_focus_lost)
+	if WebPlatform.visibility_hidden.is_connected(_on_web_platform_focus_lost):
+		WebPlatform.visibility_hidden.disconnect(_on_web_platform_focus_lost)
+
+
+## Esc pauses (TypingInput ignores Esc, so it reaches here). While paused this node is frozen with the
+## tree, and Esc goes to the pause panel instead.
+func _unhandled_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if key == null or key.keycode != KEY_ESCAPE or not key.pressed or key.echo:
+		return
+	if _session == null:
+		return
+	get_viewport().set_input_as_handled()
+	_request_pause()
 
 
 func _process(delta: float) -> void:
@@ -131,6 +165,15 @@ func _start_level(payload: Dictionary) -> String:
 	_level.brains_earned_changed.connect(%Hud.set_brains)
 	%TypingInput.caps_lock_suspected.connect(_on_typing_input_caps_lock_suspected)
 	%TypingInput.caps_lock_cleared.connect(_on_typing_input_caps_lock_cleared)
+	# Pause flow (Story 2.7).
+	%Hud.pause_pressed.connect(_request_pause)
+	%PausePanel.resume_chosen.connect(_on_pause_panel_resume_chosen)
+	%PausePanel.quit_chosen.connect(_quit_to_menu)
+	%PausePanel.music_toggled.connect(_on_pause_panel_music_toggled)
+	%PausePanel.sound_toggled.connect(_on_pause_panel_sound_toggled)
+	%Countdown.finished.connect(_on_countdown_finished)
+	WebPlatform.focus_lost.connect(_on_web_platform_focus_lost)
+	WebPlatform.visibility_hidden.connect(_on_web_platform_focus_lost)
 	Log.info(&"run", "started level=%s seed=%d" % [_level_id, _seed])
 	return ""
 
@@ -176,12 +219,25 @@ func _set_state(new_state: RunState) -> void:
 	if new_state == _state:
 		return
 	Log.debug(&"run", "state %s -> %s" % [RunState.keys()[_state], RunState.keys()[new_state]])
+	var from_state: RunState = _state
 	_state = new_state
+	# The tree is unpaused only when a countdown ends (into RUNNING or WAITING_FIRST_KEY).
+	if from_state == RunState.COUNTDOWN and (new_state == RunState.RUNNING or new_state == RunState.WAITING_FIRST_KEY):
+		pause_tree.call(false)
 	match new_state:
 		RunState.RUNNING:
-			# start() only counts the first time; resume() continues after a pause (Story 2.7).
+			# start() only counts the first time; resume() continues after a pause. Back in
+			# WAITING_FIRST_KEY (paused before the first key) the clock is not started.
 			_clock.start()
 			_clock.resume()
+		RunState.PAUSED:
+			_clock.pause()
+			pause_tree.call(true)
+			%PausePanel.open(player_data.get_setting(&"music_on"), player_data.get_setting(&"sound_on"))
+		RunState.COUNTDOWN:
+			# The tree stays paused until the countdown has finished.
+			%PausePanel.close()
+			%Countdown.start(GameConstants.COUNTDOWN_FROM, GameConstants.COUNTDOWN_STEP_S)
 		RunState.ENDING:
 			_clock.pause()
 			%TypingInput.active = false
@@ -192,6 +248,39 @@ func _set_state(new_state: RunState) -> void:
 			_outro_left = maxf(0.0, outro) if is_finite(outro) else 0.0
 		RunState.DONE:
 			_send_result()
+
+
+## Esc, the HUD pause button and focus loss all end here.
+func _request_pause() -> void:
+	if _quitting:
+		return
+	match _state:
+		RunState.RUNNING, RunState.WAITING_FIRST_KEY:
+			_resume_to = _state
+			_set_state(RunState.PAUSED)
+		RunState.COUNTDOWN:
+			# Keep _resume_to: the run still returns where it was first paused from.
+			%Countdown.cancel()
+			_set_state(RunState.PAUSED)
+
+
+## Quit to Menu (FR13): keep the brains earned so far (FR52), no bonus, no RunResult, nothing recorded.
+## The tree stays paused; Router.go() pauses for its fade and unpauses after the swap.
+func _quit_to_menu() -> void:
+	if _quitting or _state != RunState.PAUSED:
+		return
+	_quitting = true
+	%TypingInput.active = false
+	var brains: int = _level.get_brains_earned()
+	player_data.add_brains(brains)
+	Log.info(&"run", "quit level=%s brains=%d" % [_level_id, brains])
+	_navigate_when_idle(Router.Screen.MAIN_MENU, {})
+
+
+## After the countdown: Caps Lock may have changed while away, so forget the streak and hide the hint.
+func _after_resume() -> void:
+	%TypingInput.reset_caps_hint()
+	%Hud.set_caps_hint(false)
 
 
 func _end_run(reason: StringName) -> void:
@@ -242,6 +331,39 @@ func _on_typing_input_caps_lock_suspected() -> void:
 
 func _on_typing_input_caps_lock_cleared() -> void:
 	%Hud.set_caps_hint(false)
+
+
+func _on_pause_panel_resume_chosen() -> void:
+	if _quitting or _state != RunState.PAUSED:
+		return
+	_set_state(RunState.COUNTDOWN)
+
+
+func _on_countdown_finished() -> void:
+	if _state != RunState.COUNTDOWN:
+		return
+	_set_state(_resume_to)
+	_after_resume()
+
+
+func _on_pause_panel_music_toggled(on: bool) -> void:
+	if _quitting:
+		return
+	AudioManager.set_music_muted(not on)
+	player_data.set_setting(&"music_on", on)
+
+
+func _on_pause_panel_sound_toggled(on: bool) -> void:
+	if _quitting:
+		return
+	AudioManager.set_sfx_muted(not on)
+	player_data.set_setting(&"sound_on", on)
+
+
+## Window blur or tab hidden (one tab switch fires both): pauses a running run or a countdown only.
+func _on_web_platform_focus_lost() -> void:
+	if _state == RunState.RUNNING or _state == RunState.COUNTDOWN:
+		_request_pause()
 
 
 func _on_level_end_requested(reason: StringName) -> void:

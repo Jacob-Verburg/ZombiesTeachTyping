@@ -9,19 +9,25 @@ const RunFrameScript := preload("res://scripts/run/run_frame.gd")
 const MenuScene: PackedScene = preload("res://scenes/screens/main_menu.tscn")
 
 var _nav: Array = []
+## pause_tree recorder (Story 2.7): GUT's own tree is never paused.
+var _paused: Array[bool] = []
 
 
 func before_each() -> void:
 	assert_false(WebPlatform.capture_keys, "a run frame left capture_keys on")
 	_nav = []
+	_paused = []
 
 
 func after_each() -> void:
 	Router.take_payload()
+	_restore_audio()
+	_reset_input_handled()
 
 
 func after_all() -> void:
 	assert_false(WebPlatform.capture_keys, "a run frame left capture_keys on")
+	_clear_pause_saves()
 
 
 func _record(screen: int, payload: Dictionary) -> void:
@@ -33,6 +39,7 @@ func _make(payload: Dictionary, registry: LevelRegistry = null) -> RunFrameScrip
 	var frame: RunFrameScript = RunFrameScene.instantiate() as RunFrameScript
 	frame.process_mode = Node.PROCESS_MODE_DISABLED
 	frame.navigate = _record
+	frame.pause_tree = func(paused: bool) -> void: _paused.append(paused)
 	if registry != null:
 		frame.level_registry = registry
 	return frame
@@ -434,3 +441,310 @@ func test_wrong_key_keeps_the_lit_finger() -> void:
 	var before: Array[Vector2i] = _hands(frame).call("get_lit_fingers")
 	_type_wrong(frame)
 	assert_eq(_hands(frame).call("get_lit_fingers"), before)
+
+
+# --- pause, focus loss and resume countdown (Story 2.7) ----------------------
+
+const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
+const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
+const PAUSE_SAVE_DIR: String = "user://test_run_frame_saves"
+
+
+func _clear_pause_saves() -> void:
+	if not DirAccess.dir_exists_absolute(PAUSE_SAVE_DIR):
+		return
+	for file_name: String in DirAccess.get_files_at(PAUSE_SAVE_DIR):
+		DirAccess.remove_absolute(PAUSE_SAVE_DIR.path_join(file_name))
+
+
+## A PlayerData on a temp SaveService, so no test writes the real save.
+func _fake_player_data() -> PlayerDataScript:
+	DirAccess.make_dir_recursive_absolute(PAUSE_SAVE_DIR)
+	_clear_pause_saves()
+	var save: SaveServiceScript = SaveServiceScript.new()
+	save.save_dir = PAUSE_SAVE_DIR
+	add_child_autofree(save)
+	var data: PlayerDataScript = PlayerDataScript.new()
+	data.save_service = save
+	add_child_autofree(data)
+	return data
+
+
+## A test-level run that uses a fake PlayerData.
+func _start_pausable(data: PlayerDataScript) -> RunFrameScript:
+	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 42})
+	frame.player_data = data
+	add_child_autofree(frame)
+	return frame
+
+
+func _restore_audio() -> void:
+	AudioManager.set_music_muted(false)
+	AudioManager.set_sfx_muted(false)
+
+
+func _esc(echo: bool = false) -> InputEventKey:
+	var event: InputEventKey = InputEventKey.new()
+	event.keycode = KEY_ESCAPE
+	event.physical_keycode = KEY_ESCAPE
+	event.pressed = true
+	event.echo = echo
+	return event
+
+
+func _panel(frame: RunFrameScript) -> Control:
+	return frame.get_node("%PausePanel") as Control
+
+
+func _countdown(frame: RunFrameScript) -> Control:
+	return frame.get_node("%Countdown") as Control
+
+
+func _resume(frame: RunFrameScript) -> void:
+	_panel(frame).emit_signal("resume_chosen")
+
+
+func _run_countdown(frame: RunFrameScript) -> void:
+	for i: int in GameConstants.COUNTDOWN_FROM:
+		_countdown(frame).call("_process", GameConstants.COUNTDOWN_STEP_S)
+
+
+func _running_frame(data: PlayerDataScript) -> RunFrameScript:
+	var frame: RunFrameScript = _start_pausable(data)
+	_type_correct(frame)
+	frame._process(2.0)
+	return frame
+
+
+func test_esc_pauses_a_running_run() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._unhandled_input(_esc())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	assert_eq(_paused, [true] as Array[bool])
+	assert_true(_panel(frame).call("is_open"))
+	frame._process(5.0)
+	assert_eq(frame.get_elapsed(), 2.0, "the clock is stopped")
+	var keys: int = frame.get_session().get_keys_typed()
+	var errors: int = frame.get_session().get_errors()
+	_type_correct(frame)
+	_type_wrong(frame)
+	assert_eq(frame.get_session().get_keys_typed(), keys)
+	assert_eq(frame.get_session().get_errors(), errors)
+	assert_true(WebPlatform.capture_keys, "keys stay captured while paused")
+
+
+func test_esc_echo_and_esc_while_ending_do_nothing() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._unhandled_input(_esc(true))
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING, "echo ignored")
+	frame._process(200.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	frame._unhandled_input(_esc())
+	frame.get_node("%Hud").emit_signal("pause_pressed")
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_eq(_paused, [] as Array[bool])
+
+
+func test_pause_button_pauses() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame.get_node("%Hud").emit_signal("pause_pressed")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	assert_true(_panel(frame).call("is_open"))
+
+
+func test_resume_counts_down_with_the_tree_still_paused() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._unhandled_input(_esc())
+	_resume(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.COUNTDOWN)
+	assert_false(_panel(frame).call("is_open"))
+	assert_eq(_countdown(frame).call("get_shown_number"), 3)
+	assert_eq(_paused, [true] as Array[bool], "no unpause before the countdown ends")
+	var keys: int = frame.get_session().get_keys_typed()
+	_type_correct(frame)
+	assert_eq(frame.get_session().get_keys_typed(), keys, "typing rejected during the countdown")
+	_countdown(frame).call("_process", 0.5)
+	_countdown(frame).call("_process", 0.5)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.COUNTDOWN)
+	_countdown(frame).call("_process", 0.5)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	assert_eq(_paused, [true, false] as Array[bool])
+	frame._process(1.0)
+	assert_eq(frame.get_elapsed(), 3.0, "the clock continues from where it stopped")
+	_type_correct(frame)
+	assert_eq(frame.get_session().get_keys_typed(), keys + 1)
+
+
+func test_resume_is_ignored_unless_paused() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	_resume(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+
+
+func test_focus_loss_pauses_once() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	assert_eq(_paused, [true] as Array[bool], "a tab switch (blur + hidden) pauses once")
+
+
+func test_focus_lost_signal_is_connected() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	WebPlatform.focus_lost.emit()
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+
+
+func test_focus_loss_during_countdown_returns_to_the_panel() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._unhandled_input(_esc())
+	_resume(frame)
+	_countdown(frame).call("_process", 0.5)
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	assert_false(_countdown(frame).visible, "countdown cancelled")
+	assert_true(_panel(frame).call("is_open"))
+	_resume(frame)
+	_run_countdown(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING, "still resumes to RUNNING")
+
+
+func test_focus_loss_while_waiting_does_nothing() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.WAITING_FIRST_KEY)
+	assert_eq(_paused, [] as Array[bool])
+
+
+func test_pause_while_waiting_resumes_to_waiting() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	frame._unhandled_input(_esc())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	_resume(frame)
+	_run_countdown(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.WAITING_FIRST_KEY)
+	assert_eq(_paused, [true, false] as Array[bool])
+	frame._process(3.0)
+	assert_eq(frame.get_elapsed(), 0.0, "the clock is not started")
+	assert_true((_hud(frame).get_node("%StartPrompt") as Control).visible)
+	_type_correct(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	frame._process(0.5)
+	assert_eq(frame.get_elapsed(), 0.5)
+
+
+func test_quit_commits_brains_and_goes_to_the_menu_once() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var before: int = data.get_brains()
+	var frame: RunFrameScript = _start_pausable(data)
+	for i: int in 4:
+		_type_correct(frame)
+	assert_eq(frame.get_level().get_brains_earned(), 1)
+	frame._unhandled_input(_esc())
+	_panel(frame).emit_signal("quit_chosen")
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+	assert_eq(data.get_brains(), before + 1, "brains kept, no bonus")
+	assert_ne(frame.get_state(), RunFrameScript.RunState.DONE)
+	_panel(frame).emit_signal("quit_chosen")
+	frame._unhandled_input(_esc())
+	frame.call("_on_web_platform_focus_lost")
+	_resume(frame)
+	_run_countdown(frame)
+	frame._process(300.0)
+	assert_eq(_nav.size(), 1, "one navigation, never a report card")
+	assert_eq(data.get_brains(), before + 1, "brains committed once")
+	assert_eq(_paused, [true] as Array[bool], "the Router unpauses after its swap, not the run")
+
+
+func test_quit_guards_hold_outside_the_paused_state() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var before: int = data.get_brains()
+	var frame: RunFrameScript = _running_frame(data)
+	# A stray quit_chosen while RUNNING must not commit brains or navigate.
+	_panel(frame).emit_signal("quit_chosen")
+	assert_eq(_nav.size(), 0)
+	assert_eq(data.get_brains(), before)
+	# After Quit the pause sources are ignored even in a live state (the guard, not the state, stops them).
+	frame.set("_quitting", true)
+	frame._unhandled_input(_esc())
+	frame.get_node("%Hud").emit_signal("pause_pressed")
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	assert_eq(_paused, [] as Array[bool])
+	# Toggles are ignored after Quit.
+	_panel(frame).emit_signal("music_toggled", false)
+	assert_true(data.get_setting(&"music_on"), "setting untouched after Quit")
+	_restore_audio()
+
+
+func test_run_frame_pauses_with_the_tree() -> void:
+	# Esc during the countdown is ignored because the tree is paused: RunFrame must not opt out of it.
+	var frame: RunFrameScript = RunFrameScene.instantiate() as RunFrameScript
+	assert_eq(frame.process_mode, Node.PROCESS_MODE_INHERIT)
+	frame.free()
+
+
+func test_quit_with_no_brains_is_fine() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var before: int = data.get_brains()
+	var frame: RunFrameScript = _start_pausable(data)
+	frame._unhandled_input(_esc())
+	_panel(frame).emit_signal("quit_chosen")
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+	assert_eq(data.get_brains(), before)
+
+
+func test_toggles_mute_and_save() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var frame: RunFrameScript = _running_frame(data)
+	frame._unhandled_input(_esc())
+	_panel(frame).emit_signal("music_toggled", false)
+	assert_true(AudioManager.is_music_muted())
+	assert_false(data.get_setting(&"music_on"))
+	_panel(frame).emit_signal("sound_toggled", false)
+	assert_true(AudioManager.is_sfx_muted())
+	assert_false(data.get_setting(&"sound_on"))
+	_resume(frame)
+	_run_countdown(frame)
+	frame._unhandled_input(_esc())
+	assert_eq((_panel(frame).get_node("%MusicToggle") as Button).text, "Music: off", "reopened with the saved value")
+	assert_eq((_panel(frame).get_node("%SoundToggle") as Button).text, "Sound: off")
+	_panel(frame).emit_signal("music_toggled", true)
+	assert_false(AudioManager.is_music_muted())
+	assert_true(data.get_setting(&"music_on"))
+	_restore_audio()
+
+
+func test_clean_resume_focus_and_caps_hint() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	for c: String in ["q", "w", "e"]:
+		_input_node(frame).handle_key(_capital(c))
+	var hint: Control = _hud(frame).get_node("%CapsHint") as Control
+	assert_true(hint.visible)
+	frame._unhandled_input(_esc())
+	_resume(frame)
+	_run_countdown(frame)
+	var owner: Control = get_viewport().gui_get_focus_owner()
+	assert_true(owner == null or not _panel(frame).is_ancestor_of(owner), "no panel button keeps focus")
+	assert_false(hint.visible, "Caps hint reset on resume")
+	_input_node(frame).handle_key(_capital("r"))
+	assert_false(hint.visible, "the streak restarted: one capital is not enough")
+	_input_node(frame).handle_key(_capital("t"))
+	_input_node(frame).handle_key(_capital("y"))
+	assert_true(hint.visible, "3 new capitals bring the hint back")
+
+
+func test_process_modes() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	assert_eq(_panel(frame).process_mode, Node.PROCESS_MODE_WHEN_PAUSED)
+	assert_eq(_countdown(frame).process_mode, Node.PROCESS_MODE_WHEN_PAUSED)
+	assert_eq(frame.get_node("%Hud").process_mode, Node.PROCESS_MODE_INHERIT)
+	assert_eq(frame.get_node("%LevelHost").process_mode, Node.PROCESS_MODE_INHERIT)
+	assert_eq(frame.get_node("%TypingInput").process_mode, Node.PROCESS_MODE_INHERIT)
+
+## Calling _unhandled_input() by hand marks GUT's viewport input as handled, and headless no real
+## event ever clears it. Pushing a no-op event resets the flag so later tests start clean.
+func _reset_input_handled() -> void:
+	get_viewport().push_input(InputEventAction.new())
