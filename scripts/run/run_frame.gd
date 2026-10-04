@@ -6,7 +6,9 @@ extends Control
 ## Pause (Story 2.7): Esc, the HUD pause button or focus loss -> PAUSED (tree paused, %PausePanel open);
 ## Resume -> COUNTDOWN (%Countdown 3-2-1, tree still paused) -> back to the state it was paused from, and
 ## only then is the tree unpaused; Quit to Menu commits the level's brains and records nothing.
-## PlayerData.record_run (2.8) and the overlay's run fields (2.10) attach here later.
+## A finished run is built and saved through PlayerData.record_run (2.8) on entering ENDING, so closing the
+## game during the outro loses nothing; DONE only opens the report card. The overlay's run fields (2.10)
+## attach here later.
 ## Everything in the typing path is synchronous: nothing in it waits or defers a call.
 ## A level config with duration_s <= 0 means "no timer": the level must end the run with end_requested.
 
@@ -39,6 +41,9 @@ var _level_id: StringName = &""
 var _duration: float = 0.0
 var _end_reason: StringName = &""
 var _outro_left: float = 0.0
+## Built and recorded on entering ENDING; DONE sends them to the report card.
+var _result: RunResult
+var _new_best: bool = false
 var _uses_router: bool = false
 ## The state a pause came from; the countdown returns to it.
 var _resume_to: RunState = RunState.WAITING_FIRST_KEY
@@ -246,6 +251,7 @@ func _set_state(new_state: RunState) -> void:
 			%Hud.clear_hands()
 			var outro: float = _level.on_run_ending(_end_reason)
 			_outro_left = maxf(0.0, outro) if is_finite(outro) else 0.0
+			_record_result()
 		RunState.DONE:
 			_send_result()
 
@@ -288,16 +294,22 @@ func _end_run(reason: StringName) -> void:
 	_set_state(RunState.ENDING)
 
 
-func _send_result() -> void:
+## On entering ENDING, after on_run_ending(): the clock is paused and input is off, so nothing in the
+## result changes during the outro. Saved now, not at DONE, so a close during the outro keeps the run.
+func _record_result() -> void:
 	var duration: float = _clock.get_elapsed()
 	if _end_reason == GameConstants.END_REASON_TIMER:
 		duration = minf(duration, _duration)
-	var result: RunResult = RunResult.create(
+	_result = RunResult.create(
 		_level_id, int(Time.get_unix_time_from_system()), duration, _session.get_keys_typed(),
 		_session.get_errors(), _session.get_per_key(), _level.get_brains_earned(), 0, LETTER_POOL_ALL,
 		_end_reason)
-	Log.info(&"run", "ended level=%s reason=%s wpm=%d" % [result.level_id, result.end_reason, result.wpm])
-	_navigate_when_idle(Router.Screen.REPORT_CARD, {"result": result})
+	Log.info(&"run", "ended level=%s reason=%s wpm=%d" % [_result.level_id, _result.end_reason, _result.wpm])
+	_new_best = player_data.record_run(_result)
+
+
+func _send_result() -> void:
+	_navigate_when_idle(Router.Screen.REPORT_CARD, {"result": _result, "new_best": _new_best})
 
 
 func _on_typing_input_char_typed(c: String) -> void:

@@ -16,8 +16,8 @@ extends Node2D
 ##   first correct key: on_run_started() -> on_char_accepted(expected, 0)
 ##   each correct key: on_char_accepted(expected, index)
 ##   each wrong key: on_char_rejected(expected, typed) (also before the first correct key; never starts the run)
-##   end: clock reaches duration_s (RunFrame) or end_requested(reason) -> on_run_ending(reason) -> outro wait
-##     -> RunFrame reads get_brains_earned() and builds the RunResult
+##   end: clock reaches duration_s (RunFrame) or end_requested(reason) -> on_run_ending(reason) -> RunFrame reads
+##     get_brains_earned(), builds and records the RunResult -> outro wait -> report card
 
 ## Emitted by the level to end the run early (one of GameConstants.END_REASON_*). RunFrame honours
 ## it only while the run is RUNNING.

@@ -219,3 +219,14 @@
 - `RunFrame._exit_tree` does not unpause the tree if the frame is freed while PAUSED/COUNTDOWN by anything other than `Router.go` (debug jump, `change_scene`). Fine today because the Router unpauses on every swap.
 - `test_clean_resume_focus_and_caps_hint` cannot fail headless (no focus owner exists); the unit test on `PausePanel.close()` is the real check. Mutation (e) still survives.
 - `test_countdown.gd` / `test_pause_panel.gd` instances are not process-disabled (spec 6.1/6.2 said so); harmless.
+
+## Deferred from: dev of story-2-8 (2026-10-04)
+
+- A level's first run with 0 WPM leaves the best at 0, so the next run with WPM > 0 is again treated as a "first run" (sets the best, no "New best" flag). Acceptable for a 6-year-old's first run.
+- `record_run` validates only `null`; unlock rule (FR79) and `level_unlocked` join it in Story 6.8.
+- ~~A non-int value inside a hand-edited `best_wpm` is read through `int(...)`.~~ Resolved in code review: non-numbers and negatives count as no best.
+- Games that end through a path other than `RunFrame._send_result` (none today) would not be recorded.
+
+## Deferred from: code review of 2-8-run-recording-and-personal-bests (2026-10-04)
+
+- `record_run` returns `new_best = true` and emits `run_recorded` even when the save is read-only (newer `schema_version`) or the write fails, so the report card can celebrate a best that is gone after reload. Pre-existing SaveService behavior; no retry on a failed write until the next `request_save` or tab hide.

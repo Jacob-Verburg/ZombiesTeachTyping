@@ -6,15 +6,17 @@ extends Node
 ## reset_all() is the one mutation that replaces the whole profile: it emits profile_replaced (no
 ## brains_changed/settings_changed deltas), and anything showing a profile value re-reads on it.
 ## Epic 11's profile switch emits the same signal.
-## Contract violations (negative amount, unknown setting) log an error and change nothing; no assert(),
-## which would fire in GUT's debug run and in release would vanish.
+## Contract violations (negative amount, unknown setting, null run result) log an error and change
+## nothing; no assert(), which would fire in GUT's debug run and in release would vanish.
 ## save_service is a test seam: tests assign a fresh SaveService (save_dir in a temp folder) before add_child.
-## Later methods, by story: buy_item/equip/unequip/set_flag/get_flag (4.1), record_run (2.8),
+## Later methods, by story: buy_item/equip/unequip/set_flag/get_flag (4.1),
 ## mark_unlock_seen/mark_level_chosen/get_unlock_state (6.8).
 
 signal brains_changed(total: int, delta: int)
 signal settings_changed(key: StringName, value: bool)
 signal profile_replaced
+## A finished run was saved; new_best is true when it beat a saved best WPM for its level.
+signal run_recorded(level_id: StringName, new_best: bool)
 
 const SaveServiceScript: GDScript = preload("res://scripts/autoloads/save_service.gd")
 
@@ -41,6 +43,41 @@ func add_brains(amount: int) -> void:
 	_profile()["brains"] = total
 	brains_changed.emit(total, amount)
 	save_service.request_save()
+
+
+## Saves a finished run (never a quit): appends its record (newest RUN_HISTORY_CAP kept), updates the
+## level's best WPM and adds the run's brains, with one save request. Returns true for a new personal
+## best; a level's first run sets the best but returns false.
+func record_run(result: RunResult) -> bool:
+	if result == null:
+		Log.error(&"run", "record_run: null result")
+		return false
+	var profile: Dictionary = _profile()
+	var history: Array = profile["run_history"]
+	history.append(result.to_record())
+	if history.size() > GameConstants.RUN_HISTORY_CAP:
+		# One slice, not remove_at(0) per run: a loaded history may be far over the cap.
+		profile["run_history"] = history.slice(history.size() - GameConstants.RUN_HISTORY_CAP)
+		history = profile["run_history"]
+	var best: Dictionary = profile["best_wpm"]
+	var key: String = String(result.level_id)
+	# A hand-edited save may hold any type here; anything but a positive number counts as no best.
+	var stored: Variant = best.get(key, 0)
+	var previous: int = maxi(0, int(stored)) if stored is int or stored is float else 0
+	var new_best: bool = previous > 0 and result.wpm > previous
+	if result.wpm > previous:
+		best[key] = result.wpm
+	var earned: int = result.total_brains()
+	if earned > 0:
+		# Inline, not add_brains(): that would request a second save.
+		var total: int = get_brains() + earned
+		profile["brains"] = total
+		brains_changed.emit(total, earned)
+	run_recorded.emit(result.level_id, new_best)
+	save_service.request_save()
+	Log.info(&"run", "recorded level=%s wpm=%d new_best=%s history=%d" % [
+			result.level_id, result.wpm, new_best, history.size()])
+	return new_best
 
 
 func get_setting(key: StringName) -> bool:

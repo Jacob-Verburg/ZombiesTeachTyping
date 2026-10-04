@@ -34,12 +34,16 @@ func _record(screen: int, payload: Dictionary) -> void:
 	_nav.append([screen, payload])
 
 
-func _make(payload: Dictionary, registry: LevelRegistry = null) -> RunFrameScript:
+func _make(
+		payload: Dictionary, registry: LevelRegistry = null, data: PlayerDataScript = null
+) -> RunFrameScript:
 	Router._store_payload(payload)
 	var frame: RunFrameScript = RunFrameScene.instantiate() as RunFrameScript
 	frame.process_mode = Node.PROCESS_MODE_DISABLED
 	frame.navigate = _record
 	frame.pause_tree = func(paused: bool) -> void: _paused.append(paused)
+	# A finished run writes through record_run: never to the real save. Tests may pass their own.
+	frame.player_data = data if data != null else _fake_player_data()
 	if registry != null:
 		frame.level_registry = registry
 	return frame
@@ -472,8 +476,7 @@ func _fake_player_data() -> PlayerDataScript:
 
 ## A test-level run that uses a fake PlayerData.
 func _start_pausable(data: PlayerDataScript) -> RunFrameScript:
-	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 42})
-	frame.player_data = data
+	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 42}, null, data)
 	add_child_autofree(frame)
 	return frame
 
@@ -748,3 +751,87 @@ func test_process_modes() -> void:
 ## event ever clears it. Pushing a no-op event resets the flag so later tests start clean.
 func _reset_input_handled() -> void:
 	get_viewport().push_input(InputEventAction.new())
+
+
+# --- run recording (Story 2.8) -------------------------------------------------
+
+## A test-level run to DONE: 4 correct keys (1 brain), then the timer.
+func _finish_run(frame: RunFrameScript) -> void:
+	for i: int in 4:
+		_type_correct(frame)
+	frame._process(200.0)
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+
+
+func test_finished_run_is_recorded_once_and_brains_added_once() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var frame: RunFrameScript = _start_pausable(data)
+	_finish_run(frame)
+	for i: int in 3:
+		frame._process(1.0)
+	var history: Array = data.save_service.get_active_profile()["run_history"]
+	assert_eq(history.size(), 1)
+	assert_eq(history[0], _result().to_record())
+	assert_eq(data.get_brains(), 1, "level brains added once")
+
+
+## A short run (3 s, ended by the level) so the WPM is above 0.
+func _finish_short_run(frame: RunFrameScript) -> void:
+	for i: int in 4:
+		_type_correct(frame)
+	frame._process(3.0)
+	frame.get_level().end_requested.emit(GameConstants.END_REASON_CAUGHT)
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+
+
+func test_first_run_payload_says_not_a_new_best() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	_finish_short_run(frame)
+	var payload: Dictionary = _nav[0][1]
+	assert_gt(_result().wpm, 0, "a 0-WPM run would be 'not a new best' whatever the rule")
+	assert_true(payload.has("new_best"))
+	assert_false(payload["new_best"])
+	assert_not_null(payload["result"])
+
+
+func test_run_is_recorded_on_ending_before_the_outro() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var frame: RunFrameScript = _start_pausable(data)
+	for i: int in 4:
+		_type_correct(frame)
+	frame._process(3.0)
+	frame.get_level().end_requested.emit(GameConstants.END_REASON_CAUGHT)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_eq(data.save_service.get_active_profile()["run_history"].size(), 1, "saved before the outro")
+	assert_eq(data.get_brains(), 1)
+	assert_eq(_nav.size(), 0, "the report card waits for the outro")
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_nav.size(), 1)
+	assert_eq(data.save_service.get_active_profile()["run_history"].size(), 1, "recorded once")
+	assert_eq(data.save_service.get_active_profile()["run_history"][0], _result().to_record())
+
+
+func test_payload_says_new_best_when_the_saved_best_is_lower() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	data.save_service.get_active_profile()["best_wpm"]["test_level"] = 1
+	var frame: RunFrameScript = _start_pausable(data)
+	_finish_short_run(frame)
+	assert_gt(_result().wpm, 1)
+	assert_true(_nav[0][1]["new_best"])
+	assert_eq(int(data.save_service.get_active_profile()["best_wpm"]["test_level"]), _result().wpm)
+
+
+func test_quit_records_no_run() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var frame: RunFrameScript = _start_pausable(data)
+	for i: int in 4:
+		_type_correct(frame)
+	frame._unhandled_input(_esc())
+	_panel(frame).emit_signal("quit_chosen")
+	var profile: Dictionary = data.save_service.get_active_profile()
+	assert_eq(profile["run_history"].size(), 0)
+	assert_false(profile["best_wpm"].has("test_level"))
+	assert_eq(data.get_brains(), 1, "brains still committed once")
