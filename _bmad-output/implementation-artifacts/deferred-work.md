@@ -126,3 +126,15 @@
 - `TypingInput._unhandled_input` marks printable keys handled whenever the node is in the tree, and an unconfigured node behaves as lowercase. Add an enabled / active-run gate in Story 2.4.
 - Web Caps Lock state is not read directly (no `getModifierState`); the hint relies on the capital streak only. Revisit in web QA.
 - Caps Lock hint counts Shift-held capitals (e.g. "NASA") as evidence of Caps Lock, as AC 6 specifies. Kept by decision; revisit after playtests (option: count only capitals typed without Shift).
+
+## Deferred from: dev of story-2-2 (2026-10-04)
+
+- `TypingSession` does not declare `target_completed` on purpose; Epic 6 adds it together with `WordSource`.
+- `TypingSession`'s `config` argument is stored but unused until Story 2.3 / 6.2 (implied spaces in word mode).
+- RNG sharing for Story 2.4/3.1: the level and `LetterBagSource` would share the run's RNG, and the source deals lazily, so a level drawing from the same RNG makes the letter sequence depend on call timing (breaks seed replay, 2.10). Give the source its own RNG seeded from the run RNG (`child.seed = rng.randi()`) at creation, or have the level draw only through the source.
+- Contract guards (`LetterBagSource` null rng / pool < 2 / duplicates, `TypingSession` null source) are covered by code review only; calling them in a GUT test would trip the debug `assert`.
+
+## Deferred from: code review of 2-2-judgment-session-and-letter-bag (2026-10-04)
+
+- `TypingSession.judge()` returns `WRONG` when the source is exhausted/empty, so callers cannot tell "no target" from a typo, and a correct key on the last target emits `target_changed("")` with no end signal. Harmless with the infinite `LetterBagSource`; address with `WordSource`/`ParagraphSource` (Epic 6/8), e.g. a `NO_TARGET` verdict or a `source_exhausted` signal.
+- `TypingSession.judge()` has no re-entrancy guard: a `run_started` handler that calls `judge()` would advance the source twice for one key. Check when `RunFrame` (2.4) connects handlers; add a `_judging` guard if any handler can feed input back.
