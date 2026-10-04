@@ -14,3 +14,11 @@ const IGNORED_KEYCODES: Array[Key] = [
 ## F1..F35 are consecutive in the Key enum and are never typing input (FR3).
 const FUNCTION_KEY_FIRST: Key = KEY_F1
 const FUNCTION_KEY_LAST: Key = KEY_F35
+## Why a recorded run ended. timer: the level's clock reached its duration (Zombie Run, Horde Rush).
+## caught / escaped: Pitchfork Panic. Quit runs are never recorded, so there is no quit reason.
+const END_REASON_TIMER: StringName = &"timer"
+const END_REASON_CAUGHT: StringName = &"caught"
+const END_REASON_ESCAPED: StringName = &"escaped"
+## Runs shorter than this many seconds report 0 WPM: a one-keystroke Pitchfork Panic run would
+## otherwise show an absurd rate (1 key in 0.016 s = 750 WPM).
+const MIN_WPM_SECONDS: float = 1.0
