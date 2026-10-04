@@ -68,6 +68,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Play"
 
+[node name="TestLevelButton" type="Button" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Test level"
+
 [node name="ClosetButton" type="Button" parent="Box"]
 unique_name_in_owner = true
 layout_mode = 2

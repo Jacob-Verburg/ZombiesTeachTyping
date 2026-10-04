@@ -14,6 +14,10 @@ signal caps_lock_cleared
 ## Consecutive capitals that suggest Caps Lock is on (FR5). A fixed GDD rule, not a balance number.
 const CAPS_HINT_STREAK: int = 3
 
+## When false, handle_key() emits nothing and returns false, so _unhandled_input no longer marks keys
+## handled. RunFrame turns it off when the run ends (Story 2.4).
+var active: bool = true
+
 var _case_sensitive: bool = false
 var _space_is_input: bool = false
 var _capital_streak: int = 0
@@ -34,6 +38,8 @@ func configure(config: LevelConfig) -> void:
 
 ## Filters one key event. Returns true only when char_typed was emitted.
 func handle_key(event: InputEventKey) -> bool:
+	if not active:
+		return false
 	if event == null or not event.pressed or event.echo:
 		return false
 	if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:

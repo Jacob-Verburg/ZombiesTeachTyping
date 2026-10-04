@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LevelRegistry" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/level_registry.gd" id="1_registry"]
+[ext_resource type="Script" path="res://scripts/resources/level_entry.gd" id="2_entry"]
+[ext_resource type="PackedScene" path="res://scenes/levels/test_level/test_level.tscn" id="3_test_level"]
+
+[sub_resource type="Resource" id="Resource_test_level"]
+script = ExtResource("2_entry")
+id = &"test_level"
+scene = ExtResource("3_test_level")
+debug_only = true
+
+[resource]
+script = ExtResource("1_registry")
+entries = Array[ExtResource("2_entry")]([SubResource("Resource_test_level")])

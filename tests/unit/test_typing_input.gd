@@ -315,3 +315,14 @@ func test_ignored_keycodes_list() -> void:
 			KEY_TAB, KEY_BACKSPACE, KEY_ENTER, KEY_KP_ENTER, KEY_CAPSLOCK, KEY_ESCAPE]:
 		assert_has(GameConstants.IGNORED_KEYCODES, keycode, "keycode %d" % keycode)
 	assert_does_not_have(GameConstants.IGNORED_KEYCODES, KEY_SPACE)
+
+
+# --- active gate (Story 2.4) ------------------------------------------------
+
+func test_inactive_node_emits_nothing() -> void:
+	_node.active = false
+	assert_false(_node.handle_key(_low_a()))
+	assert_signal_not_emitted(_node, "char_typed")
+	_node.active = true
+	assert_true(_node.handle_key(_low_a()))
+	assert_signal_emitted_with_parameters(_node, "char_typed", ["a"])

@@ -4,6 +4,10 @@ extends Control
 ## WebPlatform.is_storage_persistent() is false.
 ## Hidden parent/dev save export (Story 1.8): Ctrl+Shift+E calls SaveService.offer_export() in every
 ## build, release included. Nothing on screen changes (no sound, label, focus or fade). Story 4.2 keeps it.
+## Debug-only "Test level" button (Story 2.4): visible only when _is_debug_build() is true (the seam;
+## a placeholder-menu exception to Boundary 7, Story 4.2 decides where it lives). "Play" sends
+## &"zombie_run", which is not registered until Story 3.1: RunFrame logs the error and comes back here
+## on purpose (the NFR16 failed-load path).
 
 const STORAGE_NOTICE_TEXT: String = "Progress may not be saved in this browser mode"
 
@@ -12,6 +16,8 @@ func _ready() -> void:
 	var payload: Dictionary = Router.take_payload()
 	%PayloadLabel.text = "" if payload.is_empty() else str(payload)
 	%PlayButton.pressed.connect(_on_play_button_pressed)
+	%TestLevelButton.pressed.connect(_on_test_level_button_pressed)
+	%TestLevelButton.visible = _is_debug_build()
 	%ClosetButton.pressed.connect(_on_closet_button_pressed)
 	%GiftButton.pressed.connect(_on_gift_button_pressed)
 	%KeyboardTestButton.pressed.connect(_on_keyboard_test_button_pressed)
@@ -37,12 +43,21 @@ func _unhandled_input(event: InputEvent) -> void:
 	SaveService.offer_export()
 
 
+## The only debug-build gate on this screen; also the test seam.
+func _is_debug_build() -> bool:
+	return OS.is_debug_build()
+
+
 func _show_storage_notice(persistent: bool) -> void:
 	%StorageNotice.visible = not persistent
 
 
 func _on_play_button_pressed() -> void:
 	Router.go(Router.Screen.RUN, {"level_id": &"zombie_run"})
+
+
+func _on_test_level_button_pressed() -> void:
+	Router.go(Router.Screen.RUN, {"level_id": &"test_level"})
 
 
 func _on_closet_button_pressed() -> void:

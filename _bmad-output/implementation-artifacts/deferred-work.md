@@ -118,23 +118,53 @@
 
 - AltGr limitation: on Windows AltGr arrives as Ctrl+Alt, so AltGr characters (e.g. `@` on German layouts) are ignored by `TypingInput`'s modifier rule. Fine for the lowercase-letter MVP; revisit for Epic 8 (Pitchfork Panic punctuation). Not checked in a real browser yet.
 - `TypingInput.configure(null)`'s assert + `Log.error` guard is covered by code review only; calling it in a GUT test would trip the debug `assert`.
-- Story 2.4: the `RunFrame` run is the first end-to-end keyboard check of `TypingInput` (no scene or caller exists until then). Run-screen buttons must be `FOCUS_NONE` so Space/Enter can't press them.
+- Story 2.4: the `RunFrame` run is the first end-to-end keyboard check of `TypingInput` (no scene or caller exists until then). Run-screen buttons must be `FOCUS_NONE` so Space/Enter can't press them. (2.4: the end-to-end check ran in a web debug build in the browser pane; the run screen still has no buttons, so `FOCUS_NONE` carries over to 2.5/2.7.)
 
 ## Deferred from: code review of story-2-1-typing-input-filtering (2026-10-03)
 
 - `TypingInput` keeps the Caps Lock streak and `_caps_suspected` across focus loss or pause; only `configure()` resets them. Handle in Story 2.4/2.7.
-- `TypingInput._unhandled_input` marks printable keys handled whenever the node is in the tree, and an unconfigured node behaves as lowercase. Add an enabled / active-run gate in Story 2.4.
+- ~~`TypingInput._unhandled_input` marks printable keys handled whenever the node is in the tree, and an unconfigured node behaves as lowercase. Add an enabled / active-run gate in Story 2.4.~~ Done in Story 2.4: `TypingInput.active` (default true); `RunFrame` turns it off in `ENDING` and after a failed load.
 - Web Caps Lock state is not read directly (no `getModifierState`); the hint relies on the capital streak only. Revisit in web QA.
 - Caps Lock hint counts Shift-held capitals (e.g. "NASA") as evidence of Caps Lock, as AC 6 specifies. Kept by decision; revisit after playtests (option: count only capitals typed without Shift).
 
 ## Deferred from: dev of story-2-2 (2026-10-04)
 
 - `TypingSession` does not declare `target_completed` on purpose; Epic 6 adds it together with `WordSource`.
-- `TypingSession`'s `config` argument is stored but unused until Story 2.3 / 6.2 (implied spaces in word mode).
-- RNG sharing for Story 2.4/3.1: the level and `LetterBagSource` would share the run's RNG, and the source deals lazily, so a level drawing from the same RNG makes the letter sequence depend on call timing (breaks seed replay, 2.10). Give the source its own RNG seeded from the run RNG (`child.seed = rng.randi()`) at creation, or have the level draw only through the source.
+- `TypingSession`'s `config` argument is stored but unused until Story 6.2 (implied spaces in word mode arrive with `WordSource`; Story 2.3 added `StatsCalculator`'s `completed_words` but nothing counts words yet).
+- ~~RNG sharing for Story 2.4/3.1: the level and `LetterBagSource` would share the run's RNG, and the source deals lazily, so a level drawing from the same RNG makes the letter sequence depend on call timing (breaks seed replay, 2.10). Give the source its own RNG seeded from the run RNG (`child.seed = rng.randi()`) at creation, or have the level draw only through the source.~~ Done in Story 2.4: `LevelBase` documents the child-RNG rule and the test level follows it (`test_source_has_its_own_rng`).
 - Contract guards (`LetterBagSource` null rng / pool < 2 / duplicates, `TypingSession` null source) are covered by code review only; calling them in a GUT test would trip the debug `assert`.
 
 ## Deferred from: code review of 2-2-judgment-session-and-letter-bag (2026-10-04)
 
 - `TypingSession.judge()` returns `WRONG` when the source is exhausted/empty, so callers cannot tell "no target" from a typo, and a correct key on the last target emits `target_changed("")` with no end signal. Harmless with the infinite `LetterBagSource`; address with `WordSource`/`ParagraphSource` (Epic 6/8), e.g. a `NO_TARGET` verdict or a `source_exhausted` signal.
-- `TypingSession.judge()` has no re-entrancy guard: a `run_started` handler that calls `judge()` would advance the source twice for one key. Check when `RunFrame` (2.4) connects handlers; add a `_judging` guard if any handler can feed input back.
+- ~~`TypingSession.judge()` has no re-entrancy guard: a `run_started` handler that calls `judge()` would advance the source twice for one key. Check when `RunFrame` (2.4) connects handlers; add a `_judging` guard if any handler can feed input back.~~ Checked in Story 2.4: no `RunFrame` or level handler calls `judge()`; no guard added.
+
+## Deferred from: dev of story-2-3 (2026-10-04)
+
+- Accuracy and WPM round **down** (decision taken in 2.3: 100 % only with zero errors; WPM never overstates, so "New best!" needs a real improvement). The GDD only says "whole number". Smuck may overrule after playtest: one line each in `StatsCalculator.accuracy_percent` / `wpm` plus the edge tests.
+- ~~`RunClock` overshoot: accumulated deltas can push the last frame past the level duration (e.g. 120.016 s). Story 2.4's `RunFrame` should pass `minf(elapsed, config.duration_s)` for `&"timer"` ends; `RunResult` doesn't know the level duration.~~ Done in Story 2.4: `RunFrame` clamps timer ends with `minf(elapsed, duration)`.
+- `letter_pool_or_tier` is `"all"` for the MVP. Epic 7 decides the tier string format (e.g. `"tier_3"`).
+- `RunResult.completed_words` and `bonus_brains` are not written to the run record (architecture key set). Adding them to the save is a schema decision for Epic 6/10 if trends need them.
+- Contract guards (`StatsCalculator` negative counts, `RunResult.create` empty level id / unknown end reason) are covered by code review only; calling them in a GUT test would trip the debug `assert`.
+
+## Deferred from: code review of story-2-3-stats-calculator-and-run-result (2026-10-04)
+
+- Run record `duration_s` is floored to whole seconds while `wpm` is computed from the unrounded duration, so recomputing WPM from a saved record (Epic 7 tier rolling average) can differ by 1 from the stored value. Use the stored `wpm`, or store a finer duration, when Epic 7 lands.
+
+## Deferred from: dev of story-2-4 (2026-10-04)
+
+- Completion bonus is `0` in `RunFrame._send_result()` until Story 3.5 adds it to `LevelConfig`.
+- `LevelBase.brains_earned_changed` is not connected until the HUD brain counter (Story 2.5); the result reads `get_brains_earned()` at run end.
+- `RunFrame.LETTER_POOL_ALL` (`"all"`) is a placeholder for `letter_pool_or_tier` until Epic 7.
+- The test level (`scenes/levels/test_level/`) and its `debug_only` registry entry ship in release builds but are unreachable there (the menu button is debug-only). Exclude them from release exports with the Keyboard Test and art review screens if export size matters.
+- Main menu "Play" sends `&"zombie_run"`, which is not registered until Story 3.1: `RunFrame` logs `[ERROR][run]` and returns to the menu (NFR16 path, on purpose).
+- The main menu's `_is_debug_build()` seam is a placeholder-menu exception to Boundary 7 (`OS.is_debug_build()` outside `scripts/debug/`). Story 4.2 decides where a debug entry to the test level lives.
+- Web key capture: in the browser pane, Space, Tab and Backspace had their default blocked during the run and capture was off again on the report card. The pane sends `'` and `/` with an empty `key`, so the capture listener for those two is not proven by this check; Smuck should press them on a real keyboard (Chrome/Edge) during a test-level run.
+- Desktop (non-web) manual run of the test level was not done by the agent; the web debug build covered the same flow.
+- `LevelBase.create_target_source()` base contract guard and the `null` target-source fallback in `RunFrame` are covered by code review only (calling the base would trip the debug `assert`).
+- `RunFrame._set_state()` logs each transition at DEBUG; the ENDING/DONE transitions happen inside `_process` (one line each per run, debug builds only).
+
+## Deferred from: code review of story-2-4-run-frame-level-contract-and-test-level (2026-10-04)
+
+- A level that emits `end_requested` from `on_run_started`/`on_char_accepted` still receives `on_char_accepted` after `on_run_ending` (the session keeps judging that key), so a late brain can be counted in `get_brains_earned()`. No current level does this; revisit with Zombie Run (3.1).
+- `RunFrame._fail_to_menu`'s Router-transitioning branch and the null-`TargetSource` failure path have no automated test (tests inject `navigate`; the base `create_target_source` asserts in debug). Covered by the manual web run; add when a Router test seam exists.

@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/test_level/test_level.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/levels/test_level.tres" id="2_config"]
+
+[node name="TestLevel" type="Node2D"]
+script = ExtResource("1_script")
+config = ExtResource("2_config")
+
+[node name="LetterLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_top = 80.0
+offset_right = 640.0
+offset_bottom = 160.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_font_sizes/font_size = 48
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_top = 176.0
+offset_right = 640.0
+offset_bottom = 200.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+vertical_alignment = 1
