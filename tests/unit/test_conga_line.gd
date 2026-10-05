@@ -1,6 +1,7 @@
 extends GutTest
 ## Conga line (Story 3.4, FR35): join, chase, bob, facing, the cap with no hidden nodes, the ×N badge
 ## and "never shrinks". A bare Node2D is the leader; the line is disabled and driven by step(delta).
+## Dance (Story 3.5): a bigger bounce and a beat flip instead of the bob; the chase is unchanged.
 
 const CongaScene: PackedScene = preload("res://scenes/levels/zombie_run/conga_line.tscn")
 const THEME_PATH: String = "res://data/ui_theme.tres"
@@ -291,3 +292,127 @@ func test_never_shrinks() -> void:
 		drawn = _line.get_drawn_count()
 	assert_eq(joined, 14)
 	assert_eq(drawn, 3)
+
+
+# --- dance (Story 3.5) ------------------------------------------------------
+
+func test_dance_flag() -> void:
+	_make()
+	assert_false(_line.is_dancing())
+	_line.dance()
+	assert_true(_line.is_dancing())
+
+
+func test_dance_bounce_is_whole_pixels_bigger_than_the_bob_and_a_ripple() -> void:
+	_make()
+	for i: int in 3:
+		_line.join(_slot(i))
+	_line.dance()
+	var followers: Array[PartyZombie] = _line.get_followers()
+	var deepest: float = 0.0
+	var differed: bool = false
+	for s: int in 120:
+		_line.step(1.0 / 60.0)
+		for i: int in followers.size():
+			var y: float = followers[i].position.y
+			assert_eq(y, roundf(y), "whole pixels")
+			assert_true(y >= -CongaLine.DANCE_HOP_PX and y <= 0.0, "within [-DANCE_HOP_PX, 0] (y %.2f)" % y)
+			deepest = minf(deepest, y)
+		if followers[0].position.y != followers[1].position.y:
+			differed = true
+	assert_lt(deepest, -CongaLine.BOB_PX, "the dance bounces higher than the walk bob")
+	assert_true(differed, "neighbours dance out of phase")
+
+
+func test_settled_followers_flip_on_the_beat() -> void:
+	_make()
+	for i: int in 2:
+		_line.join(_slot(i))
+	_line.dance()
+	var followers: Array[PartyZombie] = _line.get_followers()
+	var left: Array[bool] = [false, false]
+	var right: Array[bool] = [false, false]
+	var differed: bool = false
+	for s: int in 120:
+		_line.step(1.0 / 60.0)
+		for i: int in followers.size():
+			if _faces_left(followers[i]):
+				left[i] = true
+			else:
+				right[i] = true
+		if _faces_left(followers[0]) != _faces_left(followers[1]):
+			differed = true
+	for i: int in followers.size():
+		assert_true(left[i] and right[i], "follower %d faces both ways over the beats" % i)
+	assert_true(differed, "the flips ripple down the line")
+
+
+func test_dancing_followers_still_converge_and_never_pass() -> void:
+	_make()
+	for i: int in 3:
+		_line.join(LEADER_X - 100.0 * (i + 1))
+	_line.dance()
+	var followers: Array[PartyZombie] = _line.get_followers()
+	for s: int in 300:
+		_line.step(1.0 / 60.0)
+		for i: int in followers.size():
+			assert_true(followers[i].position.x < _leader.position.x - CongaLine.SPACING_PX + 0.001, "never passes")
+	for i: int in followers.size():
+		assert_almost_eq(followers[i].position.x, _slot(i), 0.5, "follower %d settles on its slot" % i)
+
+
+func test_join_during_the_dance() -> void:
+	_make(2)
+	_line.join(_slot(0))
+	_line.dance()
+	_steps(30)
+	_line.join(LEADER_X - CongaLine.SPACING_PX)
+	assert_eq(_line.get_drawn_count(), 2, "a newcomer joins mid-dance")
+	var newcomer: PartyZombie = _line.get_followers()[1]
+	_line.step(1.0 / 60.0)
+	assert_true(_faces_left(newcomer), "walks back to the tail first")
+	_steps(300)
+	assert_almost_eq(newcomer.position.x, _slot(1), 0.5, "then dances on its slot")
+	var joined: int = _line.get_joined_count()
+	_line.join(LEADER_X)
+	assert_eq(_line.get_joined_count(), joined + 1, "beyond the cap the badge ticks")
+	assert_true(_line.is_badge_shown())
+	assert_eq(_line.get_badge_text(), "×3")
+	_steps(60)
+	assert_eq(_line.get_joined_count(), 3, "never goes down")
+	assert_eq(_line.get_drawn_count(), 2)
+
+
+func test_dance_frozen_without_step() -> void:
+	_make()
+	for i: int in 3:
+		_line.join(_slot(i))
+	_line.dance()
+	_steps(7)
+	var before: Array[Vector2] = []
+	var facing: Array[bool] = []
+	for follower: PartyZombie in _line.get_followers():
+		before.append(follower.position)
+		facing.append(_faces_left(follower))
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for i: int in _line.get_followers().size():
+		assert_eq(_line.get_followers()[i].position, before[i], "frozen until step (pause)")
+		assert_eq(_faces_left(_line.get_followers()[i]), facing[i])
+
+
+func test_badge_rides_the_dance() -> void:
+	_make(3)
+	for i: int in 4:
+		_line.join(LEADER_X)
+	_steps(300)
+	_line.dance()
+	var badge: PanelContainer = _badge()
+	var last: PartyZombie = _line.get_followers()[2]
+	var lowest: float = 0.0
+	for s: int in 60:
+		_line.step(1.0 / 60.0)
+		lowest = minf(lowest, last.position.y)
+		assert_true(_line.is_badge_shown())
+		assert_almost_eq(badge.position.y + badge.size.y, last.position.y + CongaLine.BADGE_BOTTOM_Y, 0.01, "rides the dance")
+	assert_lt(lowest, -CongaLine.BOB_PX, "the last follower really danced")

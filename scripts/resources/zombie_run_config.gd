@@ -29,6 +29,9 @@ extends LevelConfig
 @export var brainsss_chance: float = 0.0
 ## How many conga-line followers are drawn at most; beyond this a ×N badge shows the total (FR35: 12).
 @export var conga_max_drawn: int = 0
+## How long the zombie and the conga line dance at the end of a run before the report card, in seconds
+## (FR36: 2.0).
+@export var dance_time_s: float = 0.0
 ## The letters the bag deals from (single lowercase characters, no duplicates).
 @export var letter_pool: Array[String] = []
 
@@ -59,4 +62,6 @@ func validate() -> String:
 		return "hug_time_s must be above 0"
 	if conga_max_drawn < 1:
 		return "conga_max_drawn must be at least 1"
+	if not (dance_time_s > 0.0 and is_finite(dance_time_s)):
+		return "dance_time_s must be above 0"
 	return ""

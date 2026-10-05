@@ -153,7 +153,7 @@
 
 ## Deferred from: dev of story-2-4 (2026-10-04)
 
-- Completion bonus is `0` in `RunFrame._send_result()` until Story 3.5 adds it to `LevelConfig`.
+- ~~Completion bonus is `0` in `RunFrame._send_result()` until Story 3.5 adds it to `LevelConfig`.~~ Done in 3.5: `RunFrame` reads `LevelConfig.completion_bonus` at start and passes it as `RunResult.bonus_brains` on every recorded run.
 - ~~`LevelBase.brains_earned_changed` is not connected until the HUD brain counter (Story 2.5); the result reads `get_brains_earned()` at run end.~~ Done in Story 2.5: `RunFrame` connects it to `Hud.set_brains`.
 - `RunFrame.LETTER_POOL_ALL` (`"all"`) is a placeholder for `letter_pool_or_tier` until Epic 7.
 - The test level (`scenes/levels/test_level/`) and its `debug_only` registry entry ship in release builds but are unreachable there (the menu button is debug-only). Exclude them from release exports with the Keyboard Test and art review screens if export size matters.
@@ -240,7 +240,7 @@
 - First completed run goes through the Welcome Gift: Story 4.5 hooks into `report_card.gd` `_leave()`, the card's only navigation.
 - Long level names vs the stamp: at 24 px the heading has 245 px before the stamp (10 glyphs); "Pitchfork Panic" (15 glyphs = 360 px) would run under it. Epic 8 (or the 5.0 stamp art) resolves it; `test_stamp_clear_of_heading_and_rows` checks only "Test level" today.
 - Professor Zombie is 32×32 at 1× (one sprite scale rule), so he is much smaller than in the mock. An exception to the rule or a 48×48 professor sprite is Smuck's call.
-- `test_level` has no completion bonus, so the "+N bonus" line is only seen in tests until Story 3.5.
+- ~~`test_level` has no completion bonus, so the "+N bonus" line is only seen in tests until Story 3.5.~~ Done in 3.5: a completed Zombie Run shows "+10 bonus" (seen in the web build).
 - The pixel-button focus look is two parts: the scene's `focus` box draws only the 2 px candy-yellow ring (outside the ink outline), and `report_card.gd` swaps the `normal`/`hover` box to the pumpkin-light fill on focus. A shared pixel-button widget/theme type (Stories 4.2 / 5.0) should absorb this.
 
 ## Deferred from: code review of 2-9-chalkboard-report-card (2026-10-04)
@@ -267,7 +267,7 @@
 ## Deferred from: code review of story-3-1 (2026-10-04)
 
 - Release builds strip the queue/session desync `assert` in `ZombieRunLevel.on_char_accepted`; add a `Log.error` (and optionally resync). Only reachable via another bug.
-- `ZombieRunLevel.on_run_ending` returns 0.0 without stopping movement or setting an `_ended` flag, so a key accepted in the ending frame still spawns and scoots. Revisit with the Story 3.5 outro.
+- ~~`ZombieRunLevel.on_run_ending` returns 0.0 without stopping movement or setting an `_ended` flag, so a key accepted in the ending frame still spawns and scoots. Revisit with the Story 3.5 outro.~~ Done in 3.5: `on_run_ending` sets `_dancing`, kills the scoot, stops the amble and returns `dance_time_s`; `RunFrame` turns input off before calling it, so no key reaches the level after it.
 - `ZombieRunTarget.HALF_WIDTH` is a hand-kept copy of the tag width in the .tscn, and `resolve()` crashes if called before `add_child`. Unreachable today; revisit when 3.2/3.3 replace the box. *State after 3.2:* the brain block keeps the 24 px tag as its widest part (block 16 px, pop 10 px; `test_brain_block.gd` checks both against `HALF_WIDTH`). It is still a hand copy, so 3.3's villager must stay within it or update it. *State after 3.3:* the 24 px width rule still holds: villager sprite about 16 px opaque, poof at most 24 px, party-hat zombie 16 px; `test_villager.gd` and `test_poof.gd` check the tag and the poof against `HALF_WIDTH`.
 - `_resolved` is uncapped if `_process` stops running; normal play holds about 6.
 - No direct test of the main menu button routing to `zombie_run` (AC2); Story 4.2 replaces the menu.
@@ -319,3 +319,18 @@
 - Badge is placed right after `reset_size()` in the same frame and may use a stale size for one frame (unconfirmed).
 - Test brittleness: `OS.delay_msec(5)` in test_debug_overlay and the hardcoded `brains_earned == 10` for seed 42 in the run-frame integration test.
 - Perf check for NFR1 used the first run's seed, not an F2-pinned one (disclosed in the story).
+
+## Deferred from: dev of story-3-5 (2026-10-05)
+
+- The end dance is a code placeholder (bounce 4 px at 2 beats/s + a `flip_h` per beat) until Story 3.6's `dance` 4f; `PlayerZombie.dance()` plays a `dance` animation as soon as the SpriteFrames has one. Party zombies have no dance frames in the GDD list, so the conga line keeps the code dance (3.6 decides).
+- No dance music or SFX: Story 5.1.
+- The active target's arrow and the HUD letter stay visible during the dance; decide in 5.0 if it looks odd.
+- The completion bonus applies to every recorded end reason (`timer`, F6, `caught`, `escaped`). Epic 8 must split Pitchfork Panic's bonuses (GDD: caught +10, escaped +25).
+- The Router fade freezes the last moment of the dance (the tree is paused during the fade).
+- Web manual check: once the browser pane was hidden, `requestAnimationFrame` stopped (0 calls in 2.5 s) and the run only advanced on screenshots, so a third F6 run sat in ENDING. Environment only: the same flow reached the report card after the dance while the pane was visible, and `test_zombie_run_keys_and_timer_end` pins the 1.9 s / 2.1 s timing.
+
+## Deferred from: code review of story-3-5-run-end-dance-and-brains-award (2026-10-05)
+
+- Dance constants (`DANCE_HOP_PX`, `DANCE_BEAT_HZ`) are duplicated in `player_zombie.gd` and `conga_line.gd`; the zombie and the line are meant to beat in step, so share one source.
+- `dance_time_s` is not tied to `hug_time_s`: with an odd config a late villager could poof after the report card opens (shipped 2.0 s vs 0.4 s is fine).
+- AC7 "end to end" report-card check is manual screenshots plus `test_mock_example_values`; no Zombie Run payload test.

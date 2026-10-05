@@ -33,7 +33,7 @@ extends LevelBase
 ## A seed therefore replays the same letters and the same blocks (Story 2.10).
 ##
 ## Conga line (Story 3.4, FR35): _conga_count is the logical count, +1 in the same on_char_accepted call
-## that resolves a villager (before any visuals); Story 3.5's dance reads it. %CongaLine is the view: when
+## that resolves a villager (before any visuals). %CongaLine is the view: when
 ## a villager's poof ends (Villager.poofed), the level hides that villager's party zombie and the line
 ## instances its own follower at the same spot, so the line's joined count catches up with the logical
 ## count. _free_off_screen() keeps a villager until that hand-off, so every hugged villager joins even at
@@ -45,7 +45,13 @@ extends LevelBase
 ## position. Nothing awaits a tween, so walking, hopping or hugging never caps typing speed. Pause freezes it all
 ## for free (tree pause, node-bound tweens).
 ##
-## Later stories: end dance and completion bonus (3.5), real backdrop and sprites (3.6), groans (3.7).
+## End dance (Story 3.5, FR36): on_run_ending() kills the scoot where it is (the camera stays put), stops
+## the amble and the walk/idle switching in _process, and starts the zombie's dance and the conga line's
+## dance; RunFrame waits the returned dance_time_s before the report card. No key is judged after that, so
+## on_char_accepted needs no guard. The dance draws nothing from any RNG; the completion bonus is
+## RunFrame's.
+##
+## Later stories: real backdrop and sprites (3.6), groans (3.7).
 
 ## The non-block slots (Story 3.3). The generic zombie_run_target.tscn stays the base and test fixture.
 const VILLAGER_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/villager.tscn")
@@ -79,6 +85,8 @@ var _brains: int = 0
 var _conga_count: int = 0
 ## The zombie's single move tween; every correct key kills and restarts it.
 var _move_tween: Tween
+## Set by on_run_ending(): the zombie stays put and dances.
+var _dancing: bool = false
 
 @onready var _zombie: PlayerZombie = %Zombie
 @onready var _world: Node2D = %World
@@ -171,16 +179,31 @@ func hop_height() -> float:
 	return maxf(0.0, _cfg.brain_block_float_px - PlayerZombie.SIZE_PX)
 
 
-## No outro yet: the end dance (2.0 s) arrives with Story 3.5.
+## The end dance (Story 3.5, FR36): stops the zombie where it is and starts the zombie's and the line's
+## dance; RunFrame waits the returned dance time before the report card.
 func on_run_ending(_reason: StringName) -> float:
-	return 0.0
+	if _cfg == null:
+		return 0.0
+	if _dancing:
+		return _cfg.dance_time_s
+	_dancing = true
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	_zombie.dance(_cfg.dance_time_s)
+	_conga.dance()
+	return _cfg.dance_time_s
+
+
+## True once the end dance has started.
+func is_dancing() -> bool:
+	return _dancing
 
 
 func get_brains_earned() -> int:
 	return _brains
 
 
-## Villagers resolved this run (the logical conga count; Story 3.5's dance reads it).
+## Villagers resolved this run (the logical conga count).
 func get_conga_count() -> int:
 	return _conga_count
 
@@ -191,6 +214,9 @@ func get_conga_line() -> CongaLine:
 
 func _process(delta: float) -> void:
 	if _cfg == null:
+		return
+	if _dancing:
+		_free_off_screen()
 		return
 	var goal: float = approach_x(_active_index)
 	var scooting: bool = _move_tween != null and _move_tween.is_running()

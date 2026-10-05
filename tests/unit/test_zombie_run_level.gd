@@ -11,6 +11,8 @@ extends GutTest
 ## Conga line (Story 3.4): the logical count at resolve, the hand-off on poofed, the freeing guard, the cap
 ## from the config, draw order, fit and "never shrinks". The line is disabled too: tests call
 ## get_conga_line().step(delta).
+## End dance (Story 3.5): on_run_ending() returns the config's dance time, stops the scoot and the amble
+## where they are, and starts the zombie's and the line's dance, drawing nothing from any RNG.
 
 const LevelScene: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_level.tscn")
 const LevelScript := preload("res://scripts/levels/zombie_run/zombie_run_level.gd")
@@ -110,7 +112,7 @@ func test_contract() -> void:
 	assert_true(_level.get_level_config() is ZombieRunConfig)
 	assert_true(_source is LetterBagSource)
 	assert_eq(_level.get_brains_earned(), 0)
-	assert_eq(_level.on_run_ending(GameConstants.END_REASON_TIMER), 0.0)
+	assert_eq(_level.on_run_ending(GameConstants.END_REASON_TIMER), _cfg().dance_time_s)
 
 
 func test_queue_after_setup() -> void:
@@ -893,3 +895,122 @@ func test_conga_line_draws_nothing_from_the_run_rng() -> void:
 	for i: int in 10:
 		expected.randf()
 	assert_eq(_run_rng.state, expected.state, "the conga line adds no draws")
+
+
+# --- end dance (Story 3.5) ----------------------------------------------------
+
+func _body() -> AnimatedSprite2D:
+	return _level.get_node("%Zombie/Body") as AnimatedSprite2D
+
+
+func test_on_run_ending_returns_the_config_dance_time() -> void:
+	_make(42, func(c: ZombieRunConfig) -> void: c.dance_time_s = 3.0)
+	assert_eq(_level.on_run_ending(GameConstants.END_REASON_TIMER), 3.0)
+
+
+func test_end_stops_mid_scoot_and_dances() -> void:
+	_make()
+	assert_false(_level.is_dancing())
+	_key()
+	_key()
+	var tween: Tween = _level.get_move_tween()
+	_step(_cfg().scoot_time_s * 0.5)
+	assert_true(tween.is_running(), "mid-scoot")
+	_level.on_run_ending(GameConstants.END_REASON_TIMER)
+	assert_false(tween.is_valid(), "the scoot tween was killed")
+	assert_true(_level.is_dancing())
+	assert_true(_zombie().is_dancing(), "the zombie's dance tween runs")
+	assert_true(_conga().is_dancing(), "the line dances too")
+	var zombie_x: float = _level.get_zombie_x()
+	var camera_x: float = _level.get_camera_x()
+	assert_lt(zombie_x, _approach_goal(), "stopped short of the goal")
+	for i: int in 50:
+		_level._process(0.1)
+	assert_eq(_level.get_zombie_x(), zombie_x, "no amble while dancing")
+	assert_eq(_level.get_camera_x(), camera_x, "the camera stays put")
+	_assert_camera_locked()
+
+
+func _approach_goal() -> float:
+	return _level.approach_x(_level.get_active_index())
+
+
+func test_end_while_idle_before_the_goal_stops_the_amble() -> void:
+	_make()
+	var zombie_x: float = _level.get_zombie_x()
+	assert_lt(zombie_x, _approach_goal(), "starts short of the first approach point")
+	_level.on_run_ending(GameConstants.END_REASON_TIMER)
+	for i: int in 20:
+		_level._process(0.1)
+	assert_eq(_level.get_zombie_x(), zombie_x, "no amble while dancing")
+
+
+func test_process_while_dancing_keeps_the_dance_animation() -> void:
+	_make()
+	_key()
+	_level.on_run_ending(GameConstants.END_REASON_TIMER)
+	assert_eq(_body().animation, PlayerZombie.ANIM_IDLE, "the placeholder dance plays idle")
+	for i: int in 10:
+		_level._process(0.1)
+		assert_eq(_body().animation, PlayerZombie.ANIM_IDLE, "not switched to walk by _process")
+
+
+## With Story 3.6's dance frames, a play_idle() from _process would show too.
+func test_process_while_dancing_keeps_the_dance_frames() -> void:
+	_make()
+	var frames: SpriteFrames = _body().sprite_frames.duplicate() as SpriteFrames
+	frames.add_animation(PlayerZombie.ANIM_DANCE)
+	frames.add_frame(PlayerZombie.ANIM_DANCE, frames.get_frame_texture(&"idle", 0))
+	_body().sprite_frames = frames
+	_key()
+	_level.on_run_ending(GameConstants.END_REASON_TIMER)
+	assert_eq(_body().animation, PlayerZombie.ANIM_DANCE)
+	for i: int in 10:
+		_level._process(0.1)
+		assert_eq(_body().animation, PlayerZombie.ANIM_DANCE, "not switched to walk or idle by _process")
+	_finish_scoot()
+	_level._process(0.1)
+	assert_eq(_body().animation, PlayerZombie.ANIM_DANCE, "nor once the cut scoot would have ended")
+
+
+func test_end_cuts_hop_and_hug() -> void:
+	_make()
+	_type_until(_is_block)
+	_key()
+	assert_true(_zombie().is_hopping())
+	_level.on_run_ending(GameConstants.END_REASON_TIMER)
+	assert_false(_zombie().is_hopping(), "the dance cuts the hop")
+	assert_false(_zombie().is_hugging())
+
+
+func test_villager_hugged_before_the_end_still_joins_during_the_dance() -> void:
+	_make()
+	_type_until(_is_villager)
+	var villager: Villager = _level.get_queue()[0] as Villager
+	_key()
+	var joined: int = _conga().get_joined_count()
+	_level.on_run_ending(GameConstants.END_REASON_TIMER)
+	_finish_poof(villager)
+	assert_eq(_conga().get_joined_count(), joined + 1, "it still joins the line")
+	assert_eq(_conga().get_joined_count(), _level.get_conga_count())
+	for i: int in 30:
+		_conga().step(1.0 / 60.0)
+	assert_true(_conga().is_dancing())
+
+
+func test_dance_draws_nothing_from_the_run_rng() -> void:
+	_make(42)
+	for i: int in 40:
+		_key()
+	var state: int = _run_rng.state
+	_level.on_run_ending(GameConstants.END_REASON_TIMER)
+	for i: int in 30:
+		_level._process(1.0 / 30.0)
+		_conga().step(1.0 / 30.0)
+		_zombie().get_dance_tween().custom_step(1.0 / 30.0)
+	assert_eq(_run_rng.state, state, "the dance adds no draws")
+
+
+func test_bad_dance_config_returns_no_source() -> void:
+	assert_null(_make_with_bad_config(func(c: ZombieRunConfig) -> void: c.dance_time_s = 0.0))
+	assert_push_error("dance_time_s")

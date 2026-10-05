@@ -1016,8 +1016,11 @@ func test_zombie_run_keys_and_timer_end() -> void:
 		_type_correct(frame)
 	frame._process(121.0)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
-	frame._process(0.016)
-	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE, "no outro until Story 3.5")
+	frame._process(1.9)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING, "still dancing at 1.9 s")
+	assert_eq(_nav, [], "no report card before the dance ends")
+	frame._process(0.2)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE, "the 2.0 s dance is over")
 	assert_eq(_nav.size(), 1)
 	assert_eq(_nav[0][0], Router.Screen.REPORT_CARD)
 	var result: RunResult = _result()
@@ -1026,7 +1029,9 @@ func test_zombie_run_keys_and_timer_end() -> void:
 	assert_eq(result.errors, 1)
 	assert_eq(result.duration_s, 120.0)
 	assert_eq(result.brains, 1, "one brain block per group of 4: Story 3.2")
-	assert_eq(result.bonus_brains, 0, "completion bonus wiring is Story 3.5")
+	var bonus: int = frame.get_level().get_level_config().completion_bonus
+	assert_gt(bonus, 0, "Zombie Run pays a completion bonus")
+	assert_eq(result.bonus_brains, bonus, "the bonus comes from the level config (Story 3.5)")
 
 
 # --- Zombie Run brains (Story 3.2) -------------------------------------------
@@ -1060,6 +1065,7 @@ func test_zombie_run_quit_commits_the_level_brains() -> void:
 	_panel(frame).emit_signal("quit_chosen")
 	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
 	assert_eq(data.get_brains(), before + earned, "brains kept, no bonus (FR13)")
+	assert_eq(data.save_service.get_active_profile()["run_history"].size(), 0, "a quit records nothing")
 
 
 # --- Zombie Run villagers (Story 3.3) ----------------------------------------
@@ -1121,3 +1127,118 @@ func test_zombie_run_pause_and_resume_keep_the_conga_line() -> void:
 	frame.call("_on_web_platform_focus_lost")
 	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
 	assert_eq(_conga_snapshot(level), before, "a focus-loss pause loses nothing either")
+
+
+# --- Zombie Run end dance and brains award (Story 3.5) -------------------------
+
+## The level state a key could change, for "nothing changes" checks.
+func _zombie_snapshot(frame: RunFrameScript) -> Array:
+	var level: ZombieRunLevelScript = frame.get_level() as ZombieRunLevelScript
+	var session: TypingSession = frame.get_session()
+	return [
+		session.get_keys_typed(), session.get_errors(), level.get_active_index(),
+		level.get_brains_earned(), level.get_conga_count(), level.get_conga_line().get_joined_count(),
+	]
+
+
+func test_zombie_run_end_rejects_keys_and_dances() -> void:
+	var frame: RunFrameScript = _make({"level_id": &"zombie_run", "seed": 42}, null, _fake_player_data())
+	add_child_autofree(frame)
+	var level: ZombieRunLevelScript = frame.get_level() as ZombieRunLevelScript
+	for i: int in 8:
+		_type_correct(frame)
+	frame._process(121.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_true(level.is_dancing(), "the level dances on ENDING")
+	var before: Array = _zombie_snapshot(frame)
+	var target: String = frame.get_session().get_current_target()
+	assert_false(_send(frame, target), "a correct key is not judged")
+	assert_false(_send(frame, "b" if target == "a" else "a"), "a wrong key is not judged")
+	assert_eq(_zombie_snapshot(frame), before, "keys, errors, targets, brains and conga unchanged")
+
+
+func test_zombie_run_completed_run_pays_the_bonus_once() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var wallet: int = data.get_brains()
+	var frame: RunFrameScript = _make({"level_id": &"zombie_run", "seed": 42}, null, data)
+	add_child_autofree(frame)
+	var level: ZombieRunLevelScript = frame.get_level() as ZombieRunLevelScript
+	for i: int in 20:
+		if level.get_brains_earned() > 0:
+			break
+		_type_correct(frame)
+	var brains: int = level.get_brains_earned()
+	assert_gt(brains, 0, "1+ brain block collected")
+	var bonus: int = level.get_level_config().completion_bonus
+	frame._process(121.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_eq(data.get_brains(), wallet + brains + bonus, "paid on entering ENDING, before the dance")
+	var history: Array = data.save_service.get_active_profile()["run_history"]
+	assert_eq(history.size(), 1)
+	assert_eq(int(history[0]["brains"]), brains + bonus, "the record holds the total")
+	for i: int in 5:
+		frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(data.get_brains(), wallet + brains + bonus, "paid once")
+	assert_eq(data.save_service.get_active_profile()["run_history"].size(), 1, "recorded once")
+	assert_eq(_result().brains, brains)
+	assert_eq(_result().bonus_brains, bonus)
+	assert_eq(_result().total_brains(), brains + bonus, "the report card's Brains Collected")
+
+
+func test_zombie_run_debug_end_pays_the_bonus() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"zombie_run", "seed": 42})
+	_type_correct(frame)
+	frame._process(5.0)
+	assert_true(frame.debug_end_run())
+	frame._process(2.1)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_result().bonus_brains, frame.get_level().get_level_config().completion_bonus, "F6 = the timer path")
+
+
+func test_zombie_run_pause_is_refused_while_dancing() -> void:
+	var frame: RunFrameScript = _make({"level_id": &"zombie_run", "seed": 42}, null, _fake_player_data())
+	add_child_autofree(frame)
+	_type_correct(frame)
+	frame._process(121.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	frame._unhandled_input(_esc())
+	frame.get_node("%Hud").emit_signal("pause_pressed")
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_eq(_paused, [] as Array[bool], "the tree is never paused")
+	assert_false(_panel(frame).call("is_open"))
+	frame._process(2.1)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_nav.size(), 1)
+	assert_eq(_nav[0][0], Router.Screen.REPORT_CARD, "the report card still arrives after the dance")
+
+
+func test_zombie_run_play_again_starts_fresh() -> void:
+	var first: RunFrameScript = _start({"level_id": &"zombie_run", "seed": 42})
+	var first_level: ZombieRunLevelScript = first.get_level() as ZombieRunLevelScript
+	for i: int in 12:
+		_type_correct(first)
+	_finish_villager_poofs(first_level)
+	assert_gt(first_level.get_conga_line().get_joined_count(), 0, "the first run had a line")
+	first._process(121.0)
+	first._process(2.1)
+	assert_eq(_nav.size(), 1)
+	var level_id: StringName = _result().level_id
+	assert_eq(level_id, &"zombie_run")
+	# What the report card's Play Again sends: the level id, no seed.
+	var second: RunFrameScript = _start({"level_id": level_id})
+	var level: ZombieRunLevelScript = second.get_level() as ZombieRunLevelScript
+	assert_not_null(level)
+	assert_ne(level, first_level, "a new level instance")
+	assert_ne(second.get_seed(), 42, "a new random seed")
+	assert_false(second.is_replay())
+	assert_eq(second.get_state(), RunFrameScript.RunState.WAITING_FIRST_KEY)
+	assert_eq(second.get_elapsed(), 0.0)
+	assert_eq(level.get_active_index(), 0)
+	assert_eq(level.get_brains_earned(), 0)
+	assert_eq(level.get_conga_count(), 0)
+	assert_eq(level.get_conga_line().get_joined_count(), 0)
+	assert_eq(level.get_conga_line().get_drawn_count(), 0)
+	assert_false(level.get_conga_line().is_badge_shown())
+	assert_false(level.is_dancing())

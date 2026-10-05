@@ -7,7 +7,8 @@ extends Control
 ## Resume -> COUNTDOWN (%Countdown 3-2-1, tree still paused) -> back to the state it was paused from, and
 ## only then is the tree unpaused; Quit to Menu commits the level's brains and records nothing.
 ## A finished run is built and saved through PlayerData.record_run (2.8) on entering ENDING, so closing the
-## game during the outro loses nothing; DONE only opens the report card.
+## game during the outro loses nothing; DONE only opens the report card. A completed run adds the level
+## config's completion_bonus as the RunResult's bonus (Story 3.5); Quit to Menu never does.
 ## Debug hooks (Story 2.10): the overlay reads the plain getters, pins a replay seed in the debug_seed
 ## static and ends a run with debug_end_run(); both are gated by the is_debug_build seam.
 ## Everything in the typing path is synchronous: nothing in it waits or defers a call.
@@ -53,6 +54,8 @@ var _session: TypingSession
 var _level: LevelBase
 var _level_id: StringName = &""
 var _duration: float = 0.0
+## LevelConfig.completion_bonus, read once at start: the bonus of every recorded (completed) run.
+var _completion_bonus: int = 0
 var _end_reason: StringName = &""
 var _outro_left: float = 0.0
 ## Built and recorded on entering ENDING; DONE sends them to the report card.
@@ -200,6 +203,7 @@ func _start_level(payload: Dictionary) -> String:
 		return "level %s gave no target source" % _level_id
 	_session = TypingSession.new(source, config)
 	_duration = config.duration_s
+	_completion_bonus = maxi(0, config.completion_bonus)
 	%TypingInput.configure(config)
 	%TypingInput.char_typed.connect(_on_typing_input_char_typed)
 	_session.run_started.connect(_on_session_run_started)
@@ -360,9 +364,10 @@ func _record_result() -> void:
 		duration = minf(duration, _duration)
 	_result = RunResult.create(
 		_level_id, int(Time.get_unix_time_from_system()), duration, _session.get_keys_typed(),
-		_session.get_errors(), _session.get_per_key(), _level.get_brains_earned(), 0, LETTER_POOL_ALL,
-		_end_reason)
-	Log.info(&"run", "ended level=%s reason=%s wpm=%d" % [_result.level_id, _result.end_reason, _result.wpm])
+		_session.get_errors(), _session.get_per_key(), _level.get_brains_earned(), _completion_bonus,
+		LETTER_POOL_ALL, _end_reason)
+	Log.info(&"run", "ended level=%s reason=%s wpm=%d bonus=%d" % [
+		_result.level_id, _result.end_reason, _result.wpm, _result.bonus_brains])
 	_new_best = player_data.record_run(_result)
 
 

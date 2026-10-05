@@ -16,6 +16,7 @@ hug_time_s = 0.4
 brains_per_block = 1
 brainsss_chance = 0.2
 conga_max_drawn = 12
+dance_time_s = 2.0
 letter_pool = Array[String](["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"])
 duration_s = 120.0
 case_sensitive = false

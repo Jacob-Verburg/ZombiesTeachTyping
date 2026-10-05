@@ -20,7 +20,12 @@ extends Node2D
 ## Time is accumulated from delta in step(), never read from the clock, so a tree pause freezes the line
 ## and tests are deterministic. No randomness, no allocation and no logging per frame.
 ##
-## Never shrinks: there is no removal API. Story 3.5 adds the dance.
+## Dance (Story 3.5, FR36): dance() switches every follower's walk bob for a bigger bounce and a facing
+## flip per beat, both phased by index so the line ripples. The chase is unchanged (the leader has stopped,
+## so the followers settle on their slots); a follower still walking back to its slot faces left as
+## usual. It lasts until the run frame is freed, draws no randomness, and joins still work mid-dance.
+##
+## Never shrinks: there is no removal API.
 ## Placeholder look: idle frames plus the code bob until Story 3.6's walk 4f.
 
 const PARTY_ZOMBIE_SCENE: PackedScene = preload("res://scenes/characters/party_zombie.tscn")
@@ -41,12 +46,19 @@ const BADGE_BOTTOM_Y: float = -33.0
 const BADGE_PREFIX: String = "×"
 ## Followers move this far before they count as walking back (faces left).
 const FACE_DEADZONE_PX: float = 0.5
+## Dance bounce height, bounces per second (a facing flip on every beat) and the beat offset between
+## neighbours, so they flip in a ripple.
+const DANCE_HOP_PX: float = 4.0
+const DANCE_BEAT_HZ: float = 2.0
+const DANCE_BEAT_OFFSET: float = 0.5
 
 var _leader: Node2D
 var _max_drawn: int = 0
 var _joined: int = 0
 var _time: float = 0.0
 var _followers: Array[PartyZombie] = []
+var _dancing: bool = false
+var _dance_time: float = 0.0
 
 @onready var _followers_root: Node2D = %Followers
 @onready var _badge: PanelContainer = %Badge
@@ -70,13 +82,27 @@ func join(from_x: float) -> void:
 	_update_badge()
 
 
+## Starts the end dance; it runs until the line is freed.
+func dance() -> void:
+	if _dancing:
+		return
+	_dancing = true
+	_dance_time = 0.0
+
+
+func is_dancing() -> bool:
+	return _dancing
+
+
 func _process(delta: float) -> void:
 	step(delta)
 
 
-## One frame of chase and bob. Public so tests can drive it.
+## One frame of chase and bob (or dance). Public so tests can drive it.
 func step(delta: float) -> void:
 	_time += delta
+	if _dancing:
+		_dance_time += delta
 	if _leader == null:
 		return
 	var leader_x: float = _leader.position.x
@@ -86,10 +112,17 @@ func step(delta: float) -> void:
 		var x: float = follower.position.x
 		var slot: float = leader_x - (i + 1) * SPACING_PX
 		var new_x: float = lerpf(x, slot, weight)
-		follower.face_left(slot < x - FACE_DEADZONE_PX)
+		var walking_back: bool = slot < x - FACE_DEADZONE_PX
 		new_x = minf(new_x, maxf(x, leader_x - SPACING_PX))
 		follower.position.x = new_x
-		follower.position.y = -roundf(BOB_PX * (0.5 + 0.5 * sin(TAU * BOB_HZ * _time + i * BOB_PHASE_STEP)))
+		if _dancing:
+			follower.position.y = -roundf(
+				DANCE_HOP_PX * absf(sin(PI * DANCE_BEAT_HZ * _dance_time + i * BOB_PHASE_STEP)))
+			var beat: int = int(floorf(DANCE_BEAT_HZ * _dance_time + i * DANCE_BEAT_OFFSET))
+			follower.face_left(walking_back or beat % 2 == 1)
+		else:
+			follower.position.y = -roundf(BOB_PX * (0.5 + 0.5 * sin(TAU * BOB_HZ * _time + i * BOB_PHASE_STEP)))
+			follower.face_left(walking_back)
 	_place_badge()
 
 

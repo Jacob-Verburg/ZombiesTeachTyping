@@ -9,21 +9,30 @@ extends Node2D
 ## stop_hop() kills the running one. Story 3.6 adds the hop frames.
 ## Hug (Story 3.3): Body leans forward and back on x for the hug time after a villager's letter. One hug
 ## tween at a time: a new hug or stop_hug() kills the running one. The hop owns Body.position.y and the
-## hug owns Body.position.x, so neither ever kills or resets the other. Story 3.6 adds the hug frames;
-## the dance arrives with 3.5.
+## hug owns Body.position.x, so neither ever kills or resets the other. Story 3.6 adds the hug frames.
+## Dance (Story 3.5, FR36): one dance tween bounces Body on y and flips it (flip_h) on every beat for the
+## dance time, then puts Body back at rest. It owns Body.position.y and flip_h and cuts the hop and the
+## hug first, so nothing fights it. A code bounce + flip until Story 3.6's dance 4f, which dance() plays
+## when the SpriteFrames has a dance animation.
 
 const ANIM_IDLE: StringName = &"idle"
 const ANIM_WALK: StringName = &"walk"
+const ANIM_DANCE: StringName = &"dance"
 ## Character sprite size (art standard, NFR13); the level derives the hop height from it.
 const SIZE_PX: float = 32.0
 ## Hug lean (look value, not a GDD number): how far Body leans forward at the middle of the hug.
 const HUG_LEAN_PX: float = 3.0
+## Dance look values, not GDD numbers: the bounce height, and bounces per second (Body flips its facing
+## on every beat).
+const DANCE_HOP_PX: float = 4.0
+const DANCE_BEAT_HZ: float = 2.0
 
 var _body_rest_x: float = 0.0
 var _body_rest_y: float = 0.0
 var _hop_height_px: float = 0.0
 var _hop_tween: Tween
 var _hug_tween: Tween
+var _dance_tween: Tween
 
 @onready var _body: AnimatedSprite2D = $Body
 
@@ -126,6 +135,47 @@ func _reset_hug() -> void:
 func _kill_hug() -> void:
 	if _hug_tween != null and _hug_tween.is_valid():
 		_hug_tween.kill()
+
+
+## Dances in place for `duration_s`, cutting the hop, the hug and any running dance. Fire-and-forget and
+## node-bound like the hop.
+func dance(duration_s: float) -> void:
+	stop_hop()
+	stop_hug()
+	_kill_dance()
+	_reset_dance()
+	if _body.sprite_frames != null and _body.sprite_frames.has_animation(ANIM_DANCE):
+		_body.play(ANIM_DANCE)
+	else:
+		_play(ANIM_IDLE)
+	_dance_tween = create_tween()
+	_dance_tween.tween_method(_set_dance_s, 0.0, duration_s, duration_s)
+	_dance_tween.tween_callback(_reset_dance)
+
+
+func is_dancing() -> bool:
+	return _dance_tween != null and _dance_tween.is_valid() and _dance_tween.is_running()
+
+
+## The current dance tween (null before the first dance; may be finished or killed). For tests.
+func get_dance_tween() -> Tween:
+	return _dance_tween
+
+
+## `s` is the elapsed dance time in seconds, so the beat stays in Hz whatever the dance length.
+func _set_dance_s(s: float) -> void:
+	_body.position.y = _body_rest_y - roundf(DANCE_HOP_PX * absf(sin(PI * DANCE_BEAT_HZ * s)))
+	_body.flip_h = int(floorf(DANCE_BEAT_HZ * s)) % 2 == 1
+
+
+func _reset_dance() -> void:
+	_body.position.y = _body_rest_y
+	_body.flip_h = false
+
+
+func _kill_dance() -> void:
+	if _dance_tween != null and _dance_tween.is_valid():
+		_dance_tween.kill()
 
 
 ## Restarts only when the animation changes, so calling it every frame keeps the loop smooth.

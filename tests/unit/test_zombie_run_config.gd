@@ -82,6 +82,7 @@ func test_each_bad_number_is_rejected() -> void:
 		"brainsss_chance": 1.5,
 		"brain_block_float_px": 32.0,
 		"conga_max_drawn": 0,
+		"dance_time_s": 0.0,
 	}
 	for field: String in fields:
 		var config: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
@@ -129,3 +130,16 @@ func test_conga_max_drawn_must_be_at_least_one() -> void:
 	var one: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
 	one.conga_max_drawn = 1
 	assert_eq(one.validate(), "")
+
+
+# --- end dance (Story 3.5) ----------------------------------------------------
+
+func test_dance_time_value() -> void:
+	assert_eq(_config().dance_time_s, 2.0)
+
+
+func test_dance_time_must_be_positive() -> void:
+	for bad: float in [0.0, -2.0, NAN]:
+		var config: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
+		config.dance_time_s = bad
+		assert_ne(config.validate(), "", "dance_time_s %s is rejected" % bad)
