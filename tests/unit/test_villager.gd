@@ -105,7 +105,7 @@ func test_party_zombie_appears_when_the_poof_ends() -> void:
 	villager.resolve()
 	villager.get_sequence_tween().custom_step(HUG_TIME_S + 0.01)
 	var poof: Poof = _poofs(villager)[0]
-	assert_true(poof.position.y < 0.0, "the poof sits on the body, above the feet")
+	assert_eq(poof.position, Vector2.ZERO, "the poof sheet is drawn from the feet: at the villager's origin")
 	poof.get_tween().custom_step(Poof.FRAMES / Poof.FPS + 0.01)
 	assert_signal_emit_count(villager, "poofed", 1)
 	assert_signal_emitted_with_parameters(villager, "poofed", [villager.get_party_zombie()])
@@ -135,3 +135,7 @@ func test_state_never_skips_back_from_hugged() -> void:
 	villager._set_state(Villager.State.WAITING)
 	assert_eq(villager.get_state(), Villager.State.HUGGED)
 	assert_engine_error("Villager state can only move forward")
+
+
+func test_arrow_is_the_sprite_above_the_tag() -> void:
+	ArrowTipAssert.assert_tip(self, _villager(), -57.0)

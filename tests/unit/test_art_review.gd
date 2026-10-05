@@ -1,12 +1,14 @@
 extends GutTest
 ## Art review scene (Story 1.9): SpriteFrames built from the sheets, fps and frame counts inside the
-## style-sheet limits, and the B background cycle using palette colors only. The scene owns input,
+## style-sheet limits, the B background cycle using palette colors only, and (Story 3.6) the 16 px prop
+## frames and the N animation pages. The scene owns input,
 ## so instances are disabled; the cycle is driven through the _cycle_background() seam.
 
 const ReviewScene: PackedScene = preload("res://scenes/debug/art_review.tscn")
 const ArtReviewScript := preload("res://scripts/debug/art_review.gd")
 const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const WALK_PATH: String = "res://assets/sprites/characters/zombie/zombie_walk.png"
+const BONK_PATH: String = "res://assets/sprites/props/brain_block_bonk.png"
 
 var _palette: Dictionary[String, bool] = {}
 
@@ -45,7 +47,8 @@ func test_build_frames_slices_walk_sheet() -> void:
 func test_scene_builds_animations_within_limits() -> void:
 	var sut: ArtReviewScript = _make()
 	var animations: Dictionary[String, SpriteFrames] = sut.get_animations()
-	assert_eq_deep(animations.keys(), ["idle", "walk", "wave", "party_idle"])
+	assert_eq_deep(animations.keys(), ["idle", "walk", "wave", "party_idle", "hop", "hug", "dance", "poof",
+			"party_walk", "block_idle", "block_bonk", "brain_pop"])
 	for spec: Dictionary in ArtReviewScript.ANIMATIONS:
 		var first: AtlasTexture = animations[spec["name"]].get_frame_texture(spec["name"], 0) as AtlasTexture
 		assert_not_null(first.atlas, "%s sheet texture loaded" % spec["name"])
@@ -86,3 +89,37 @@ func test_palette_strip_shows_all_32_colors() -> void:
 	assert_eq(swatches.size(), 32)
 	for color: Color in swatches:
 		assert_true(_palette.has(color.to_html(false)))
+
+
+func test_build_frames_slices_prop_sheet_at_16_px() -> void:
+	var sheet: Texture2D = load(BONK_PATH) as Texture2D
+	assert_not_null(sheet)
+	var frames: SpriteFrames = ArtReviewScript.build_frames(sheet, 3, 12.0, &"block_bonk", ArtReviewScript.PROP_FRAME)
+	assert_eq(frames.get_frame_count(&"block_bonk"), 3)
+	for i: int in 3:
+		var atlas: AtlasTexture = frames.get_frame_texture(&"block_bonk", i) as AtlasTexture
+		assert_eq(atlas.region, Rect2(i * 16, 0, 16, 16))
+
+
+## Story 3.6 timings: the dance cycle is one 2 Hz bounce, the poof plays at Poof.FPS.
+func test_story_3_6_animation_speeds() -> void:
+	var sut: ArtReviewScript = _make()
+	var animations: Dictionary[String, SpriteFrames] = sut.get_animations()
+	assert_eq(animations["dance"].get_animation_speed("dance") / animations["dance"].get_frame_count("dance"),
+			PlayerZombie.DANCE_BEAT_HZ, "one dance cycle per beat")
+	assert_eq(animations["poof"].get_animation_speed("poof"), Poof.FPS)
+	assert_eq(animations["hop"].get_frame_count("hop"), 3)
+	assert_eq(animations["hug"].get_frame_count("hug"), 3)
+
+
+func test_pages_cycle_and_wrap() -> void:
+	var sut: ArtReviewScript = _make()
+	assert_eq(sut.page_count(), 3)
+	assert_eq(sut.page_index(), 0)
+	assert_eq_deep(sut.page_animations(), ["idle", "walk", "wave", "party_idle"])
+	sut._next_page()
+	assert_eq_deep(sut.page_animations(), ["hop", "hug", "dance", "poof"])
+	sut._next_page()
+	assert_eq_deep(sut.page_animations(), ["party_walk", "block_idle", "block_bonk", "brain_pop"])
+	sut._next_page()
+	assert_eq(sut.page_index(), 0, "wraps")

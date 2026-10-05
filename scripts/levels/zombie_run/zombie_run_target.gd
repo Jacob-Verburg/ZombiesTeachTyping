@@ -1,7 +1,8 @@
 class_name ZombieRunTarget
 extends Node2D
 ## One target on the Zombie Run path (Story 3.1): a placeholder box with its letter on a parchment
-## tag. Only the active target bobs and carries the candy-yellow down-arrow. The node origin is the
+## tag. Only the active target bobs and carries the down-arrow (Story 3.6: the down_arrow.png sprite in
+## %Arrow, its tip 4 px above the tag; the bob stays code). The node origin is the
 ## target's feet centre on the ground line; the level owns `position`, the bob moves %Visual only.
 ## This is the base Story 3.2's brain block and 3.3's villager extend: they override
 ## _on_resolved() (brains earned + their own resolved look) and keep the rest.

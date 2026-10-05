@@ -51,7 +51,12 @@ extends LevelBase
 ## on_char_accepted needs no guard. The dance draws nothing from any RNG; the completion bonus is
 ## RunFrame's.
 ##
-## Later stories: real backdrop and sprites (3.6), groans (3.7).
+## Backdrop (Story 3.6, FR37): %Backdrop (SunnyVillageBackdrop) sits outside %World and scrolls its
+## parallax layers from the camera x; _set_zombie_x() calls its scroll_to() in the same call that moves
+## the world, so the backdrop, the world and the zombie never drift apart (the ground layer moves exactly
+## with the world). It draws nothing from any RNG.
+##
+## Later stories: groans (3.7).
 
 ## The non-block slots (Story 3.3). The generic zombie_run_target.tscn stays the base and test fixture.
 const VILLAGER_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/villager.tscn")
@@ -91,6 +96,7 @@ var _dancing: bool = false
 @onready var _zombie: PlayerZombie = %Zombie
 @onready var _world: Node2D = %World
 @onready var _conga: CongaLine = %CongaLine
+@onready var _backdrop: SunnyVillageBackdrop = %Backdrop
 
 
 func _ready() -> void:
@@ -260,6 +266,8 @@ func get_move_tween() -> Tween:
 func _set_zombie_x(x: float) -> void:
 	_zombie.position.x = x
 	_world.position.x = ZOMBIE_SCREEN_X - x
+	if _backdrop != null:
+		_backdrop.scroll_to(x - ZOMBIE_SCREEN_X)
 
 
 func _scoot_to(goal: float) -> void:

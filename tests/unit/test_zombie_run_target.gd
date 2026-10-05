@@ -1,5 +1,6 @@
 extends GutTest
-## Generic Zombie Run target (Story 3.1): letter tag, active arrow + bob, one-way resolve.
+## Generic Zombie Run target (Story 3.1): letter tag, active arrow + bob, one-way resolve. It stays the
+## placeholder box; Story 3.6 makes its arrow the down_arrow.png sprite.
 
 const TargetScene: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_target.tscn")
 
@@ -76,3 +77,7 @@ func test_active_target_bobs_and_settles_when_deactivated() -> void:
 	assert_eq(_visual_y(target), 0.0, "resolve stops the bob")
 	target._process(0.2)
 	assert_eq(_visual_y(target), 0.0)
+
+
+func test_arrow_is_the_sprite_above_the_tag() -> void:
+	ArrowTipAssert.assert_tip(self, _target(), -50.0)

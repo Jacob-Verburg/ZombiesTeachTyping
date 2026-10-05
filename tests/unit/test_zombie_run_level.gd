@@ -13,6 +13,8 @@ extends GutTest
 ## get_conga_line().step(delta).
 ## End dance (Story 3.5): on_run_ending() returns the config's dance time, stops the scoot and the amble
 ## where they are, and starts the zombie's and the line's dance, drawing nothing from any RNG.
+## Story 3.6: the backdrop follows the camera (the ground layer to the pixel with %World), and the level's
+## per-frame play_walk()/play_idle() never clobber the hop, hug or dance frames.
 
 const LevelScene: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_level.tscn")
 const LevelScript := preload("res://scripts/levels/zombie_run/zombie_run_level.gd")
@@ -204,7 +206,19 @@ func test_no_amble_while_a_scoot_runs() -> void:
 	var before: float = _level.get_zombie_x()
 	_level._process(1.0)
 	assert_eq(_level.get_zombie_x(), before, "the scoot owns the zombie while it runs")
-	assert_eq((_level.get_node("%Zombie/Body") as AnimatedSprite2D).animation, &"walk")
+	# Story 3.6: a one-shot (the hug after a villager key, the hop after a block key) owns the animation
+	# while it runs; walk once it is over.
+	var body: AnimatedSprite2D = _level.get_node("%Zombie/Body") as AnimatedSprite2D
+	var expected: StringName = &"walk"
+	if _zombie().is_hopping():
+		expected = PlayerZombie.ANIM_HOP
+	elif _zombie().is_hugging():
+		expected = PlayerZombie.ANIM_HUG
+	assert_eq(body.animation, expected)
+	_zombie().stop_hug()
+	_zombie().stop_hop()
+	_level._process(0.01)
+	assert_eq(body.animation, &"walk", "scooting with no one-shot running: walk")
 
 
 func test_scoot_and_retarget_mid_scoot() -> void:
@@ -663,6 +677,7 @@ func test_effects_complete_after_a_cut() -> void:
 		if child is Poof:
 			poof = child as Poof
 	assert_not_null(poof)
+	assert_eq(poof.position, Vector2.ZERO, "the poof is at the villager's feet origin")
 	poof.get_tween().custom_step(Poof.FRAMES / Poof.FPS + 0.01)
 	assert_true(villager.is_party_zombie_shown(), "a party-hat zombie stands where the villager was")
 	assert_signal_emit_count(villager, "poofed", 1)
@@ -945,23 +960,23 @@ func test_end_while_idle_before_the_goal_stops_the_amble() -> void:
 	assert_eq(_level.get_zombie_x(), zombie_x, "no amble while dancing")
 
 
+## Without dance frames (a stripped SpriteFrames) the dance plays idle, and _process keeps it.
 func test_process_while_dancing_keeps_the_dance_animation() -> void:
 	_make()
+	var frames: SpriteFrames = _body().sprite_frames.duplicate() as SpriteFrames
+	frames.remove_animation(PlayerZombie.ANIM_DANCE)
+	_body().sprite_frames = frames
 	_key()
 	_level.on_run_ending(GameConstants.END_REASON_TIMER)
-	assert_eq(_body().animation, PlayerZombie.ANIM_IDLE, "the placeholder dance plays idle")
+	assert_eq(_body().animation, PlayerZombie.ANIM_IDLE, "no dance frames: idle")
 	for i: int in 10:
 		_level._process(0.1)
 		assert_eq(_body().animation, PlayerZombie.ANIM_IDLE, "not switched to walk by _process")
 
 
-## With Story 3.6's dance frames, a play_idle() from _process would show too.
+## With Story 3.6's dance frames (the real scene), a play_idle() from _process would show too.
 func test_process_while_dancing_keeps_the_dance_frames() -> void:
 	_make()
-	var frames: SpriteFrames = _body().sprite_frames.duplicate() as SpriteFrames
-	frames.add_animation(PlayerZombie.ANIM_DANCE)
-	frames.add_frame(PlayerZombie.ANIM_DANCE, frames.get_frame_texture(&"idle", 0))
-	_body().sprite_frames = frames
 	_key()
 	_level.on_run_ending(GameConstants.END_REASON_TIMER)
 	assert_eq(_body().animation, PlayerZombie.ANIM_DANCE)
@@ -1014,3 +1029,107 @@ func test_dance_draws_nothing_from_the_run_rng() -> void:
 func test_bad_dance_config_returns_no_source() -> void:
 	assert_null(_make_with_bad_config(func(c: ZombieRunConfig) -> void: c.dance_time_s = 0.0))
 	assert_push_error("dance_time_s")
+
+
+# --- animations through the level (Story 3.6) ----------------------------------
+
+
+## The 3.2 deferral: _process and _scoot_to call play_walk(); the hop frames stay for the whole hop.
+func test_block_key_plays_the_hop_and_the_level_does_not_clobber_it() -> void:
+	_make()
+	_type_until(_is_block)
+	_key()
+	assert_true(_zombie().is_hopping())
+	assert_eq(_body().animation, PlayerZombie.ANIM_HOP, "the hop frames, not walk")
+	for i: int in 3:
+		_step(0.05)
+		_level._process(0.05)
+		assert_eq(_body().animation, PlayerZombie.ANIM_HOP, "still hopping mid-scoot (%d)" % i)
+	_zombie().get_hop_tween().custom_step(_cfg().hop_time_s + 0.01)
+	_finish_scoot()
+	_level._process(0.01)
+	assert_eq(_body().animation, PlayerZombie.ANIM_IDLE, "at the goal once the hop ends: the level's idle takes over")
+
+
+func test_villager_key_plays_the_hug() -> void:
+	_make()
+	_type_until(_is_villager)
+	_key()
+	assert_true(_zombie().is_hugging())
+	assert_eq(_body().animation, PlayerZombie.ANIM_HUG)
+	_level._process(0.05)
+	assert_eq(_body().animation, PlayerZombie.ANIM_HUG, "the level's play_walk() does not clobber it")
+
+
+# --- backdrop (Story 3.6) --------------------------------------------------------
+
+
+func _backdrop() -> SunnyVillageBackdrop:
+	return _level.get_node("%Backdrop") as SunnyVillageBackdrop
+
+
+func _ground_offset() -> float:
+	return _backdrop().get_layer_offset(SunnyVillageBackdrop.LAYER_GROUND)
+
+
+func test_backdrop_is_outside_the_world_and_behind_it() -> void:
+	_make()
+	var backdrop: SunnyVillageBackdrop = _backdrop()
+	assert_not_null(backdrop)
+	assert_eq(backdrop.get_parent(), _level, "outside %World, so the HUD never scrolls with it")
+	assert_lt(backdrop.get_index(), _world().get_index(), "drawn behind the world")
+	assert_eq(backdrop.position, Vector2.ZERO)
+
+
+func test_backdrop_follows_the_camera_from_the_start() -> void:
+	_make()
+	assert_lt(_level.get_camera_x(), 0.0, "a run starts at a negative camera x")
+	assert_eq(_ground_offset(), fposmod(roundf(_level.get_camera_x()), 640.0))
+
+
+func test_backdrop_ground_follows_a_scoot() -> void:
+	_make()
+	_key()
+	_finish_scoot()
+	assert_eq(_ground_offset(), fposmod(roundf(_level.get_camera_x()), 640.0))
+	for i: int in 5:
+		_key()
+	for i: int in 30:
+		_step(1.0 / 60.0)
+		assert_eq(_ground_offset(), fposmod(roundf(_level.get_camera_x()), 640.0), "mid-scoot step %d" % i)
+	_finish_scoot()
+	assert_eq(_ground_offset(), fposmod(roundf(_level.get_camera_x()), 640.0))
+
+
+func test_backdrop_ground_follows_the_amble() -> void:
+	_make()
+	var start: float = _level.get_camera_x()
+	for i: int in 8:
+		_level._process(0.1)
+		assert_eq(_ground_offset(), fposmod(roundf(_level.get_camera_x()), 640.0), "amble step %d" % i)
+	assert_gt(_level.get_camera_x(), start, "the camera moved with the amble")
+
+
+## The ground layer and %World are both whole-pixel positioned by the same rounding, so a target never
+## swims on the path: the layer's on-screen x is the world's rounded x, modulo the 640 px period.
+func test_ground_layer_stays_in_step_with_the_world_while_scooting() -> void:
+	_make()
+	for i: int in 8:
+		_key()
+		for j: int in 7:
+			_step(0.013)
+			var world_px: float = roundf(-_world().position.x)
+			assert_eq(_ground_offset(), fposmod(world_px, 640.0), "key %d step %d" % [i, j])
+			var layer_x: float = _backdrop().get_layer(SunnyVillageBackdrop.LAYER_GROUND).position.x
+			assert_eq(fposmod(layer_x - roundf(_world().position.x), 640.0), 0.0, "ground and world move together")
+
+
+func test_backdrop_layers_scroll_at_different_speeds() -> void:
+	_make()
+	for i: int in 10:
+		_key()
+	_finish_scoot()
+	var camera_x: float = _level.get_camera_x()
+	for layer: StringName in SunnyVillageBackdrop.FACTORS:
+		assert_eq(_backdrop().get_layer_offset(layer),
+				fposmod(roundf(camera_x * SunnyVillageBackdrop.FACTORS[layer]), 640.0), String(layer))

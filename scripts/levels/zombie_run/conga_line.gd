@@ -17,6 +17,9 @@ extends Node2D
 ## a short ease. A follower never moves forward past leader.x - SPACING_PX, so it never passes the zombie
 ## and a newcomer never jumps. Each follower bobs on y with a phase offset by its index (a wave down the
 ## line); the bob never touches x. A follower faces left only while walking back to its slot.
+## Story 3.6: a follower plays walk while it moves faster than WALK_SPEED_MIN_PX_S (its own x change this
+## step) and idle once settled; the bob stays (the index-phased wave is the conga read, the legs do the
+## rest).
 ## Time is accumulated from delta in step(), never read from the clock, so a tree pause freezes the line
 ## and tests are deterministic. No randomness, no allocation and no logging per frame.
 ##
@@ -24,9 +27,10 @@ extends Node2D
 ## flip per beat, both phased by index so the line ripples. The chase is unchanged (the leader has stopped,
 ## so the followers settle on their slots); a follower still walking back to its slot faces left as
 ## usual. It lasts until the run frame is freed, draws no randomness, and joins still work mid-dance.
+## Dancing followers play idle plus the code bounce and flip (decision in Story 3.6: no party-zombie
+## dance sheet).
 ##
 ## Never shrinks: there is no removal API.
-## Placeholder look: idle frames plus the code bob until Story 3.6's walk 4f.
 
 const PARTY_ZOMBIE_SCENE: PackedScene = preload("res://scenes/characters/party_zombie.tscn")
 
@@ -46,6 +50,8 @@ const BADGE_BOTTOM_Y: float = -33.0
 const BADGE_PREFIX: String = "×"
 ## Followers move this far before they count as walking back (faces left).
 const FACE_DEADZONE_PX: float = 0.5
+## A follower moving faster than this (px/s, its own x change) plays walk; slower, it has settled: idle.
+const WALK_SPEED_MIN_PX_S: float = 4.0
 ## Dance bounce height, bounces per second (a facing flip on every beat) and the beat offset between
 ## neighbours, so they flip in a ripple.
 const DANCE_HOP_PX: float = 4.0
@@ -115,6 +121,10 @@ func step(delta: float) -> void:
 		var walking_back: bool = slot < x - FACE_DEADZONE_PX
 		new_x = minf(new_x, maxf(x, leader_x - SPACING_PX))
 		follower.position.x = new_x
+		if _dancing or delta <= 0.0 or absf(new_x - x) / delta <= WALK_SPEED_MIN_PX_S:
+			follower.play_idle()
+		else:
+			follower.play_walk()
 		if _dancing:
 			follower.position.y = -roundf(
 				DANCE_HOP_PX * absf(sin(PI * DANCE_BEAT_HZ * _dance_time + i * BOB_PHASE_STEP)))

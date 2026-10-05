@@ -1,15 +1,22 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/zombie_run/zombie_run_level.gd" id="1_script"]
 [ext_resource type="Resource" path="res://data/levels/zombie_run.tres" id="2_config"]
 [ext_resource type="PackedScene" path="res://scenes/characters/player_zombie.tscn" id="3_zombie"]
 [ext_resource type="PackedScene" path="res://scenes/levels/zombie_run/conga_line.tscn" id="4_conga"]
+[ext_resource type="Script" path="res://scripts/levels/zombie_run/sunny_village_backdrop.gd" id="5_backdrop"]
+[ext_resource type="Texture2D" uid="uid://dismikogh8rev" path="res://assets/sprites/backdrops/sunny_village_green/clouds.png" id="6_clouds"]
+[ext_resource type="Texture2D" uid="uid://bl6nefl11kyyl" path="res://assets/sprites/backdrops/sunny_village_green/far.png" id="7_far"]
+[ext_resource type="Texture2D" uid="uid://dgk04f862v6y7" path="res://assets/sprites/backdrops/sunny_village_green/near.png" id="8_near"]
+[ext_resource type="Texture2D" uid="uid://cb3evvrjrd6k8" path="res://assets/sprites/backdrops/sunny_village_green/ground_strip.png" id="9_ground"]
 
 [node name="ZombieRunLevel" type="Node2D"]
 script = ExtResource("1_script")
 config = ExtResource("2_config")
 
 [node name="Backdrop" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("5_backdrop")
 
 [node name="Sky" type="ColorRect" parent="Backdrop"]
 offset_right = 640.0
@@ -17,19 +24,50 @@ offset_bottom = 192.0
 mouse_filter = 2
 color = Color(0.49411765, 0.78431374, 0.8901961, 1)
 
-[node name="Grass" type="ColorRect" parent="Backdrop"]
-offset_top = 192.0
-offset_right = 640.0
-offset_bottom = 256.0
-mouse_filter = 2
-color = Color(0.30588236, 0.6039216, 0.20392157, 1)
+[node name="Clouds" type="Node2D" parent="Backdrop"]
 
-[node name="Path" type="ColorRect" parent="Backdrop"]
-offset_top = 192.0
-offset_right = 640.0
-offset_bottom = 200.0
-mouse_filter = 2
-color = Color(0.8509804, 0.7372549, 0.5176471, 1)
+[node name="A" type="Sprite2D" parent="Backdrop/Clouds"]
+texture = ExtResource("6_clouds")
+centered = false
+
+[node name="B" type="Sprite2D" parent="Backdrop/Clouds"]
+position = Vector2(640, 0)
+texture = ExtResource("6_clouds")
+centered = false
+
+[node name="Far" type="Node2D" parent="Backdrop"]
+
+[node name="A" type="Sprite2D" parent="Backdrop/Far"]
+texture = ExtResource("7_far")
+centered = false
+
+[node name="B" type="Sprite2D" parent="Backdrop/Far"]
+position = Vector2(640, 0)
+texture = ExtResource("7_far")
+centered = false
+
+[node name="Near" type="Node2D" parent="Backdrop"]
+
+[node name="A" type="Sprite2D" parent="Backdrop/Near"]
+texture = ExtResource("8_near")
+centered = false
+
+[node name="B" type="Sprite2D" parent="Backdrop/Near"]
+position = Vector2(640, 0)
+texture = ExtResource("8_near")
+centered = false
+
+[node name="Ground" type="Node2D" parent="Backdrop"]
+position = Vector2(0, 192)
+
+[node name="A" type="Sprite2D" parent="Backdrop/Ground"]
+texture = ExtResource("9_ground")
+centered = false
+
+[node name="B" type="Sprite2D" parent="Backdrop/Ground"]
+position = Vector2(640, 0)
+texture = ExtResource("9_ground")
+centered = false
 
 [node name="World" type="Node2D" parent="."]
 unique_name_in_owner = true

@@ -6,18 +6,26 @@ extends Node2D
 ## %HatSlot (head point, top-centre of the crown) stays empty until Story 4.3.
 ## Hop (Story 3.2): a sine arc that lifts Body (and the hat slot with it), never the node itself; the
 ## level owns the node's position and the camera reads its x. One hop tween at a time: a new hop or
-## stop_hop() kills the running one. Story 3.6 adds the hop frames.
+## stop_hop() kills the running one. Story 3.6: hop() plays the hop frames (drawn grounded; the tween
+## does the lift).
 ## Hug (Story 3.3): Body leans forward and back on x for the hug time after a villager's letter. One hug
 ## tween at a time: a new hug or stop_hug() kills the running one. The hop owns Body.position.y and the
-## hug owns Body.position.x, so neither ever kills or resets the other. Story 3.6 adds the hug frames.
-## Dance (Story 3.5, FR36): one dance tween bounces Body on y and flips it (flip_h) on every beat for the
-## dance time, then puts Body back at rest. It owns Body.position.y and flip_h and cuts the hop and the
-## hug first, so nothing fights it. A code bounce + flip until Story 3.6's dance 4f, which dance() plays
-## when the SpriteFrames has a dance animation.
+## hug owns Body.position.x, so neither ever kills or resets the other. Story 3.6: hug() plays the hug
+## frames; a hug started during a hop shows the hop frames until the hop ends, then the hug frames.
+## Dance (Story 3.5, FR36): one dance tween bounces Body on y for the dance time, then puts Body back at
+## rest. It owns Body.position.y and cuts the hop and the hug first, so nothing fights it. With the
+## Story 3.6 dance frames the sheet carries the sway; without a dance animation (a stripped SpriteFrames)
+## it plays idle and flips Body (flip_h) on every beat instead.
+## One animation owner at a time (Story 3.6): while a hop, hug or dance runs, play_idle() and play_walk()
+## do nothing (the level calls play_walk() every frame). The one-shots are not looping and hold their
+## last frame; the first play_*() after the tween ends takes over again. stop_hop() and stop_hug() never
+## change the animation.
 
 const ANIM_IDLE: StringName = &"idle"
 const ANIM_WALK: StringName = &"walk"
 const ANIM_DANCE: StringName = &"dance"
+const ANIM_HOP: StringName = &"hop"
+const ANIM_HUG: StringName = &"hug"
 ## Character sprite size (art standard, NFR13); the level derives the hop height from it.
 const SIZE_PX: float = 32.0
 ## Hug lean (look value, not a GDD number): how far Body leans forward at the middle of the hug.
@@ -33,6 +41,8 @@ var _hop_height_px: float = 0.0
 var _hop_tween: Tween
 var _hug_tween: Tween
 var _dance_tween: Tween
+## True while a dance without dance frames flips Body on the beat.
+var _dance_flips: bool = false
 
 @onready var _body: AnimatedSprite2D = $Body
 
@@ -62,15 +72,18 @@ func hop(duration_s: float, height_px: float) -> void:
 	_hop_height_px = height_px
 	_hop_tween = create_tween()
 	_hop_tween.tween_method(_set_hop_t, 0.0, 1.0, duration_s)
-	_hop_tween.tween_callback(_reset_hop)
+	_hop_tween.tween_callback(_end_hop)
+	if not is_dancing():
+		_play_action(ANIM_HOP)
 
 
-## Cuts a running hop and puts Body back at rest. No-op when not hopping.
+## Cuts a running hop and puts Body back at rest; a hug still running gets its frames, as when the hop
+## ends by itself. No-op when not hopping.
 func stop_hop() -> void:
 	if not is_hopping():
 		return
 	_kill_hop()
-	_reset_hop()
+	_end_hop()
 
 
 func is_hopping() -> bool:
@@ -90,6 +103,13 @@ func _reset_hop() -> void:
 	_body.position.y = _body_rest_y
 
 
+## The hop tween's end: back at rest, and a hug still running gets its frames.
+func _end_hop() -> void:
+	_reset_hop()
+	if is_hugging() and not is_dancing():
+		_play_action(ANIM_HUG)
+
+
 func _kill_hop() -> void:
 	if _hop_tween != null and _hop_tween.is_valid():
 		_hop_tween.kill()
@@ -105,6 +125,8 @@ func hug(duration_s: float) -> void:
 	_hug_tween = create_tween()
 	_hug_tween.tween_method(_set_hug_t, t0, 1.0, duration_s * (1.0 - t0))
 	_hug_tween.tween_callback(_reset_hug)
+	if not is_hopping() and not is_dancing():
+		_play_action(ANIM_HUG)
 
 
 ## Cuts a running hug and puts Body back at its rest x. No-op when not hugging.
@@ -144,13 +166,14 @@ func dance(duration_s: float) -> void:
 	stop_hug()
 	_kill_dance()
 	_reset_dance()
-	if _body.sprite_frames != null and _body.sprite_frames.has_animation(ANIM_DANCE):
-		_body.play(ANIM_DANCE)
-	else:
+	_dance_flips = not _has_animation(ANIM_DANCE)
+	if _dance_flips:
 		_play(ANIM_IDLE)
+	else:
+		_play_action(ANIM_DANCE)
 	_dance_tween = create_tween()
 	_dance_tween.tween_method(_set_dance_s, 0.0, duration_s, duration_s)
-	_dance_tween.tween_callback(_reset_dance)
+	_dance_tween.tween_callback(_end_dance)
 
 
 func is_dancing() -> bool:
@@ -165,7 +188,8 @@ func get_dance_tween() -> Tween:
 ## `s` is the elapsed dance time in seconds, so the beat stays in Hz whatever the dance length.
 func _set_dance_s(s: float) -> void:
 	_body.position.y = _body_rest_y - roundf(DANCE_HOP_PX * absf(sin(PI * DANCE_BEAT_HZ * s)))
-	_body.flip_h = int(floorf(DANCE_BEAT_HZ * s)) % 2 == 1
+	if _dance_flips:
+		_body.flip_h = int(floorf(DANCE_BEAT_HZ * s)) % 2 == 1
 
 
 func _reset_dance() -> void:
@@ -173,14 +197,37 @@ func _reset_dance() -> void:
 	_body.flip_h = false
 
 
+## The dance tween's end: back at rest, and the dance loop gives way to idle (the guard in `_play` would
+## still see the finishing tween as running here, so it plays directly).
+func _end_dance() -> void:
+	_reset_dance()
+	if _has_animation(ANIM_IDLE) and _body.animation == ANIM_DANCE:
+		_body.play(ANIM_IDLE)
+
+
 func _kill_dance() -> void:
 	if _dance_tween != null and _dance_tween.is_valid():
 		_dance_tween.kill()
 
 
-## Restarts only when the animation changes, so calling it every frame keeps the loop smooth.
+## Restarts only when the animation changes, so calling it every frame keeps the loop smooth. Does
+## nothing while a hop, hug or dance owns the animation.
 func _play(anim: StringName) -> void:
 	if _body.sprite_frames == null:
 		return
+	if is_hopping() or is_hugging() or is_dancing():
+		return
 	if _body.animation != anim or not _body.is_playing():
 		_body.play(anim)
+
+
+## Starts a one-shot (or the dance) from its first frame, if the SpriteFrames has it.
+func _play_action(anim: StringName) -> void:
+	if not _has_animation(anim):
+		return
+	_body.stop()
+	_body.play(anim)
+
+
+func _has_animation(anim: StringName) -> bool:
+	return _body.sprite_frames != null and _body.sprite_frames.has_animation(anim)

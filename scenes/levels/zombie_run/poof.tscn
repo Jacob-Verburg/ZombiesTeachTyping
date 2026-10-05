@@ -1,6 +1,50 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/zombie_run/poof.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://b2xu8p2ko7u6g" path="res://assets/sprites/characters/villager/villager_poof.png" id="2_poof"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_poof_0"]
+atlas = ExtResource("2_poof")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_poof_1"]
+atlas = ExtResource("2_poof")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_poof_2"]
+atlas = ExtResource("2_poof")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_poof_3"]
+atlas = ExtResource("2_poof")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_poof"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_poof_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_poof_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_poof_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_poof_3")
+}],
+"loop": false,
+"name": &"poof",
+"speed": 12.0
+}]
 
 [node name="Poof" type="Node2D"]
 script = ExtResource("1_script")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(-16, -31)
+sprite_frames = SubResource("SpriteFrames_poof")
+animation = &"poof"
+centered = false

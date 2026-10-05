@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/zombie_run/zombie_run_target.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://pvq082m5kysx" path="res://assets/sprites/props/down_arrow.png" id="9_arrow"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_box"]
 bg_color = Color(0.8509804, 0.7372549, 0.5176471, 1)
@@ -59,12 +60,7 @@ vertical_alignment = 1
 unique_name_in_owner = true
 visible = false
 
-[node name="Fill" type="Polygon2D" parent="Visual/Arrow"]
-color = Color(1, 0.8235294, 0.24705882, 1)
-polygon = PackedVector2Array(-5, -56, 5, -56, 0, -50)
-
-[node name="Outline" type="Line2D" parent="Visual/Arrow"]
-points = PackedVector2Array(-5, -56, 5, -56, 0, -50)
-closed = true
-width = 1.0
-default_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+[node name="Icon" type="Sprite2D" parent="Visual/Arrow"]
+position = Vector2(-8, -65)
+texture = ExtResource("9_arrow")
+centered = false

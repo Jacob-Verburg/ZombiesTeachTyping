@@ -2,6 +2,7 @@ extends GutTest
 ## Conga line (Story 3.4, FR35): join, chase, bob, facing, the cap with no hidden nodes, the ×N badge
 ## and "never shrinks". A bare Node2D is the leader; the line is disabled and driven by step(delta).
 ## Dance (Story 3.5): a bigger bounce and a beat flip instead of the bob; the chase is unchanged.
+## Story 3.6: followers play walk while moving and idle once settled (and idle while dancing).
 
 const CongaScene: PackedScene = preload("res://scenes/levels/zombie_run/conga_line.tscn")
 const THEME_PATH: String = "res://data/ui_theme.tres"
@@ -416,3 +417,72 @@ func test_badge_rides_the_dance() -> void:
 		assert_true(_line.is_badge_shown())
 		assert_almost_eq(badge.position.y + badge.size.y, last.position.y + CongaLine.BADGE_BOTTOM_Y, 0.01, "rides the dance")
 	assert_lt(lowest, -CongaLine.BOB_PX, "the last follower really danced")
+
+
+# --- walk / idle (Story 3.6) -------------------------------------------------
+
+
+func _anim(follower: PartyZombie) -> StringName:
+	return (follower.get_node("Body") as AnimatedSprite2D).animation
+
+
+func test_followers_walk_while_chasing_and_idle_once_settled() -> void:
+	_make(3)
+	_line.join(LEADER_X - 16.0)
+	_line.join(LEADER_X - 32.0)
+	_steps(300)
+	for follower: PartyZombie in _line.get_followers():
+		assert_eq(_anim(follower), PartyZombie.ANIM_IDLE, "settled on its slot: idle")
+	# The leader ambles forward: the line chases it, walking.
+	for i: int in 60:
+		_leader.position.x += 24.0 / 60.0
+		_line.step(1.0 / 60.0)
+		if i > 5:
+			for follower: PartyZombie in _line.get_followers():
+				assert_eq(_anim(follower), PartyZombie.ANIM_WALK, "chasing a moving leader: walk (step %d)" % i)
+	_steps(300)
+	for follower: PartyZombie in _line.get_followers():
+		assert_eq(_anim(follower), PartyZombie.ANIM_IDLE, "settled again: idle")
+	assert_eq(_line.get_joined_count(), 2, "counts untouched")
+	assert_false(_line.is_badge_shown())
+
+
+func test_a_newcomer_walks_back_to_its_slot() -> void:
+	_make(3)
+	_line.join(LEADER_X - 16.0)
+	_steps(300)
+	_line.join(LEADER_X - 4.0)
+	_line.step(1.0 / 60.0)
+	var newcomer: PartyZombie = _line.get_followers().back()
+	assert_eq(_anim(newcomer), PartyZombie.ANIM_WALK, "walking back to the tail")
+	assert_true(_faces_left(newcomer))
+
+
+func test_dancing_followers_play_idle() -> void:
+	_make(2)
+	_line.join(LEADER_X - 16.0)
+	_line.join(LEADER_X + 40.0)
+	_line.dance()
+	_line.step(1.0 / 60.0)
+	for follower: PartyZombie in _line.get_followers():
+		assert_eq(_anim(follower), PartyZombie.ANIM_IDLE, "no party-zombie dance sheet: idle plus the code bounce")
+
+
+func test_badge_and_counts_untouched_by_the_walk() -> void:
+	_make(2)
+	for i: int in 5:
+		_line.join(LEADER_X - 16.0 * (i + 1))
+	for i: int in 30:
+		_leader.position.x += 1.0
+		_line.step(1.0 / 60.0)
+	assert_eq(_line.get_joined_count(), 5)
+	assert_eq(_line.get_drawn_count(), 2)
+	assert_true(_line.is_badge_shown())
+	assert_eq(_line.get_badge_text(), "×5")
+
+
+func test_zero_delta_step_plays_idle() -> void:
+	_make(1)
+	_line.join(LEADER_X - 40.0)
+	_line.step(0.0)
+	assert_eq(_anim(_line.get_followers()[0]), PartyZombie.ANIM_IDLE, "no time passed: nothing is moving")

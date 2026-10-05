@@ -15,16 +15,15 @@ extends ZombieRunTarget
 ## conga members logically at resolve time (a villager resolved = +1), not on poofed: at high speed a
 ## villager can scroll off and be freed before its poof ends.
 ## The node origin is the feet centre on the ground line; the base bob moves %Visual (the waving body,
-## tag and arrow); %PartyZombie is a child of the root, so it never bobs. Placeholder hug lean and poof
-## until Story 3.6's frames.
+## tag and arrow); %PartyZombie is a child of the root, so it never bobs. Story 3.6: the poof is the
+## villager_poof.png sheet, drawn from the feet like every character, so it sits at the villager's origin
+## (the zombie's hug frames play on the zombie; the 3 px lean stays as motion).
 
 signal poofed(party_zombie: PartyZombie)
 
 enum State { WAITING, HUGGED, POOFED }
 
 const POOF_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/poof.tscn")
-## Look value: the poof sits about on the body's centre (the sprite spans y -27..0).
-const POOF_Y: float = -14.0
 
 var _state: State = State.WAITING
 var _hug_time_s: float = 0.0
@@ -75,7 +74,7 @@ func _start_poof() -> void:
 	_set_state(State.POOFED)
 	%Body.hide()
 	var poof: Poof = POOF_SCENE.instantiate() as Poof
-	poof.position = Vector2(0.0, POOF_Y)
+	poof.position = Vector2.ZERO
 	poof.finished.connect(_show_party_zombie)
 	add_child(poof)
 

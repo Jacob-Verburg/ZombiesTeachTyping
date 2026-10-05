@@ -2,20 +2,21 @@ class_name BrainBlock
 extends ZombieRunTarget
 ## A brain block on the Zombie Run path (Story 3.2, FR33): a pink block floating above the ground line,
 ## with the letter tag above it. Typing its letter pays brains: resolve() returns the configured
-## brains_per_block, switches to the grey used look, bonks the block and pops a brain out. The bonk and
-## the pop are fire-and-forget node-bound tweens; the level never waits on them.
+## brains_per_block, plays the bonk frames (which end on the grey used block and hold it), nudges the
+## block and pops a brain out. The nudge and the pop are fire-and-forget node-bound tweens; the level
+## never waits on them.
 ## The node origin is the feet centre on the ground line like every target; %Lift raises the block, tag
 ## and arrow by the float height, the base bob moves %Visual, and the level owns `position`.
-## Placeholder look until Story 3.6.
+## Story 3.6: %Sprite plays brain_block_idle.png (idle) and brain_block_bonk.png (bonk, once).
 
 const BRAIN_POP_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/brain_pop.tscn")
+const ANIM_IDLE: StringName = &"idle"
+const ANIM_BONK: StringName = &"bonk"
 
 ## Look values (UX, not GDD numbers). The block is 16 x 16 with its bottom edge at %Lift's y 0.
 const BLOCK_SIZE_PX: float = 16.0
 const BONK_PX: float = 3.0
 const BONK_TIME_S: float = 0.25
-## Used look: stone-light, no pink, so a bonked block reads as "done" (docs/art-style-sheet.md palette).
-const USED_FILL: Color = Color("#BDB6C4")
 
 var _float_px: float = 0.0
 var _brains: int = 0
@@ -31,6 +32,9 @@ func configure(float_px: float, brains: int) -> void:
 func _ready() -> void:
 	super._ready()
 	%Lift.position.y = -_float_px
+	# NFR16: a missing sprite never stops a run.
+	if %Sprite.sprite_frames == null:
+		Log.warn(&"level", "brain block has no sprite frames")
 
 
 func is_used() -> bool:
@@ -43,7 +47,7 @@ func get_bonk_tween() -> Tween:
 
 
 func _on_resolved() -> int:
-	_apply_used_look()
+	_play_bonk()
 	_bonk()
 	var pop: Node2D = BRAIN_POP_SCENE.instantiate() as Node2D
 	pop.position = Vector2(0.0, -BLOCK_SIZE_PX)
@@ -51,13 +55,12 @@ func _on_resolved() -> int:
 	return _brains
 
 
-func _apply_used_look() -> void:
-	var base: StyleBoxFlat = %Block.get_theme_stylebox(&"panel") as StyleBoxFlat
-	if base != null:
-		var style: StyleBoxFlat = base.duplicate() as StyleBoxFlat
-		style.bg_color = USED_FILL
-		%Block.add_theme_stylebox_override(&"panel", style)
-	%Band.hide()
+## The bonk frames play once and hold the last one: the used block (stone, no pink).
+func _play_bonk() -> void:
+	var sprite: AnimatedSprite2D = %Sprite
+	if sprite.sprite_frames == null or not sprite.sprite_frames.has_animation(ANIM_BONK):
+		return
+	sprite.play(ANIM_BONK)
 
 
 ## Nudges %Lift up and back. Never touches %Visual (the bob) or `position` (the level).

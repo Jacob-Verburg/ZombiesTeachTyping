@@ -1,6 +1,7 @@
 extends GutTest
 ## Brain block (Story 3.2, FR33): a ZombieRunTarget that floats above the ground line, pays brains on
-## resolve, switches to its used look, bonks and pops a self-freeing brain.
+## resolve, bonks (Story 3.6: the bonk frames play once and hold the grey used block) and pops a
+## self-freeing brain.
 
 const BlockScene: PackedScene = preload("res://scenes/levels/zombie_run/brain_block.tscn")
 const FLOAT_PX: float = 48.0
@@ -23,8 +24,8 @@ func _pops(block: BrainBlock) -> Array[BrainPop]:
 	return out
 
 
-func _block_fill(block: BrainBlock) -> Color:
-	return ((block.get_node("%Block") as Panel).get_theme_stylebox(&"panel") as StyleBoxFlat).bg_color
+func _sprite(block: BrainBlock) -> AnimatedSprite2D:
+	return block.get_node("%Sprite") as AnimatedSprite2D
 
 
 func test_is_a_target_with_its_letter_floating() -> void:
@@ -40,14 +41,21 @@ func test_is_a_target_with_its_letter_floating() -> void:
 
 func test_tag_and_arrow_sit_above_the_block() -> void:
 	var block: BrainBlock = _block()
-	var box: Panel = block.get_node("%Block") as Panel
+	var sprite: AnimatedSprite2D = _sprite(block)
 	var tag: Panel = block.get_node("%Tag") as Panel
-	assert_eq(box.size, Vector2(16, 16))
-	assert_eq(box.position.y + box.size.y, 0.0, "the block's bottom edge is at %Lift y 0")
+	assert_eq(sprite.get_parent(), block.get_node("%Lift"), "the block rides %Lift")
+	assert_false(sprite.centered)
+	assert_eq(sprite.position, Vector2(-8, -BrainBlock.BLOCK_SIZE_PX), "16 x 16, centred on x 0")
+	var cell: Vector2 = Vector2(sprite.sprite_frames.get_frame_texture(&"idle", 0).get_size())
+	assert_eq(cell, Vector2(BrainBlock.BLOCK_SIZE_PX, BrainBlock.BLOCK_SIZE_PX))
+	assert_eq(sprite.position.y + cell.y, 0.0, "the block's bottom edge is at %Lift y 0")
 	assert_eq(tag.size, Vector2(24, 24), "same tag as the generic target")
-	assert_lt(tag.position.y + tag.size.y, box.position.y, "tag above the block")
+	assert_lt(tag.position.y + tag.size.y, sprite.position.y, "tag above the block")
 	assert_true(tag.size.x * 0.5 <= ZombieRunTarget.HALF_WIDTH, "nothing wider than the tag")
-	assert_true(box.size.x * 0.5 <= ZombieRunTarget.HALF_WIDTH)
+	assert_true(cell.x * 0.5 <= ZombieRunTarget.HALF_WIDTH)
+	var icon: Sprite2D = block.get_node("%Arrow/Icon") as Sprite2D
+	assert_eq(icon.position + Vector2(8, 15), Vector2(0, -46), "the arrow tip stays where it was")
+	assert_eq(tag.position.y - (icon.position.y + 15), 4.0, "the tag top is 4 px below the tip")
 
 
 func test_active_shows_the_arrow() -> void:
@@ -74,13 +82,53 @@ func test_resolve_pays_the_configured_brains() -> void:
 	assert_eq(_block("k", 0, 3).resolve(), 3)
 
 
+func test_sprite_animations() -> void:
+	var frames: SpriteFrames = _sprite(_block()).sprite_frames
+	assert_not_null(frames)
+	assert_eq(frames.get_frame_count(BrainBlock.ANIM_IDLE), 2)
+	assert_eq(frames.get_animation_speed(BrainBlock.ANIM_IDLE), 8.0)
+	assert_true(frames.get_animation_loop(BrainBlock.ANIM_IDLE))
+	assert_eq(frames.get_frame_count(BrainBlock.ANIM_BONK), 3)
+	assert_eq(frames.get_animation_speed(BrainBlock.ANIM_BONK), 12.0)
+	assert_false(frames.get_animation_loop(BrainBlock.ANIM_BONK), "the bonk plays once")
+
+
+## Idle before the bonk; the bonk plays once and ends on (and holds) the used frame.
 func test_used_look() -> void:
 	var block: BrainBlock = _block()
-	assert_eq(_block_fill(block), Color("#F29AB8"), "pink before the bonk")
-	assert_true((block.get_node("%Band") as CanvasItem).visible)
+	block.process_mode = Node.PROCESS_MODE_INHERIT
+	var sprite: AnimatedSprite2D = _sprite(block)
+	assert_eq(sprite.animation, BrainBlock.ANIM_IDLE, "pink idle before the bonk")
 	block.resolve()
-	assert_eq(_block_fill(block), BrainBlock.USED_FILL, "stone-light after the bonk")
-	assert_false((block.get_node("%Band") as CanvasItem).visible, "no pink left")
+	assert_true(block.is_used())
+	assert_eq(sprite.animation, BrainBlock.ANIM_BONK)
+	assert_eq(sprite.frame, 0)
+	assert_true(sprite.is_playing())
+	# Let the tree play it: 3 frames at 12 fps is 0.25 s.
+	await wait_for_signal(sprite.animation_finished, 2.0)
+	assert_eq(sprite.frame, 2, "ends on the last frame")
+	assert_false(sprite.is_playing(), "plays once")
+	await wait_frames(10)
+	assert_eq(sprite.animation, BrainBlock.ANIM_BONK)
+	assert_eq(sprite.frame, 2, "holds the used block")
+	var used: AtlasTexture = sprite.sprite_frames.get_frame_texture(BrainBlock.ANIM_BONK, 2) as AtlasTexture
+	var image: Image = used.atlas.get_image().get_region(Rect2i(used.region))
+	for y: int in image.get_height():
+		for x: int in image.get_width():
+			var hex: String = image.get_pixel(x, y).to_html(false)
+			assert_true(hex != "f29ab8" and hex != "c9607f", "no pink on the used block (%d,%d)" % [x, y])
+
+
+func test_missing_sprite_frames_still_pays() -> void:
+	var block: BrainBlock = BlockScene.instantiate() as BrainBlock
+	block.setup("k", 0)
+	block.configure(FLOAT_PX, 2)
+	(block.get_node("%Sprite") as AnimatedSprite2D).sprite_frames = null
+	block.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child_autofree(block)
+	assert_push_warning("brain block has no sprite frames")
+	assert_eq(block.resolve(), 2, "a missing sprite never stops a run (NFR16)")
+	assert_true(block.is_used())
 
 
 func test_bonk_moves_lift_and_returns() -> void:

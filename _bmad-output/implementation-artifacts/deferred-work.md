@@ -260,7 +260,7 @@
 
 - The open debug overlay (bottom ≈ game y 154 on the run screen) covers the active target's arrow and the top edge of its tag in Zombie Run (the letter stays readable; the HUD letter is never covered). Debug-only and toggled with F3, so not fixed. Move the overlay or trim its run section if it gets in the way of playtest debugging.
 - `ZOMBIE_SCREEN_X = 224` leaves ~224 px behind the zombie for the conga line; Story 3.4 may retune it (the camera, freeing and on-screen tests read the constant). *3.4:* kept at 224: 12 × 16 px followers end at screen x 32 (tail sprite from 24) and the badge's left edge sits at 24, pinned by `test_full_line_fits_behind_the_zombie`.
-- Placeholder visuals: code-built target boxes / parchment tags / arrow and flat sky, grass and path rects. Real brain block, villager, backdrop and parallax art = Story 3.6. No ground tick marks were added (optional in the story); resolved targets already show the scroll.
+- ~~Placeholder visuals: code-built target boxes / parchment tags / arrow and flat sky, grass and path rects. Real brain block, villager, backdrop and parallax art = Story 3.6. No ground tick marks were added (optional in the story); resolved targets already show the scroll.~~ Done in 3.6: the Sunny Village Green parallax backdrop, brain block, villager poof and arrow sprites (the generic `zombie_run_target.tscn` box stays the test fixture). The path tiles and grass now show the scroll, so no tick marks.
 - Caps Lock hint not seen in the web check: Shift+letter presses from the browser pane don't produce it (it needs real Caps Lock). By layout every playfield item sits above the ground line y 192 and the hint starts at y 196.
 - `ZombieRunTarget` resolved look duplicates the box StyleBox on resolve (one small allocation per key, outside `_process`). 3.2 / 3.3 replace the box with sprites.
 
@@ -271,15 +271,15 @@
 - `ZombieRunTarget.HALF_WIDTH` is a hand-kept copy of the tag width in the .tscn, and `resolve()` crashes if called before `add_child`. Unreachable today; revisit when 3.2/3.3 replace the box. *State after 3.2:* the brain block keeps the 24 px tag as its widest part (block 16 px, pop 10 px; `test_brain_block.gd` checks both against `HALF_WIDTH`). It is still a hand copy, so 3.3's villager must stay within it or update it. *State after 3.3:* the 24 px width rule still holds: villager sprite about 16 px opaque, poof at most 24 px, party-hat zombie 16 px; `test_villager.gd` and `test_poof.gd` check the tag and the poof against `HALF_WIDTH`.
 - `_resolved` is uncapped if `_process` stops running; normal play holds about 6.
 - No direct test of the main menu button routing to `zombie_run` (AC2); Story 4.2 replaces the menu.
-- Optional ground tick marks (Task 4.11) not added; scroll cue comes from the targets only. Story 3.6 art.
+- ~~Optional ground tick marks (Task 4.11) not added; scroll cue comes from the targets only. Story 3.6 art.~~ Done in 3.6: the ground strip (path + grass tiles) scrolls exactly with the world.
 
 ## Deferred from: dev of story-3-2 (2026-10-05)
 
-- Placeholder brain block, bonk, brain pop and hop arc (code-drawn, palette only) until the Story 3.6 art. The hop/scoot timing feel (the zombie bonks while scooting under the block, 16 px arc over 0.35 s) is untuned; 3.6 adds the 3 hop frames and the "don't clobber hop" animation guard.
+- ~~Placeholder brain block, bonk, brain pop and hop arc (code-drawn, palette only) until the Story 3.6 art. The hop/scoot timing feel (the zombie bonks while scooting under the block, 16 px arc over 0.35 s) is untuned; 3.6 adds the 3 hop frames and the "don't clobber hop" animation guard.~~ Done in 3.6: brain block idle/bonk, brain pop and hop (3f) sheets, and `PlayerZombie._play()` no longer clobbers a running hop, hug or dance. The hop/scoot timing stays untuned (unchanged).
 - No bonk or brain-collect SFX yet (GDD audio list "bonk"): Story 5.1, unless 3.7 takes it.
 - The HUD counter just changes number; the "tick up with a small pop" (EXPERIENCE Game Feel) is 5.0/5.1, per the `BrainCounter` header.
 - `vo_brainsss_01.wav` is a generated placeholder (CC0) until the real voice lines in Story 5.1. In the web manual check the Brainsss line could not be confirmed by ear from the browser pane; the roll and spacing are covered by tests only.
-- The hop was not visible in the browser-pane screenshots (0.35 s, 16 px, and the pause panel covers the zombie). It is verified by the unit tests (arc, cut, restart, one tween); worth a look by eye in the 3.6 art pass.
+- ~~The hop was not visible in the browser-pane screenshots (0.35 s, 16 px, and the pause panel covers the zombie). It is verified by the unit tests (arc, cut, restart, one tween); worth a look by eye in the 3.6 art pass.~~ Done in 3.6: the hop frames (crouch, arms-up peak, land) showed mid-hop in the 1x web screenshots (`screenshots/3-6/`).
 
 ## Deferred from: code review of story-3-2 (2026-10-05)
 
@@ -288,8 +288,8 @@
 
 ## Deferred from: dev of story-3-3 (2026-10-05)
 
-- The hug is a placeholder 3 px lean of `Body` on x and the poof is a code-drawn 4-frame cloud (`poof.gd`), until Story 3.6's hug (3f) and poof (4f) frames.
-- The party-hat zombie is an idle-only prototype (`party_zombie_idle.png`, 2f at 8 fps); Story 3.6 adds the walk (4f).
+- ~~The hug is a placeholder 3 px lean of `Body` on x and the poof is a code-drawn 4-frame cloud (`poof.gd`), until Story 3.6's hug (3f) and poof (4f) frames.~~ Done in 3.6: hug (3f) and poof (4f) sheets play; the 3 px lean stays as motion.
+- ~~The party-hat zombie is an idle-only prototype (`party_zombie_idle.png`, 2f at 8 fps); Story 3.6 adds the walk (4f).~~ Done in 3.6: `party_zombie_walk.png` (4f at 10 fps).
 - No hug-poof SFX (GDD audio list "hug-poof"): Story 5.1, unless 3.7 takes it.
 - Conga hand-off for 3.4: `Villager.poofed(party_zombie)` is the seam that adds a zombie to the line, but 3.4 must count conga members logically at resolve time (a villager resolved = +1), not on `poofed`. At high speed a villager can scroll off and be freed before its poof ends (0.4 s hug + 0.33 s poof vs. about 1 s to scroll off at 5 keys/s), so `poofed` may never fire for it. *3.4:* counted at resolve; villagers aren't freed before their hand-off.
 - `Villager._set_state()` asserts on a backward move. The assert logs a `SCRIPT ERROR` in the test output (3 lines from `test_villager.gd`, consumed with `assert_engine_error`), so the suite's error count is no longer 0 by design.
@@ -304,7 +304,7 @@
 
 ## Deferred from: dev of story-3-4 (2026-10-05)
 
-- Conga followers use the party zombie's idle frames plus a code bob (2 px, 2 Hz, index-phased) until Story 3.6's walk (4f).
+- ~~Conga followers use the party zombie's idle frames plus a code bob (2 px, 2 Hz, index-phased) until Story 3.6's walk (4f).~~ Done in 3.6: followers play walk while moving and idle once settled; the code bob stays as the conga wave.
 - No join SFX when a party zombie joins the line: Story 5.1.
 - A join beyond the 12 cap only ticks the "×N" badge (no extra walk-in); a small pop on the badge is a 5.0 polish candidate.
 - Extreme speed: a newcomer joins where its villager poofed, which can be well behind the tail (or at the left edge when the villager was kept off screen by the freeing guard), and walks in from there; the badge rides the last drawn follower, so it can lag the tail briefly. Normal speeds (the 2:00 web run, ~1 key/s average with 10-key bursts) kept the line and the badge on screen.
@@ -322,7 +322,7 @@
 
 ## Deferred from: dev of story-3-5 (2026-10-05)
 
-- The end dance is a code placeholder (bounce 4 px at 2 beats/s + a `flip_h` per beat) until Story 3.6's `dance` 4f; `PlayerZombie.dance()` plays a `dance` animation as soon as the SpriteFrames has one. Party zombies have no dance frames in the GDD list, so the conga line keeps the code dance (3.6 decides).
+- ~~The end dance is a code placeholder (bounce 4 px at 2 beats/s + a `flip_h` per beat) until Story 3.6's `dance` 4f; `PlayerZombie.dance()` plays a `dance` animation as soon as the SpriteFrames has one. Party zombies have no dance frames in the GDD list, so the conga line keeps the code dance (3.6 decides).~~ Done in 3.6: `zombie_dance.png` (4f at 8 fps = one 2 Hz bounce); with the frames the `flip_h` beat goes. Party zombies: no dance sheet (decided), idle plus the code bounce and flip.
 - No dance music or SFX: Story 5.1.
 - The active target's arrow and the HUD letter stay visible during the dance; decide in 5.0 if it looks odd.
 - The completion bonus applies to every recorded end reason (`timer`, F6, `caught`, `escaped`). Epic 8 must split Pitchfork Panic's bonuses (GDD: caught +10, escaped +25).
@@ -334,3 +334,20 @@
 - Dance constants (`DANCE_HOP_PX`, `DANCE_BEAT_HZ`) are duplicated in `player_zombie.gd` and `conga_line.gd`; the zombie and the line are meant to beat in step, so share one source.
 - `dance_time_s` is not tied to `hug_time_s`: with an odd config a late villager could poof after the report card opens (shipped 2.0 s vs 0.4 s is fine).
 - AC7 "end to end" report-card check is manual screenshots plus `test_mock_example_values`; no Zombie Run payload test.
+
+## Deferred from: dev of story-3-6 (2026-10-05)
+
+- Party-zombie dance sheet: decided **no** (not in the GDD sprite list). Dancing followers keep idle plus the code bounce and flip.
+- No groans or SFX for the new animations: Story 3.7 (groans) and 5.1 (audio pass).
+- Hat anchors on the new frames (the crown moves on some frames: hop crouch 2 px down, hop land, hug release and dance frame 4 1 px down, hug squeeze 1 px right): Story 4.3 sets per-frame anchors. `%HatSlot` still sits at the idle crown.
+- HUD, pause panel, report card and menu art stay placeholder: Story 5.0.
+- Readability changes made during the 1x check (not in the story text): the far hills are `chalk-dim` with a `zombie-green` crest instead of solid `zombie-green` (the zombie's and party zombies' skin sat on their own colour), and the pumpkin moved to a short post in front of the fence at x 120 (on a full fence post it sat behind the zombie's head at run start and read as a pumpkin hat, which clashes with the 4.3 hats).
+- The distant houses and windmill (`stone-light` on `chalk-dim`) are low contrast; accepted as far-layer decoration.
+- The seam test is a heuristic (x 0 vs x 639 opacity per row); the art puts features across the seam on purpose (a cloud, the seam tree, the fence rails, the bunting). The 2:00 scroll check by eye is the real proof.
+
+## Deferred from: code review of story-3-6-sunny-village-green-and-zombie-run-art (2026-10-05)
+
+- Re-hug, re-hop and `_end_hop` restart the animation from frame 0 while the lean tween resumes mid-arc (`player_zombie.gd`); cosmetic.
+- No hysteresis on the conga follower walk/idle threshold (`WALK_SPEED_MIN_PX_S` 4 px/s); possible flicker at easing transitions.
+- Backdrop ground `roundf(camera_x)` vs the renderer snap at exact .5 values is unverified; `snap_2d_transforms_to_pixel` is on, no tie test.
+- Art-review pages use the static `ANIMATIONS` list even if a sheet fails to load; debug tool only.

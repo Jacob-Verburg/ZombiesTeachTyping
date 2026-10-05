@@ -12,8 +12,8 @@ one villager) must be **approved by Smuck before any other final art is made**. 
 
 Stories that make final art and wait for that approval:
 
-- **Epic 3:** Story 3.6 (Sunny Village Green and the Zombie Run art), and the hop, hug, dance and poof
-  frames, the party-hat zombie and the brain block that 3.1–3.5 use.
+- **Epic 3:** done in Story 3.6 (Sunny Village Green, the hop, hug, dance and poof frames, the party-hat
+  zombie's walk, the brain block, brain pop and down-arrow; see section 3).
 - **Epic 4:** Story 4.3 (hats and pets shown everywhere) and the Crypt Closet art.
 - **Epic 5:** Story 5.0 (MVP UI art pass: panels, buttons, signs, level cards, logo).
 - Later epics (6, 8, 9, 10) reuse these rules for their characters, hats, pets and backdrops.
@@ -70,7 +70,9 @@ the UI. It is never in a sprite and not in the palette file.
 ## 3. Sprites
 
 **Sizes:** characters **32×32**, brutes **48×48**, tiles **16×16** (px, authored 1:1 at the 640×360
-viewport). Only 32×32 sprites exist so far.
+viewport). Props (the brain block, the brain pop, the down-arrow) use the tile size, 16×16; the villager's
+poof is a character-size effect, 32×32, drawn from the feet like the characters. No 48×48 sprite exists
+yet.
 
 **Rules** (*tested* in `tests/unit/test_art_sprites.gd`; the wording here matches the test; rule 5 is the exception):
 
@@ -89,17 +91,46 @@ viewport). Only 32×32 sprites exist so far.
    frames never makes the sprite jump (a bob moves the body, not the soles). Deliberate hops are the
    only exception and get their own sheet.
 
-**Animation limits:** **2–6 frames** per animation at **8–12 fps** (*tested* for the current prototypes only: the frame counts in
-`test_art_sprites.gd` and the fps in the art review scene; new character sheets must be added to those tests). Per-frame duration
-multipliers are not used to get below 8 fps. Current prototypes: zombie `idle` 2 frames at 8 fps,
-zombie `walk` 4 frames at 10 fps, villager `wave` 2 frames at 8 fps, professor `point` 2 frames at 8 fps
-(Story 2.9), party-hat zombie `idle` 2 frames at 8 fps (Story 3.3 prototype; Story 3.6 adds walk 4f), plus the one-frame `professor_mortarboard.png` overlay drawn at the body's origin (an
-overlay, not an animation; checked by the same pixel tests as `OVERLAYS`).
+**Animation limits:** **2–6 frames** per animation at **8–12 fps** (*tested* for every sheet listed here: the frame counts and
+sizes in `test_art_sprites.gd` and the fps in the art review scene; a new sheet must be added to those tests). Per-frame duration
+multipliers are not used to get below 8 fps. One-frame overlays (`OVERLAYS` in the test) are not
+animations and are exempt from the frame count only; every pixel rule applies to them.
+
+| Sheet | Frames | Size | fps | Plays |
+|---|---|---|---|---|
+| zombie `idle` | 2 | 32×32 | 8 | loop |
+| zombie `walk` | 4 | 32×32 | 10 | loop |
+| zombie `hop` (3.6) | 3 | 32×32 | 10 | once: crouch, peak, land |
+| zombie `hug` (3.6) | 3 | 32×32 | 10 | once: reach, squeeze, release |
+| zombie `dance` (3.6) | 4 | 32×32 | 8 | loop (one cycle = one 2 Hz bounce) |
+| villager `wave` | 2 | 32×32 | 8 | loop |
+| villager `poof` (3.6) | 4 | 32×32 | 12 | once (frames stepped by the poof's tween) |
+| party-hat zombie `idle` | 2 | 32×32 | 8 | loop |
+| party-hat zombie `walk` (3.6) | 4 | 32×32 | 10 | loop |
+| professor `point` (2.9) | 2 | 32×32 | 8 | loop |
+| brain block `idle` (3.6) | 2 | 16×16 | 8 | loop |
+| brain block `bonk` (3.6) | 3 | 16×16 | 12 | once, holds the last (used) frame |
+| brain `pop` (3.6) | 2 | 16×16 | 8 | loop while it rises |
+| `professor_mortarboard.png` | overlay | 32×32 | – | drawn at the body's origin |
+| `down_arrow.png` (3.6) | overlay | 16×16 | – | the active target's arrow; the bob is code |
+
+Hop and hug are drawn **grounded** (the soles stay on row 30): the zombie's hop and hug tweens move the
+body, so frames that also lifted it would double the motion.
 
 **File naming:** `<subject>_<animation>.png` (`zombie_walk.png`, `villager_wave.png`), animation names
 are lowercase verbs (`idle`, `walk`, `wave`, `hop`, `hug`, `dance`, `poof`). Paths:
-`assets/sprites/characters/<subject>/`. Sheets become `SpriteFrames` with one `AtlasTexture` region per
+`assets/sprites/characters/<subject>/`, props in `assets/sprites/props/`, backdrops in
+`assets/sprites/backdrops/<level>/`. Sheets become `SpriteFrames` with one `AtlasTexture` region per
 frame.
+
+**Backdrops** (Story 3.6, Sunny Village Green): parallax layers `clouds.png`, `far.png`, `near.png`, each
+**640 px wide** (the screen width, so two copies side by side always cover it) and at most 192 px high
+(the playfield above the ground line), plus `ground_tiles.png` (16×16 tiles: grass, grass tuft, flower,
+path) and `ground_strip.png` (640×64, built from the tiles). Backdrop layers and ground tiles are
+**exempt from the outline rule only**: they keep hard alpha and palette colours (*tested* in
+`tests/unit/test_art_backdrop.gd`), never use `candy-yellow` or `stamp-red`, keep the in-world tag band
+(y 96–166) free of `parchment`, `chalk` and `candy-yellow`, and are authored with wraparound so the 640 px
+seam never shows.
 
 **Import settings:** Lossless compression (`compress/mode=0`), no mipmaps (*tested*). Filtering is the
 project default, Nearest; do not set a per-file filter.
@@ -111,8 +142,11 @@ This is accepted. The same sprite scale is used on every screen; characters are 
 screen for legibility.
 
 **How sprites are made:** code-authored pixel art. Each frame is an ASCII map in
-`tools/gen_art_prototypes.gd` (one character per pixel, a legend from character to palette **name**),
-written to PNG by running the tool headless and then `--import`. Commit the PNGs and `.import` files.
+`tools/gen_art_prototypes.gd` (the prototypes) or `tools/gen_zombie_run_art.gd` (Story 3.6, which reads
+the palette, legends and approved maps from the first), one character per pixel, a legend from
+character to palette **name**, written to PNG by running the tool headless and then `--import`. The
+backdrop is drawn by the same tool from shapes at fixed positions (no randomness). Never hand-edit a
+PNG. Commit the PNGs and `.import` files.
 
 ## 4. Font
 
