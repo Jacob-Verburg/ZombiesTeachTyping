@@ -20,9 +20,11 @@ extends Node2D
 ##     get_brains_earned(), builds and records the RunResult -> outro wait -> report card
 
 ## Emitted by the level to end the run early (one of GameConstants.END_REASON_*). RunFrame honours
-## it only while the run is RUNNING.
+## it only while the run is RUNNING. Declared here, emitted only by subclasses.
+@warning_ignore("unused_signal")
 signal end_requested(reason: StringName)
 ## Emitted by the level whenever its brain total for this run changes (the HUD counter, Story 2.5).
+@warning_ignore("unused_signal")
 signal brains_earned_changed(total: int)
 
 ## The level's settings (duration, case and Space rules, target mode). Set in the level scene.

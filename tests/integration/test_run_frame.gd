@@ -973,3 +973,57 @@ func test_level_id_and_duration_getters() -> void:
 	var frame: RunFrameScript = _start({"level_id": "test_level", "seed": 1})
 	assert_eq(frame.get_level_id(), &"test_level")
 	assert_eq(frame.get_duration(), 120.0)
+
+
+# --- Zombie Run through the real run frame (Story 3.1) -----------------------
+
+const ZombieRunLevelScript := preload("res://scripts/levels/zombie_run/zombie_run_level.gd")
+
+
+func _zombie_queue_letter(frame: RunFrameScript) -> String:
+	var level: ZombieRunLevelScript = frame.get_level() as ZombieRunLevelScript
+	return level.get_queue()[0].get_letter()
+
+
+func test_zombie_run_loads_and_matches_the_hud() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"zombie_run", "seed": 42})
+	assert_eq(_nav, [], "no failed-load navigation")
+	var level: ZombieRunLevelScript = frame.get_level() as ZombieRunLevelScript
+	assert_not_null(level, "the Zombie Run level is loaded")
+	assert_eq(frame.get_level_id(), &"zombie_run")
+	assert_eq(_zombie_queue_letter(frame), frame.get_session().get_current_target())
+	assert_eq(_hud_text(frame, "%TargetLabel"), _zombie_queue_letter(frame), "HUD letter = arrowed target")
+
+
+func test_zombie_run_keys_and_timer_end() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"zombie_run", "seed": 42})
+	var level: ZombieRunLevelScript = frame.get_level() as ZombieRunLevelScript
+	_type_correct(frame)
+	assert_eq(level.get_active_index(), 1, "advanced in the same call")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	assert_eq(_zombie_queue_letter(frame), frame.get_session().get_current_target())
+	var letters: Array[String] = []
+	for target: ZombieRunTarget in level.get_queue():
+		letters.append(target.get_letter())
+	_type_wrong(frame)
+	assert_eq(frame.get_session().get_errors(), 1)
+	assert_eq(level.get_active_index(), 1, "a wrong key changes nothing")
+	var after: Array[String] = []
+	for target: ZombieRunTarget in level.get_queue():
+		after.append(target.get_letter())
+	assert_eq(after, letters)
+	for i: int in 3:
+		_type_correct(frame)
+	frame._process(121.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	frame._process(0.016)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE, "no outro until Story 3.5")
+	assert_eq(_nav.size(), 1)
+	assert_eq(_nav[0][0], Router.Screen.REPORT_CARD)
+	var result: RunResult = _result()
+	assert_eq(result.level_id, &"zombie_run")
+	assert_eq(result.keys_typed, 4)
+	assert_eq(result.errors, 1)
+	assert_eq(result.duration_s, 120.0)
+	assert_eq(result.brains, 0, "brain blocks arrive in Story 3.2")
+	assert_eq(result.bonus_brains, 0, "completion bonus wiring is Story 3.5")

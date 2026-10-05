@@ -5,9 +5,9 @@ extends Control
 ## Hidden parent/dev save export (Story 1.8): Ctrl+Shift+E calls SaveService.offer_export() in every
 ## build, release included. Nothing on screen changes (no sound, label, focus or fade). Story 4.2 keeps it.
 ## Debug-only "Test level" button (Story 2.4): visible only when _is_debug_build() is true (the seam;
-## a placeholder-menu exception to Boundary 7, Story 4.2 decides where it lives). "Play" sends
-## &"zombie_run", which is not registered until Story 3.1: RunFrame logs the error and comes back here
-## on purpose (the NFR16 failed-load path).
+## a placeholder-menu exception to Boundary 7, Story 4.2 decides where it lives). "Zombie Run"
+## (%PlayButton) starts a Zombie Run (Story 3.1); Story 4.2 replaces it with level cards built from
+## the level registry.
 
 const STORAGE_NOTICE_TEXT: String = "Progress may not be saved in this browser mode"
 

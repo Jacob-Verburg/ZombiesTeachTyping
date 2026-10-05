@@ -157,7 +157,7 @@
 - ~~`LevelBase.brains_earned_changed` is not connected until the HUD brain counter (Story 2.5); the result reads `get_brains_earned()` at run end.~~ Done in Story 2.5: `RunFrame` connects it to `Hud.set_brains`.
 - `RunFrame.LETTER_POOL_ALL` (`"all"`) is a placeholder for `letter_pool_or_tier` until Epic 7.
 - The test level (`scenes/levels/test_level/`) and its `debug_only` registry entry ship in release builds but are unreachable there (the menu button is debug-only). Exclude them from release exports with the Keyboard Test and art review screens if export size matters.
-- Main menu "Play" sends `&"zombie_run"`, which is not registered until Story 3.1: `RunFrame` logs `[ERROR][run]` and returns to the menu (NFR16 path, on purpose).
+- ~~Main menu "Play" sends `&"zombie_run"`, which is not registered until Story 3.1: `RunFrame` logs `[ERROR][run]` and returns to the menu (NFR16 path, on purpose).~~ Done in 3.1: `zombie_run` is registered and the button reads "Zombie Run".
 - The main menu's `_is_debug_build()` seam is a placeholder-menu exception to Boundary 7 (`OS.is_debug_build()` outside `scripts/debug/`). Story 4.2 decides where a debug entry to the test level lives.
 - Web key capture: in the browser pane, Space, Tab and Backspace had their default blocked during the run and capture was off again on the report card. The pane sends `'` and `/` with an empty `key`, so the capture listener for those two is not proven by this check; Smuck should press them on a real keyboard (Chrome/Edge) during a test-level run.
 - Desktop (non-web) manual run of the test level was not done by the agent; the web debug build covered the same flow.
@@ -166,7 +166,7 @@
 
 ## Deferred from: code review of story-2-4-run-frame-level-contract-and-test-level (2026-10-04)
 
-- A level that emits `end_requested` from `on_run_started`/`on_char_accepted` still receives `on_char_accepted` after `on_run_ending` (the session keeps judging that key), so a late brain can be counted in `get_brains_earned()`. No current level does this; revisit with Zombie Run (3.1).
+- A level that emits `end_requested` from `on_run_started`/`on_char_accepted` still receives `on_char_accepted` after `on_run_ending` (the session keeps judging that key), so a late brain can be counted in `get_brains_earned()`. No current level does this; revisit with Zombie Run (3.1). 3.1: Zombie Run never emits `end_requested` (the timer is RunFrame's), so this stays open for Epic 8 (Pitchfork Panic caught/escaped).
 - `RunFrame._fail_to_menu`'s Router-transitioning branch and the null-`TargetSource` failure path have no automated test (tests inject `navigate`; the base `create_target_source` asserts in debug). Covered by the manual web run; add when a Router test seam exists.
 
 ## Deferred from: dev of story-2-5 (2026-10-04)
@@ -233,7 +233,7 @@
 
 ## Deferred from: dev of story-2-9 (2026-10-04)
 
-- Hand-off to Story 3.1: register `zombie_run` in `data/levels/level_registry.tres` with `display_name = "Zombie Run"` (the report card heading). Without it the card falls back to `"zombie_run".capitalize()`, which happens to read the same.
+- ~~Hand-off to Story 3.1: register `zombie_run` in `data/levels/level_registry.tres` with `display_name = "Zombie Run"` (the report card heading). Without it the card falls back to `"zombie_run".capitalize()`, which happens to read the same.~~ Done in 3.1.
 - Final chalkboard, chalk tray, "New best!" stamp (hand-lettered, pre-rotated -8°), pixel buttons, key-hint keycaps, smiling moon and night-classroom backdrop art: Story 5.0. Today they are square `StyleBoxFlat` / `ColorRect` placeholders in palette colours.
 - Chalk-scratch per revealed row, the chime, the stamp thump and menu music on the report card: Story 5.1 (no `AudioCue`s exist for them yet).
 - The worn hat and pet in Professor Zombie's `%HatSlot` / `%PetSlot`, `SpriteAnchors` for the professor, and lifting the mortarboard by the hat's height: Story 4.3.
@@ -253,5 +253,22 @@
 
 - Browser F-keys: in the in-app browser pane (embedded Chromium, no address bar) F2/F6/F7 reached the game and did nothing else. Real Chrome and Edge (F6 = focus address bar, F7 = caret-browsing prompt) are still unchecked; if either steals a key during a run, add it to `WebPlatform.CAPTURED_KEYS` (+ `test_web_platform.gd`). Keep the bindings as they are.
 - The open overlay (bottom ≈ 192 px on the run screen) covers the right part of `test_level`'s big letter at the top of the playfield. The HUD target box stays clear. Moving the overlay or shrinking the run section is only worth it if real levels (Epic 3) put content top-left.
-- `level_base.gd` raises two `UNUSED_SIGNAL` warnings (`end_requested`, `brains_earned_changed`: declared in the base, emitted only by subclasses) in desktop debug runs. They were already there at baseline whenever a run loaded; the overlay's `run_frame.gd` preload now loads the script at startup, so they print at launch instead. Fix: `@warning_ignore("unused_signal")` on both declarations.
+- ~~`level_base.gd` raises two `UNUSED_SIGNAL` warnings (`end_requested`, `brains_earned_changed`: declared in the base, emitted only by subclasses) in desktop debug runs. They were already there at baseline whenever a run loaded; the overlay's `run_frame.gd` preload now loads the script at startup, so they print at launch instead. Fix: `@warning_ignore("unused_signal")` on both declarations.~~ Done in 3.1.
 - Desktop debug key checks (F2/F6/F7 in the desktop window) weren't driven by hand: the Godot MCP can't send keys. Same code as the web debug build, which was checked end to end.
+
+## Deferred from: dev of story-3-1 (2026-10-04)
+
+- The open debug overlay (bottom ≈ game y 154 on the run screen) covers the active target's arrow and the top edge of its tag in Zombie Run (the letter stays readable; the HUD letter is never covered). Debug-only and toggled with F3, so not fixed. Move the overlay or trim its run section if it gets in the way of playtest debugging.
+- `ZOMBIE_SCREEN_X = 224` leaves ~224 px behind the zombie for the conga line; Story 3.4 may retune it (the camera, freeing and on-screen tests read the constant).
+- Placeholder visuals: code-built target boxes / parchment tags / arrow and flat sky, grass and path rects. Real brain block, villager, backdrop and parallax art = Story 3.6. No ground tick marks were added (optional in the story); resolved targets already show the scroll.
+- Caps Lock hint not seen in the web check: Shift+letter presses from the browser pane don't produce it (it needs real Caps Lock). By layout every playfield item sits above the ground line y 192 and the hint starts at y 196.
+- `ZombieRunTarget` resolved look duplicates the box StyleBox on resolve (one small allocation per key, outside `_process`). 3.2 / 3.3 replace the box with sprites.
+
+## Deferred from: code review of story-3-1 (2026-10-04)
+
+- Release builds strip the queue/session desync `assert` in `ZombieRunLevel.on_char_accepted`; add a `Log.error` (and optionally resync). Only reachable via another bug.
+- `ZombieRunLevel.on_run_ending` returns 0.0 without stopping movement or setting an `_ended` flag, so a key accepted in the ending frame still spawns and scoots. Revisit with the Story 3.5 outro.
+- `ZombieRunTarget.HALF_WIDTH` is a hand-kept copy of the tag width in the .tscn, and `resolve()` crashes if called before `add_child`. Unreachable today; revisit when 3.2/3.3 replace the box.
+- `_resolved` is uncapped if `_process` stops running; normal play holds about 6.
+- No direct test of the main menu button routing to `zombie_run` (AC2); Story 4.2 replaces the menu.
+- Optional ground tick marks (Task 4.11) not added; scroll cue comes from the targets only. Story 3.6 art.

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ZombieRunConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/zombie_run_config.gd" id="1_cfg"]
+
+[resource]
+script = ExtResource("1_cfg")
+target_spacing_px = 48.0
+visible_upcoming = 3
+amble_speed_px_s = 24.0
+approach_gap_px = 24.0
+scoot_time_s = 0.15
+brain_block_every = 4
+letter_pool = Array[String](["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"])
+duration_s = 120.0
+case_sensitive = false
+space_is_input = false
+target_mode = 0
+completion_bonus = 10

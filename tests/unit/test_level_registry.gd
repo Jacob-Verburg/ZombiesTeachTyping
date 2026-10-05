@@ -67,8 +67,22 @@ func test_shipped_registry() -> void:
 	var test_entry: LevelEntry = registry.get_entry(&"test_level")
 	assert_not_null(test_entry)
 	assert_true(test_entry.debug_only, "test_level is debug-only")
-	assert_null(registry.get_entry(&"zombie_run"), "Zombie Run arrives with Story 3.1")
 	var level: Node = registry.get_scene(&"test_level").instantiate()
 	assert_true(level is LevelBase)
 	assert_not_null((level as LevelBase).get_level_config())
+	level.free()
+
+
+func test_shipped_registry_has_zombie_run() -> void:
+	var registry: LevelRegistry = load(REGISTRY_PATH) as LevelRegistry
+	var entry: LevelEntry = registry.get_entry(&"zombie_run")
+	assert_not_null(entry, "Zombie Run is registered (Story 3.1)")
+	assert_eq(entry.display_name, "Zombie Run")
+	assert_false(entry.debug_only)
+	assert_eq(registry.entries[0].id, &"zombie_run", "listed first (menu order)")
+	var scene: PackedScene = registry.get_scene(&"zombie_run", false)
+	assert_not_null(scene, "visible in release builds")
+	var level: Node = scene.instantiate()
+	assert_true(level is LevelBase)
+	assert_true((level as LevelBase).get_level_config() is ZombieRunConfig)
 	level.free()

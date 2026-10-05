@@ -14,3 +14,5 @@ enum TargetMode { LETTER, WORD, PARAGRAPH }
 @export var space_is_input: bool = false
 ## Which kind of target the level shows; the HUD's start prompt keys off it.
 @export var target_mode: TargetMode = TargetMode.LETTER
+## Brains added on a completed run (Zombie Run 10). Read by RunFrame from Story 3.5.
+@export var completion_bonus: int = 0
