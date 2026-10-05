@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="Catalogue" load_steps=21 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/catalogue.gd" id="1_catalogue"]
+[ext_resource type="Script" path="res://scripts/resources/cosmetic_item.gd" id="2_item"]
+[ext_resource type="Resource" path="res://data/cosmetics/hat_pumpkin.tres" id="3_hat_pumpkin"]
+[ext_resource type="Resource" path="res://data/cosmetics/hat_witch.tres" id="4_hat_witch"]
+[ext_resource type="Resource" path="res://data/cosmetics/hat_bunny_ears.tres" id="5_hat_bunny_ears"]
+[ext_resource type="Resource" path="res://data/cosmetics/hat_santa.tres" id="6_hat_santa"]
+[ext_resource type="Resource" path="res://data/cosmetics/hat_leprechaun.tres" id="7_hat_leprechaun"]
+[ext_resource type="Resource" path="res://data/cosmetics/hat_heart_headband.tres" id="8_hat_heart_headband"]
+[ext_resource type="Resource" path="res://data/cosmetics/hat_top_hat.tres" id="9_hat_top_hat"]
+[ext_resource type="Resource" path="res://data/cosmetics/hat_pirate.tres" id="10_hat_pirate"]
+[ext_resource type="Resource" path="res://data/cosmetics/hat_crown.tres" id="11_hat_crown"]
+[ext_resource type="Resource" path="res://data/cosmetics/pet_cute_ghost.tres" id="12_pet_cute_ghost"]
+[ext_resource type="Resource" path="res://data/cosmetics/pet_black_cat.tres" id="13_pet_black_cat"]
+[ext_resource type="Resource" path="res://data/cosmetics/pet_spider.tres" id="14_pet_spider"]
+[ext_resource type="Resource" path="res://data/cosmetics/pet_orange_cat.tres" id="15_pet_orange_cat"]
+[ext_resource type="Resource" path="res://data/cosmetics/pet_bat.tres" id="16_pet_bat"]
+[ext_resource type="Resource" path="res://data/cosmetics/pet_crow.tres" id="17_pet_crow"]
+[ext_resource type="Resource" path="res://data/cosmetics/pet_wolf_dog.tres" id="18_pet_wolf_dog"]
+[ext_resource type="Resource" path="res://data/cosmetics/pet_eyeball.tres" id="19_pet_eyeball"]
+[ext_resource type="Resource" path="res://data/cosmetics/pet_brain_buddy.tres" id="20_pet_brain_buddy"]
+
+[resource]
+script = ExtResource("1_catalogue")
+items = Array[ExtResource("2_item")]([ExtResource("3_hat_pumpkin"), ExtResource("4_hat_witch"), ExtResource("5_hat_bunny_ears"), ExtResource("6_hat_santa"), ExtResource("7_hat_leprechaun"), ExtResource("8_hat_heart_headband"), ExtResource("9_hat_top_hat"), ExtResource("10_hat_pirate"), ExtResource("11_hat_crown"), ExtResource("12_pet_cute_ghost"), ExtResource("13_pet_black_cat"), ExtResource("14_pet_spider"), ExtResource("15_pet_orange_cat"), ExtResource("16_pet_bat"), ExtResource("17_pet_crow"), ExtResource("18_pet_wolf_dog"), ExtResource("19_pet_eyeball"), ExtResource("20_pet_brain_buddy")])

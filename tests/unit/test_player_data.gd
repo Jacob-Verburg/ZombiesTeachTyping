@@ -1,5 +1,6 @@
 extends GutTest
-## PlayerData: brains and settings mutations, their signals, coalesced save requests, live profile reads.
+## PlayerData: brains, settings, wallet, inventory, equipment and flag mutations, their signals, coalesced
+## save requests, live profile reads.
 ## Always a fresh SaveService (save_dir = TEST_DIR) and a fresh PlayerData wired to it through the
 ## save_service seam before add_child. The live autoloads are only read, so the real save is never touched.
 
@@ -356,3 +357,461 @@ func test_non_numeric_or_negative_best_counts_as_no_best() -> void:
 	assert_eq(int(_best()["pitchfork_panic"]), 10)
 	assert_eq(sut.get_brains(), 2, "the run finished: brains added")
 	assert_signal_emit_count(sut, "run_recorded", 3)
+
+
+# --- wallet, inventory, equipment, flags (Story 4.1) ---------------------------
+
+const HAT_PRICE: int = 30
+const HAT2_PRICE: int = 45
+const PET_PRICE: int = 20
+const LOCKED_PRICE: int = 10
+
+
+func _cosmetic(id: StringName, slot: CosmeticItem.Slot, price: int, available: bool) -> CosmeticItem:
+	var item: CosmeticItem = CosmeticItem.new()
+	item.id = id
+	item.slot = slot
+	item.price = price
+	item.row = 1
+	item.is_available = available
+	return item
+
+
+## Test prices, not the shipped ones; includes the fixture save's ids.
+func _test_catalogue() -> Catalogue:
+	var catalogue: Catalogue = Catalogue.new()
+	catalogue.items.append(_cosmetic(&"hat_pumpkin", CosmeticItem.Slot.HAT, HAT_PRICE, true))
+	catalogue.items.append(_cosmetic(&"hat_witch", CosmeticItem.Slot.HAT, HAT2_PRICE, true))
+	catalogue.items.append(_cosmetic(&"hat_crown", CosmeticItem.Slot.HAT, LOCKED_PRICE, false))
+	catalogue.items.append(_cosmetic(&"pet_cute_ghost", CosmeticItem.Slot.PET, PET_PRICE, true))
+	return catalogue
+
+
+## A PlayerData on the test catalogue holding `brains`; `counting` swaps in CountingSave.
+func _make_shop(brains: int = 0, counting: bool = false) -> PlayerDataScript:
+	_save = CountingSave.new() if counting else SaveServiceScript.new()
+	_save.save_dir = TEST_DIR
+	add_child_autofree(_save)
+	var sut: PlayerDataScript = PlayerDataScript.new()
+	sut.save_service = _save
+	sut.catalogue = _test_catalogue()
+	add_child_autofree(sut)
+	_save.get_active_profile()["brains"] = brains
+	return sut
+
+
+func _item_of(sut: PlayerDataScript, id: StringName) -> CosmeticItem:
+	return sut.catalogue.get_item(id)
+
+
+func _owned_raw() -> Array:
+	return _save.get_active_profile()["owned_items"]
+
+
+func _equipped_raw() -> Dictionary:
+	return _save.get_active_profile()["equipped"]
+
+
+## After a rejected call: nothing changed, no signal and no save.
+func _assert_untouched(sut: PlayerDataScript, brains: int, owned: Array) -> void:
+	assert_eq(sut.get_brains(), brains, "brains unchanged")
+	assert_eq(_owned_raw(), owned, "owned unchanged")
+	assert_signal_not_emitted(sut, "brains_changed")
+	assert_signal_not_emitted(sut, "inventory_changed")
+	await wait_process_frames(2)
+	assert_signal_not_emitted(_save, "save_written")
+
+
+func test_uses_shipped_catalogue_by_default() -> void:
+	var sut: PlayerDataScript = PlayerDataScript.new()
+	add_child_autofree(sut)
+	assert_eq(sut.catalogue, load("res://data/cosmetics/catalogue.tres"))
+
+
+func test_buy_ok_deducts_owns_emits_and_saves_once() -> void:
+	var sut: PlayerDataScript = _make_shop(100, true)
+	var order: Array[String] = []
+	sut.brains_changed.connect(func(_t: int, _d: int) -> void: order.append("brains"))
+	sut.inventory_changed.connect(func(_id: StringName) -> void: order.append("inventory"))
+	watch_signals(sut)
+	watch_signals(_save)
+	var result: PlayerDataScript.PurchaseResult = sut.buy_item(_item_of(sut, &"hat_pumpkin"))
+	assert_eq(result, PlayerDataScript.PurchaseResult.OK)
+	assert_eq(sut.get_brains(), 100 - HAT_PRICE)
+	assert_eq(_owned_raw(), ["hat_pumpkin"])
+	assert_eq(typeof(_owned_raw()[0]), TYPE_STRING, "stored as a String")
+	assert_true(sut.owns(&"hat_pumpkin"))
+	assert_eq(sut.get_owned_items(), [&"hat_pumpkin"] as Array[StringName])
+	assert_signal_emitted_with_parameters(sut, "brains_changed", [100 - HAT_PRICE, -HAT_PRICE])
+	assert_signal_emitted_with_parameters(sut, "inventory_changed", [&"hat_pumpkin"])
+	assert_eq(order, ["brains", "inventory"] as Array[String], "brains first, then inventory")
+	assert_eq((_save as CountingSave).requests, 1)
+	await wait_process_frames(2)
+	assert_signal_emit_count(_save, "save_written", 1)
+	assert_eq(int(_written_profile()["brains"]), 100 - HAT_PRICE)
+	assert_eq(_written_profile()["owned_items"], ["hat_pumpkin"])
+
+
+func test_buy_listeners_see_the_new_state() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	var seen: Array = []
+	sut.brains_changed.connect(func(_t: int, _d: int) -> void: seen.append([sut.get_brains(), sut.owns(&"hat_pumpkin")]))
+	sut.inventory_changed.connect(func(_id: StringName) -> void: seen.append([sut.get_brains(), sut.owns(&"hat_pumpkin")]))
+	sut.buy_item(_item_of(sut, &"hat_pumpkin"))
+	assert_eq(seen, [[100 - HAT_PRICE, true], [100 - HAT_PRICE, true]], "listeners read the new state")
+
+
+func test_buy_exact_change_leaves_zero() -> void:
+	var sut: PlayerDataScript = _make_shop(HAT_PRICE)
+	assert_eq(sut.buy_item(_item_of(sut, &"hat_pumpkin")), PlayerDataScript.PurchaseResult.OK)
+	assert_eq(sut.get_brains(), 0)
+
+
+func test_buy_one_short_is_not_enough_brains() -> void:
+	var sut: PlayerDataScript = _make_shop(HAT_PRICE - 1)
+	watch_signals(sut)
+	watch_signals(_save)
+	assert_eq(sut.buy_item(_item_of(sut, &"hat_pumpkin")), PlayerDataScript.PurchaseResult.NOT_ENOUGH_BRAINS)
+	await _assert_untouched(sut, HAT_PRICE - 1, [])
+
+
+func test_buy_twice_is_already_owned() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	sut.buy_item(_item_of(sut, &"hat_pumpkin"))
+	await wait_process_frames(2)
+	watch_signals(sut)
+	watch_signals(_save)
+	assert_eq(sut.buy_item(_item_of(sut, &"hat_pumpkin")), PlayerDataScript.PurchaseResult.ALREADY_OWNED)
+	await _assert_untouched(sut, 100 - HAT_PRICE, ["hat_pumpkin"])
+
+
+func test_owned_beats_cant_afford() -> void:
+	var sut: PlayerDataScript = _make_shop(HAT_PRICE)
+	sut.buy_item(_item_of(sut, &"hat_pumpkin"))
+	assert_eq(sut.get_brains(), 0)
+	assert_eq(sut.buy_item(_item_of(sut, &"hat_pumpkin")), PlayerDataScript.PurchaseResult.ALREADY_OWNED)
+
+
+func test_buy_unavailable_item() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	watch_signals(sut)
+	watch_signals(_save)
+	assert_eq(sut.buy_item(_item_of(sut, &"hat_crown")), PlayerDataScript.PurchaseResult.UNAVAILABLE)
+	await _assert_untouched(sut, 100, [])
+
+
+func test_unavailable_beats_owned() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	_owned_raw().append("hat_crown")
+	assert_eq(sut.buy_item(_item_of(sut, &"hat_crown")), PlayerDataScript.PurchaseResult.UNAVAILABLE)
+
+
+func test_buy_null_item_is_rejected() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	watch_signals(sut)
+	watch_signals(_save)
+	assert_eq(sut.buy_item(null), PlayerDataScript.PurchaseResult.UNAVAILABLE)
+	assert_push_error("not in catalogue")
+	await _assert_untouched(sut, 100, [])
+
+
+func test_buy_non_catalogue_item_is_rejected() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	watch_signals(sut)
+	watch_signals(_save)
+	var stray: CosmeticItem = _cosmetic(&"hat_stray", CosmeticItem.Slot.HAT, 5, true)
+	assert_eq(sut.buy_item(stray), PlayerDataScript.PurchaseResult.UNAVAILABLE)
+	assert_push_error("not in catalogue")
+	await _assert_untouched(sut, 100, [])
+
+
+func test_catalogue_record_wins_over_the_passed_item() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	var cheap: CosmeticItem = _cosmetic(&"hat_witch", CosmeticItem.Slot.HAT, 1, true)
+	assert_eq(sut.buy_item(cheap), PlayerDataScript.PurchaseResult.OK)
+	assert_eq(sut.get_brains(), 100 - HAT2_PRICE, "the catalogue price is charged")
+	var unlocked: CosmeticItem = _cosmetic(&"hat_crown", CosmeticItem.Slot.HAT, LOCKED_PRICE, true)
+	assert_eq(sut.buy_item(unlocked), PlayerDataScript.PurchaseResult.UNAVAILABLE, "catalogue availability")
+	var pricey: CosmeticItem = _cosmetic(&"hat_pumpkin", CosmeticItem.Slot.HAT, 999, true)
+	assert_eq(sut.buy_item(pricey), PlayerDataScript.PurchaseResult.OK, "a wrong higher price is ignored too")
+	assert_eq(sut.get_brains(), 100 - HAT2_PRICE - HAT_PRICE)
+
+
+func test_free_catalogue_record_is_rejected() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	_item_of(sut, &"hat_pumpkin").price = 0
+	_item_of(sut, &"hat_witch").price = -50
+	watch_signals(sut)
+	assert_eq(sut.buy_item(_item_of(sut, &"hat_pumpkin")), PlayerDataScript.PurchaseResult.UNAVAILABLE)
+	assert_push_error("price")
+	assert_eq(sut.buy_item(_item_of(sut, &"hat_witch")), PlayerDataScript.PurchaseResult.UNAVAILABLE)
+	assert_push_error("price")
+	assert_eq(sut.get_brains(), 100)
+	assert_false(sut.owns(&"hat_pumpkin"))
+	assert_false(sut.owns(&"hat_witch"))
+	assert_signal_not_emitted(sut, "brains_changed")
+
+
+func test_brains_never_go_negative() -> void:
+	var sut: PlayerDataScript = _make_shop(0)
+	var steps: Array[String] = [
+		"hat_pumpkin", "+50", "hat_witch", "hat_pumpkin", "hat_crown", "+15",
+		"hat_witch", "pet_cute_ghost", "+1", "pet_cute_ghost", "-5", "hat_witch",
+	]
+	for step: String in steps:
+		if step.begins_with("+") or step.begins_with("-"):
+			sut.add_brains(int(step))
+		else:
+			sut.buy_item(_item_of(sut, StringName(step)))
+		assert_true(sut.get_brains() >= 0, "after %s brains=%d" % [step, sut.get_brains()])
+	assert_push_error("negative")
+	assert_eq(sut.get_brains(), 50 + 15 + 1 - HAT2_PRICE - PET_PRICE, "the pet bought with exact change")
+	assert_eq(sut.get_owned_items(), [&"hat_witch", &"pet_cute_ghost"] as Array[StringName])
+
+
+func test_loaded_string_ids_are_owned_and_equipped() -> void:
+	_put_fixture(FULL_PATH)
+	var sut: PlayerDataScript = _make()
+	assert_true(sut.owns(&"hat_pumpkin"))
+	assert_true(sut.owns(&"pet_cute_ghost"))
+	assert_false(sut.owns(&"hat_witch"))
+	assert_eq(sut.get_equipped(&"hat"), &"hat_pumpkin")
+	assert_eq(sut.get_equipped(&"pet"), &"pet_cute_ghost")
+	assert_eq(sut.buy_item(sut.catalogue.get_item(&"hat_pumpkin")), PlayerDataScript.PurchaseResult.ALREADY_OWNED)
+
+
+func test_owned_items_skip_junk() -> void:
+	var sut: PlayerDataScript = _make_shop()
+	_save.get_active_profile()["owned_items"] = ["hat_pumpkin", 7, null, {"x": 1}, "", "pet_cute_ghost"]
+	assert_eq(sut.get_owned_items(), [&"hat_pumpkin", &"pet_cute_ghost"] as Array[StringName])
+	assert_true(sut.owns(&"pet_cute_ghost"))
+	assert_false(sut.owns(&""))
+
+
+func test_equip_owned_item_sets_slot_emits_and_saves() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	sut.buy_item(_item_of(sut, &"hat_pumpkin"))
+	await wait_process_frames(2)
+	watch_signals(sut)
+	watch_signals(_save)
+	assert_true(sut.equip(&"hat_pumpkin"))
+	assert_eq(sut.get_equipped(&"hat"), &"hat_pumpkin")
+	assert_eq(_equipped_raw()["hat"], "hat_pumpkin")
+	assert_eq(typeof(_equipped_raw()["hat"]), TYPE_STRING)
+	assert_signal_emitted_with_parameters(sut, "equipment_changed", [&"hat", &"hat_pumpkin"])
+	await wait_process_frames(2)
+	assert_signal_emit_count(_save, "save_written", 1)
+	assert_eq(_written_profile()["equipped"]["hat"], "hat_pumpkin")
+
+
+func test_equip_replaces_same_slot_only() -> void:
+	var sut: PlayerDataScript = _make_shop(200)
+	sut.buy_item(_item_of(sut, &"hat_pumpkin"))
+	sut.buy_item(_item_of(sut, &"hat_witch"))
+	sut.buy_item(_item_of(sut, &"pet_cute_ghost"))
+	sut.equip(&"hat_pumpkin")
+	sut.equip(&"pet_cute_ghost")
+	assert_eq(sut.get_equipped(&"hat"), &"hat_pumpkin")
+	assert_eq(sut.get_equipped(&"pet"), &"pet_cute_ghost", "a hat and a pet at once")
+	watch_signals(sut)
+	assert_true(sut.equip(&"hat_witch"))
+	assert_eq(sut.get_equipped(&"hat"), &"hat_witch", "replaced")
+	assert_eq(sut.get_equipped(&"pet"), &"pet_cute_ghost", "pet untouched")
+	assert_signal_emit_count(sut, "equipment_changed", 1)
+	assert_signal_emitted_with_parameters(sut, "equipment_changed", [&"hat", &"hat_witch"])
+
+
+func test_equip_same_item_again_is_a_noop() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	sut.buy_item(_item_of(sut, &"hat_pumpkin"))
+	sut.equip(&"hat_pumpkin")
+	await wait_process_frames(2)
+	watch_signals(sut)
+	watch_signals(_save)
+	assert_true(sut.equip(&"hat_pumpkin"))
+	assert_signal_not_emitted(sut, "equipment_changed")
+	await wait_process_frames(2)
+	assert_signal_not_emitted(_save, "save_written")
+
+
+func test_equip_not_owned_is_rejected() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	watch_signals(sut)
+	watch_signals(_save)
+	assert_false(sut.equip(&"hat_pumpkin"))
+	assert_push_error("not owned")
+	assert_eq(_equipped_raw()["hat"], "")
+	assert_signal_not_emitted(sut, "equipment_changed")
+	await wait_process_frames(2)
+	assert_signal_not_emitted(_save, "save_written")
+
+
+func test_equip_unknown_id_is_rejected() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	_owned_raw().append("hat_stray")
+	watch_signals(sut)
+	assert_false(sut.equip(&"hat_stray"))
+	assert_push_error("not in catalogue")
+	assert_false(sut.equip(&""))
+	assert_push_error("not in catalogue")
+	assert_eq(_equipped_raw(), {"hat": "", "pet": ""})
+	assert_signal_not_emitted(sut, "equipment_changed")
+
+
+func test_unequip_empties_slot_emits_and_saves() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	sut.buy_item(_item_of(sut, &"pet_cute_ghost"))
+	sut.equip(&"pet_cute_ghost")
+	await wait_process_frames(2)
+	watch_signals(sut)
+	watch_signals(_save)
+	sut.unequip(&"pet")
+	assert_eq(sut.get_equipped(&"pet"), &"")
+	assert_eq(_equipped_raw()["pet"], "")
+	assert_signal_emitted_with_parameters(sut, "equipment_changed", [&"pet", &""])
+	await wait_process_frames(2)
+	assert_signal_emit_count(_save, "save_written", 1)
+	assert_eq(_written_profile()["equipped"]["pet"], "")
+
+
+func test_unequip_empty_slot_is_a_noop() -> void:
+	var sut: PlayerDataScript = _make_shop()
+	watch_signals(sut)
+	watch_signals(_save)
+	sut.unequip(&"hat")
+	assert_signal_not_emitted(sut, "equipment_changed")
+	await wait_process_frames(2)
+	assert_signal_not_emitted(_save, "save_written")
+
+
+func test_equip_unavailable_owned_item_is_rejected() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	_owned_raw().append("hat_crown")
+	watch_signals(sut)
+	assert_false(sut.equip(&"hat_crown"))
+	assert_push_error("not available")
+	assert_eq(sut.get_equipped(&"hat"), &"")
+	assert_signal_not_emitted(sut, "equipment_changed")
+
+
+func test_get_equipped_hides_an_unavailable_item() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	_owned_raw().append("hat_crown")
+	_equipped_raw()["hat"] = "hat_crown"
+	assert_eq(sut.get_equipped(&"hat"), &"")
+
+
+func test_unequip_clears_junk_without_a_signal() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	_equipped_raw()["pet"] = 42
+	watch_signals(sut)
+	sut.unequip(&"pet")
+	assert_eq(_equipped_raw()["pet"], "")
+	assert_signal_not_emitted(sut, "equipment_changed")
+
+
+func test_unequip_unowned_stored_id_is_silent() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	_equipped_raw()["hat"] = "hat_witch"
+	watch_signals(sut)
+	sut.unequip(&"hat")
+	assert_eq(_equipped_raw()["hat"], "")
+	assert_signal_not_emitted(sut, "equipment_changed")
+
+
+func test_get_owned_items_dedupes() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	_owned_raw().append_array(["hat_pumpkin", "hat_pumpkin"])
+	assert_eq(sut.get_owned_items(), [&"hat_pumpkin"] as Array[StringName])
+
+
+func test_unequip_unknown_slot_is_rejected() -> void:
+	var sut: PlayerDataScript = _make_shop()
+	watch_signals(sut)
+	sut.unequip(&"shoes")
+	assert_push_error("unknown slot")
+	assert_false(_equipped_raw().has("shoes"))
+	assert_signal_not_emitted(sut, "equipment_changed")
+
+
+func test_get_equipped_unknown_slot_logs() -> void:
+	var sut: PlayerDataScript = _make_shop()
+	assert_eq(sut.get_equipped(&"shoes"), &"")
+	assert_push_error("unknown slot")
+
+
+func test_get_equipped_hides_junk_and_not_owned() -> void:
+	var sut: PlayerDataScript = _make_shop()
+	_equipped_raw()["hat"] = "hat_witch"
+	_equipped_raw()["pet"] = 42
+	assert_eq(sut.get_equipped(&"hat"), &"", "not owned")
+	assert_eq(sut.get_equipped(&"pet"), &"", "not a String")
+	assert_eq(_equipped_raw()["hat"], "hat_witch", "getters never write")
+	_owned_raw().append("hat_witch")
+	assert_eq(sut.get_equipped(&"hat"), &"hat_witch")
+
+
+func test_set_flag_changes_value_emits_and_saves() -> void:
+	var sut: PlayerDataScript = _make_shop(0, true)
+	watch_signals(sut)
+	watch_signals(_save)
+	assert_false(sut.get_flag(&"tutorial_seen"))
+	sut.set_flag(&"tutorial_seen", true)
+	assert_true(sut.get_flag(&"tutorial_seen"))
+	assert_signal_emit_count(sut, "flags_changed", 1)
+	assert_signal_emitted_with_parameters(sut, "flags_changed", [&"tutorial_seen", true])
+	assert_eq((_save as CountingSave).requests, 1)
+	var flags: Dictionary = _save.get_active_profile()["flags"]
+	for key: Variant in flags.keys():
+		assert_eq(typeof(key), TYPE_STRING, "key %s is a String" % str(key))
+	assert_eq(flags.size(), SaveSchema.profile_defaults()["flags"].size(), "no extra key")
+	await wait_process_frames(2)
+	assert_signal_emit_count(_save, "save_written", 1)
+	assert_true(_written_profile()["flags"]["tutorial_seen"])
+
+
+func test_set_flag_same_value_is_a_noop() -> void:
+	var sut: PlayerDataScript = _make_shop()
+	watch_signals(sut)
+	watch_signals(_save)
+	sut.set_flag(&"placement_done", false)
+	assert_signal_not_emitted(sut, "flags_changed")
+	await wait_process_frames(2)
+	assert_signal_not_emitted(_save, "save_written")
+
+
+func test_set_flag_unknown_name_is_rejected() -> void:
+	var sut: PlayerDataScript = _make_shop()
+	watch_signals(sut)
+	sut.set_flag(&"cheat_mode", true)
+	assert_push_error("unknown flag")
+	assert_false(_save.get_active_profile()["flags"].has("cheat_mode"))
+	assert_signal_not_emitted(sut, "flags_changed")
+	assert_false(sut.get_flag(&"cheat_mode"))
+	assert_push_error("unknown flag", "get_flag logs too")
+
+
+func test_fixture_flags_read_true() -> void:
+	_put_fixture(FULL_PATH)
+	var sut: PlayerDataScript = _make()
+	assert_true(sut.get_flag(&"welcome_bonus_claimed"))
+	assert_true(sut.get_flag(&"tutorial_seen"))
+	assert_true(sut.get_flag(&"placement_done"))
+
+
+func test_reset_all_clears_shop_state_with_only_profile_replaced() -> void:
+	var sut: PlayerDataScript = _make_shop(100)
+	sut.buy_item(_item_of(sut, &"hat_pumpkin"))
+	sut.equip(&"hat_pumpkin")
+	sut.set_flag(&"welcome_bonus_claimed", true)
+	await wait_process_frames(2)
+	watch_signals(sut)
+	sut.reset_all()
+	assert_eq(sut.get_owned_items(), [] as Array[StringName])
+	assert_eq(sut.get_equipped(&"hat"), &"")
+	assert_false(sut.get_flag(&"welcome_bonus_claimed"))
+	assert_signal_emit_count(sut, "profile_replaced", 1)
+	assert_signal_not_emitted(sut, "equipment_changed")
+	assert_signal_not_emitted(sut, "inventory_changed")
+	assert_signal_not_emitted(sut, "flags_changed")
+	assert_signal_not_emitted(sut, "brains_changed")
