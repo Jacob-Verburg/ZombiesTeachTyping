@@ -20,6 +20,9 @@ extends LevelConfig
 @export var brain_block_float_px: float = 0.0
 ## How long the zombie's hop under a brain block takes, in seconds.
 @export var hop_time_s: float = 0.0
+## How long the zombie's hug lasts after a villager's letter, and when the villager poofs, in seconds
+## (FR34: 0.4).
+@export var hug_time_s: float = 0.0
 ## Brains one brain block pays when bonked.
 @export var brains_per_block: int = 0
 ## Chance (0..1) that a collected brain asks for a "Brainsss" voice line.
@@ -50,4 +53,6 @@ func validate() -> String:
 		return "brain_block_float_px must be above the zombie's height"
 	if not (brainsss_chance >= 0.0 and brainsss_chance <= 1.0):
 		return "brainsss_chance must be within 0..1"
+	if not (hug_time_s > 0.0):
+		return "hug_time_s must be above 0"
 	return ""

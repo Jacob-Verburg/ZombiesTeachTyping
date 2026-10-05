@@ -1060,3 +1060,22 @@ func test_zombie_run_quit_commits_the_level_brains() -> void:
 	_panel(frame).emit_signal("quit_chosen")
 	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
 	assert_eq(data.get_brains(), before + earned, "brains kept, no bonus (FR13)")
+
+
+# --- Zombie Run villagers (Story 3.3) ----------------------------------------
+
+func test_zombie_run_villager_key_hugs_and_pays_nothing() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"zombie_run", "seed": 42})
+	var level: ZombieRunLevelScript = frame.get_level() as ZombieRunLevelScript
+	for i: int in 8:
+		if level.get_queue()[0] is Villager:
+			break
+		_type_correct(frame)
+	var villager: Villager = level.get_queue()[0] as Villager
+	assert_not_null(villager, "a villager within the first group")
+	var brains: int = level.get_brains_earned()
+	_type_correct(frame)
+	assert_eq(villager.get_state(), Villager.State.HUGGED)
+	assert_ne(level.get_queue()[0], villager, "the queue head moved on")
+	assert_eq(_zombie_queue_letter(frame), frame.get_session().get_current_target())
+	assert_eq(level.get_brains_earned(), brains, "villagers pay nothing")

@@ -93,7 +93,7 @@ viewport). Only 32×32 sprites exist so far.
 `test_art_sprites.gd` and the fps in the art review scene; new character sheets must be added to those tests). Per-frame duration
 multipliers are not used to get below 8 fps. Current prototypes: zombie `idle` 2 frames at 8 fps,
 zombie `walk` 4 frames at 10 fps, villager `wave` 2 frames at 8 fps, professor `point` 2 frames at 8 fps
-(Story 2.9), plus the one-frame `professor_mortarboard.png` overlay drawn at the body's origin (an
+(Story 2.9), party-hat zombie `idle` 2 frames at 8 fps (Story 3.3 prototype; Story 3.6 adds walk 4f), plus the one-frame `professor_mortarboard.png` overlay drawn at the body's origin (an
 overlay, not an animation; checked by the same pixel tests as `OVERLAYS`).
 
 **File naming:** `<subject>_<animation>.png` (`zombie_walk.png`, `villager_wave.png`), animation names

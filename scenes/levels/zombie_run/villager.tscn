@@ -1,0 +1,90 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/zombie_run/villager.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://do5uyod3aor0i" path="res://assets/sprites/characters/villager/villager_wave.png" id="2_wave"]
+[ext_resource type="PackedScene" path="res://scenes/characters/party_zombie.tscn" id="3_party"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wave_0"]
+atlas = ExtResource("2_wave")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wave_1"]
+atlas = ExtResource("2_wave")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_villager"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wave_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wave_1")
+}],
+"loop": true,
+"name": &"wave",
+"speed": 8.0
+}]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tag"]
+bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+
+[node name="Villager" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Visual" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Body" type="AnimatedSprite2D" parent="Visual"]
+unique_name_in_owner = true
+position = Vector2(-16, -31)
+sprite_frames = SubResource("SpriteFrames_villager")
+animation = &"wave"
+autoplay = "wave"
+centered = false
+
+[node name="Tag" type="Panel" parent="Visual"]
+unique_name_in_owner = true
+offset_left = -12.0
+offset_top = -53.0
+offset_right = 12.0
+offset_bottom = -29.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
+
+[node name="Letter" type="Label" parent="Visual/Tag"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Arrow" type="Node2D" parent="Visual"]
+unique_name_in_owner = true
+visible = false
+
+[node name="Fill" type="Polygon2D" parent="Visual/Arrow"]
+color = Color(1, 0.8235294, 0.24705882, 1)
+polygon = PackedVector2Array(-5, -63, 5, -63, 0, -57)
+
+[node name="Outline" type="Line2D" parent="Visual/Arrow"]
+points = PackedVector2Array(-5, -63, 5, -63, 0, -57)
+closed = true
+width = 1.0
+default_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+
+[node name="PartyZombie" parent="." instance=ExtResource("3_party")]
+unique_name_in_owner = true
+visible = false

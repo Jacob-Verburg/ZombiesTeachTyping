@@ -1,5 +1,6 @@
 extends GutTest
-## Prototype sprite sheets (Story 1.9, NFR13) and the Professor Zombie (Story 2.9): size, hard alpha, palette-only pixels, the 1 px ink
+## Prototype sprite sheets (Story 1.9, NFR13), the Professor Zombie (Story 2.9) and the party-hat zombie
+## (Story 3.3): size, hard alpha, palette-only pixels, the 1 px ink
 ## outline rule, non-empty distinct frames on one ground line, and pixel-crisp import settings.
 ## Read from the committed PNG bytes (Image.load_from_file), so import state doesn't matter.
 
@@ -11,7 +12,9 @@ const SHEETS: Dictionary[String, int] = {
 	"res://assets/sprites/characters/zombie/zombie_walk.png": 4,
 	"res://assets/sprites/characters/villager/villager_wave.png": 2,
 	"res://assets/sprites/characters/professor/professor_point.png": 2,
+	"res://assets/sprites/characters/party_zombie/party_zombie_idle.png": 2,
 }
+const PARTY_ZOMBIE_PATH: String = "res://assets/sprites/characters/party_zombie/party_zombie_idle.png"
 ## One-frame overlays drawn over a sheet (not animations, so not in SHEETS): same pixel rules.
 const OVERLAYS: Array[String] = ["res://assets/sprites/characters/professor/professor_mortarboard.png"]
 const INK: String = "1e1428"
@@ -180,7 +183,7 @@ func test_right_color_ramps_used() -> void:
 		assert_true(colors.has(INK), "%s has no ink" % _name(path))
 		if path in OVERLAYS:
 			continue
-		if path.contains("/zombie/") or path.contains("/professor/"):
+		if path.contains("/zombie/") or path.contains("/professor/") or path == PARTY_ZOMBIE_PATH:
 			assert_true(colors.has(ZOMBIE_GREEN), "%s has no zombie-green" % _name(path))
 			assert_true(colors.has(ZOMBIE_GREEN_DARK), "%s has no zombie-green-dark" % _name(path))
 		else:
@@ -199,3 +202,16 @@ func test_import_settings_lossless_no_mipmaps() -> void:
 			continue
 		assert_eq(config.get_value("params", "compress/mode", -1), 0, "%s compress/mode" % path)
 		assert_eq(config.get_value("params", "mipmaps/generate", true), false, "%s mipmaps" % path)
+
+
+## Style sheet section 6: the party-hat zombie is a villager recolour, so no villager skin is left.
+func test_party_zombie_is_a_recoloured_villager() -> void:
+	var image: Image = _load(PARTY_ZOMBIE_PATH)
+	assert_not_null(image, "party zombie sheet missing")
+	if image == null:
+		return
+	var colors: Dictionary[String, bool] = _colors(image)
+	assert_false(colors.has(ART_SKIN_LIGHT), "no art-skin-light left")
+	assert_false(colors.has("b07850"), "no art-skin-dark left")
+	assert_true(colors.has(ZOMBIE_GREEN))
+	assert_true(colors.has("f07a1c"), "keeps the villager's pumpkin shirt")

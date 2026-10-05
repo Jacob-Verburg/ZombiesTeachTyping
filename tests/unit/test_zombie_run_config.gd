@@ -99,3 +99,16 @@ func test_brainsss_chance_bounds() -> void:
 	var nan: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
 	nan.brainsss_chance = NAN
 	assert_ne(nan.validate(), "", "NaN is rejected")
+
+
+# --- villagers (Story 3.3) --------------------------------------------------
+
+func test_hug_time_value() -> void:
+	assert_eq(_config().hug_time_s, 0.4)
+
+
+func test_hug_time_must_be_positive() -> void:
+	for bad: float in [0.0, -0.4, NAN]:
+		var config: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
+		config.hug_time_s = bad
+		assert_ne(config.validate(), "", "hug_time_s %s is rejected" % bad)

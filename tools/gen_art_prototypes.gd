@@ -3,7 +3,8 @@ extends SceneTree
 ## the Story 2.9 Professor Zombie (pointing sheet + mortarboard overlay).
 ## Run: "/c/Program Files/Godot/Godot.exe" --headless --path . -s tools/gen_art_prototypes.gd
 ## then --import, so the .png.import files are written (Lossless, no mipmaps; Nearest is the project default).
-## Pixels are authored here as ASCII maps: one string per row, one character per pixel, '.' = transparent.
+## Pixels are authored here as ASCII maps: one string per row, one character per pixel, '.' = transparent
+## (leaves what earlier parts painted), '_' = clear to transparent (erases what earlier parts painted).
 ## A legend maps each character to a palette NAME, so a recolor (villager -> party-hat zombie) is a
 ## legend change. A frame is built from parts (map + first row); later parts paint over earlier ones.
 ## Rules the maps keep (docs/art-style-sheet.md, enforced by tests/unit/test_art_sprites.gd): palette
@@ -14,6 +15,7 @@ const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const ZOMBIE_DIR: String = "res://assets/sprites/characters/zombie"
 const VILLAGER_DIR: String = "res://assets/sprites/characters/villager"
 const PROFESSOR_DIR: String = "res://assets/sprites/characters/professor"
+const PARTY_ZOMBIE_DIR: String = "res://assets/sprites/characters/party_zombie"
 const FRAME: int = 32
 
 ## DESIGN.md -> Colors, in order (index = pixel x in palette_32.png): 24 UI colors, then 8 art colors.
@@ -80,6 +82,25 @@ const VILLAGER_LEGEND: Dictionary[String, String] = {
 	"N": "ink-muted",
 	"B": "wood-dark",
 }
+
+## The party-hat zombie (Story 3.3, style sheet section 6): VILLAGER_LEGEND with s -> zombie-green and
+## S -> zombie-green-dark, plus the hat's y/p. Must mirror VILLAGER_LEGEND otherwise (_init checks it).
+const PARTY_ZOMBIE_LEGEND: Dictionary[String, String] = {
+	"k": "ink",
+	"s": "zombie-green",
+	"S": "zombie-green-dark",
+	"h": "wood-dark",
+	"H": "wood",
+	"o": "pumpkin",
+	"O": "pumpkin-light",
+	"n": "stone",
+	"N": "ink-muted",
+	"B": "wood-dark",
+	"y": "candy-yellow",
+	"p": "bat-purple",
+}
+## The legend characters the party-hat zombie recolours or adds; every other one is the villager's.
+const PARTY_ZOMBIE_OWN_KEYS: Array[String] = ["s", "S", "y", "p"]
 
 ## Head, shirt and the forward arm; drawn from row 1 (row 2 on the bob frames).
 const ZOMBIE_UPPER: Array[String] = [
@@ -231,6 +252,46 @@ const ARM_TILT: Array[String] = [
 	".......................kkkk.....",
 ]
 
+## Party-hat zombie: evens the head's right edge from row 8 (the villager's rows 8 and 11 stick out 1 px
+## under the waving arm), so it mirrors the left edge.
+const PARTY_HEAD_EDGE: Array[String] = [
+	".....................hk_........",
+	"................................",
+	"................................",
+	".....................hk_........",
+]
+
+## Party-hat zombie: a hanging right arm from row 18 (the villager's waving arm is not drawn), the
+## mirror of the villager's hanging left arm.
+const PARTY_ARM: Array[String] = [
+	"....................kook........",
+	"....................kook........",
+	"....................kook........",
+	"....................kssk........",
+	"....................kSSk........",
+	".....................kkk........",
+]
+
+## Party hat from row 1: a bat-purple cone with a candy-yellow stripe and pom-pom; its ink brim sits on
+## the hair at row 6. The second frame shifts the pom-pom 1 px (the soles never move).
+const PARTY_HAT: Array[String] = [
+	"...............kk...............",
+	"..............kyyk..............",
+	"..............kppk..............",
+	".............kpyypk.............",
+	"............kppppppk............",
+	"...........kkkkkkkkkk...........",
+]
+
+const PARTY_HAT_TILT: Array[String] = [
+	"................kk..............",
+	"...............kyyk.............",
+	"..............kppk..............",
+	".............kpyypk.............",
+	"............kppppppk............",
+	"...........kkkkkkkkkk...........",
+]
+
 ## Professor Zombie (Story 2.9): the player zombie's skin greens, a night gown with dusk folds, a
 ## wood-light pointer stick, a bat-purple mortarboard tassel (never candy-yellow or stamp-red).
 const PROFESSOR_LEGEND: Dictionary[String, String] = {
@@ -337,6 +398,13 @@ const SHEETS: Dictionary[String, Dictionary] = {
 			[[PROFESSOR_HEAD, 5], [PROFESSOR_GOWN, 19], [PROFESSOR_ARM, 10]],
 		],
 	},
+	PARTY_ZOMBIE_DIR + "/party_zombie_idle.png": {
+		"legend": PARTY_ZOMBIE_LEGEND,
+		"frames": [
+			[[VILLAGER_BODY, 4], [PARTY_HEAD_EDGE, 8], [PARTY_ARM, 18], [PARTY_HAT, 1]],
+			[[VILLAGER_BODY, 4], [PARTY_HEAD_EDGE, 8], [PARTY_ARM, 18], [PARTY_HAT_TILT, 1]],
+		],
+	},
 	# One frame: an overlay, not an animation.
 	PROFESSOR_DIR + "/professor_mortarboard.png": {
 		"legend": PROFESSOR_LEGEND,
@@ -353,6 +421,8 @@ func _init() -> void:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(ZOMBIE_DIR)),
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(VILLAGER_DIR)),
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PROFESSOR_DIR)),
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PARTY_ZOMBIE_DIR)),
+		_check_party_zombie_legend(),
 		_save(_palette_image(), PALETTE_PATH),
 	]
 	for path: String in SHEETS:
@@ -362,6 +432,17 @@ func _init() -> void:
 		errors.append(_save(image, path) if image != null else ERR_INVALID_DATA)
 	# Non-zero exit on any failure, so a bad map, path or cwd doesn't look like success.
 	quit(0 if errors.all(func(err: Error) -> bool: return err == OK) else 1)
+
+
+## The party-hat zombie is a villager recolour: every legend entry it doesn't own is the villager's.
+func _check_party_zombie_legend() -> Error:
+	for ch: String in VILLAGER_LEGEND:
+		if ch in PARTY_ZOMBIE_OWN_KEYS:
+			continue
+		if PARTY_ZOMBIE_LEGEND.get(ch, "") != VILLAGER_LEGEND[ch]:
+			push_error("PARTY_ZOMBIE_LEGEND '%s' does not mirror VILLAGER_LEGEND" % ch)
+			return ERR_INVALID_DATA
+	return OK
 
 
 ## 32x1, one opaque pixel per color, in PALETTE order. The raw master data, not a swatch sheet.
@@ -392,6 +473,9 @@ func _sheet_image(frames: Array, legend: Dictionary[String, String]) -> Image:
 				for x: int in FRAME:
 					var ch: String = row[x]
 					if ch == ".":
+						continue
+					if ch == "_":
+						image.set_pixel(i * FRAME + x, top + y, Color(0, 0, 0, 0))
 						continue
 					if not legend.has(ch) or not PALETTE.has(legend[ch]):
 						push_error("frame %d (%d,%d): '%s' not in legend/palette" % [i, x, top + y, ch])

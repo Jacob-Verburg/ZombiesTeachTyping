@@ -13,7 +13,8 @@ const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const FRAME: int = 32
 const VIEWPORT: Vector2i = Vector2i(640, 360)
 const DETAIL_SCALE: int = 3
-## Style sheet: idle/wave at the 8 fps floor, walk at 10 fps (suits the 24 px/s amble).
+## Style sheet: idle/wave at the 8 fps floor, walk at 10 fps (suits the 24 px/s amble). Names are keys,
+## so the party-hat zombie's idle (Story 3.3) is "party_idle".
 const IDLE_FPS: float = 8.0
 const WALK_FPS: float = 10.0
 const WAVE_FPS: float = 8.0
@@ -21,6 +22,7 @@ const ANIMATIONS: Array[Dictionary] = [
 	{"name": "idle", "path": "res://assets/sprites/characters/zombie/zombie_idle.png", "frames": 2, "fps": IDLE_FPS},
 	{"name": "walk", "path": "res://assets/sprites/characters/zombie/zombie_walk.png", "frames": 4, "fps": WALK_FPS},
 	{"name": "wave", "path": "res://assets/sprites/characters/villager/villager_wave.png", "frames": 2, "fps": WAVE_FPS},
+	{"name": "party_idle", "path": "res://assets/sprites/characters/party_zombie/party_zombie_idle.png", "frames": 2, "fps": IDLE_FPS},
 ]
 ## [name, background, text color]; palette colors only (DESIGN.md -> Colors).
 const BACKGROUNDS: Array[Array] = [

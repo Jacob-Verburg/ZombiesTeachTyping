@@ -15,26 +15,33 @@ extends LevelBase
 ## Brain blocks (Story 3.2, FR32/FR33): targets come in groups of brain_block_every, one brain block per
 ## group (ZombieRunGroups). Typing a block's letter adds brains_per_block to the run total, emits
 ## brains_earned_changed (the HUD counter), rolls the Brainsss voice line, hops the zombie and bonks the
-## block, all in the same call. Other targets are generic until villagers arrive (3.3).
+## block, all in the same call.
+##
+## Villagers (Story 3.3, FR34): the other slots of each group. Typing a villager's letter hugs it (0
+## brains, no signal, no roll) and starts the zombie's hug; the villager poofs and leaves a party-hat
+## zombie on its own timer. Any correct key cuts a running hug (the zombie's tween only, never the
+## villager's sequence). The hug moves Body on x and the hop on y, so they never fight: a villager key
+## during a hop lets the hop finish, and a block key during a hug cuts the hug and hops.
 ##
 ## Randomness, three uses kept apart (LevelBase rule: children of the run RNG):
 ## - letters: the LetterBagSource's child RNG, seeded first (unchanged from 3.1, so a seed keeps its
 ##   letters);
 ## - layout: the dealer's child RNG, seeded second, so the blocks never depend on the voice rolls;
 ## - the run RNG itself: only the Brainsss roll, exactly one randf() per collected brain whether or not
-##   audio is unlocked or muted. AudioManager alone decides the 8 s voice spacing.
+##   audio is unlocked or muted. AudioManager alone decides the 8 s voice spacing. Villagers draw nothing
+##   from any RNG, so it still has exactly one consumer.
 ## A seed therefore replays the same letters and the same blocks (Story 2.10).
 ##
 ## Logic leads, visuals chase: on_char_accepted() updates the index, queue and brains synchronously and
-## only then starts or cuts the hop and retargets the single move tween from the zombie's current
-## position. Nothing awaits a tween, so walking or hopping never caps typing speed. Pause freezes it all
+## only then starts or cuts the hug and hop and retargets the single move tween from the zombie's current
+## position. Nothing awaits a tween, so walking, hopping or hugging never caps typing speed. Pause freezes it all
 ## for free (tree pause, node-bound tweens).
 ##
-## Later stories: villagers (3.3), conga line behind the zombie (3.4), end dance and completion bonus
+## Later stories: conga line behind the zombie (3.4, via Villager.poofed), end dance and completion bonus
 ## (3.5), real backdrop and sprites (3.6), groans (3.7).
 
-## Villager slots until Story 3.3 swaps in villager.tscn.
-const TARGET_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_target.tscn")
+## The non-block slots (Story 3.3). The generic zombie_run_target.tscn stays the base and test fixture.
+const VILLAGER_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/villager.tscn")
 const BRAIN_BLOCK_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/brain_block.tscn")
 
 ## Layout values (UX, not GDD tuning numbers). Feet line in playfield px: characters and tags stay
@@ -136,8 +143,12 @@ func on_char_accepted(expected: String, _index: int) -> void:
 	_spawn(_active_index + _cfg.visible_upcoming, upcoming.back())
 	if not _queue.is_empty():
 		_queue[0].set_active(true)
+	# A block key cuts a running hug; a villager key restarts it from the current lean.
 	if done is BrainBlock:
+		_zombie.stop_hug()
 		_zombie.hop(_cfg.hop_time_s, hop_height())
+	elif done is Villager:
+		_zombie.hug(_cfg.hug_time_s)
 	_scoot_to(approach_x(_active_index))
 
 
@@ -218,8 +229,10 @@ func _spawn(slot: int, letter: String) -> void:
 		block.configure(_cfg.brain_block_float_px, _cfg.brains_per_block)
 		target = block
 	else:
-		target = TARGET_SCENE.instantiate() as ZombieRunTarget
-		target.setup(letter, slot)
+		var villager: Villager = VILLAGER_SCENE.instantiate() as Villager
+		villager.setup(letter, slot)
+		villager.configure(_cfg.hug_time_s)
+		target = villager
 	target.position = Vector2(target_x(slot), GROUND_Y)
 	%Targets.add_child(target)
 	_queue.append(target)

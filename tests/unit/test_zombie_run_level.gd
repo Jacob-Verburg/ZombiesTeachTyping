@@ -5,6 +5,9 @@ extends GutTest
 ## through a real TypingSession wired like RunFrame, so the "source already advanced" order is real.
 ## Brain blocks (Story 3.2): groups of 4, brains + signal + Brainsss roll in the same call, the hop and
 ## its cut, and seed determinism of letters and layout. Voice requests go to a recorder, never audio.
+## Villagers (Story 3.3): every non-block slot is a villager; a villager key hugs it (0 brains), the
+## zombie's hug is cut by the next key while the villager's own poof sequence still completes, and the
+## hug (x) and hop (y) never cut each other.
 
 const LevelScene: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_level.tscn")
 const LevelScript := preload("res://scripts/levels/zombie_run/zombie_run_level.gd")
@@ -14,6 +17,8 @@ const VIEW_WIDTH: float = 640.0
 var _level: LevelScript
 var _source: TargetSource
 var _session: TypingSession
+## The run RNG handed to the level (to check who draws from it).
+var _run_rng: RandomNumberGenerator
 ## Voice ids the level requested, in order (the request_voice recorder).
 var _voices: Array[StringName] = []
 ## The level's brain total at each voice request (which brain rolled it).
@@ -36,6 +41,7 @@ func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> LevelScript:
 	add_child_autofree(_level)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = rng_seed
+	_run_rng = rng
 	_source = _level.create_target_source(rng)
 	_session = TypingSession.new(_source, _level.get_level_config())
 	_session.char_accepted.connect(_level.on_char_accepted)
@@ -355,8 +361,8 @@ func _is_block(target: ZombieRunTarget) -> bool:
 	return target is BrainBlock
 
 
-func _is_generic(target: ZombieRunTarget) -> bool:
-	return not target is BrainBlock
+func _is_villager(target: ZombieRunTarget) -> bool:
+	return target is Villager
 
 
 ## True when slot n was a brain block, for the first `keys` keys' worth of slots.
@@ -409,19 +415,19 @@ func test_brain_block_key_pays_in_the_same_call() -> void:
 	assert_eq(_level.get_active_index(), block.get_slot() + 1, "the logic never waits on the hop")
 
 
-func test_generic_key_pays_nothing() -> void:
+func test_villager_key_pays_nothing() -> void:
 	_make(42, func(c: ZombieRunConfig) -> void: c.brainsss_chance = 1.0)
-	_type_until(_is_generic)
+	_type_until(_is_villager)
 	var before: int = _level.get_brains_earned()
 	watch_signals(_level)
 	_key()
 	assert_eq(_level.get_brains_earned(), before)
 	assert_signal_not_emitted(_level, "brains_earned_changed")
-	assert_eq(_voices.size(), before, "no voice request for a generic target")
+	assert_eq(_voices.size(), before, "no voice request for a villager")
 	assert_false(_zombie().is_hopping())
 
 
-func test_hop_finishes_after_a_generic_key() -> void:
+func test_hop_finishes_after_a_villager_key() -> void:
 	_make()
 	_type_until(func(t: ZombieRunTarget) -> bool:
 		return t is BrainBlock and not _level.get_queue()[1] is BrainBlock)
@@ -431,7 +437,8 @@ func test_hop_finishes_after_a_generic_key() -> void:
 	hop.custom_step(_cfg().hop_time_s * 0.4)
 	assert_lt(_body_y(), -31.0, "mid-hop")
 	_key()
-	assert_true(_zombie().is_hopping(), "a generic key does not cut the hop")
+	assert_true(_zombie().is_hopping(), "a villager key does not cut the hop")
+	assert_true(_zombie().is_hugging(), "the villager key starts the hug during the hop")
 	assert_true(hop.is_valid())
 	hop.custom_step(_cfg().hop_time_s)
 	assert_false(_zombie().is_hopping())
@@ -560,3 +567,140 @@ func test_request_voice_defaults_to_the_audio_manager() -> void:
 	assert_true(level.request_voice.is_valid())
 	assert_eq(level.request_voice.get_method(), &"play_voice")
 	assert_eq(level.request_voice.get_object(), AudioManager)
+
+
+# --- villagers (Story 3.3) --------------------------------------------------
+
+func test_bad_hug_config_returns_no_source() -> void:
+	assert_null(_make_with_bad_config(func(c: ZombieRunConfig) -> void: c.hug_time_s = 0.0))
+	assert_push_error("hug_time_s")
+
+
+func test_every_non_block_target_is_a_villager() -> void:
+	_make()
+	var villager_script: Script = load("res://scripts/levels/zombie_run/villager.gd")
+	var seen: int = 0
+	for i: int in 200:
+		for target: ZombieRunTarget in _level.get_queue():
+			if target is BrainBlock:
+				continue
+			assert_eq(target.get_script(), villager_script, "slot %d is a villager" % target.get_slot())
+			seen += 1
+		_key()
+		_finish_scoot()
+		_level._process(0.016)
+	assert_gt(seen, 400, "villagers checked")
+	for target: Node in _level.get_node("%Targets").get_children():
+		assert_true(target is BrainBlock or target is Villager, "no plain ZombieRunTarget is spawned")
+
+
+func test_villager_key_hugs_in_the_same_call() -> void:
+	_make(42, func(c: ZombieRunConfig) -> void: c.brainsss_chance = 1.0)
+	_type_until(_is_villager)
+	var villager: Villager = _level.get_queue()[0] as Villager
+	var before: int = _level.get_brains_earned()
+	var voices: int = _voices.size()
+	watch_signals(_level)
+	_key()
+	assert_true(_zombie().is_hugging(), "the hug starts in the same call")
+	assert_eq(villager.get_state(), Villager.State.HUGGED)
+	assert_eq(_level.get_brains_earned(), before)
+	assert_signal_not_emitted(_level, "brains_earned_changed")
+	assert_eq(_voices.size(), voices, "no voice request")
+	assert_true(_level.get_move_tween().is_running(), "the scoot still starts")
+	assert_eq(_level.get_active_index(), villager.get_slot() + 1, "the logic never waits on the hug")
+
+
+func test_villager_after_villager_cuts_and_restarts_the_hug() -> void:
+	_make()
+	_type_until(func(t: ZombieRunTarget) -> bool:
+		return t is Villager and _level.get_queue()[1] is Villager)
+	var first_villager: Villager = _level.get_queue()[0] as Villager
+	_key()
+	var first: Tween = _zombie().get_hug_tween()
+	first.custom_step(_cfg().hug_time_s * 0.25)
+	_key()
+	var second: Tween = _zombie().get_hug_tween()
+	assert_ne(second, first)
+	assert_false(first.is_valid(), "only one hug tween")
+	assert_true(second.is_valid())
+	assert_true(_zombie().is_hugging())
+	assert_true(first_villager.get_sequence_tween().is_valid(), "the first villager's sequence keeps going")
+	assert_eq(first_villager.get_state(), Villager.State.HUGGED)
+
+
+func test_block_key_cuts_the_hug_and_hops() -> void:
+	_make()
+	_type_until(func(t: ZombieRunTarget) -> bool:
+		return t is Villager and _level.get_queue()[1] is BrainBlock)
+	_key()
+	_zombie().get_hug_tween().custom_step(_cfg().hug_time_s * 0.25)
+	_key()
+	assert_false(_zombie().is_hugging(), "a block key cuts the hug")
+	assert_eq((_level.get_node("%Zombie/Body") as Node2D).position.x, -16.0, "Body back at rest x")
+	assert_true(_zombie().is_hopping(), "and starts the hop")
+
+
+func test_effects_complete_after_a_cut() -> void:
+	_make()
+	_type_until(_is_villager)
+	var villager: Villager = _level.get_queue()[0] as Villager
+	watch_signals(villager)
+	_key()
+	_key()
+	assert_eq(villager.get_state(), Villager.State.HUGGED, "the cut never touches the villager")
+	villager.get_sequence_tween().custom_step(_cfg().hug_time_s + 0.01)
+	assert_eq(villager.get_state(), Villager.State.POOFED)
+	var poof: Poof = null
+	for child: Node in villager.get_children():
+		if child is Poof:
+			poof = child as Poof
+	assert_not_null(poof)
+	poof.get_tween().custom_step(Poof.FRAMES / Poof.FPS + 0.01)
+	assert_true(villager.is_party_zombie_shown(), "a party-hat zombie stands where the villager was")
+	assert_signal_emit_count(villager, "poofed", 1)
+
+
+func test_burst_every_villager_still_poofs() -> void:
+	_make()
+	var villagers: Array[Villager] = []
+	for i: int in 12:
+		var target: ZombieRunTarget = _level.get_queue()[0]
+		if target is Villager:
+			villagers.append(target as Villager)
+		_key()
+	assert_eq(villagers.size(), 9, "12 keys = 3 groups of 3 villagers")
+	for villager: Villager in villagers:
+		villager.get_sequence_tween().custom_step(_cfg().hug_time_s + 0.01)
+		for child: Node in villager.get_children():
+			if child is Poof:
+				(child as Poof).get_tween().custom_step(1.0)
+		assert_true(villager.is_party_zombie_shown(), "slot %d" % villager.get_slot())
+
+
+func test_hug_time_comes_from_the_config() -> void:
+	_make(42, func(c: ZombieRunConfig) -> void: c.hug_time_s = 1.0)
+	_type_until(_is_villager)
+	var villager: Villager = _level.get_queue()[0] as Villager
+	_key()
+	_zombie().get_hug_tween().custom_step(0.9)
+	assert_true(_zombie().is_hugging(), "the zombie hugs for the configured 1.0 s")
+	villager.get_sequence_tween().custom_step(0.9)
+	assert_eq(villager.get_state(), Villager.State.HUGGED, "the villager poofs after the configured 1.0 s")
+	villager.get_sequence_tween().custom_step(0.2)
+	assert_eq(villager.get_state(), Villager.State.POOFED)
+
+
+## The run RNG gives two child seeds (letters, layout) and then one randf() per brain; villagers add none.
+func test_run_rng_has_one_consumer() -> void:
+	_make(42)
+	for i: int in 40:
+		_key()
+	assert_eq(_level.get_brains_earned(), 10)
+	var expected: RandomNumberGenerator = RandomNumberGenerator.new()
+	expected.seed = 42
+	expected.randi()
+	expected.randi()
+	for i: int in 10:
+		expected.randf()
+	assert_eq(_run_rng.state, expected.state, "two child seeds + one roll per brain, nothing else")

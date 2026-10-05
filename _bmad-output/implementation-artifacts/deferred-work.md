@@ -268,7 +268,7 @@
 
 - Release builds strip the queue/session desync `assert` in `ZombieRunLevel.on_char_accepted`; add a `Log.error` (and optionally resync). Only reachable via another bug.
 - `ZombieRunLevel.on_run_ending` returns 0.0 without stopping movement or setting an `_ended` flag, so a key accepted in the ending frame still spawns and scoots. Revisit with the Story 3.5 outro.
-- `ZombieRunTarget.HALF_WIDTH` is a hand-kept copy of the tag width in the .tscn, and `resolve()` crashes if called before `add_child`. Unreachable today; revisit when 3.2/3.3 replace the box. *State after 3.2:* the brain block keeps the 24 px tag as its widest part (block 16 px, pop 10 px; `test_brain_block.gd` checks both against `HALF_WIDTH`). It is still a hand copy, so 3.3's villager must stay within it or update it.
+- `ZombieRunTarget.HALF_WIDTH` is a hand-kept copy of the tag width in the .tscn, and `resolve()` crashes if called before `add_child`. Unreachable today; revisit when 3.2/3.3 replace the box. *State after 3.2:* the brain block keeps the 24 px tag as its widest part (block 16 px, pop 10 px; `test_brain_block.gd` checks both against `HALF_WIDTH`). It is still a hand copy, so 3.3's villager must stay within it or update it. *State after 3.3:* the 24 px width rule still holds: villager sprite about 16 px opaque, poof at most 24 px, party-hat zombie 16 px; `test_villager.gd` and `test_poof.gd` check the tag and the poof against `HALF_WIDTH`.
 - `_resolved` is uncapped if `_process` stops running; normal play holds about 6.
 - No direct test of the main menu button routing to `zombie_run` (AC2); Story 4.2 replaces the menu.
 - Optional ground tick marks (Task 4.11) not added; scroll cue comes from the targets only. Story 3.6 art.
@@ -283,5 +283,21 @@
 
 ## Deferred from: code review of story-3-2 (2026-10-05)
 
-- The run RNG has exactly one consumer (the Brainsss roll in `ZombieRunLevel.on_char_accepted`). Any later story that draws from `_rng` shifts every later roll and breaks seed replay; give new consumers their own child RNG. Revisit in 3.3.
+- The run RNG has exactly one consumer (the Brainsss roll in `ZombieRunLevel.on_char_accepted`). Any later story that draws from `_rng` shifts every later roll and breaks seed replay; give new consumers their own child RNG. Revisit in 3.3. *3.3:* villagers draw nothing; still one consumer, now pinned by `test_run_rng_has_one_consumer`.
 - `test_brainsss_rate_and_determinism` uses a loose 60..140 band over 2000 keys, so a chance off by about 30% still passes. Determinism is covered by a separate check; tighten if the chance gets tuned.
+
+## Deferred from: dev of story-3-3 (2026-10-05)
+
+- The hug is a placeholder 3 px lean of `Body` on x and the poof is a code-drawn 4-frame cloud (`poof.gd`), until Story 3.6's hug (3f) and poof (4f) frames.
+- The party-hat zombie is an idle-only prototype (`party_zombie_idle.png`, 2f at 8 fps); Story 3.6 adds the walk (4f).
+- No hug-poof SFX (GDD audio list "hug-poof"): Story 5.1, unless 3.7 takes it.
+- Conga hand-off for 3.4: `Villager.poofed(party_zombie)` is the seam that adds a zombie to the line, but 3.4 must count conga members logically at resolve time (a villager resolved = +1), not on `poofed`. At high speed a villager can scroll off and be freed before its poof ends (0.4 s hug + 0.33 s poof vs. about 1 s to scroll off at 5 keys/s), so `poofed` may never fire for it.
+- `Villager._set_state()` asserts on a backward move. The assert logs a `SCRIPT ERROR` in the test output (3 lines from `test_villager.gd`, consumed with `assert_engine_error`), so the suite's error count is no longer 0 by design.
+
+## Deferred from: code review of story-3.3 (2026-10-05)
+
+- `hug_time_s` is validated only as > 0 (no upper bound, INF accepted); a very small value gives no visible lean.
+- `Villager.configure()` is optional; an unconfigured villager has `_hug_time_s` 0.0 and poofs on the next frame.
+- The hidden `PartyZombie` in every villager autoplays idle and logs a warning per villager if its frames are missing.
+- `PlayerZombie` caches Body rest x/y once in `_ready`; stale if anything later repositions Body.
+- `test_zombie_run_level.gd` tests hard-code layout-dependent counts (10 brains after 40 keys, 9 villagers in 12 keys) and call private `_process`.

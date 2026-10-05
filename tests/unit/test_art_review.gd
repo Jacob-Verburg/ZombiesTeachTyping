@@ -45,7 +45,7 @@ func test_build_frames_slices_walk_sheet() -> void:
 func test_scene_builds_animations_within_limits() -> void:
 	var sut: ArtReviewScript = _make()
 	var animations: Dictionary[String, SpriteFrames] = sut.get_animations()
-	assert_eq_deep(animations.keys(), ["idle", "walk", "wave"])
+	assert_eq_deep(animations.keys(), ["idle", "walk", "wave", "party_idle"])
 	for spec: Dictionary in ArtReviewScript.ANIMATIONS:
 		var first: AtlasTexture = animations[spec["name"]].get_frame_texture(spec["name"], 0) as AtlasTexture
 		assert_not_null(first.atlas, "%s sheet texture loaded" % spec["name"])
