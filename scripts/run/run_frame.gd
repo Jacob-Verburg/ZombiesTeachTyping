@@ -11,6 +11,7 @@ extends Control
 ## config's completion_bonus as the RunResult's bonus (Story 3.5); Quit to Menu never does.
 ## Debug hooks (Story 2.10): the overlay reads the plain getters, pins a replay seed in the debug_seed
 ## static and ends a run with debug_end_run(); both are gated by the is_debug_build seam.
+## Ambience (the groans, Story 3.7) is on exactly while RUNNING, switched through the set_ambience seam.
 ## Everything in the typing path is synchronous: nothing in it waits or defers a call.
 ## A level config with duration_s <= 0 means "no timer": the level must end the run with end_requested.
 
@@ -45,6 +46,9 @@ var player_data: PlayerDataScript
 ## Test seam: is_debug_build.call() -> bool. Defaults to OS.is_debug_build in _ready; tests assign
 ## a false one before add_child for the release case. Gates debug_seed and debug_end_run.
 var is_debug_build: Callable
+## Test seam: called as set_ambience.call(on). Defaults (in _ready) to AudioManager.start_ambience() /
+## stop_ambience(); tests assign a recorder before add_child so the live AudioManager never groans.
+var set_ambience: Callable
 
 var _state: RunState = RunState.WAITING_FIRST_KEY
 var _clock: RunClock = RunClock.new()
@@ -82,6 +86,12 @@ func _ready() -> void:
 		player_data = PlayerData
 	if not is_debug_build.is_valid():
 		is_debug_build = func() -> bool: return OS.is_debug_build()
+	if not set_ambience.is_valid():
+		set_ambience = func(on: bool) -> void:
+			if on:
+				AudioManager.start_ambience()
+			else:
+				AudioManager.stop_ambience()
 	var payload: Dictionary = Router.take_payload()
 	var error: String = _start_level(payload)
 	if error != "":
@@ -90,6 +100,9 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	WebPlatform.capture_keys = false
+	# A frame freed mid-run (scene swap, tests) must not leave the groans on. Quit already went via PAUSED.
+	if _state == RunState.RUNNING and set_ambience.is_valid():
+		set_ambience.call(false)
 	# The autoload outlives the run: drop its connections explicitly.
 	if WebPlatform.focus_lost.is_connected(_on_web_platform_focus_lost):
 		WebPlatform.focus_lost.disconnect(_on_web_platform_focus_lost)
@@ -290,8 +303,12 @@ func _set_state(new_state: RunState) -> void:
 	# The tree is unpaused only when a countdown ends (into RUNNING or WAITING_FIRST_KEY).
 	if from_state == RunState.COUNTDOWN and (new_state == RunState.RUNNING or new_state == RunState.WAITING_FIRST_KEY):
 		pause_tree.call(false)
+	# Groans only while RUNNING: every way out of it (pause, timer, F6, end_requested) passes here.
+	if from_state == RunState.RUNNING:
+		set_ambience.call(false)
 	match new_state:
 		RunState.RUNNING:
+			set_ambience.call(true)
 			# start() only counts the first time; resume() continues after a pause. Back in
 			# WAITING_FIRST_KEY (paused before the first key) the clock is not started.
 			_clock.start()

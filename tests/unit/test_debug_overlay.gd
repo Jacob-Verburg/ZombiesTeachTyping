@@ -77,6 +77,7 @@ func _start_frame(payload: Dictionary = {"level_id": &"test_level", "seed": 42})
 	frame.process_mode = Node.PROCESS_MODE_DISABLED
 	frame.navigate = func(screen: int, data: Dictionary) -> void: _nav.append([screen, data])
 	frame.pause_tree = func(_paused: bool) -> void: pass
+	frame.set_ambience = func(_on: bool) -> void: pass
 	frame.player_data = _player
 	add_child_autofree(frame)
 	_frame = frame

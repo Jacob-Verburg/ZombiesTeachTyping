@@ -9,8 +9,13 @@ extends Node
 ## least library.voice_min_gap_s apart across every voice id (FR48: 8 s). Like the throttle, the gap counts
 ## from the last voice that actually played; locked, unknown and dropped calls never stamp it. Callers decide
 ## the chance (Zombie Run's 20% Brainsss roll), only this script decides the spacing.
-## Later: start_ambience()/stop_ambience() and groans muted within 2 s of a voice line (3.7, reads
-## _last_voice_msec), and the music crossfade (5.1). Audio rules live only here.
+## Ambience (Story 3.7): between start_ambience() and stop_ambience() one groan, picked from
+## library.groan_ids with ambience_rng (never the run RNG or the global one, never the same id twice in a
+## row), plays every library.groan_min..max_interval_s. A groan that comes due within groan_voice_mute_s of
+## the last voice line that played is skipped, not delayed; a groan never stamps the voice time. RunFrame
+## owns on/off (on exactly while RUNNING): this node is PROCESS_MODE_ALWAYS, so a tree pause does not stop
+## the groan clock, and RunFrame stops ambience on pause instead.
+## Later: the music crossfade (5.1). Audio rules live only here.
 
 const LIBRARY: AudioLibrary = preload("res://data/audio/audio_library.tres")
 const SFX_POOL_SIZE: int = 8
@@ -21,6 +26,9 @@ const SFX_BUS: StringName = &"SFX"
 var library: AudioLibrary = LIBRARY
 ## Test seam: the clock the throttle reads, in milliseconds. Tests assign a fake.
 var now_msec: Callable = Time.get_ticks_msec
+## Test seam: the RNG for groan gaps and picks (created and randomized in _init). Tests reseed it before
+## start_ambience(). Never the run RNG (seed replays) nor the global one.
+var ambience_rng: RandomNumberGenerator
 
 var _unlocked: bool = false
 var _sfx_players: Array[AudioStreamPlayer] = []
@@ -34,12 +42,19 @@ var _last_played_msec: Dictionary[StringName, int] = {}
 var _last_voice_msec: int = -1
 ## The pool player carrying the latest voice line; SFX stealing skips it while it plays.
 var _voice_player: AudioStreamPlayer = null
+var _ambience_on: bool = false
+## now_msec() when the next groan is due, or -1 while ambience is off.
+var _next_groan_msec: int = -1
+## The groan that played last; the next pick excludes it.
+var _last_groan_id: StringName = &""
 
 
 func _init() -> void:
 	# Router pauses the tree during every fade; sound must keep going through it.
 	# The players inherit this mode.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	ambience_rng = RandomNumberGenerator.new()
+	ambience_rng.randomize()
 
 
 func _ready() -> void:
@@ -53,6 +68,10 @@ func _ready() -> void:
 	_music_player.name = "Music"
 	_music_player.bus = MUSIC_BUS
 	add_child(_music_player)
+
+
+func _process(_delta: float) -> void:
+	_update_ambience()
 
 
 ## Opens the audio gate. Call it synchronously from a user input callback (browser gesture rule).
@@ -135,6 +154,87 @@ func _pick_sfx_player() -> AudioStreamPlayer:
 		stolen = _sfx_players[_next_steal]
 		_next_steal = (_next_steal + 1) % SFX_POOL_SIZE
 	return stolen
+
+
+## Starts the groans (RunFrame: on entering RUNNING). Already on: nothing changes (no reschedule).
+## A broken library setup warns once here and leaves ambience off, so it never groans every frame.
+## Works while locked: the schedule runs and due groans are dropped until unlock().
+func start_ambience() -> void:
+	if _ambience_on:
+		return
+	var problem: String = _ambience_problem()
+	if problem != "":
+		Log.warn(&"audio", "ambience off: %s" % problem)
+		return
+	_ambience_on = true
+	_next_groan_msec = now_msec.call() + _random_groan_gap_msec()
+
+
+## Stops the groans (RunFrame: on leaving RUNNING). A groan already playing finishes (it is short).
+func stop_ambience() -> void:
+	_ambience_on = false
+	_next_groan_msec = -1
+
+
+func is_ambience_on() -> bool:
+	return _ambience_on
+
+
+## Why the library can't drive ambience, or "" when it can.
+func _ambience_problem() -> String:
+	if library == null:
+		return "no library"
+	if library.groan_ids.is_empty():
+		return "no groan ids"
+	if roundi(library.groan_min_interval_s * 1000.0) < 1 or library.groan_max_interval_s < library.groan_min_interval_s:
+		return "bad groan interval"
+	for id: StringName in library.groan_ids:
+		var cue: AudioCue = library.get_cue(id)
+		if cue == null or cue.stream == null:
+			return "groan %s has no playable cue" % id
+	return ""
+
+
+## The per-frame ambience step. Returns the player of the groan that played, or null.
+## Every due tick reschedules first, played or not, so a skipped groan never retries every frame.
+func _update_ambience() -> AudioStreamPlayer:
+	if not _ambience_on:
+		return null
+	if library == null or library.groan_ids.is_empty():
+		stop_ambience()
+		return null
+	var now: int = now_msec.call()
+	if now < _next_groan_msec:
+		return null
+	_next_groan_msec = now + _random_groan_gap_msec()
+	if not _unlocked:
+		return null
+	if _last_voice_msec != -1 and now - _last_voice_msec < roundi(library.groan_voice_mute_s * 1000.0):
+		return null
+	var id: StringName = _pick_groan_id()
+	var cue: AudioCue = _get_playable_cue(id)
+	if cue == null:
+		return null
+	var player: AudioStreamPlayer = _play_on_pool(cue)
+	_last_groan_id = id
+	return player
+
+
+## A random groan id, never the one that played last (with 2+ ids).
+func _pick_groan_id() -> StringName:
+	var ids: Array[StringName] = library.groan_ids
+	if ids.size() == 1:
+		return ids[0]
+	var candidates: Array[StringName] = ids.filter(func(id: StringName) -> bool: return id != _last_groan_id)
+	if candidates.is_empty():
+		return ids[0]
+	return candidates[ambience_rng.randi_range(0, candidates.size() - 1)]
+
+
+## A fresh gap in [groan_min_interval_s, groan_max_interval_s], in milliseconds.
+func _random_groan_gap_msec() -> int:
+	return ambience_rng.randi_range(
+			roundi(library.groan_min_interval_s * 1000.0), roundi(library.groan_max_interval_s * 1000.0))
 
 
 ## Starts a music loop. The same id already playing (or pending) is not restarted.

@@ -6,6 +6,10 @@
 [ext_resource type="AudioStream" uid="uid://bkgistubxp8xy" path="res://assets/audio/music/mus_menu.wav" id="4_menu"]
 [ext_resource type="AudioStream" uid="uid://djxlkyxtpet1y" path="res://assets/audio/sfx/sfx_wrong_key.wav" id="5_wrong_key"]
 [ext_resource type="AudioStream" uid="uid://bs4qig4xtolfv" path="res://assets/audio/voice/vo_brainsss_01.wav" id="6_brainsss"]
+[ext_resource type="AudioStream" uid="uid://ds88pipbkvg2f" path="res://assets/audio/sfx/sfx_groan_01.wav" id="7_groan_01"]
+[ext_resource type="AudioStream" uid="uid://d3u86185b5bd7" path="res://assets/audio/sfx/sfx_groan_02.wav" id="8_groan_02"]
+[ext_resource type="AudioStream" uid="uid://dthmw4obr7a" path="res://assets/audio/sfx/sfx_groan_03.wav" id="9_groan_03"]
+[ext_resource type="AudioStream" uid="uid://d3pe2ppnlb7oe" path="res://assets/audio/sfx/sfx_groan_04.wav" id="10_groan_04"]
 
 [sub_resource type="Resource" id="Resource_click"]
 script = ExtResource("2_cue")
@@ -32,7 +36,35 @@ id = &"vo_brainsss"
 stream = ExtResource("6_brainsss")
 volume_db = -6.0
 
+[sub_resource type="Resource" id="Resource_groan_01"]
+script = ExtResource("2_cue")
+id = &"sfx_groan_01"
+stream = ExtResource("7_groan_01")
+volume_db = -8.0
+
+[sub_resource type="Resource" id="Resource_groan_02"]
+script = ExtResource("2_cue")
+id = &"sfx_groan_02"
+stream = ExtResource("8_groan_02")
+volume_db = -8.0
+
+[sub_resource type="Resource" id="Resource_groan_03"]
+script = ExtResource("2_cue")
+id = &"sfx_groan_03"
+stream = ExtResource("9_groan_03")
+volume_db = -8.0
+
+[sub_resource type="Resource" id="Resource_groan_04"]
+script = ExtResource("2_cue")
+id = &"sfx_groan_04"
+stream = ExtResource("10_groan_04")
+volume_db = -8.0
+
 [resource]
 script = ExtResource("1_lib")
-cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss")])
+cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04")])
 voice_min_gap_s = 8.0
+groan_ids = Array[StringName]([&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04"])
+groan_min_interval_s = 3.0
+groan_max_interval_s = 8.0
+groan_voice_mute_s = 2.0

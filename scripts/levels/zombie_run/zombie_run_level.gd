@@ -55,8 +55,6 @@ extends LevelBase
 ## parallax layers from the camera x; _set_zombie_x() calls its scroll_to() in the same call that moves
 ## the world, so the backdrop, the world and the zombie never drift apart (the ground layer moves exactly
 ## with the world). It draws nothing from any RNG.
-##
-## Later stories: groans (3.7).
 
 ## The non-block slots (Story 3.3). The generic zombie_run_target.tscn stays the base and test fixture.
 const VILLAGER_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/villager.tscn")

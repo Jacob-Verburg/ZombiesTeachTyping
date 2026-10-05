@@ -338,7 +338,7 @@
 ## Deferred from: dev of story-3-6 (2026-10-05)
 
 - Party-zombie dance sheet: decided **no** (not in the GDD sprite list). Dancing followers keep idle plus the code bounce and flip.
-- No groans or SFX for the new animations: Story 3.7 (groans) and 5.1 (audio pass).
+- No groans or SFX for the new animations: ~~Story 3.7 (groans)~~ Done in 3.7: ambience groans every 3-8 s while RUNNING. SFX for the new animations stay 5.1 (audio pass).
 - Hat anchors on the new frames (the crown moves on some frames: hop crouch 2 px down, hop land, hug release and dance frame 4 1 px down, hug squeeze 1 px right): Story 4.3 sets per-frame anchors. `%HatSlot` still sits at the idle crown.
 - HUD, pause panel, report card and menu art stay placeholder: Story 5.0.
 - Readability changes made during the 1x check (not in the story text): the far hills are `chalk-dim` with a `zombie-green` crest instead of solid `zombie-green` (the zombie's and party zombies' skin sat on their own colour), and the pumpkin moved to a short post in front of the fence at x 120 (on a full fence post it sat behind the zombie's head at run start and read as a pumpkin hat, which clashes with the 4.3 hats).
@@ -351,3 +351,17 @@
 - No hysteresis on the conga follower walk/idle threshold (`WALK_SPEED_MIN_PX_S` 4 px/s); possible flicker at easing transitions.
 - Backdrop ground `roundf(camera_x)` vs the renderer snap at exact .5 values is unverified; `snap_2d_transforms_to_pixel` is on, no tie test.
 - Art-review pages use the static `ANIMATIONS` list even if a sheet fails to load; debug tool only.
+
+## Deferred from: dev of story-3-7 (2026-10-05)
+
+- Real groan recordings and the mix (groans sit at -8 dB under the Brainsss line at -6 dB for now): Story 5.1. The 4 `sfx_groan_0N.wav` files are generated placeholders.
+- A groan already playing is not cut when the run pauses or ends (by design: it is under 1 s, and a cut would sound like a glitch). `stop_ambience()` only stops new groans.
+- Ambience runs in every level that uses `RunFrame` (Horde Rush and Pitchfork Panic get groans for free). If a level should have none, add a `LevelConfig` flag that `RunFrame` checks before `set_ambience.call(true)`.
+- The 2 s mute is one-directional, as FR48 asks: a groan is skipped within 2 s after a voice line, but a voice line right after a groan still plays.
+- `_last_groan_id` survives `stop_ambience()`, so the first groan after a resume never repeats the last one before the pause. Intended; noted because a reseeded `ambience_rng` alone does not reproduce the same picks.
+- Web check (6.2) was partial: the Browser pane was hidden, so `requestAnimationFrame` was throttled and the countdown stalled at 3. Title, menu, Zombie Run start, the first key and pause logged no errors or warnings. The by-ear check is Smuck's.
+
+## Deferred from: code review of story-3-7-zombie-groans-and-voice-spacing (2026-10-05)
+
+- No test of the live pause/countdown flow with the real `AudioManager`; only recorder-seam tests cover groans stopping on pause.
+- `test_default_ambience_seam_drives_the_audio_manager` leaks the frame if an assert fails before `free()`; use `autofree`.

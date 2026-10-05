@@ -8,6 +8,13 @@ const CLICK_PATH: String = "res://assets/audio/sfx/sfx_ui_click.wav"
 const MUSIC_PATH: String = "res://assets/audio/music/mus_menu.wav"
 const WRONG_KEY_PATH: String = "res://assets/audio/sfx/sfx_wrong_key.wav"
 const VOICE_PATH: String = "res://assets/audio/voice/vo_brainsss_01.wav"
+## Ambience groans (Story 3.7), one per _groan_samples() variant.
+const GROAN_PATHS: Array[String] = [
+	"res://assets/audio/sfx/sfx_groan_01.wav",
+	"res://assets/audio/sfx/sfx_groan_02.wav",
+	"res://assets/audio/sfx/sfx_groan_03.wav",
+	"res://assets/audio/sfx/sfx_groan_04.wav",
+]
 
 ## C, Am, F, G: one 8-note arpeggio per chord (MIDI note numbers).
 const ARPEGGIOS: Array[Array] = [
@@ -25,6 +32,10 @@ const WRONG_KEY_PEAK: float = 0.35
 const VOICE_PEAK: float = 0.35
 ## Fixed seed for the "sss" noise, so re-running the tool rewrites every file byte-for-byte.
 const VOICE_NOISE_SEED: int = 3202
+## Goofy, not scary (NFR10): low and soft, a bit under the Brainsss line.
+const GROAN_PEAK: float = 0.3
+## Groan lengths in seconds, one per variant.
+const GROAN_SECONDS: Array[float] = [0.8, 0.7, 0.65, 0.85]
 
 
 func _init() -> void:
@@ -36,6 +47,10 @@ func _init() -> void:
 		_save(_music_samples(), MUSIC_PATH),
 		_save(_wrong_key_samples(), WRONG_KEY_PATH),
 		_save(_voice_samples(), VOICE_PATH),
+		_save(_groan_samples(0), GROAN_PATHS[0]),
+		_save(_groan_samples(1), GROAN_PATHS[1]),
+		_save(_groan_samples(2), GROAN_PATHS[2]),
+		_save(_groan_samples(3), GROAN_PATHS[3]),
 	]
 	# Non-zero exit on any failure, so a bad path or cwd doesn't look like success.
 	quit(0 if errors.all(func(err: Error) -> bool: return err == OK) else 1)
@@ -98,6 +113,42 @@ func _voice_samples() -> PackedFloat32Array:
 	samples[0] = 0.0
 	samples[samples.size() - 1] = 0.0
 	return samples
+
+
+## A low triangle groan with a slow wobble; each variant has its own pitch contour:
+## 0 "uuuh" falls, 1 "hrrm" stays flat with a fast 9 Hz wobble, 2 "mmh?" rises at the end,
+## 3 "braa" rises quickly then falls. No noise, so no RNG. Starts and ends at zero amplitude.
+func _groan_samples(variant: int) -> PackedFloat32Array:
+	var count: int = int(GROAN_SECONDS[variant] * MIX_RATE)
+	var samples: PackedFloat32Array = PackedFloat32Array()
+	samples.resize(count)
+	var phase: float = 0.0
+	for i: int in count:
+		var t: float = float(i) / MIX_RATE
+		var u: float = float(i) / count
+		var freq: float = _groan_pitch(variant, u)
+		var wobble_hz: float = 9.0 if variant == 1 else 4.0
+		var wobble_depth: float = 0.08 if variant == 1 else 0.03
+		freq *= 1.0 + wobble_depth * sin(TAU * wobble_hz * t)
+		phase += freq / MIX_RATE
+		var triangle: float = 4.0 * absf(phase - floorf(phase + 0.5)) - 1.0
+		var attack: float = minf(1.0, t / 0.04)
+		var release: float = minf(1.0, float(count - 1 - i) / (0.12 * MIX_RATE))
+		samples[i] = triangle * attack * release * GROAN_PEAK
+	return samples
+
+
+## The groan's pitch in Hz at u (0..1 through the sound).
+func _groan_pitch(variant: int, u: float) -> float:
+	match variant:
+		0:
+			return lerpf(150.0, 90.0, u)
+		1:
+			return 110.0
+		2:
+			return 100.0 if u < 0.6 else lerpf(100.0, 150.0, (u - 0.6) / 0.4)
+		_:
+			return lerpf(100.0, 145.0, u / 0.25) if u < 0.25 else lerpf(145.0, 100.0, (u - 0.25) / 0.75)
 
 
 ## Soft triangle-wave arpeggios. Every note starts and ends at zero amplitude,

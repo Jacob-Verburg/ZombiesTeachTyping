@@ -103,3 +103,32 @@ func test_real_library_brainsss_voice() -> void:
 
 func test_voice_gap_default_is_neutral() -> void:
 	assert_eq(AudioLibrary.new().voice_min_gap_s, 0.0)
+
+
+func test_real_library_groans() -> void:
+	var library: AudioLibrary = load(LIBRARY_PATH) as AudioLibrary
+	assert_not_null(library)
+	if library == null:
+		return
+	assert_eq(library.groan_ids.size(), 4, "4 groans (FR50)")
+	var seen: Dictionary[StringName, bool] = {}
+	for id: StringName in library.groan_ids:
+		assert_false(seen.has(id), "duplicate groan id %s" % id)
+		seen[id] = true
+		var cue: AudioCue = library.get_cue(id)
+		assert_not_null(cue, "groan cue %s (Story 3.7)" % id)
+		if cue == null:
+			continue
+		assert_not_null(cue.stream, id)
+		assert_eq(cue.min_interval_s, 0.0, "ambience spaces the groans, not a per-cue throttle: %s" % id)
+	assert_eq(library.groan_min_interval_s, 3.0, "groans every 3-8 s (FR48)")
+	assert_eq(library.groan_max_interval_s, 8.0, "groans every 3-8 s (FR48)")
+	assert_eq(library.groan_voice_mute_s, 2.0, "no groan within 2 s of a voice line (FR48)")
+
+
+func test_groan_defaults_are_neutral() -> void:
+	var library: AudioLibrary = AudioLibrary.new()
+	assert_eq(library.groan_ids.size(), 0)
+	assert_eq(library.groan_min_interval_s, 0.0)
+	assert_eq(library.groan_max_interval_s, 0.0)
+	assert_eq(library.groan_voice_mute_s, 0.0)

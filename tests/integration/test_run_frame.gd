@@ -1,6 +1,7 @@
 extends GutTest
 ## Run frame (Story 2.4): state machine, clock, level calls, run end, seed replay, failed loads.
 ## Debug hooks (Story 2.10): last_seed, pinned debug_seed, debug_end_run, the is_debug_build seam.
+## Ambience (Story 3.7): set_ambience is a recorder too; only one test uses the live AudioManager.
 ## Instances are disabled (no engine _process, no real keys): tests call _process(delta) and
 ## %TypingInput.handle_key(event) by hand. navigate is a recorder, so the live Router never swaps
 ## GUT's scene.
@@ -12,17 +13,22 @@ const MenuScene: PackedScene = preload("res://scenes/screens/main_menu.tscn")
 var _nav: Array = []
 ## pause_tree recorder (Story 2.7): GUT's own tree is never paused.
 var _paused: Array[bool] = []
+## set_ambience recorder (Story 3.7): the live AudioManager never groans for a test frame.
+var _ambience: Array[bool] = []
 
 
 func before_each() -> void:
 	assert_false(WebPlatform.capture_keys, "a run frame left capture_keys on")
 	_nav = []
 	_paused = []
+	_ambience = []
 
 
 func after_each() -> void:
 	Router.take_payload()
 	_restore_audio()
+	assert_false(AudioManager.is_ambience_on(), "a run frame left ambience on")
+	AudioManager.stop_ambience()
 	_reset_input_handled()
 	RunFrameScript.debug_seed = -1
 	RunFrameScript.debug_seed_level = &""
@@ -47,6 +53,7 @@ func _make(
 	frame.process_mode = Node.PROCESS_MODE_DISABLED
 	frame.navigate = _record
 	frame.pause_tree = func(paused: bool) -> void: _paused.append(paused)
+	frame.set_ambience = func(on: bool) -> void: _ambience.append(on)
 	# A finished run writes through record_run: never to the real save. Tests may pass their own.
 	frame.player_data = data if data != null else _fake_player_data()
 	if registry != null:
@@ -1242,3 +1249,128 @@ func test_zombie_run_play_again_starts_fresh() -> void:
 	assert_eq(level.get_conga_line().get_drawn_count(), 0)
 	assert_false(level.get_conga_line().is_badge_shown())
 	assert_false(level.is_dancing())
+
+
+# --- ambience on/off (Story 3.7, FR48) ---------------------------------------
+# set_ambience is a recorder in every test but the last; _ambience lists its calls in order.
+
+func test_ambience_starts_on_the_first_correct_key() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	frame._process(2.0)
+	assert_eq(_ambience, [] as Array[bool], "no groans while waiting for the first key")
+	_type_wrong(frame)
+	_type_wrong(frame)
+	assert_eq(_ambience, [] as Array[bool], "wrong keys do not start the run")
+	_type_correct(frame)
+	assert_eq(_ambience, [true] as Array[bool])
+	_type_correct(frame)
+	_type_wrong(frame)
+	assert_eq(_ambience, [true] as Array[bool], "keys never touch ambience once running")
+
+
+func test_ambience_stops_on_every_pause_and_restarts_after_the_countdown() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._unhandled_input(_esc())
+	assert_eq(_ambience, [true, false] as Array[bool], "Esc")
+	_resume(frame)
+	assert_eq(_ambience, [true, false] as Array[bool], "no groans during the countdown")
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(_ambience, [true, false] as Array[bool], "focus loss during the countdown adds nothing")
+	_resume(frame)
+	_run_countdown(frame)
+	assert_eq(_ambience, [true, false, true] as Array[bool], "back on at RUNNING")
+	frame.get_node("%Hud").emit_signal("pause_pressed")
+	assert_eq(_ambience, [true, false, true, false] as Array[bool], "pause button")
+	_resume(frame)
+	_run_countdown(frame)
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(_ambience, [true, false, true, false, true, false] as Array[bool], "focus loss")
+
+
+func test_pause_while_waiting_never_starts_ambience() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	frame._unhandled_input(_esc())
+	_resume(frame)
+	_run_countdown(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.WAITING_FIRST_KEY)
+	assert_eq(_ambience, [] as Array[bool])
+	_type_correct(frame)
+	assert_eq(_ambience, [true] as Array[bool])
+
+
+func test_ambience_stops_at_the_timer_end_and_stays_off() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._process(200.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_eq(_ambience, [true, false] as Array[bool])
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_ambience, [true, false] as Array[bool], "no groans during the outro or after")
+
+
+func test_ambience_stops_on_debug_end_run() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	assert_true(frame.debug_end_run())
+	frame._process(1.0)
+	assert_eq(_ambience, [true, false] as Array[bool])
+
+
+func test_ambience_stops_on_end_requested() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame.get_level().end_requested.emit(GameConstants.END_REASON_CAUGHT)
+	frame._process(1.0)
+	assert_eq(_ambience, [true, false] as Array[bool])
+
+
+func test_quit_from_pause_adds_no_ambience_call() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._unhandled_input(_esc())
+	_panel(frame).emit_signal("quit_chosen")
+	assert_eq(_ambience, [true, false] as Array[bool])
+	remove_child(frame)
+	frame.free()
+	assert_eq(_ambience, [true, false] as Array[bool], "already off: freeing adds nothing")
+
+
+func test_frame_freed_while_running_stops_ambience() -> void:
+	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 42})
+	add_child(frame)
+	_type_correct(frame)
+	remove_child(frame)
+	frame.free()
+	assert_eq(_ambience, [true, false] as Array[bool])
+
+
+func test_frame_freed_while_waiting_adds_no_ambience_call() -> void:
+	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 42})
+	add_child(frame)
+	remove_child(frame)
+	frame.free()
+	assert_eq(_ambience, [] as Array[bool])
+
+
+func test_zombie_run_ambience_on_and_off() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"zombie_run", "seed": 42})
+	_type_correct(frame)
+	assert_eq(_ambience, [true] as Array[bool])
+	frame._process(121.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_eq(_ambience, [true, false] as Array[bool], "no groans during the dance")
+
+
+func test_default_ambience_seam_drives_the_audio_manager() -> void:
+	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 42})
+	frame.set_ambience = Callable()
+	add_child(frame)
+	assert_false(AudioManager.is_ambience_on(), "waiting: off")
+	_type_correct(frame)
+	assert_true(AudioManager.is_ambience_on(), "RUNNING: on")
+	frame._unhandled_input(_esc())
+	assert_false(AudioManager.is_ambience_on(), "paused: off")
+	_resume(frame)
+	_run_countdown(frame)
+	assert_true(AudioManager.is_ambience_on(), "resumed: on")
+	remove_child(frame)
+	frame.free()
+	assert_false(AudioManager.is_ambience_on(), "freed: off")
+	assert_eq(_ambience, [] as Array[bool], "the recorder was not used")
