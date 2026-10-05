@@ -268,7 +268,20 @@
 
 - Release builds strip the queue/session desync `assert` in `ZombieRunLevel.on_char_accepted`; add a `Log.error` (and optionally resync). Only reachable via another bug.
 - `ZombieRunLevel.on_run_ending` returns 0.0 without stopping movement or setting an `_ended` flag, so a key accepted in the ending frame still spawns and scoots. Revisit with the Story 3.5 outro.
-- `ZombieRunTarget.HALF_WIDTH` is a hand-kept copy of the tag width in the .tscn, and `resolve()` crashes if called before `add_child`. Unreachable today; revisit when 3.2/3.3 replace the box.
+- `ZombieRunTarget.HALF_WIDTH` is a hand-kept copy of the tag width in the .tscn, and `resolve()` crashes if called before `add_child`. Unreachable today; revisit when 3.2/3.3 replace the box. *State after 3.2:* the brain block keeps the 24 px tag as its widest part (block 16 px, pop 10 px; `test_brain_block.gd` checks both against `HALF_WIDTH`). It is still a hand copy, so 3.3's villager must stay within it or update it.
 - `_resolved` is uncapped if `_process` stops running; normal play holds about 6.
 - No direct test of the main menu button routing to `zombie_run` (AC2); Story 4.2 replaces the menu.
 - Optional ground tick marks (Task 4.11) not added; scroll cue comes from the targets only. Story 3.6 art.
+
+## Deferred from: dev of story-3-2 (2026-10-05)
+
+- Placeholder brain block, bonk, brain pop and hop arc (code-drawn, palette only) until the Story 3.6 art. The hop/scoot timing feel (the zombie bonks while scooting under the block, 16 px arc over 0.35 s) is untuned; 3.6 adds the 3 hop frames and the "don't clobber hop" animation guard.
+- No bonk or brain-collect SFX yet (GDD audio list "bonk"): Story 5.1, unless 3.7 takes it.
+- The HUD counter just changes number; the "tick up with a small pop" (EXPERIENCE Game Feel) is 5.0/5.1, per the `BrainCounter` header.
+- `vo_brainsss_01.wav` is a generated placeholder (CC0) until the real voice lines in Story 5.1. In the web manual check the Brainsss line could not be confirmed by ear from the browser pane; the roll and spacing are covered by tests only.
+- The hop was not visible in the browser-pane screenshots (0.35 s, 16 px, and the pause panel covers the zombie). It is verified by the unit tests (arc, cut, restart, one tween); worth a look by eye in the 3.6 art pass.
+
+## Deferred from: code review of story-3-2 (2026-10-05)
+
+- The run RNG has exactly one consumer (the Brainsss roll in `ZombieRunLevel.on_char_accepted`). Any later story that draws from `_rng` shifts every later roll and breaks seed replay; give new consumers their own child RNG. Revisit in 3.3.
+- `test_brainsss_rate_and_determinism` uses a loose 60..140 band over 2000 keys, so a chance off by about 30% still passes. Determinism is covered by a separate check; tighten if the chance gets tuned.

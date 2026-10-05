@@ -85,3 +85,21 @@ func test_real_library_wrong_key_tick() -> void:
 	assert_eq(tick.min_interval_s, 0.15, "at most one tick per 150 ms (FR2)")
 	var click: AudioCue = library.get_cue(&"sfx_ui_click")
 	assert_eq(click.min_interval_s, 0.0, "other cues stay unthrottled")
+
+
+func test_real_library_brainsss_voice() -> void:
+	var library: AudioLibrary = load(LIBRARY_PATH) as AudioLibrary
+	assert_not_null(library)
+	if library == null:
+		return
+	var voice: AudioCue = library.get_cue(&"vo_brainsss")
+	assert_not_null(voice, "vo_brainsss cue (Story 3.2)")
+	if voice == null:
+		return
+	assert_not_null(voice.stream)
+	assert_eq(voice.min_interval_s, 0.0, "the voice gap is library-wide, not per cue")
+	assert_eq(library.voice_min_gap_s, 8.0, "voice lines at least 8 s apart (FR48)")
+
+
+func test_voice_gap_default_is_neutral() -> void:
+	assert_eq(AudioLibrary.new().voice_min_gap_s, 0.0)

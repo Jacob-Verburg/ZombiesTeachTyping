@@ -1025,5 +1025,38 @@ func test_zombie_run_keys_and_timer_end() -> void:
 	assert_eq(result.keys_typed, 4)
 	assert_eq(result.errors, 1)
 	assert_eq(result.duration_s, 120.0)
-	assert_eq(result.brains, 0, "brain blocks arrive in Story 3.2")
+	assert_eq(result.brains, 1, "one brain block per group of 4: Story 3.2")
 	assert_eq(result.bonus_brains, 0, "completion bonus wiring is Story 3.5")
+
+
+# --- Zombie Run brains (Story 3.2) -------------------------------------------
+
+func test_zombie_run_brain_counter_follows_brain_blocks() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"zombie_run", "seed": 42})
+	var level: ZombieRunLevelScript = frame.get_level() as ZombieRunLevelScript
+	assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), "0")
+	for i: int in 8:
+		if level.get_brains_earned() == 1:
+			break
+		_type_correct(frame)
+		if level.get_brains_earned() == 1:
+			assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), "1", "the HUD shows it in the same call")
+	assert_eq(level.get_brains_earned(), 1)
+	for i: int in 4:
+		_type_correct(frame)
+	assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), str(level.get_brains_earned()))
+
+
+func test_zombie_run_quit_commits_the_level_brains() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var before: int = data.get_brains()
+	var frame: RunFrameScript = _make({"level_id": &"zombie_run", "seed": 42}, null, data)
+	add_child_autofree(frame)
+	for i: int in 12:
+		_type_correct(frame)
+	var earned: int = frame.get_level().get_brains_earned()
+	assert_eq(earned, 3, "12 keys = 3 groups = 3 brains")
+	frame._unhandled_input(_esc())
+	_panel(frame).emit_signal("quit_chosen")
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+	assert_eq(data.get_brains(), before + earned, "brains kept, no bonus (FR13)")

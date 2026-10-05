@@ -7,6 +7,7 @@ const MIX_RATE: int = 22050
 const CLICK_PATH: String = "res://assets/audio/sfx/sfx_ui_click.wav"
 const MUSIC_PATH: String = "res://assets/audio/music/mus_menu.wav"
 const WRONG_KEY_PATH: String = "res://assets/audio/sfx/sfx_wrong_key.wav"
+const VOICE_PATH: String = "res://assets/audio/voice/vo_brainsss_01.wav"
 
 ## C, Am, F, G: one 8-note arpeggio per chord (MIDI note numbers).
 const ARPEGGIOS: Array[Array] = [
@@ -20,15 +21,21 @@ const MUSIC_PEAK: float = 0.25 # about -12 dBFS
 const CLICK_PEAK: float = 0.5
 ## Quieter than the click: the wrong-key tick is a soft "bonk" (FR2, EXPERIENCE.md Game Feel).
 const WRONG_KEY_PEAK: float = 0.35
+## A low, goofy "brain-sss" (Story 3.2) until the real voice lines in Story 5.1.
+const VOICE_PEAK: float = 0.35
+## Fixed seed for the "sss" noise, so re-running the tool rewrites every file byte-for-byte.
+const VOICE_NOISE_SEED: int = 3202
 
 
 func _init() -> void:
 	var errors: Array[Error] = [
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://assets/audio/sfx")),
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://assets/audio/music")),
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://assets/audio/voice")),
 		_save(_click_samples(), CLICK_PATH),
 		_save(_music_samples(), MUSIC_PATH),
 		_save(_wrong_key_samples(), WRONG_KEY_PATH),
+		_save(_voice_samples(), VOICE_PATH),
 	]
 	# Non-zero exit on any failure, so a bad path or cwd doesn't look like success.
 	quit(0 if errors.all(func(err: Error) -> bool: return err == OK) else 1)
@@ -58,6 +65,38 @@ func _wrong_key_samples() -> PackedFloat32Array:
 		var attack: float = minf(1.0, t / 0.003)
 		var envelope: float = attack * exp(-t * 45.0) * (1.0 - float(i) / count)
 		samples[i] = triangle * envelope * WRONG_KEY_PEAK
+	return samples
+
+
+## About 0.7 s: a 0.3 s triangle "brain" gliding 200 -> 130 Hz with a small wobble, then 0.4 s of
+## soft decaying noise for the "sss". Starts and ends at zero amplitude.
+func _voice_samples() -> PackedFloat32Array:
+	var glide_count: int = int(0.3 * MIX_RATE)
+	var hiss_count: int = int(0.4 * MIX_RATE)
+	var samples: PackedFloat32Array = PackedFloat32Array()
+	var phase: float = 0.0
+	for i: int in glide_count:
+		var t: float = float(i) / MIX_RATE
+		var u: float = float(i) / glide_count
+		var freq: float = lerpf(200.0, 130.0, u) * (1.0 + 0.04 * sin(TAU * 7.0 * t))
+		phase += freq / MIX_RATE
+		var triangle: float = 4.0 * absf(phase - floorf(phase + 0.5)) - 1.0
+		var attack: float = minf(1.0, t / 0.01)
+		var release: float = minf(1.0, float(glide_count - 1 - i) / (0.02 * MIX_RATE))
+		samples.append(triangle * attack * release * VOICE_PEAK)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = VOICE_NOISE_SEED
+	var smoothed: float = 0.0
+	for i: int in hiss_count:
+		var t: float = float(i) / MIX_RATE
+		# Lightly smoothed noise: fades in from zero after the glide, then decays back to zero.
+		var noise: float = rng.randf_range(-1.0, 1.0)
+		smoothed = lerpf(smoothed, noise, 0.6)
+		var envelope: float = exp(-t * 6.0) * (1.0 - float(i) / hiss_count)
+		var fade_in: float = minf(1.0, t / 0.02)
+		samples.append(smoothed * envelope * fade_in * VOICE_PEAK * 0.6)
+	samples[0] = 0.0
+	samples[samples.size() - 1] = 0.0
 	return samples
 
 

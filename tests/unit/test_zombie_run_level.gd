@@ -3,6 +3,8 @@ extends GutTest
 ## off-screen freeing, wrong-key no-op and seed determinism. The level is disabled (nothing advances
 ## by itself): tests call _process(delta) and step the move tween with custom_step(delta). Keys go
 ## through a real TypingSession wired like RunFrame, so the "source already advanced" order is real.
+## Brain blocks (Story 3.2): groups of 4, brains + signal + Brainsss roll in the same call, the hop and
+## its cut, and seed determinism of letters and layout. Voice requests go to a recorder, never audio.
 
 const LevelScene: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_level.tscn")
 const LevelScript := preload("res://scripts/levels/zombie_run/zombie_run_level.gd")
@@ -12,11 +14,25 @@ const VIEW_WIDTH: float = 640.0
 var _level: LevelScript
 var _source: TargetSource
 var _session: TypingSession
+## Voice ids the level requested, in order (the request_voice recorder).
+var _voices: Array[StringName] = []
+## The level's brain total at each voice request (which brain rolled it).
+var _voice_brains: Array[int] = []
 
 
-func _make(rng_seed: int = 42) -> LevelScript:
+## `tweak` (optional) changes a duplicate of the shipped config before the level is added.
+func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> LevelScript:
 	_level = LevelScene.instantiate() as LevelScript
 	_level.process_mode = Node.PROCESS_MODE_DISABLED
+	_voices = []
+	_voice_brains = []
+	_level.request_voice = func(id: StringName) -> void:
+		_voices.append(id)
+		_voice_brains.append(_level.get_brains_earned())
+	if tweak.is_valid():
+		var config: ZombieRunConfig = (_level.config as ZombieRunConfig).duplicate() as ZombieRunConfig
+		tweak.call(config)
+		_level.config = config
 	add_child_autofree(_level)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = rng_seed
@@ -299,7 +315,7 @@ func test_same_seed_same_targets() -> void:
 
 
 func test_no_tuning_literals_in_level_scripts() -> void:
-	var regex: RegEx = RegEx.create_from_string("\\b(120|0\\.15|26)\\b")
+	var regex: RegEx = RegEx.create_from_string("\\b(120|0\\.15|26|0\\.35|48|0\\.2)\\b")
 	var files: PackedStringArray = DirAccess.get_files_at(LEVEL_SCRIPT_DIR)
 	var checked: int = 0
 	for file: String in files:
@@ -313,3 +329,234 @@ func test_no_tuning_literals_in_level_scripts() -> void:
 			var code: String = line.get_slice("#", 0)
 			assert_null(regex.search(code), "%s:%d has a tuning literal: %s" % [file, line_number, line.strip_edges()])
 	assert_gt(checked, 0, "level scripts found")
+
+
+# --- brain blocks (Story 3.2) ----------------------------------------------
+
+func _zombie() -> PlayerZombie:
+	return _level.get_node("%Zombie") as PlayerZombie
+
+
+func _body_y() -> float:
+	return (_level.get_node("%Zombie/Body") as Node2D).position.y
+
+
+## Types correct keys (finishing each scoot) until the active target satisfies `want`.
+func _type_until(want: Callable, limit: int = 50) -> void:
+	for i: int in limit:
+		if want.call(_level.get_queue()[0]):
+			return
+		_key()
+		_finish_scoot()
+	fail_test("no matching target within %d keys" % limit)
+
+
+func _is_block(target: ZombieRunTarget) -> bool:
+	return target is BrainBlock
+
+
+func _is_generic(target: ZombieRunTarget) -> bool:
+	return not target is BrainBlock
+
+
+## True when slot n was a brain block, for the first `keys` keys' worth of slots.
+func _block_slots(rng_seed: int, keys: int) -> Array[bool]:
+	_make(rng_seed)
+	var out: Array[bool] = []
+	for target: ZombieRunTarget in _level.get_queue():
+		out.append(target is BrainBlock)
+	for i: int in keys:
+		_key()
+		_finish_scoot()
+		var newest: ZombieRunTarget = _level.get_queue().back()
+		assert_eq(newest.get_slot(), out.size(), "slots spawn in order")
+		out.append(newest is BrainBlock)
+	return out
+
+
+func test_one_brain_block_per_group_of_4() -> void:
+	for rng_seed: int in [42, 7]:
+		var slots: Array[bool] = _block_slots(rng_seed, 200)
+		var groups: int = slots.size() / 4
+		assert_gt(groups, 49)
+		for k: int in groups:
+			assert_eq(slots.slice(k * 4, k * 4 + 4).count(true), 1, "seed %d slots %d..%d" % [rng_seed, k * 4, k * 4 + 3])
+
+
+func test_brain_block_floats_on_its_slot() -> void:
+	_make()
+	_type_until(_is_block)
+	var block: BrainBlock = _level.get_queue()[0] as BrainBlock
+	assert_eq(block.position, Vector2(_level.target_x(block.get_slot()), LevelScript.GROUND_Y))
+	assert_eq((block.get_node("%Lift") as Node2D).position.y, -_cfg().brain_block_float_px)
+	assert_true(block.is_active())
+	assert_true((block.get_node("%Arrow") as CanvasItem).visible)
+
+
+func test_brain_block_key_pays_in_the_same_call() -> void:
+	_make()
+	_type_until(_is_block)
+	var block: BrainBlock = _level.get_queue()[0] as BrainBlock
+	var before: int = _level.get_brains_earned()
+	watch_signals(_level)
+	_key()
+	assert_eq(_level.get_brains_earned(), before + 1, "+brains_per_block")
+	assert_signal_emit_count(_level, "brains_earned_changed", 1)
+	assert_eq(get_signal_parameters(_level, "brains_earned_changed"), [before + 1])
+	assert_true(_zombie().is_hopping(), "the hop starts in the same call")
+	assert_true(block.is_used(), "the block switched to its used look")
+	assert_true(_level.get_move_tween().is_running(), "the scoot still starts")
+	assert_eq(_level.get_active_index(), block.get_slot() + 1, "the logic never waits on the hop")
+
+
+func test_generic_key_pays_nothing() -> void:
+	_make(42, func(c: ZombieRunConfig) -> void: c.brainsss_chance = 1.0)
+	_type_until(_is_generic)
+	var before: int = _level.get_brains_earned()
+	watch_signals(_level)
+	_key()
+	assert_eq(_level.get_brains_earned(), before)
+	assert_signal_not_emitted(_level, "brains_earned_changed")
+	assert_eq(_voices.size(), before, "no voice request for a generic target")
+	assert_false(_zombie().is_hopping())
+
+
+func test_hop_finishes_after_a_generic_key() -> void:
+	_make()
+	_type_until(func(t: ZombieRunTarget) -> bool:
+		return t is BrainBlock and not _level.get_queue()[1] is BrainBlock)
+	_key()
+	assert_true(_zombie().is_hopping())
+	var hop: Tween = _zombie().get_hop_tween()
+	hop.custom_step(_cfg().hop_time_s * 0.4)
+	assert_lt(_body_y(), -31.0, "mid-hop")
+	_key()
+	assert_true(_zombie().is_hopping(), "a generic key does not cut the hop")
+	assert_true(hop.is_valid())
+	hop.custom_step(_cfg().hop_time_s)
+	assert_false(_zombie().is_hopping())
+	assert_eq(_body_y(), -31.0, "back at rest height")
+
+
+func test_block_after_block_restarts_the_hop() -> void:
+	_make(42, func(c: ZombieRunConfig) -> void: c.brain_block_every = 1)
+	for target: ZombieRunTarget in _level.get_queue():
+		assert_true(target is BrainBlock, "groups of 1: every slot is a block")
+	_key()
+	var first: Tween = _zombie().get_hop_tween()
+	first.custom_step(_cfg().hop_time_s * 0.4)
+	_key()
+	var second: Tween = _zombie().get_hop_tween()
+	assert_ne(second, first)
+	assert_false(first.is_valid(), "only one hop tween")
+	assert_true(_zombie().is_hopping())
+	second.custom_step(_cfg().hop_time_s * 0.5)
+	assert_almost_eq(_body_y(), -31.0 - _level.hop_height(), 0.01, "a full new arc")
+	assert_eq(_level.get_brains_earned(), 2)
+
+
+func test_hop_height_reaches_the_block() -> void:
+	_make()
+	assert_eq(_level.hop_height(), _cfg().brain_block_float_px - PlayerZombie.SIZE_PX)
+	assert_eq(_level.hop_height(), 16.0)
+
+
+func test_brainsss_at_chance_one_every_brain() -> void:
+	_make(42, func(c: ZombieRunConfig) -> void: c.brainsss_chance = 1.0)
+	for i: int in 40:
+		_key()
+	assert_eq(_level.get_brains_earned(), 10, "40 keys = 10 groups")
+	assert_eq(_voices.size(), 10)
+	for id: StringName in _voices:
+		assert_eq(id, &"vo_brainsss")
+
+
+func test_brainsss_at_chance_zero_never() -> void:
+	_make(42, func(c: ZombieRunConfig) -> void: c.brainsss_chance = 0.0)
+	for i: int in 40:
+		_key()
+	assert_eq(_level.get_brains_earned(), 10)
+	assert_eq(_voices.size(), 0)
+
+
+func _voice_brains_for(rng_seed: int, keys: int) -> Array[int]:
+	_make(rng_seed)
+	for i: int in keys:
+		_key()
+	return _voice_brains.duplicate()
+
+
+func test_brainsss_rate_and_determinism() -> void:
+	var first: Array[int] = _voice_brains_for(11, 2000)
+	assert_eq(_level.get_brains_earned(), 500)
+	assert_between(first.size(), 60, 140, "about 20%% of 500 brains (%d)" % first.size())
+	assert_eq(_voice_brains_for(11, 2000), first, "same seed, same rolls")
+
+
+func _letters_and_blocks(rng_seed: int, count: int) -> Array:
+	_make(rng_seed)
+	var out: Array = []
+	for i: int in count:
+		var target: ZombieRunTarget = _level.get_queue()[0]
+		out.append([target.get_letter(), target is BrainBlock])
+		_key()
+	return out
+
+
+func test_same_seed_same_letters_and_blocks() -> void:
+	var first: Array = _letters_and_blocks(5, 60)
+	assert_eq(_letters_and_blocks(5, 60), first)
+	assert_ne(_letters_and_blocks(6, 60), first)
+
+
+func test_layout_does_not_depend_on_the_voice_rolls() -> void:
+	var quiet: Array = []
+	_make(9, func(c: ZombieRunConfig) -> void: c.brainsss_chance = 0.0)
+	for i: int in 60:
+		quiet.append(_level.get_queue()[0] is BrainBlock)
+		_key()
+	_make(9, func(c: ZombieRunConfig) -> void: c.brainsss_chance = 1.0)
+	for i: int in 60:
+		assert_eq(_level.get_queue()[0] is BrainBlock, quiet[i], "slot %d" % i)
+		_key()
+
+
+func test_letters_match_the_story_3_1_letter_bag() -> void:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 42
+	var child: RandomNumberGenerator = RandomNumberGenerator.new()
+	child.seed = rng.randi()
+	var bag: LetterBagSource = LetterBagSource.new(child, _make().get_level_config().letter_pool)
+	for i: int in 60:
+		assert_eq(_level.get_queue()[0].get_letter(), bag.current(), "letter %d" % i)
+		_key()
+		bag.advance()
+
+
+func _make_with_bad_config(tweak: Callable) -> TargetSource:
+	var level: LevelScript = LevelScene.instantiate() as LevelScript
+	level.process_mode = Node.PROCESS_MODE_DISABLED
+	level.request_voice = func(_id: StringName) -> void: pass
+	var config: ZombieRunConfig = (level.config as ZombieRunConfig).duplicate() as ZombieRunConfig
+	tweak.call(config)
+	level.config = config
+	add_child_autofree(level)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 1
+	return level.create_target_source(rng)
+
+
+func test_bad_brain_config_returns_no_source() -> void:
+	assert_null(_make_with_bad_config(func(c: ZombieRunConfig) -> void: c.brain_block_every = 0))
+	assert_push_error("brain_block_every")
+	assert_null(_make_with_bad_config(func(c: ZombieRunConfig) -> void: c.brainsss_chance = 1.5))
+	assert_push_error("brainsss_chance")
+
+
+func test_request_voice_defaults_to_the_audio_manager() -> void:
+	var level: LevelScript = LevelScene.instantiate() as LevelScript
+	level.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child_autofree(level)
+	assert_true(level.request_voice.is_valid())
+	assert_eq(level.request_voice.get_method(), &"play_voice")
+	assert_eq(level.request_voice.get_object(), AudioManager)

@@ -34,6 +34,14 @@ func test_zombie_run_values() -> void:
 	assert_eq(config.brain_block_every, 4)
 
 
+func test_brain_block_values() -> void:
+	var config: ZombieRunConfig = _config()
+	assert_eq(config.brain_block_float_px, 48.0)
+	assert_eq(config.hop_time_s, 0.35)
+	assert_eq(config.brains_per_block, 1)
+	assert_eq(config.brainsss_chance, 0.2)
+
+
 func test_letter_pool_is_a_to_z() -> void:
 	var pool: Array[String] = _config().letter_pool
 	assert_eq(pool.size(), 26)
@@ -68,8 +76,26 @@ func test_each_bad_number_is_rejected() -> void:
 		"amble_speed_px_s": 0.0,
 		"scoot_time_s": 0.0,
 		"letter_pool": ["a"] as Array[String],
+		"brain_block_every": 0,
+		"hop_time_s": 0.0,
+		"brains_per_block": 0,
+		"brainsss_chance": 1.5,
+		"brain_block_float_px": 32.0,
 	}
 	for field: String in fields:
 		var config: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
 		config.set(field, fields[field])
 		assert_ne(config.validate(), "", "%s should be rejected" % field)
+
+
+func test_brainsss_chance_bounds() -> void:
+	for chance: float in [0.0, 1.0]:
+		var config: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
+		config.brainsss_chance = chance
+		assert_eq(config.validate(), "", "%.1f is allowed" % chance)
+	var low: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
+	low.brainsss_chance = -0.1
+	assert_ne(low.validate(), "")
+	var nan: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
+	nan.brainsss_chance = NAN
+	assert_ne(nan.validate(), "", "NaN is rejected")

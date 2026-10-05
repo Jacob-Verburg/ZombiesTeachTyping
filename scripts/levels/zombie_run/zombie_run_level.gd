@@ -12,18 +12,30 @@ extends LevelBase
 ## at exactly ZOMBIE_SCREEN_X every frame (no one-frame camera lag). The amble and the scoot tween both
 ## go through it; never tween the zombie's position directly.
 ##
-## Randomness: the LetterBagSource owns a child RNG seeded from the run RNG (LevelBase rule); the run
-## RNG is kept for the level's own draws (Story 3.2's brain-block shuffle), so a seed always replays
-## the same letters.
+## Brain blocks (Story 3.2, FR32/FR33): targets come in groups of brain_block_every, one brain block per
+## group (ZombieRunGroups). Typing a block's letter adds brains_per_block to the run total, emits
+## brains_earned_changed (the HUD counter), rolls the Brainsss voice line, hops the zombie and bonks the
+## block, all in the same call. Other targets are generic until villagers arrive (3.3).
 ##
-## Logic leads, visuals chase: on_char_accepted() updates the index and queue synchronously and only
-## then retargets the single move tween from the zombie's current position. Nothing awaits a tween,
-## so walking never caps typing speed. Pause freezes it all for free (tree pause, node-bound tween).
+## Randomness, three uses kept apart (LevelBase rule: children of the run RNG):
+## - letters: the LetterBagSource's child RNG, seeded first (unchanged from 3.1, so a seed keeps its
+##   letters);
+## - layout: the dealer's child RNG, seeded second, so the blocks never depend on the voice rolls;
+## - the run RNG itself: only the Brainsss roll, exactly one randf() per collected brain whether or not
+##   audio is unlocked or muted. AudioManager alone decides the 8 s voice spacing.
+## A seed therefore replays the same letters and the same blocks (Story 2.10).
 ##
-## Later stories: brain blocks and brains (3.2), villagers (3.3), conga line behind the zombie (3.4),
-## end dance and completion bonus (3.5), real backdrop and sprites (3.6), groans (3.7).
+## Logic leads, visuals chase: on_char_accepted() updates the index, queue and brains synchronously and
+## only then starts or cuts the hop and retargets the single move tween from the zombie's current
+## position. Nothing awaits a tween, so walking or hopping never caps typing speed. Pause freezes it all
+## for free (tree pause, node-bound tweens).
+##
+## Later stories: villagers (3.3), conga line behind the zombie (3.4), end dance and completion bonus
+## (3.5), real backdrop and sprites (3.6), groans (3.7).
 
+## Villager slots until Story 3.3 swaps in villager.tscn.
 const TARGET_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_target.tscn")
+const BRAIN_BLOCK_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/brain_block.tscn")
 
 ## Layout values (UX, not GDD tuning numbers). Feet line in playfield px: characters and tags stay
 ## above the HUD's Caps Lock hint (y 196-224) and start prompt strip (y 228-252).
@@ -34,10 +46,15 @@ const ZOMBIE_SCREEN_X: float = 224.0
 ## World x of slot 0. The zombie starts one target spacing before slot 0's approach point.
 const FIRST_TARGET_X: float = ZOMBIE_SCREEN_X
 
+## Test seam: how the level asks for a voice line. _ready() points it at AudioManager.play_voice unless
+## a test assigned a recorder before add_child.
+var request_voice: Callable
+
 var _cfg: ZombieRunConfig
-## The run RNG, kept for Story 3.2's level draws. Nothing draws from it yet.
+## The run RNG: used only for the Brainsss roll (one randf() per collected brain).
 var _rng: RandomNumberGenerator
 var _source: LetterBagSource
+var _groups: ZombieRunGroups
 ## Unresolved targets, active first.
 var _queue: Array[ZombieRunTarget] = []
 ## Resolved targets still on screen.
@@ -52,6 +69,8 @@ var _move_tween: Tween
 
 
 func _ready() -> void:
+	if not request_voice.is_valid():
+		request_voice = AudioManager.play_voice
 	_cfg = config as ZombieRunConfig
 	if _cfg == null:
 		assert(false, "ZombieRunLevel needs a ZombieRunConfig")
@@ -79,9 +98,13 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 		Log.error(&"level", "zombie run config invalid: %s" % problem)
 		return null
 	_rng = rng
+	# Letters first, layout second: see the class doc.
 	var child: RandomNumberGenerator = RandomNumberGenerator.new()
 	child.seed = rng.randi()
 	_source = LetterBagSource.new(child, _cfg.letter_pool)
+	var group_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	group_rng.seed = rng.randi()
+	_groups = ZombieRunGroups.new(group_rng, _cfg.brain_block_every)
 	_spawn(0, _source.current())
 	var upcoming: Array[String] = _source.peek(_cfg.visible_upcoming)
 	for i: int in upcoming.size():
@@ -102,12 +125,25 @@ func on_char_accepted(expected: String, _index: int) -> void:
 	var done: ZombieRunTarget = _queue.pop_front()
 	assert(done.get_letter() == expected, "Zombie Run queue out of step with the session")
 	_active_index += 1
-	_brains += done.resolve()
+	var gained: int = done.resolve()
+	if gained > 0:
+		_brains += gained
+		brains_earned_changed.emit(_brains)
+		# Exactly one draw per collected brain, whatever the outcome or the audio state.
+		if _rng.randf() < _cfg.brainsss_chance:
+			request_voice.call(&"vo_brainsss")
 	_resolved.append(done)
 	_spawn(_active_index + _cfg.visible_upcoming, upcoming.back())
 	if not _queue.is_empty():
 		_queue[0].set_active(true)
+	if done is BrainBlock:
+		_zombie.hop(_cfg.hop_time_s, hop_height())
 	_scoot_to(approach_x(_active_index))
+
+
+## The hop lifts the zombie's head to the bottom of a brain block.
+func hop_height() -> float:
+	return maxf(0.0, _cfg.brain_block_float_px - PlayerZombie.SIZE_PX)
 
 
 ## No outro yet: the end dance (2.0 s) arrives with Story 3.5.
@@ -175,8 +211,15 @@ func _scoot_to(goal: float) -> void:
 
 
 func _spawn(slot: int, letter: String) -> void:
-	var target: ZombieRunTarget = TARGET_SCENE.instantiate() as ZombieRunTarget
-	target.setup(letter, slot)
+	var target: ZombieRunTarget
+	if _groups.next() == ZombieRunGroups.Kind.BRAIN_BLOCK:
+		var block: BrainBlock = BRAIN_BLOCK_SCENE.instantiate() as BrainBlock
+		block.setup(letter, slot)
+		block.configure(_cfg.brain_block_float_px, _cfg.brains_per_block)
+		target = block
+	else:
+		target = TARGET_SCENE.instantiate() as ZombieRunTarget
+		target.setup(letter, slot)
 	target.position = Vector2(target_x(slot), GROUND_Y)
 	%Targets.add_child(target)
 	_queue.append(target)

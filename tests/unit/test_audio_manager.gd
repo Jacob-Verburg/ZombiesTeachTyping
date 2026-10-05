@@ -23,7 +23,10 @@ func before_each() -> void:
 		_cue(&"sfx_empty", null, 0.0),
 		_throttled_cue(&"sfx_tick", 0.15),
 		_throttled_cue(&"sfx_tock", 0.15),
+		_cue(&"vo_test", _stream(), -4.0),
+		_cue(&"vo_other", _stream(), -6.0),
 	]
+	library.voice_min_gap_s = 8.0
 	_am = AudioManagerScript.new()
 	_am.library = library
 	add_child_autofree(_am)
@@ -318,3 +321,105 @@ func test_default_clock_is_ticks_msec() -> void:
 	assert_true(fresh.now_msec.is_valid())
 	assert_true(fresh.now_msec.call() >= 0)
 	fresh.free()
+
+
+# --- voice lines (Story 3.2, FR48) -----------------------------------------
+
+func test_voice_gap_8_seconds() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	assert_not_null(_am._try_play_voice(&"vo_test"), "t=0 plays")
+	_now = 7999
+	assert_null(_am._try_play_voice(&"vo_test"), "t=7999 dropped")
+	_now = 8000
+	assert_not_null(_am._try_play_voice(&"vo_test"), "t=8000 plays")
+
+
+func test_dropped_voice_does_not_restart_the_gap() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	assert_not_null(_am._try_play_voice(&"vo_test"))
+	_now = 5000
+	assert_null(_am._try_play_voice(&"vo_test"))
+	assert_eq(_am._last_voice_msec, 0, "the drop did not stamp")
+	_now = 8000
+	assert_not_null(_am._try_play_voice(&"vo_test"), "counted from the play at 0, not the drop at 5000")
+	assert_eq(_am._last_voice_msec, 8000)
+
+
+func test_voice_gap_is_shared_across_ids() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	assert_not_null(_am._try_play_voice(&"vo_test"))
+	_now = 1000
+	assert_null(_am._try_play_voice(&"vo_other"), "any voice line waits for the gap")
+
+
+func test_voice_and_sfx_are_independent() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	assert_not_null(_am._try_play_voice(&"vo_test"))
+	_now = 100
+	assert_not_null(_am._try_play_sfx(&"sfx_test"), "SFX play during the voice gap")
+	assert_not_null(_am._try_play_sfx(&"sfx_tick"), "throttled SFX too")
+	_now = 9000
+	assert_not_null(_am._try_play_sfx(&"sfx_tick"))
+	assert_null(_am._try_play_sfx(&"sfx_tick"), "the tick is throttled")
+	assert_not_null(_am._try_play_voice(&"vo_test"), "a throttled SFX doesn't block voice")
+
+
+func test_locked_voice_does_not_stamp() -> void:
+	_use_fake_clock()
+	assert_null(_am._try_play_voice(&"vo_test"), "locked: dropped")
+	assert_eq(_am._last_voice_msec, -1)
+	_now = 10
+	_am.unlock()
+	assert_not_null(_am._try_play_voice(&"vo_test"), "first call after unlock plays")
+	assert_eq(_am._last_voice_msec, 10)
+
+
+func test_unknown_voice_warns_and_does_not_stamp() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	assert_null(_am._try_play_voice(&"vo_nope"))
+	assert_push_warning("unknown sound vo_nope")
+	assert_eq(_am._last_voice_msec, -1)
+	_now = 10
+	assert_not_null(_am._try_play_voice(&"vo_test"))
+
+
+func test_zero_voice_gap_plays_every_call() -> void:
+	_use_fake_clock()
+	_am.library.voice_min_gap_s = 0.0
+	_am.unlock()
+	for i: int in 5:
+		assert_not_null(_am._try_play_voice(&"vo_test"), "call %d" % i)
+
+
+func test_voice_on_sfx_bus_with_cue_stream_and_volume() -> void:
+	_am.unlock()
+	var player: AudioStreamPlayer = _am._try_play_voice(&"vo_test")
+	assert_not_null(player)
+	if player == null:
+		return
+	assert_same(player.stream, _am.library.get_cue(&"vo_test").stream)
+	assert_eq(player.volume_db, -4.0)
+	assert_eq(player.bus, &"SFX", "the Sound toggle mutes voice too (FR46)")
+	assert_true(player in _players())
+
+
+func test_sfx_pool_exhaustion_never_steals_the_voice_player() -> void:
+	_am.unlock()
+	var voice: AudioStreamPlayer = _am._try_play_voice(&"vo_test")
+	assert_not_null(voice)
+	for i: int in 30:
+		var player: AudioStreamPlayer = _am._try_play_sfx(&"sfx_test") as AudioStreamPlayer
+		if voice.playing:
+			assert_ne(player, voice, "call %d" % i)
+
+
+func test_play_voice_public_entry() -> void:
+	_use_fake_clock()
+	_am.unlock()
+	_am.play_voice(&"vo_test")
+	assert_eq(_am._last_voice_msec, 0)

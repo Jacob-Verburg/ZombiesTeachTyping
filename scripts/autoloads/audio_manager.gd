@@ -5,8 +5,12 @@ extends Node
 ## first key/click callback; music requested before that waits as pending, SFX are dropped.
 ## Per-cue throttle (Story 2.5): a cue with min_interval_s > 0 is dropped while it played less than that
 ## long ago (the wrong-key tick: 150 ms, FR2); the gap counts from the last play, never from a dropped call.
-## Later: 3.2 voice cooldown, 3.7 groans, play_voice() (3.2),
-## start_ambience()/stop_ambience() (3.7) and the music crossfade (5.1). Audio rules live only here.
+## Voice lines (Story 3.2): play_voice() plays a vo_* cue on the SFX bus (the Sound toggle mutes it), at
+## least library.voice_min_gap_s apart across every voice id (FR48: 8 s). Like the throttle, the gap counts
+## from the last voice that actually played; locked, unknown and dropped calls never stamp it. Callers decide
+## the chance (Zombie Run's 20% Brainsss roll), only this script decides the spacing.
+## Later: start_ambience()/stop_ambience() and groans muted within 2 s of a voice line (3.7, reads
+## _last_voice_msec), and the music crossfade (5.1). Audio rules live only here.
 
 const LIBRARY: AudioLibrary = preload("res://data/audio/audio_library.tres")
 const SFX_POOL_SIZE: int = 8
@@ -26,6 +30,10 @@ var _pending_music: StringName = &""
 var _next_steal: int = 0
 ## cue id -> now_msec() of its last actual play (throttled cues only).
 var _last_played_msec: Dictionary[StringName, int] = {}
+## now_msec() of the last voice line that actually played, or -1 before the first one.
+var _last_voice_msec: int = -1
+## The pool player carrying the latest voice line; SFX stealing skips it while it plays.
+var _voice_player: AudioStreamPlayer = null
 
 
 func _init() -> void:
@@ -81,6 +89,34 @@ func _try_play_sfx(id: StringName) -> AudioStreamPlayer:
 		if _last_played_msec.has(id) and now - _last_played_msec[id] < roundi(cue.min_interval_s * 1000.0):
 			return null
 		_last_played_msec[id] = now
+	return _play_on_pool(cue)
+
+
+## Plays a voice line (vo_*) unless another one played less than voice_min_gap_s ago.
+func play_voice(id: StringName) -> void:
+	_try_play_voice(id)
+
+
+## Plays a voice line and returns the pool player used, or null if nothing played.
+## Dropped before unlock() (FR47), for an unknown id (with a warning) and inside the voice gap.
+func _try_play_voice(id: StringName) -> AudioStreamPlayer:
+	if not _unlocked:
+		return null
+	var cue: AudioCue = _get_playable_cue(id)
+	if cue == null:
+		return null
+	var now: int = now_msec.call()
+	var gap_msec: int = roundi(library.voice_min_gap_s * 1000.0) if library != null else 0
+	if _last_voice_msec != -1 and now - _last_voice_msec < gap_msec:
+		return null
+	var player: AudioStreamPlayer = _play_on_pool(cue)
+	_last_voice_msec = now
+	_voice_player = player
+	return player
+
+
+## Plays the cue on a pool player (SFX bus) with the cue's stream and volume.
+func _play_on_pool(cue: AudioCue) -> AudioStreamPlayer:
 	var player: AudioStreamPlayer = _pick_sfx_player()
 	player.stream = cue.stream
 	player.volume_db = cue.volume_db
@@ -95,6 +131,9 @@ func _pick_sfx_player() -> AudioStreamPlayer:
 			return player
 	var stolen: AudioStreamPlayer = _sfx_players[_next_steal]
 	_next_steal = (_next_steal + 1) % SFX_POOL_SIZE
+	if stolen == _voice_player:
+		stolen = _sfx_players[_next_steal]
+		_next_steal = (_next_steal + 1) % SFX_POOL_SIZE
 	return stolen
 
 

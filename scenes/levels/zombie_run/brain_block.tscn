@@ -1,0 +1,83 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/zombie_run/brain_block.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_block"]
+bg_color = Color(0.9490196, 0.6039216, 0.72156864, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tag"]
+bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+
+[node name="BrainBlock" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Visual" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Lift" type="Node2D" parent="Visual"]
+unique_name_in_owner = true
+
+[node name="Block" type="Panel" parent="Visual/Lift"]
+unique_name_in_owner = true
+offset_left = -8.0
+offset_top = -16.0
+offset_right = 8.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_block")
+
+[node name="Band" type="ColorRect" parent="Visual/Lift/Block"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 1.0
+offset_top = 7.0
+offset_right = 15.0
+offset_bottom = 9.0
+mouse_filter = 2
+color = Color(0.7882353, 0.3764706, 0.49803922, 1)
+
+[node name="Tag" type="Panel" parent="Visual/Lift"]
+unique_name_in_owner = true
+offset_left = -12.0
+offset_top = -42.0
+offset_right = 12.0
+offset_bottom = -18.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
+
+[node name="Letter" type="Label" parent="Visual/Lift/Tag"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Arrow" type="Node2D" parent="Visual/Lift"]
+unique_name_in_owner = true
+visible = false
+
+[node name="Fill" type="Polygon2D" parent="Visual/Lift/Arrow"]
+color = Color(1, 0.8235294, 0.24705882, 1)
+polygon = PackedVector2Array(-5, -52, 5, -52, 0, -46)
+
+[node name="Outline" type="Line2D" parent="Visual/Lift/Arrow"]
+points = PackedVector2Array(-5, -52, 5, -52, 0, -46)
+closed = true
+width = 1.0
+default_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
