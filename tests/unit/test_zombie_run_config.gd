@@ -81,6 +81,7 @@ func test_each_bad_number_is_rejected() -> void:
 		"brains_per_block": 0,
 		"brainsss_chance": 1.5,
 		"brain_block_float_px": 32.0,
+		"conga_max_drawn": 0,
 	}
 	for field: String in fields:
 		var config: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
@@ -112,3 +113,19 @@ func test_hug_time_must_be_positive() -> void:
 		var config: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
 		config.hug_time_s = bad
 		assert_ne(config.validate(), "", "hug_time_s %s is rejected" % bad)
+
+
+# --- conga line (Story 3.4) ---------------------------------------------------
+
+func test_conga_max_drawn_value() -> void:
+	assert_eq(_config().conga_max_drawn, 12)
+
+
+func test_conga_max_drawn_must_be_at_least_one() -> void:
+	for bad: int in [0, -1]:
+		var config: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
+		config.conga_max_drawn = bad
+		assert_ne(config.validate(), "", "conga_max_drawn %d is rejected" % bad)
+	var one: ZombieRunConfig = _config().duplicate() as ZombieRunConfig
+	one.conga_max_drawn = 1
+	assert_eq(one.validate(), "")

@@ -32,13 +32,20 @@ extends LevelBase
 ##   from any RNG, so it still has exactly one consumer.
 ## A seed therefore replays the same letters and the same blocks (Story 2.10).
 ##
+## Conga line (Story 3.4, FR35): _conga_count is the logical count, +1 in the same on_char_accepted call
+## that resolves a villager (before any visuals); Story 3.5's dance reads it. %CongaLine is the view: when
+## a villager's poof ends (Villager.poofed), the level hides that villager's party zombie and the line
+## instances its own follower at the same spot, so the line's joined count catches up with the logical
+## count. _free_off_screen() keeps a villager until that hand-off, so every hugged villager joins even at
+## high speed. The cap is ZombieRunConfig.conga_max_drawn (beyond it a ×N badge). Neither count ever
+## goes down, and the line draws nothing from any RNG.
+##
 ## Logic leads, visuals chase: on_char_accepted() updates the index, queue and brains synchronously and
 ## only then starts or cuts the hug and hop and retargets the single move tween from the zombie's current
 ## position. Nothing awaits a tween, so walking, hopping or hugging never caps typing speed. Pause freezes it all
 ## for free (tree pause, node-bound tweens).
 ##
-## Later stories: conga line behind the zombie (3.4, via Villager.poofed), end dance and completion bonus
-## (3.5), real backdrop and sprites (3.6), groans (3.7).
+## Later stories: end dance and completion bonus (3.5), real backdrop and sprites (3.6), groans (3.7).
 
 ## The non-block slots (Story 3.3). The generic zombie_run_target.tscn stays the base and test fixture.
 const VILLAGER_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/villager.tscn")
@@ -47,8 +54,8 @@ const BRAIN_BLOCK_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/b
 ## Layout values (UX, not GDD tuning numbers). Feet line in playfield px: characters and tags stay
 ## above the HUD's Caps Lock hint (y 196-224) and start prompt strip (y 228-252).
 const GROUND_Y: float = 192.0
-## Where the zombie stays on screen; leaves room behind it for the Story 3.4 conga line and keeps the
-## queued targets clear of the pause button. Story 3.4 may retune it.
+## Where the zombie stays on screen; fits the full conga line (conga_max_drawn × CongaLine.SPACING_PX)
+## plus its badge behind the zombie and keeps the queued targets clear of the pause button.
 const ZOMBIE_SCREEN_X: float = 224.0
 ## World x of slot 0. The zombie starts one target spacing before slot 0's approach point.
 const FIRST_TARGET_X: float = ZOMBIE_SCREEN_X
@@ -68,11 +75,14 @@ var _queue: Array[ZombieRunTarget] = []
 var _resolved: Array[ZombieRunTarget] = []
 var _active_index: int = 0
 var _brains: int = 0
+## Logical conga count: villagers resolved this run (Story 3.4). Never goes down.
+var _conga_count: int = 0
 ## The zombie's single move tween; every correct key kills and restarts it.
 var _move_tween: Tween
 
 @onready var _zombie: PlayerZombie = %Zombie
 @onready var _world: Node2D = %World
+@onready var _conga: CongaLine = %CongaLine
 
 
 func _ready() -> void:
@@ -84,6 +94,8 @@ func _ready() -> void:
 		Log.error(&"level", "zombie run level has no ZombieRunConfig")
 		return
 	_zombie.position.y = GROUND_Y
+	_conga.position.y = GROUND_Y
+	_conga.configure(_zombie, _cfg.conga_max_drawn)
 	_set_zombie_x(approach_x(0) - _cfg.target_spacing_px)
 
 
@@ -139,6 +151,8 @@ func on_char_accepted(expected: String, _index: int) -> void:
 		# Exactly one draw per collected brain, whatever the outcome or the audio state.
 		if _rng.randf() < _cfg.brainsss_chance:
 			request_voice.call(&"vo_brainsss")
+	if done is Villager:
+		_conga_count += 1
 	_resolved.append(done)
 	_spawn(_active_index + _cfg.visible_upcoming, upcoming.back())
 	if not _queue.is_empty():
@@ -164,6 +178,15 @@ func on_run_ending(_reason: StringName) -> float:
 
 func get_brains_earned() -> int:
 	return _brains
+
+
+## Villagers resolved this run (the logical conga count; Story 3.5's dance reads it).
+func get_conga_count() -> int:
+	return _conga_count
+
+
+func get_conga_line() -> CongaLine:
+	return _conga
 
 
 func _process(delta: float) -> void:
@@ -232,17 +255,29 @@ func _spawn(slot: int, letter: String) -> void:
 		var villager: Villager = VILLAGER_SCENE.instantiate() as Villager
 		villager.setup(letter, slot)
 		villager.configure(_cfg.hug_time_s)
+		villager.poofed.connect(_on_villager_poofed)
 		target = villager
 	target.position = Vector2(target_x(slot), GROUND_Y)
 	%Targets.add_child(target)
 	_queue.append(target)
 
 
-## Frees resolved targets once they are fully past the left edge. Unresolved ones are never freed.
+## Hands a poofed villager's party zombie to the conga line: the line instances its own follower at the
+## same world spot and the villager's copy hides, so nothing visibly jumps.
+func _on_villager_poofed(party_zombie: PartyZombie) -> void:
+	var x: float = _conga.to_local(party_zombie.global_position).x
+	party_zombie.hide()
+	_conga.join(x)
+
+
+## Frees resolved targets once they are fully past the left edge. Unresolved ones are never freed, nor
+## is a villager whose poof has not handed its party zombie to the conga line yet (a later pass frees it).
 func _free_off_screen() -> void:
 	var camera_x: float = get_camera_x()
 	for i: int in range(_resolved.size() - 1, -1, -1):
 		var target: ZombieRunTarget = _resolved[i]
+		if target is Villager and not (target as Villager).is_party_zombie_shown():
+			continue
 		if target.position.x + ZombieRunTarget.HALF_WIDTH < camera_x:
 			target.queue_free()
 			_resolved.remove_at(i)

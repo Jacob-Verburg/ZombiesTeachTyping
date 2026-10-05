@@ -1,6 +1,7 @@
 extends GutTest
 ## Party-hat zombie (Story 3.3): the hugged villager's replacement, an idle loop from the prototype sheet
-## drawn at 1x with the origin at the feet centre. Story 3.4 makes it walk in the conga line.
+## drawn at 1x with the origin at the feet centre. Story 3.4: face_left() mirrors it in place for the
+## conga line.
 
 const PartyZombieScene: PackedScene = preload("res://scenes/characters/party_zombie.tscn")
 const SHEET_PATH: String = "res://assets/sprites/characters/party_zombie/party_zombie_idle.png"
@@ -55,3 +56,23 @@ func test_missing_sprite_frames_hides_with_a_warning() -> void:
 	assert_false(_body(zombie).visible)
 	zombie.play_idle()
 	pass_test("play_idle without frames does not crash")
+
+
+func test_face_left_flips_in_place() -> void:
+	var zombie: PartyZombie = _party_zombie()
+	var body: AnimatedSprite2D = _body(zombie)
+	assert_false(body.flip_h)
+	zombie.face_left(true)
+	assert_true(body.flip_h)
+	assert_eq(body.position, Vector2(-16, -31), "the feet point stays put")
+	zombie.face_left(false)
+	assert_false(body.flip_h)
+
+
+func test_face_left_without_sprite_frames() -> void:
+	var zombie: PartyZombie = PartyZombieScene.instantiate() as PartyZombie
+	_body(zombie).sprite_frames = null
+	add_child_autofree(zombie)
+	assert_push_warning("party zombie has no sprite frames")
+	zombie.face_left(true)
+	assert_false(_body(zombie).flip_h, "nothing to flip")

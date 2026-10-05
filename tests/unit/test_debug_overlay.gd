@@ -6,6 +6,7 @@ extends GutTest
 ## Story 2.10: run section, F2 seed pin, F6 end run, F7 typing log. Run frames are built like
 ## test_run_frame.gd (disabled, recorder navigate / pause_tree, a PlayerData on the temp save) and
 ## reached through the find_run_frame seam.
+## Story 3.4: the run-worst frame time, driven through the pure _note_run_frame() bookkeeping.
 
 const OverlayScene: PackedScene = preload("res://scenes/debug/debug_overlay.tscn")
 const OverlayScript := preload("res://scripts/debug/debug_overlay.gd")
@@ -423,3 +424,68 @@ func test_fits_above_the_hud_band_with_every_section() -> void:
 	var size: Vector2 = panel.get_combined_minimum_size()
 	assert_lte(panel.offset_top + size.y, 256.0, "bottom above the HUD band")
 	assert_lte(panel.offset_left + size.x, 640.0, "inside the 640 px playfield")
+
+
+# --- run-worst frame time (Story 3.4) ------------------------------------------
+
+func test_run_worst_grows_only_while_running() -> void:
+	var sut: OverlayScript = _make()
+	assert_eq(sut.get_run_worst_ms(), 0.0)
+	sut._note_run_frame(40.0, 7, false)
+	assert_eq(sut.get_run_worst_ms(), 0.0, "WAITING_FIRST_KEY / PAUSED / COUNTDOWN frames do not count")
+	sut._note_run_frame(12.0, 7, true)
+	sut._note_run_frame(20.0, 7, true)
+	sut._note_run_frame(16.0, 7, true)
+	assert_eq(sut.get_run_worst_ms(), 20.0, "the worst so far")
+	sut._note_run_frame(90.0, 7, false)
+	assert_eq(sut.get_run_worst_ms(), 20.0, "a pause hitch is ignored")
+
+
+func test_run_worst_resets_on_a_new_run_frame() -> void:
+	var sut: OverlayScript = _make()
+	sut._note_run_frame(30.0, 7, true)
+	sut._note_run_frame(10.0, 8, true)
+	assert_eq(sut.get_run_worst_ms(), 10.0, "a different run frame starts over")
+
+
+func test_run_worst_ignores_non_running_states_of_a_real_frame() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame()
+	sut._handle_key(KEY_F3)
+	sut._process(0.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.WAITING_FIRST_KEY)
+	assert_eq(sut.get_run_worst_ms(), 0.0, "waiting for the first key does not count")
+	_type_correct(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	OS.delay_msec(5)
+	sut._process(0.0)
+	assert_gt(sut.get_run_worst_ms(), 0.0, "a running frame counts")
+
+
+func test_run_worst_ignores_paused_and_countdown_frames_of_a_real_frame() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame()
+	sut._handle_key(KEY_F3)
+	_type_correct(frame)
+	frame._request_pause()
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	OS.delay_msec(5)
+	sut._process(0.0)
+	assert_eq(sut.get_run_worst_ms(), 0.0, "a paused frame does not count")
+	frame._on_pause_panel_resume_chosen()
+	assert_eq(frame.get_state(), RunFrameScript.RunState.COUNTDOWN)
+	OS.delay_msec(5)
+	sut._process(0.0)
+	assert_eq(sut.get_run_worst_ms(), 0.0, "a countdown frame does not count")
+
+
+func test_run_worst_survives_the_run_and_shows() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame()
+	sut._handle_key(KEY_F3)
+	sut._note_run_frame(25.0, frame.get_instance_id(), true)
+	_frame = null
+	sut._process(0.0)
+	assert_eq(sut.get_run_worst_ms(), 25.0, "kept after the run frame goes away")
+	sut._refresh()
+	assert_string_contains(_text(sut, "StatsLabel"), "Run: 25.0 ms")

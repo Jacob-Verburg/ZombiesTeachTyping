@@ -2,7 +2,9 @@ extends CanvasLayer
 ## Debug overlay (Story 1.8). Debug builds only: the Router instances it only when OS.is_debug_build()
 ## (Boundary 7), so in release none of this exists and F2/F3/F5-F9 do nothing.
 ## F3 toggles it on top of every screen (layer above the Router's fade). Sections: stats (FPS, frame time,
-## the worst frame in the last 10 s), run (Story 2.10, only while a run is on screen: level, state, clock,
+## the worst frame in the last 10 s, and the worst frame of the current run: Story 3.4, NFR1 check; it
+## counts only RUNNING frames seen while the overlay is open, resets when a new run frame appears and
+## keeps its value after the run ends, so it can be read on the report card), run (Story 2.10, only while a run is on screen: level, state, clock,
 ## target + the next UPCOMING_SHOWN, keys / errors / live WPM, seed), save (last write, persistent storage),
 ## tools (replay seed, last run seed, typing log), help.
 ## Keys work only while it is open: F5 +CHEAT_BRAINS through PlayerData; F9 = SaveService.offer_export()
@@ -42,6 +44,9 @@ var find_run_frame: Callable
 var _tracker: FrameTracker = FrameTracker.new()
 var _last_frame_usec: int = 0
 var _confirming: bool = false
+## Worst frame time (ms) of the current run, and which run frame it belongs to (0 = none yet).
+var _run_worst_ms: float = 0.0
+var _run_worst_id: int = 0
 
 
 static func format_save_age(last_write_ticks_msec: int, now_msec: int) -> String:
@@ -72,8 +77,13 @@ func _ready() -> void:
 ## Real elapsed time between frames, not the time-scaled delta.
 func _process(_delta: float) -> void:
 	var now_usec: int = Time.get_ticks_usec()
-	_tracker.record(now_usec / 1000000.0, (now_usec - _last_frame_usec) / 1000.0)
+	var frame_ms: float = (now_usec - _last_frame_usec) / 1000.0
+	_tracker.record(now_usec / 1000000.0, frame_ms)
 	_last_frame_usec = now_usec
+	var frame: RunFrameScript = _run_frame()
+	if frame != null:
+		var running: bool = frame.get_state() == RunFrameScript.RunState.RUNNING
+		_note_run_frame(frame_ms, frame.get_instance_id(), running)
 
 
 func _input(event: InputEvent) -> void:
@@ -91,6 +101,20 @@ func _input(event: InputEvent) -> void:
 
 func is_confirming() -> bool:
 	return _confirming
+
+
+func get_run_worst_ms() -> float:
+	return _run_worst_ms
+
+
+## Run-worst bookkeeping, pure so tests need no real time: a different run frame resets it, and only
+## RUNNING frames count.
+func _note_run_frame(frame_ms: float, run_id: int, running: bool) -> void:
+	if run_id != _run_worst_id:
+		_run_worst_id = run_id
+		_run_worst_ms = 0.0
+	if running:
+		_run_worst_ms = maxf(_run_worst_ms, frame_ms)
 
 
 ## Returns true when the overlay used the key (the caller then marks it handled).
@@ -191,8 +215,8 @@ func _refresh() -> void:
 
 
 func _refresh_stats() -> void:
-	%StatsLabel.text = "FPS %d   Frame %.1f ms\nWorst 10 s: %.1f ms" % [
-		Engine.get_frames_per_second(), _tracker.last_ms(), _tracker.worst_ms()
+	%StatsLabel.text = "FPS %d   Frame %.1f ms\nWorst 10 s: %.1f ms   Run: %.1f ms" % [
+		Engine.get_frames_per_second(), _tracker.last_ms(), _tracker.worst_ms(), _run_worst_ms
 	]
 
 

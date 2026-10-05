@@ -259,7 +259,7 @@
 ## Deferred from: dev of story-3-1 (2026-10-04)
 
 - The open debug overlay (bottom ≈ game y 154 on the run screen) covers the active target's arrow and the top edge of its tag in Zombie Run (the letter stays readable; the HUD letter is never covered). Debug-only and toggled with F3, so not fixed. Move the overlay or trim its run section if it gets in the way of playtest debugging.
-- `ZOMBIE_SCREEN_X = 224` leaves ~224 px behind the zombie for the conga line; Story 3.4 may retune it (the camera, freeing and on-screen tests read the constant).
+- `ZOMBIE_SCREEN_X = 224` leaves ~224 px behind the zombie for the conga line; Story 3.4 may retune it (the camera, freeing and on-screen tests read the constant). *3.4:* kept at 224: 12 × 16 px followers end at screen x 32 (tail sprite from 24) and the badge's left edge sits at 24, pinned by `test_full_line_fits_behind_the_zombie`.
 - Placeholder visuals: code-built target boxes / parchment tags / arrow and flat sky, grass and path rects. Real brain block, villager, backdrop and parallax art = Story 3.6. No ground tick marks were added (optional in the story); resolved targets already show the scroll.
 - Caps Lock hint not seen in the web check: Shift+letter presses from the browser pane don't produce it (it needs real Caps Lock). By layout every playfield item sits above the ground line y 192 and the hint starts at y 196.
 - `ZombieRunTarget` resolved look duplicates the box StyleBox on resolve (one small allocation per key, outside `_process`). 3.2 / 3.3 replace the box with sprites.
@@ -291,7 +291,7 @@
 - The hug is a placeholder 3 px lean of `Body` on x and the poof is a code-drawn 4-frame cloud (`poof.gd`), until Story 3.6's hug (3f) and poof (4f) frames.
 - The party-hat zombie is an idle-only prototype (`party_zombie_idle.png`, 2f at 8 fps); Story 3.6 adds the walk (4f).
 - No hug-poof SFX (GDD audio list "hug-poof"): Story 5.1, unless 3.7 takes it.
-- Conga hand-off for 3.4: `Villager.poofed(party_zombie)` is the seam that adds a zombie to the line, but 3.4 must count conga members logically at resolve time (a villager resolved = +1), not on `poofed`. At high speed a villager can scroll off and be freed before its poof ends (0.4 s hug + 0.33 s poof vs. about 1 s to scroll off at 5 keys/s), so `poofed` may never fire for it.
+- Conga hand-off for 3.4: `Villager.poofed(party_zombie)` is the seam that adds a zombie to the line, but 3.4 must count conga members logically at resolve time (a villager resolved = +1), not on `poofed`. At high speed a villager can scroll off and be freed before its poof ends (0.4 s hug + 0.33 s poof vs. about 1 s to scroll off at 5 keys/s), so `poofed` may never fire for it. *3.4:* counted at resolve; villagers aren't freed before their hand-off.
 - `Villager._set_state()` asserts on a backward move. The assert logs a `SCRIPT ERROR` in the test output (3 lines from `test_villager.gd`, consumed with `assert_engine_error`), so the suite's error count is no longer 0 by design.
 
 ## Deferred from: code review of story-3.3 (2026-10-05)
@@ -301,3 +301,21 @@
 - The hidden `PartyZombie` in every villager autoplays idle and logs a warning per villager if its frames are missing.
 - `PlayerZombie` caches Body rest x/y once in `_ready`; stale if anything later repositions Body.
 - `test_zombie_run_level.gd` tests hard-code layout-dependent counts (10 brains after 40 keys, 9 villagers in 12 keys) and call private `_process`.
+
+## Deferred from: dev of story-3-4 (2026-10-05)
+
+- Conga followers use the party zombie's idle frames plus a code bob (2 px, 2 Hz, index-phased) until Story 3.6's walk (4f).
+- No join SFX when a party zombie joins the line: Story 5.1.
+- A join beyond the 12 cap only ticks the "×N" badge (no extra walk-in); a small pop on the badge is a 5.0 polish candidate.
+- Extreme speed: a newcomer joins where its villager poofed, which can be well behind the tail (or at the left edge when the villager was kept off screen by the freeing guard), and walks in from there; the badge rides the last drawn follower, so it can lag the tail briefly. Normal speeds (the 2:00 web run, ~1 key/s average with 10-key bursts) kept the line and the badge on screen.
+- The chase clamp (`minf(new_x, maxf(x, leader_x - SPACING_PX))`) is redundant with the lerp (weight is in [0, 1) and every slot is behind `leader_x - SPACING_PX`), so removing it alone fails no test; kept as a cheap guard.
+- Perf (NFR1 first check): worst frame 22.7 ms over a full 2:00 web debug Zombie Run (seed 3282930552, 116 keys, conga total 87, badge showing) in the Claude desktop browser pane (Chromium 152) on the dev machine (RTX 3070, 16 threads). The target-laptop check is Story 5.3.
+
+## Deferred from: code review of story-3-4-conga-line (2026-10-05)
+
+- Newcomer follower pops up to 2 px on its first `step()` (join places y=0, the bob then sets y up to -2).
+- A villager poofing ahead of the zombie makes its follower walk back through the zombie; followers are ordered by join order, so they can cross mid-walk.
+- `CongaLine.join()` before `configure()` (max_drawn 0) shows a badge with no followers; `ZombieRunConfig.validate` has no upper bound on `conga_max_drawn` versus the screen room.
+- Badge is placed right after `reset_size()` in the same frame and may use a stale size for one frame (unconfirmed).
+- Test brittleness: `OS.delay_msec(5)` in test_debug_overlay and the hardcoded `brains_earned == 10` for seed 42 in the run-frame integration test.
+- Perf check for NFR1 used the first run's seed, not an F2-pinned one (disclosed in the story).

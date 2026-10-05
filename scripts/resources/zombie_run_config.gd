@@ -27,6 +27,8 @@ extends LevelConfig
 @export var brains_per_block: int = 0
 ## Chance (0..1) that a collected brain asks for a "Brainsss" voice line.
 @export var brainsss_chance: float = 0.0
+## How many conga-line followers are drawn at most; beyond this a ×N badge shows the total (FR35: 12).
+@export var conga_max_drawn: int = 0
 ## The letters the bag deals from (single lowercase characters, no duplicates).
 @export var letter_pool: Array[String] = []
 
@@ -55,4 +57,6 @@ func validate() -> String:
 		return "brainsss_chance must be within 0..1"
 	if not (hug_time_s > 0.0):
 		return "hug_time_s must be above 0"
+	if conga_max_drawn < 1:
+		return "conga_max_drawn must be at least 1"
 	return ""

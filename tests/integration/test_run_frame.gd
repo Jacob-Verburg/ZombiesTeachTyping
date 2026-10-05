@@ -1079,3 +1079,45 @@ func test_zombie_run_villager_key_hugs_and_pays_nothing() -> void:
 	assert_ne(level.get_queue()[0], villager, "the queue head moved on")
 	assert_eq(_zombie_queue_letter(frame), frame.get_session().get_current_target())
 	assert_eq(level.get_brains_earned(), brains, "villagers pay nothing")
+
+
+# --- Zombie Run conga line (Story 3.4) ----------------------------------------
+
+func _finish_villager_poofs(level: ZombieRunLevelScript) -> void:
+	for node: Node in level.get_node("%Targets").get_children():
+		var villager: Villager = node as Villager
+		if villager == null or villager.get_state() == Villager.State.WAITING:
+			continue
+		if villager.is_party_zombie_shown():
+			continue
+		villager.get_sequence_tween().custom_step(1.0)
+		for child: Node in villager.get_children():
+			if child is Poof:
+				(child as Poof).get_tween().custom_step(1.0)
+
+
+func _conga_snapshot(level: ZombieRunLevelScript) -> Array:
+	var line: CongaLine = level.get_conga_line()
+	return [level.get_conga_count(), line.get_joined_count(), line.get_followers()]
+
+
+func test_zombie_run_pause_and_resume_keep_the_conga_line() -> void:
+	var frame: RunFrameScript = _make({"level_id": &"zombie_run", "seed": 42}, null, _fake_player_data())
+	add_child_autofree(frame)
+	var level: ZombieRunLevelScript = frame.get_level() as ZombieRunLevelScript
+	for i: int in 8:
+		_type_correct(frame)
+	_finish_villager_poofs(level)
+	assert_gt(level.get_conga_line().get_joined_count(), 1, "2+ villagers in the line")
+	var before: Array = _conga_snapshot(level)
+	frame._unhandled_input(_esc())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	_type_wrong(frame)
+	assert_eq(_conga_snapshot(level), before, "paused: unchanged")
+	_resume(frame)
+	_run_countdown(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	assert_eq(_conga_snapshot(level), before, "resumed: nothing lost")
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	assert_eq(_conga_snapshot(level), before, "a focus-loss pause loses nothing either")

@@ -8,6 +8,9 @@ extends GutTest
 ## Villagers (Story 3.3): every non-block slot is a villager; a villager key hugs it (0 brains), the
 ## zombie's hug is cut by the next key while the villager's own poof sequence still completes, and the
 ## hug (x) and hop (y) never cut each other.
+## Conga line (Story 3.4): the logical count at resolve, the hand-off on poofed, the freeing guard, the cap
+## from the config, draw order, fit and "never shrinks". The line is disabled too: tests call
+## get_conga_line().step(delta).
 
 const LevelScene: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_level.tscn")
 const LevelScript := preload("res://scripts/levels/zombie_run/zombie_run_level.gd")
@@ -258,6 +261,8 @@ func test_resolved_targets_are_freed_off_screen() -> void:
 	for i: int in 50:
 		_key()
 		_finish_scoot()
+		# Story 3.4: villagers are kept until their poof hands off, so finish the poofs first.
+		_finish_poofs()
 		_level._process(0.016)
 		assert_true(_level.get_resolved_count() <= 6, "resolved targets do not pile up")
 	assert_true(first.is_queued_for_deletion() or not is_instance_valid(first), "the first target left the screen")
@@ -704,3 +709,187 @@ func test_run_rng_has_one_consumer() -> void:
 	for i: int in 10:
 		expected.randf()
 	assert_eq(_run_rng.state, expected.state, "two child seeds + one roll per brain, nothing else")
+
+
+# --- conga line (Story 3.4) ---------------------------------------------------
+
+func _conga() -> CongaLine:
+	return _level.get_conga_line()
+
+
+## Finishes the hug -> poof -> party zombie sequence of every hugged villager still in %Targets.
+func _finish_poofs() -> void:
+	for node: Node in _level.get_node("%Targets").get_children():
+		var villager: Villager = node as Villager
+		if villager == null or villager.get_state() == Villager.State.WAITING:
+			continue
+		_finish_poof(villager)
+
+
+func _finish_poof(villager: Villager) -> void:
+	if villager.is_party_zombie_shown():
+		return
+	villager.get_sequence_tween().custom_step(_cfg().hug_time_s + 0.01)
+	for child: Node in villager.get_children():
+		if child is Poof:
+			(child as Poof).get_tween().custom_step(Poof.FRAMES / Poof.FPS + 0.01)
+
+
+func test_villager_key_counts_in_the_same_call() -> void:
+	_make()
+	_type_until(_is_villager)
+	var before: int = _level.get_conga_count()
+	_key()
+	assert_eq(_level.get_conga_count(), before + 1, "counted at resolve, before any tween step")
+	assert_eq(_conga().get_joined_count(), 0, "the view joins later, when the poof ends")
+
+
+func test_block_and_wrong_keys_do_not_count() -> void:
+	_make()
+	_type_until(_is_block)
+	var before: int = _level.get_conga_count()
+	_key()
+	assert_eq(_level.get_conga_count(), before, "a brain block is not a villager")
+	_session.judge(_wrong_letter())
+	assert_eq(_level.get_conga_count(), before, "a wrong key changes nothing")
+
+
+func test_poof_hands_the_party_zombie_to_the_line() -> void:
+	_make()
+	_type_until(_is_villager)
+	var villager: Villager = _level.get_queue()[0] as Villager
+	_key()
+	_finish_poof(villager)
+	assert_eq(_conga().get_joined_count(), 1)
+	var followers: Array[PartyZombie] = _conga().get_followers()
+	assert_eq(followers.size(), 1)
+	assert_almost_eq(followers[0].global_position.x, villager.get_party_zombie().global_position.x, 0.001, "same spot")
+	assert_almost_eq(followers[0].global_position.y, villager.get_party_zombie().global_position.y, 0.001, "same feet")
+	var follower_frames: SpriteFrames = (followers[0].get_node("Body") as AnimatedSprite2D).sprite_frames
+	var villager_frames: SpriteFrames = (villager.get_party_zombie().get_node("Body") as AnimatedSprite2D).sprite_frames
+	assert_eq(follower_frames, villager_frames, "same sprite")
+	assert_false(villager.get_party_zombie().visible, "the villager's own copy hides")
+	assert_true(villager.is_party_zombie_shown(), "the hand-off happened")
+
+
+func test_burst_every_villager_joins() -> void:
+	_make()
+	var villagers: Array[Villager] = []
+	for i: int in 12:
+		var target: ZombieRunTarget = _level.get_queue()[0]
+		if target is Villager:
+			villagers.append(target as Villager)
+		_key()
+	assert_gt(villagers.size(), 0)
+	assert_eq(_level.get_conga_count(), villagers.size(), "every villager counted immediately")
+	assert_eq(_conga().get_joined_count(), 0)
+	for villager: Villager in villagers:
+		_finish_poof(villager)
+	assert_eq(_conga().get_joined_count(), villagers.size(), "the view caught up")
+
+
+func test_villager_is_not_freed_before_its_hand_off() -> void:
+	_make()
+	_type_until(_is_villager)
+	var villager: Villager = _level.get_queue()[0] as Villager
+	for i: int in 12:
+		_key()
+		_finish_scoot()
+	_level._process(0.016)
+	assert_true(villager.position.x + ZombieRunTarget.HALF_WIDTH < _level.get_camera_x(), "off screen")
+	assert_false(villager.is_party_zombie_shown(), "its poof has not ended yet")
+	assert_false(villager.is_queued_for_deletion(), "kept until the hand-off")
+	_finish_poof(villager)
+	assert_eq(_conga().get_joined_count(), 1, "it joined the line")
+	_level._process(0.016)
+	assert_true(villager.is_queued_for_deletion(), "the next pass frees it")
+
+
+func test_cap_comes_from_the_config() -> void:
+	_make(42, func(c: ZombieRunConfig) -> void: c.conga_max_drawn = 3)
+	for i: int in 12:
+		_key()
+	_finish_poofs()
+	var count: int = _level.get_conga_count()
+	assert_gt(count, 3)
+	assert_eq(_conga().get_drawn_count(), 3)
+	assert_eq(_conga().get_joined_count(), count)
+	assert_true(_conga().is_badge_shown())
+	assert_eq(_conga().get_badge_text(), "×%d" % count)
+
+
+func test_conga_line_draws_between_targets_and_zombie() -> void:
+	_make()
+	var conga: Node = _level.get_node("%CongaLine")
+	assert_eq(conga.get_parent(), _world())
+	assert_gt(conga.get_index(), _level.get_node("%Targets").get_index(), "above the targets")
+	assert_lt(conga.get_index(), _zombie().get_index(), "below the player zombie")
+	assert_eq((conga as Node2D).position.y, LevelScript.GROUND_Y, "on the ground line")
+
+
+func test_full_line_fits_behind_the_zombie() -> void:
+	_make()
+	assert_true(
+		LevelScript.ZOMBIE_SCREEN_X - _cfg().conga_max_drawn * CongaLine.SPACING_PX >= 16.0,
+		"room for the tail sprite and the badge's left edge"
+	)
+
+
+func test_followers_stay_on_screen_and_above_the_ground_at_normal_speed() -> void:
+	_make()
+	for i: int in 80:
+		_key()
+		_finish_scoot()
+		_finish_poofs()
+		for s: int in 10:
+			_level._process(0.03)
+			_conga().step(0.03)
+	assert_eq(_conga().get_drawn_count(), _cfg().conga_max_drawn)
+	assert_true(_conga().is_badge_shown())
+	for follower: PartyZombie in _conga().get_followers():
+		var screen_x: float = follower.position.x + _world().position.x
+		assert_true(screen_x - 8.0 >= 0.0, "tail on screen (x %.1f)" % screen_x)
+		assert_true(screen_x < LevelScript.ZOMBIE_SCREEN_X, "behind the zombie")
+		assert_true(follower.global_position.y <= LevelScript.GROUND_Y, "nothing below the ground line")
+	var badge: Control = _conga().get_node("%Badge") as Control
+	assert_true(badge.position.x + _world().position.x >= 0.0, "badge on screen")
+
+
+func test_conga_never_shrinks() -> void:
+	_make()
+	for i: int in 12:
+		_key()
+	_finish_poofs()
+	var count: int = _level.get_conga_count()
+	var joined: int = _conga().get_joined_count()
+	var followers: Array[PartyZombie] = _conga().get_followers()
+	for i: int in 10:
+		_session.judge(_wrong_letter())
+		_level._process(0.016)
+		_conga().step(0.016)
+	assert_eq(_level.get_conga_count(), count)
+	assert_eq(_conga().get_joined_count(), joined)
+	assert_eq(_conga().get_followers(), followers)
+
+
+func test_bad_conga_config_returns_no_source() -> void:
+	assert_null(_make_with_bad_config(func(c: ZombieRunConfig) -> void: c.conga_max_drawn = 0))
+	assert_push_error("conga_max_drawn")
+
+
+## test_run_rng_has_one_consumer never finishes a poof; this one does, so a draw in the hand-off shows up.
+func test_conga_line_draws_nothing_from_the_run_rng() -> void:
+	_make(42)
+	for i: int in 40:
+		_key()
+		_finish_poofs()
+		_conga().step(0.016)
+	assert_gt(_conga().get_joined_count(), 0, "poofs handed off")
+	assert_eq(_level.get_brains_earned(), 10)
+	var expected: RandomNumberGenerator = RandomNumberGenerator.new()
+	expected.seed = 42
+	expected.randi()
+	expected.randi()
+	for i: int in 10:
+		expected.randf()
+	assert_eq(_run_rng.state, expected.state, "the conga line adds no draws")
