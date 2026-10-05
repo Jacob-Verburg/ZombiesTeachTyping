@@ -7,8 +7,9 @@ extends Control
 ## Resume -> COUNTDOWN (%Countdown 3-2-1, tree still paused) -> back to the state it was paused from, and
 ## only then is the tree unpaused; Quit to Menu commits the level's brains and records nothing.
 ## A finished run is built and saved through PlayerData.record_run (2.8) on entering ENDING, so closing the
-## game during the outro loses nothing; DONE only opens the report card. The overlay's run fields (2.10)
-## attach here later.
+## game during the outro loses nothing; DONE only opens the report card.
+## Debug hooks (Story 2.10): the overlay reads the plain getters, pins a replay seed in the debug_seed
+## static and ends a run with debug_end_run(); both are gated by the is_debug_build seam.
 ## Everything in the typing path is synchronous: nothing in it waits or defers a call.
 ## A level config with duration_s <= 0 means "no timer": the level must end the run with end_requested.
 
@@ -17,6 +18,16 @@ enum RunState { WAITING_FIRST_KEY, RUNNING, PAUSED, COUNTDOWN, ENDING, DONE }
 ## MVP value for RunResult.letter_pool_or_tier; Epic 7 replaces it with the tier.
 const LETTER_POOL_ALL: String = "all"
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
+
+## Debug builds only (Story 2.10): the replay seed the debug overlay pins; -1 = off. Used when the RUN
+## payload has no seed and the level is debug_seed_level. Release never reads it.
+static var debug_seed: int = -1
+## The level the pinned seed came from: other levels ignore the pin.
+static var debug_seed_level: StringName = &""
+## Seed and level of the most recent run that started (the overlay's F2 pins them). Set once
+## _start_level succeeds, so a failed load never becomes the last run.
+static var last_seed: int = -1
+static var last_seed_level: StringName = &""
 
 ## level_id -> scene lookup (data/levels/level_registry.tres, set in run_frame.tscn).
 @export var level_registry: LevelRegistry
@@ -30,6 +41,9 @@ var pause_tree: Callable
 ## Test seam: the PlayerData the run commits brains and settings to. Defaults to the autoload; tests
 ## inject one on a temp SaveService before add_child, so no test writes the real save.
 var player_data: PlayerDataScript
+## Test seam: is_debug_build.call() -> bool. Defaults to OS.is_debug_build in _ready; tests assign
+## a false one before add_child for the release case. Gates debug_seed and debug_end_run.
+var is_debug_build: Callable
 
 var _state: RunState = RunState.WAITING_FIRST_KEY
 var _clock: RunClock = RunClock.new()
@@ -49,6 +63,8 @@ var _uses_router: bool = false
 var _resume_to: RunState = RunState.WAITING_FIRST_KEY
 ## Set by Quit to Menu: nothing pauses, resumes or quits again after it.
 var _quitting: bool = false
+## True when the seed came from the pinned debug_seed.
+var _replayed: bool = false
 
 
 func _ready() -> void:
@@ -61,6 +77,8 @@ func _ready() -> void:
 		pause_tree = func(paused: bool) -> void: get_tree().paused = paused
 	if player_data == null:
 		player_data = PlayerData
+	if not is_debug_build.is_valid():
+		is_debug_build = func() -> bool: return OS.is_debug_build()
 	var payload: Dictionary = Router.take_payload()
 	var error: String = _start_level(payload)
 	if error != "":
@@ -117,6 +135,32 @@ func get_seed() -> int:
 	return _seed
 
 
+## The level being played (&"" before a level id was read).
+func get_level_id() -> StringName:
+	return _level_id
+
+
+## The level config's duration_s; <= 0 means no timer.
+func get_duration() -> float:
+	return _duration
+
+
+## True when this run uses the overlay's pinned replay seed.
+func is_replay() -> bool:
+	return _replayed
+
+
+## Debug builds only (F6 in the overlay): ends a RUNNING run exactly as if the clock ran out. Refused
+## while waiting (the clock never ran), paused or counting down (the tree is paused, so the outro would
+## never count down), ending or done. Returns true when the run was ended.
+func debug_end_run() -> bool:
+	if not is_debug_build.call() or _state != RunState.RUNNING or _quitting:
+		Log.debug(&"run", "debug end run refused in %s" % RunState.keys()[_state])
+		return false
+	_end_run(GameConstants.END_REASON_TIMER)
+	return true
+
+
 ## The run's judgment session; null after a failed load.
 func get_session() -> TypingSession:
 	return _session
@@ -150,7 +194,7 @@ func _start_level(payload: Dictionary) -> String:
 		return "level %s has no LevelConfig" % _level_id
 	_level = level
 	%LevelHost.add_child(level)
-	_seed_rng(payload.get("seed", -1))
+	_seed_rng(_requested_seed(payload))
 	var source: TargetSource = level.create_target_source(_rng)
 	if source == null:
 		return "level %s gave no target source" % _level_id
@@ -179,8 +223,21 @@ func _start_level(payload: Dictionary) -> String:
 	%Countdown.finished.connect(_on_countdown_finished)
 	WebPlatform.focus_lost.connect(_on_web_platform_focus_lost)
 	WebPlatform.visibility_hidden.connect(_on_web_platform_focus_lost)
-	Log.info(&"run", "started level=%s seed=%d" % [_level_id, _seed])
+	last_seed = _seed
+	last_seed_level = _level_id
+	Log.info(&"run", "started level=%s seed=%d%s" % [_level_id, _seed, " (replay)" if _replayed else ""])
 	return ""
+
+
+## The payload's seed wins (even -1 or a wrong type = random); without one, a debug build uses the
+## overlay's pinned debug_seed when it was pinned on this level; else -1 (random).
+func _requested_seed(payload: Dictionary) -> Variant:
+	if payload.has("seed"):
+		return payload["seed"]
+	if is_debug_build.call() and debug_seed >= 0 and debug_seed_level == _level_id:
+		_replayed = true
+		return debug_seed
+	return -1
 
 
 ## One RNG per run. A payload seed (an int >= 0) replays a run; anything else gets a fresh seed that
@@ -298,7 +355,8 @@ func _end_run(reason: StringName) -> void:
 ## result changes during the outro. Saved now, not at DONE, so a close during the outro keeps the run.
 func _record_result() -> void:
 	var duration: float = _clock.get_elapsed()
-	if _end_reason == GameConstants.END_REASON_TIMER:
+	# A no-timer level (duration <= 0) only ends on "timer" through the debug F6: keep the elapsed time.
+	if _end_reason == GameConstants.END_REASON_TIMER and _duration > 0.0:
 		duration = minf(duration, _duration)
 	_result = RunResult.create(
 		_level_id, int(Time.get_unix_time_from_system()), duration, _session.get_keys_typed(),

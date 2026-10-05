@@ -35,7 +35,20 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_font_sizes/font_size = 8
 
+[node name="RunLabel" type="Label" parent="Panel/Box"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 8
+
 [node name="SaveLabel" type="Label" parent="Panel/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 8
+
+[node name="ToolsLabel" type="Label" parent="Panel/Box"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2

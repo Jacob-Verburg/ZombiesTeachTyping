@@ -1,5 +1,6 @@
 extends GutTest
 ## Run frame (Story 2.4): state machine, clock, level calls, run end, seed replay, failed loads.
+## Debug hooks (Story 2.10): last_seed, pinned debug_seed, debug_end_run, the is_debug_build seam.
 ## Instances are disabled (no engine _process, no real keys): tests call _process(delta) and
 ## %TypingInput.handle_key(event) by hand. navigate is a recorder, so the live Router never swaps
 ## GUT's scene.
@@ -23,6 +24,10 @@ func after_each() -> void:
 	Router.take_payload()
 	_restore_audio()
 	_reset_input_handled()
+	RunFrameScript.debug_seed = -1
+	RunFrameScript.debug_seed_level = &""
+	RunFrameScript.last_seed = -1
+	RunFrameScript.last_seed_level = &""
 
 
 func after_all() -> void:
@@ -835,3 +840,136 @@ func test_quit_records_no_run() -> void:
 	assert_eq(profile["run_history"].size(), 0)
 	assert_false(profile["best_wpm"].has("test_level"))
 	assert_eq(data.get_brains(), 1, "brains still committed once")
+
+
+# --- debug hooks (Story 2.10) -------------------------------------------------
+
+func _start_release(payload: Dictionary) -> RunFrameScript:
+	var frame: RunFrameScript = _make(payload)
+	frame.is_debug_build = func() -> bool: return false
+	add_child_autofree(frame)
+	return frame
+
+
+## Pins seed on test_level, as F2 in the overlay does.
+func _pin(seed: int) -> void:
+	RunFrameScript.debug_seed = seed
+	RunFrameScript.debug_seed_level = &"test_level"
+
+
+func test_last_seed_is_the_started_frames_seed() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	assert_eq(RunFrameScript.last_seed, 42)
+	assert_eq(RunFrameScript.last_seed_level, &"test_level")
+	var random: RunFrameScript = _start({"level_id": &"test_level"})
+	assert_eq(RunFrameScript.last_seed, random.get_seed())
+	assert_false(frame.is_replay())
+
+
+func test_pinned_debug_seed_replays_a_payload_without_seed() -> void:
+	var expected: Array[String] = _targets(777, 20)
+	_pin(777)
+	var frame: RunFrameScript = _start({"level_id": &"test_level"})
+	assert_eq(frame.get_seed(), 777)
+	assert_true(frame.is_replay())
+	assert_eq(RunFrameScript.last_seed, 777)
+	var got: Array[String] = []
+	for i: int in 20:
+		got.append(_type_correct(frame))
+	assert_eq(got, expected)
+
+
+func test_payload_seed_wins_over_the_pinned_seed() -> void:
+	_pin(777)
+	var frame: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	assert_eq(frame.get_seed(), 42)
+	assert_false(frame.is_replay())
+	var random: RunFrameScript = _start({"level_id": &"test_level", "seed": -1})
+	assert_false(random.is_replay(), "an explicit -1 means random, not the pinned seed")
+
+
+func test_pinned_seed_is_ignored_on_another_level() -> void:
+	_pin(777)
+	var registry: LevelRegistry = LevelRegistry.new()
+	var entry: LevelEntry = LevelEntry.new()
+	entry.id = &"other_level"
+	entry.scene = load("res://scenes/levels/test_level/test_level.tscn") as PackedScene
+	registry.entries = [entry]
+	var frame: RunFrameScript = _start({"level_id": &"other_level"}, registry)
+	assert_false(frame.is_replay())
+	# 1 in 2^32 that randi() picks 777 by chance.
+	assert_ne(frame.get_seed(), 777)
+	assert_eq(RunFrameScript.last_seed_level, &"other_level")
+
+
+func test_release_ignores_the_pinned_seed() -> void:
+	_pin(777)
+	var frame: RunFrameScript = _start_release({"level_id": &"test_level"})
+	assert_false(frame.is_replay())
+	assert_true(frame.get_seed() >= 0)
+	# 1 in 2^32 that randi() picks 777 by chance.
+	assert_ne(frame.get_seed(), 777)
+
+
+func test_release_refuses_the_debug_end_run() -> void:
+	var frame: RunFrameScript = _start_release({"level_id": &"test_level", "seed": 42})
+	_type_correct(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	assert_false(frame.debug_end_run())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	assert_eq(_nav, [])
+
+
+func test_debug_end_run_ends_like_the_timer() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var frame: RunFrameScript = _start_pausable(data)
+	for i: int in 4:
+		_type_correct(frame)
+	frame._process(12.5)
+	assert_true(frame.debug_end_run())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_eq(data.save_service.get_active_profile()["run_history"].size(), 1, "recorded on ENDING")
+	assert_false(frame.debug_end_run(), "a second call does nothing")
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_nav.size(), 1)
+	assert_eq(_nav[0][0], Router.Screen.REPORT_CARD)
+	var result: RunResult = _result()
+	assert_eq(result.end_reason, GameConstants.END_REASON_TIMER)
+	assert_eq(result.duration_s, 12.5, "the elapsed time so far, not the level duration")
+	assert_eq(result.keys_typed, 4)
+	assert_false(frame.debug_end_run(), "nothing after DONE")
+
+
+func test_debug_end_run_on_a_no_timer_level_keeps_the_elapsed_time() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	frame._duration = 0.0
+	for i: int in 3:
+		_type_correct(frame)
+	frame._process(7.5)
+	assert_true(frame.debug_end_run())
+	frame._process(1.0)
+	assert_eq(_result().duration_s, 7.5, "a no-timer level has no duration to clamp to")
+
+
+func test_debug_end_run_is_refused_outside_running() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	assert_false(frame.debug_end_run())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.WAITING_FIRST_KEY)
+	_type_correct(frame)
+	frame._process(2.0)
+	frame._unhandled_input(_esc())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	assert_false(frame.debug_end_run())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	_resume(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.COUNTDOWN)
+	assert_false(frame.debug_end_run())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.COUNTDOWN)
+	assert_eq(_nav, [])
+
+
+func test_level_id_and_duration_getters() -> void:
+	var frame: RunFrameScript = _start({"level_id": "test_level", "seed": 1})
+	assert_eq(frame.get_level_id(), &"test_level")
+	assert_eq(frame.get_duration(), 120.0)

@@ -3,16 +3,23 @@ extends GutTest
 ## never blocks the mouse, save-age text. A fresh SaveService (save_dir = TEST_DIR, download seam
 ## recorded) and a fresh PlayerData are injected before add_child, so the real save is never touched.
 ## Keys go through _handle_key() directly (no synthetic InputEvent plumbing).
+## Story 2.10: run section, F2 seed pin, F6 end run, F7 typing log. Run frames are built like
+## test_run_frame.gd (disabled, recorder navigate / pause_tree, a PlayerData on the temp save) and
+## reached through the find_run_frame seam.
 
 const OverlayScene: PackedScene = preload("res://scenes/debug/debug_overlay.tscn")
 const OverlayScript := preload("res://scripts/debug/debug_overlay.gd")
 const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
 const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
+const RunFrameScene: PackedScene = preload("res://scenes/run/run_frame.tscn")
+const RunFrameScript := preload("res://scripts/run/run_frame.gd")
 const TEST_DIR: String = "user://test_debug_overlay/"
 
 var _save: SaveServiceScript = null
 var _player: PlayerDataScript = null
 var _downloads: Array[String] = []
+var _frame: RunFrameScript = null
+var _nav: Array = []
 
 
 func before_each() -> void:
@@ -25,6 +32,14 @@ func after_each() -> void:
 	_clear()
 	_save = null
 	_player = null
+	_frame = null
+	_nav = []
+	Router.take_payload()
+	Log.verbose_typing = false
+	RunFrameScript.debug_seed = -1
+	RunFrameScript.debug_seed_level = &""
+	RunFrameScript.last_seed = -1
+	RunFrameScript.last_seed_level = &""
 
 
 func _clear() -> void:
@@ -49,8 +64,35 @@ func _make() -> OverlayScript:
 	var sut: OverlayScript = OverlayScene.instantiate() as OverlayScript
 	sut.player_data = _player
 	sut.save_service = _save
+	sut.find_run_frame = func() -> Node: return _frame
 	add_child_autofree(sut)
 	return sut
+
+
+## A disabled test-level run frame on the temp save; the overlay finds it through find_run_frame.
+func _start_frame(payload: Dictionary = {"level_id": &"test_level", "seed": 42}) -> RunFrameScript:
+	Router._store_payload(payload)
+	var frame: RunFrameScript = RunFrameScene.instantiate() as RunFrameScript
+	frame.process_mode = Node.PROCESS_MODE_DISABLED
+	frame.navigate = func(screen: int, data: Dictionary) -> void: _nav.append([screen, data])
+	frame.pause_tree = func(_paused: bool) -> void: pass
+	frame.player_data = _player
+	add_child_autofree(frame)
+	_frame = frame
+	return frame
+
+
+func _type_correct(frame: RunFrameScript) -> void:
+	var target: String = frame.get_session().get_current_target()
+	var event: InputEventKey = InputEventKey.new()
+	event.pressed = true
+	event.unicode = target.unicode_at(0)
+	event.keycode = OS.find_keycode_from_string(target.to_upper())
+	(frame.get_node("%TypingInput") as TypingInput).handle_key(event)
+
+
+func _text(sut: OverlayScript, label: String) -> String:
+	return (sut.get_node("%" + label) as Label).text
 
 
 func _controls(node: Node, found: Array[Control]) -> Array[Control]:
@@ -180,7 +222,8 @@ func test_unused_keys_are_not_consumed() -> void:
 	var sut: OverlayScript = _make()
 	sut._handle_key(KEY_F3)
 	assert_false(sut._handle_key(KEY_A))
-	assert_false(sut._handle_key(KEY_F6))
+	assert_false(sut._handle_key(KEY_F4))
+	assert_false(sut._handle_key(KEY_F10))
 	assert_false(sut._handle_key(KEY_ESCAPE))
 
 
@@ -200,7 +243,8 @@ func test_labels_fill_in_when_opened() -> void:
 	var save_text: String = (sut.get_node("%SaveLabel") as Label).text
 	assert_string_contains(save_text, "Last save: never")
 	assert_string_contains(save_text, "Storage: persistent")
-	assert_eq((sut.get_node("%HelpLabel") as Label).text, "F5 +100 brains   F8 reset   F9 export")
+	assert_eq((sut.get_node("%HelpLabel") as Label).text,
+			"F5 +100 brains  F6 end run  F7 typing log\nF8 reset  F9 export  F2 pin seed")
 
 
 func test_format_save_age() -> void:
@@ -213,3 +257,169 @@ func test_uses_live_autoloads_by_default() -> void:
 	add_child_autofree(sut)
 	assert_eq(sut.player_data, PlayerData)
 	assert_eq(sut.save_service, SaveService)
+
+
+# --- Story 2.10: run section, F2 / F6 / F7 ----------------------------------------
+
+func test_new_keys_do_nothing_while_closed() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame()
+	_type_correct(frame)
+	assert_false(sut._handle_key(KEY_F2))
+	assert_false(sut._handle_key(KEY_F6))
+	assert_false(sut._handle_key(KEY_F7))
+	assert_false(Log.verbose_typing)
+	assert_eq(RunFrameScript.debug_seed, -1)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+
+
+func test_f7_toggles_the_typing_log() -> void:
+	var sut: OverlayScript = _make()
+	sut._handle_key(KEY_F3)
+	assert_string_contains(_text(sut, "ToolsLabel"), "Typing log: off")
+	assert_true(sut._handle_key(KEY_F7))
+	assert_true(Log.verbose_typing)
+	assert_string_contains(_text(sut, "ToolsLabel"), "Typing log: on")
+	assert_true(sut._handle_key(KEY_F7))
+	assert_false(Log.verbose_typing)
+	assert_string_contains(_text(sut, "ToolsLabel"), "Typing log: off")
+
+
+func test_f2_pins_and_clears_the_last_seed() -> void:
+	var sut: OverlayScript = _make()
+	sut._handle_key(KEY_F3)
+	assert_true(sut._handle_key(KEY_F2))
+	assert_eq(RunFrameScript.debug_seed, -1, "no run yet: nothing to pin")
+	assert_string_contains(_text(sut, "ToolsLabel"), "Replay seed: off")
+	assert_string_contains(_text(sut, "ToolsLabel"), "Last run seed: none")
+	_start_frame()
+	assert_eq(RunFrameScript.last_seed, 42)
+	assert_true(sut._handle_key(KEY_F2))
+	assert_eq(RunFrameScript.debug_seed, 42)
+	assert_eq(RunFrameScript.debug_seed_level, &"test_level")
+	assert_string_contains(_text(sut, "ToolsLabel"), "Replay seed: 42 (test_level)")
+	assert_string_contains(_text(sut, "ToolsLabel"), "Last run seed: 42")
+	assert_true(sut._handle_key(KEY_F2))
+	assert_eq(RunFrameScript.debug_seed, -1)
+	assert_eq(RunFrameScript.debug_seed_level, &"")
+	assert_string_contains(_text(sut, "ToolsLabel"), "Replay seed: off")
+
+
+func test_tools_section_shows_without_a_run() -> void:
+	var sut: OverlayScript = _make()
+	RunFrameScript.last_seed = 1234567890
+	sut._handle_key(KEY_F3)
+	assert_true((sut.get_node("%ToolsLabel") as Label).visible)
+	assert_string_contains(_text(sut, "ToolsLabel"), "Last run seed: 1234567890")
+
+
+func test_run_section_is_hidden_without_a_run() -> void:
+	var sut: OverlayScript = _make()
+	assert_false((sut.get_node("%RunLabel") as Label).visible, "hidden at start")
+	sut._handle_key(KEY_F3)
+	assert_false((sut.get_node("%RunLabel") as Label).visible)
+
+
+func test_run_section_shows_the_run() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame()
+	sut._handle_key(KEY_F3)
+	var run_label: Label = sut.get_node("%RunLabel") as Label
+	assert_true(run_label.visible)
+	var text: String = run_label.text
+	var session: TypingSession = frame.get_session()
+	var upcoming: Array[String] = session.get_upcoming(OverlayScript.UPCOMING_SHOWN)
+	assert_eq(upcoming.size(), 3)
+	assert_string_contains(text, "Run test_level WAITING_FIRST_KEY")
+	assert_string_contains(text, "Clock 0.0 / 120 s")
+	assert_string_contains(text, "Target %s > %s" % [session.get_current_target(), " ".join(upcoming)])
+	assert_string_contains(text, "Keys 0  Errors 0  WPM 0")
+	assert_string_contains(text, "Seed 42")
+	assert_false(text.contains("(replay)"))
+	for i: int in 5:
+		_type_correct(frame)
+	frame._process(6.0)
+	sut._refresh()
+	text = run_label.text
+	assert_string_contains(text, "Run test_level RUNNING")
+	assert_string_contains(text, "Clock 6.0 / 120 s")
+	assert_string_contains(text, "Keys 5  Errors 0  WPM %d" % StatsCalculator.wpm(5, 6.0))
+	assert_string_contains(text, "Target %s > " % session.get_current_target())
+
+
+func test_run_section_marks_a_replay() -> void:
+	var sut: OverlayScript = _make()
+	RunFrameScript.debug_seed = 777
+	RunFrameScript.debug_seed_level = &"test_level"
+	_start_frame({"level_id": &"test_level"})
+	sut._handle_key(KEY_F3)
+	assert_string_contains(_text(sut, "RunLabel"), "Seed 777 (replay)")
+
+
+func test_run_section_hides_when_the_frame_goes_away() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame()
+	sut._handle_key(KEY_F3)
+	assert_true((sut.get_node("%RunLabel") as Label).visible)
+	frame.queue_free()
+	sut._refresh()
+	assert_false((sut.get_node("%RunLabel") as Label).visible, "queued for deletion = no run")
+
+
+func test_f6_ends_a_running_run() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame()
+	sut._handle_key(KEY_F3)
+	_type_correct(frame)
+	frame._process(3.0)
+	assert_true(sut._handle_key(KEY_F6))
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	var history: Array = _save.get_active_profile()["run_history"]
+	assert_eq(history.size(), 1)
+	assert_eq(str(history[0]["end_reason"]), "timer")
+	assert_string_contains(_text(sut, "RunLabel"), "ENDING")
+
+
+func test_f6_does_nothing_before_the_first_key() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame()
+	sut._handle_key(KEY_F3)
+	assert_true(sut._handle_key(KEY_F6), "the overlay's key even when refused")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.WAITING_FIRST_KEY)
+	assert_eq(_save.get_active_profile()["run_history"].size(), 0)
+
+
+func test_f6_without_a_run_is_harmless() -> void:
+	var sut: OverlayScript = _make()
+	sut._handle_key(KEY_F3)
+	assert_true(sut._handle_key(KEY_F6))
+	assert_eq(_nav, [])
+	assert_false((sut.get_node("%RunLabel") as Label).visible)
+	assert_eq(_save.get_active_profile()["run_history"].size(), 0)
+
+
+func test_new_keys_cancel_the_f8_confirm() -> void:
+	var sut: OverlayScript = _make()
+	sut._handle_key(KEY_F3)
+	for key: Key in [KEY_F2, KEY_F6, KEY_F7]:
+		sut._handle_key(KEY_F8)
+		assert_true(sut.is_confirming())
+		sut._handle_key(key)
+		assert_false(sut.is_confirming(), OS.get_keycode_string(key))
+
+
+func test_fits_above_the_hud_band_with_every_section() -> void:
+	var sut: OverlayScript = _make()
+	RunFrameScript.debug_seed = 1234567890
+	RunFrameScript.debug_seed_level = &"test_level"
+	_start_frame({"level_id": &"test_level"})
+	sut._handle_key(KEY_F3)
+	sut._handle_key(KEY_F8)
+	assert_true((sut.get_node("%RunLabel") as Label).visible)
+	assert_true((sut.get_node("%ConfirmLabel") as Label).visible)
+	assert_string_contains(_text(sut, "RunLabel"), "(replay)")
+	assert_string_contains(_text(sut, "ToolsLabel"), "Replay seed: 1234567890 (test_level)", "widest pin")
+	var panel: PanelContainer = sut.get_node("%Panel") as PanelContainer
+	var size: Vector2 = panel.get_combined_minimum_size()
+	assert_lte(panel.offset_top + size.y, 256.0, "bottom above the HUD band")
+	assert_lte(panel.offset_left + size.x, 640.0, "inside the 640 px playfield")

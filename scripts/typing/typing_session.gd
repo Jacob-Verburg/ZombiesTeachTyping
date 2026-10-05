@@ -60,12 +60,17 @@ func judge(c: String) -> Verdict:
 		_source.advance()
 		char_accepted.emit(expected, index)
 		target_changed.emit(_source.current())
+		# Guard first: Log.debug would format its argument even when DEBUG is off.
+		if Log.verbose_typing:
+			Log.debug(&"typing", "accepted expected='%s' index=%d" % [expected, index])
 		return Verdict.CORRECT
 	_errors += 1
 	entry[1] = int(entry[1]) + 1
 	var typed_map: Dictionary = entry[2]
 	typed_map[c] = int(typed_map.get(c, 0)) + 1
 	char_rejected.emit(expected, c)
+	if Log.verbose_typing:
+		Log.debug(&"typing", "rejected expected='%s' typed='%s'" % [expected, c])
 	return Verdict.WRONG
 
 

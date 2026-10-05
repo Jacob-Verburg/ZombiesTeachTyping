@@ -1,5 +1,6 @@
 extends GutTest
 ## Judgment session (Story 2.2): correct/wrong keys, first-key start, counters, per-key record.
+## Verbose typing log (Story 2.10) changes nothing but the log.
 
 
 ## Deterministic source: hands out a fixed list, then "" when exhausted.
@@ -41,6 +42,10 @@ func before_each() -> void:
 	_log = []
 	_session = _stub()
 	watch_signals(_session)
+
+
+func after_each() -> void:
+	Log.verbose_typing = false
 
 
 func test_correct_key() -> void:
@@ -197,3 +202,23 @@ func test_cooperates_with_letter_bag() -> void:
 		expected.append(i)
 	assert_eq(indexes, expected)
 	assert_eq(repeats[0], 0)
+
+
+## Story 2.10: the per-judgment log lines (checked by hand; GUT does not capture print) change nothing.
+func _judge_sequence() -> Array:
+	_log = []
+	var session: TypingSession = _stub()
+	var verdicts: Array = []
+	for c: String in ["x", "f", "j", "q", "f"]:
+		verdicts.append(session.judge(c))
+	return [verdicts, session.get_keys_typed(), session.get_errors(), session.get_per_key(), _log.duplicate()]
+
+
+func test_verbose_typing_changes_nothing_but_the_log() -> void:
+	Log.verbose_typing = false
+	var quiet: Array = _judge_sequence()
+	Log.verbose_typing = true
+	var verbose: Array = _judge_sequence()
+	assert_eq(verbose, quiet)
+	assert_eq(verbose[1], 3)
+	assert_eq(verbose[2], 2)

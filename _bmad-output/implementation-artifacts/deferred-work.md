@@ -248,3 +248,10 @@
 - Soft-lock if navigation does nothing: `report_card.gd` `_leave()` sets `_leaving` before calling `navigate`; if the Router ignores or fails the call the card ignores all input. Router falls back to the menu, so only a missing menu scene triggers it. Reason: Router-level failure, very unlikely.
 - No hover cue on the unfocused button (hover stylebox equals normal). Reason: placeholder chrome until Story 5.0.
 - Brittle tests in `test_report_card.gd`: hard-coded `checked == 19` label count; guard boundary tests rely on 0.99 + 0.01 summing to exactly 1.0. Reason: low value.
+
+## Deferred from: dev of story-2-10 (2026-10-04)
+
+- Browser F-keys: in the in-app browser pane (embedded Chromium, no address bar) F2/F6/F7 reached the game and did nothing else. Real Chrome and Edge (F6 = focus address bar, F7 = caret-browsing prompt) are still unchecked; if either steals a key during a run, add it to `WebPlatform.CAPTURED_KEYS` (+ `test_web_platform.gd`). Keep the bindings as they are.
+- The open overlay (bottom ≈ 192 px on the run screen) covers the right part of `test_level`'s big letter at the top of the playfield. The HUD target box stays clear. Moving the overlay or shrinking the run section is only worth it if real levels (Epic 3) put content top-left.
+- `level_base.gd` raises two `UNUSED_SIGNAL` warnings (`end_requested`, `brains_earned_changed`: declared in the base, emitted only by subclasses) in desktop debug runs. They were already there at baseline whenever a run loaded; the overlay's `run_frame.gd` preload now loads the script at startup, so they print at launch instead. Fix: `@warning_ignore("unused_signal")` on both declarations.
+- Desktop debug key checks (F2/F6/F7 in the desktop window) weren't driven by hand: the Godot MCP can't send keys. Same code as the web debug build, which was checked end to end.
