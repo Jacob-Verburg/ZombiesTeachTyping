@@ -4,7 +4,7 @@ baseline_commit: 1cb89a9f2945ceb2b22f53fd8db352de51966eb2
 
 # Story 4.3: Hat and Pet Display Everywhere
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -109,7 +109,7 @@ so that my reward is always on screen.
 
 ### Review Findings
 
-- [ ] [Review][Decision] Checklist rows 10 and 12 still say "Smuck to confirm live" but Task 9.1 is ticked and Art Approval is recorded — confirm the 8 fps motion and the end-dance frame check live, then either update the checklist rows to Pass or re-open Task 9.1 (AC8)
+- [x] [Review][Decision] Checklist rows 10 and 12 still say "Smuck to confirm live" but Task 9.1 is ticked and Art Approval is recorded — confirm the 8 fps motion and the end-dance frame check live, then either update the checklist rows to Pass or re-open Task 9.1 (AC8)
 - [x] [Review][Patch] Hat does not re-anchor when `flip_h` changes without a frame/animation change (dance flip fallback, `_reset_dance`) [scripts/cosmetics/hat_slot.gd:_follow, scripts/characters/player_zombie.gd:190-198]
 - [x] [Review][Patch] Fully transparent hat overlay makes the mortarboard rise 30 px (`get_used_rect()` is empty); guard with an empty-rect check and warn once [scripts/characters/professor_zombie.gd:_hat_rise]
 - [x] [Review][Patch] `PetSlot.show_item` restarts the idle at frame 0 on every `equipment_changed`/`profile_replaced` even for the same pet; no-op when unchanged and playing [scripts/cosmetics/pet_slot.gd:show_item]
@@ -183,9 +183,9 @@ Run `hat_fit_check.tscn` with the Pumpkin hat and the Cute ghost.
 | 7 | Outline | Hat outline reads against the zombie's ink outline (no double-thick ink blob at the brim) | Pass: the brim's bottom ink row overlaps the crown's top ink row; one line, no blob |
 | 8 | Professor | Hat on the crown, mortarboard sitting on top of the hat (not inside it, not floating) | Pass: pumpkin on the crown, mortarboard lifted 11 px and resting on the stem (both frames) |
 | 9 | Backgrounds | Hat readable on night, art-sky, chalkboard and parchment | Pass: readable on night, art-sky, chalkboard and parchment |
-| 10 | Ghost idle | 4 frames loop smoothly at 8 fps, reads as floating, soles row stable, cute not scary | Pass (frames): 4 distinct frames, tail tips on row 30 every frame, cute. Smuck to confirm the 8 fps motion live |
+| 10 | Ghost idle | 4 frames loop smoothly at 8 fps, reads as floating, soles row stable, cute not scary | Pass (frames): 4 distinct frames, tail tips on row 30 every frame, cute. 8 fps motion confirmed live by Smuck |
 | 11 | Ghost on cushion | Sits on the HUD cushion without hiding it entirely or spilling out of the 64 px slot | Pass: the ghost sits in the middle of the 48 px cushion, inside the 64 px column (tested) |
-| 12 | In play | During a real run: hat stays on through hops, hugs and the end dance at 5+ keys/s | Pass (scripted run at 6.25 keys/s): hat stayed on through hops and hugs (4-3-run.png, 4-3-run-hug.png). End dance checked frame by frame in the fit check; Smuck to confirm live |
+| 12 | In play | During a real run: hat stays on through hops, hugs and the end dance at 5+ keys/s | Pass (scripted run at 6.25 keys/s): hat stayed on through hops and hugs (4-3-run.png, 4-3-run-hug.png). End dance checked frame by frame in the fit check; confirmed live by Smuck |
 | 13 | Report card / menu | Hat + ghost visible, nothing overlaps buttons, board, stamp, toggles or cards | Pass: hat + ghost on the menu and the report card; nothing overlaps (tested + screenshots) |
 | 14 | Empty slots | A fresh save shows no hat, an empty cushion, no pet on the menu or card, no warnings in the log | Pass (tested): fresh save shows no hat or pet on the menu, no warnings in the suite log |
 
