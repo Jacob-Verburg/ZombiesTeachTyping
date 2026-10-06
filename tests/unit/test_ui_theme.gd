@@ -66,18 +66,61 @@ func test_pixel_button_variation_exists_and_reads() -> void:
 		assert_true(_theme.has_stylebox(style, &"PixelButton"), String(style))
 
 
-func test_pixel_button_boxes_are_square() -> void:
+## Story 5.0: every PixelButton box is 9-slice art (stepped corners in the texture, never a StyleBoxFlat
+## radius), from assets/sprites/ui/, with margins.
+func test_pixel_button_boxes_are_ui_art() -> void:
 	for style: StringName in _theme.get_stylebox_list(&"PixelButton"):
-		var flat: StyleBoxFlat = _theme.get_stylebox(style, &"PixelButton") as StyleBoxFlat
-		assert_not_null(flat, String(style))
-		for corner: int in 4:
-			assert_eq(flat.get_corner_radius(corner), 0, "%s corner %d" % [style, corner])
+		var box: StyleBoxTexture = _theme.get_stylebox(style, &"PixelButton") as StyleBoxTexture
+		assert_not_null(box, "%s is a StyleBoxTexture" % style)
+		if box == null:
+			continue
+		assert_not_null(box.texture, String(style))
+		assert_true(box.texture.resource_path.begins_with("res://assets/sprites/ui/"), box.texture.resource_path)
+		for side: int in 4:
+			assert_gt(box.get_texture_margin(side), 0.0, "%s margin %d" % [style, side])
 
 
 func test_pixel_button_focus_ring_sits_outside_the_outline() -> void:
-	var ring: StyleBoxFlat = _theme.get_stylebox(&"focus", &"PixelButton") as StyleBoxFlat
+	var ring: StyleBoxTexture = _theme.get_stylebox(&"focus", &"PixelButton") as StyleBoxTexture
+	assert_not_null(ring)
 	assert_false(ring.draw_center)
-	assert_eq(ring.border_color, Color("#FFD23F"))
+	assert_eq(ring.texture.resource_path, "res://assets/sprites/ui/common/ui_focus_ring.png")
 	for side: int in 4:
-		assert_eq(ring.get_border_width(side), 2)
 		assert_eq(ring.get_expand_margin(side), 2.0)
+
+
+## The squish: the pressed plank drops 2 px, and its label moves down with it.
+func test_pressed_box_moves_the_label_down_2_px() -> void:
+	var normal: StyleBox = _theme.get_stylebox(&"normal", &"PixelButton")
+	var pressed: StyleBox = _theme.get_stylebox(&"pressed", &"PixelButton")
+	assert_eq(pressed.get_content_margin(SIDE_TOP) - normal.get_content_margin(SIDE_TOP), 2.0)
+	assert_eq(normal.get_content_margin(SIDE_BOTTOM) - pressed.get_content_margin(SIDE_BOTTOM), 2.0)
+	assert_eq((pressed as StyleBoxTexture).texture.resource_path, "res://assets/sprites/ui/common/ui_button_pressed.png")
+
+
+## The shared boxes every screen uses (Story 5.0, AC 7): one place each, all 9-slice art.
+func test_shared_box_variations() -> void:
+	for type_name: StringName in [&"WoodPanel", &"StonePanel", &"Sign", &"SignGrey", &"Chalkboard", &"CandySign",
+			&"BrainPill", &"ShadowMd", &"ShadowLg", &"InkStrip", &"CardFrame", &"HudBand", &"Mirror", &"Ribbon",
+			&"TileParchment", &"TileStone", &"TileDisabled", &"TagPumpkin", &"TagGreen", &"TagBright", &"FocusRing",
+			&"FocusRingInset"]:
+		assert_eq(_theme.get_type_variation_base(type_name), &"Panel", String(type_name))
+		assert_true(_theme.get_stylebox(&"panel", type_name) is StyleBoxTexture, String(type_name))
+	assert_eq(_theme.get_type_variation_base(&"Keycap"), &"Label")
+	assert_true(_theme.get_stylebox(&"normal", &"Keycap") is StyleBoxTexture)
+
+
+## Plank grain and stone courses tile; flat fills stretch.
+func test_patterned_panels_tile() -> void:
+	for type_name: StringName in [&"WoodPanel", &"StonePanel"]:
+		var box: StyleBoxTexture = _theme.get_stylebox(&"panel", type_name) as StyleBoxTexture
+		assert_eq(box.axis_stretch_horizontal, StyleBoxTexture.AXIS_STRETCH_MODE_TILE, String(type_name))
+		assert_eq(box.axis_stretch_vertical, StyleBoxTexture.AXIS_STRETCH_MODE_TILE, String(type_name))
+	var sign_box: StyleBoxTexture = _theme.get_stylebox(&"panel", &"Sign") as StyleBoxTexture
+	assert_eq(sign_box.axis_stretch_horizontal, StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH)
+
+
+func test_no_flat_boxes_in_the_theme() -> void:
+	for type_name: StringName in _theme.get_stylebox_type_list():
+		for style: StringName in _theme.get_stylebox_list(type_name):
+			assert_false(_theme.get_stylebox(style, type_name) is StyleBoxFlat, "%s/%s" % [type_name, style])

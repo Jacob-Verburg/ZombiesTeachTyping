@@ -5,13 +5,15 @@ extends Control
 ## exactly one State, picked by the pure state_for() rule, with its own shape so the state never rests on
 ## colour alone. LOCKED: stone fill, a "?" and the price in chalk. CANT_AFFORD: disabled fill, the art and
 ## the price in ink-muted. BUY: the price on a pumpkin tag. WEAR: "Wear" on a zombie-green tag. WEARING: a
-## drawn check mark (the font has none) on a zombie-green-bright tag. The long words ("Coming soon",
+## check mark sprite (the font has none) on a zombie-green-bright tag. The long words ("Coming soon",
 ## "Need N more", "Wearing") don't fit a tile, so info_lines() gives them to the Closet's info sign.
 ## The tile shows what the Closet tells it and never touches PlayerData: Enter or a click on BUY, WEAR or
 ## WEARING emits activated(item_id), and the Closet acts; LOCKED and CANT_AFFORD only wiggle (no sound).
 ## Call setup() before add_child. Every child ignores the mouse, so the tile gets clicks and hover; real
 ## mouse motion moves focus here. The focused tile shows a 2 px candy-yellow ring on its own edge.
-## Placeholder chrome until Story 5.0 (tile art, 9-slices).
+## Story 5.0 art: the tile frames and tags are theme boxes (9-slices with stepped corners: TileParchment /
+## TileStone / TileDisabled, TagPumpkin / TagGreen / TagBright, Bare for no tag), the "?" silhouette and the
+## check are sprites, the ring is FocusRingInset and the drop shadow ShadowMd.
 
 enum State { LOCKED, CANT_AFFORD, BUY, WEAR, WEARING }
 
@@ -22,16 +24,25 @@ const WIGGLE_PX: float = 2.0
 ## Look value, not a GDD number: the whole wiggle, out and back.
 const WIGGLE_S: float = 0.2
 
-## Palette (DESIGN.md Colors).
+## Tag text colours (DESIGN.md Colors).
 const INK: Color = Color("#1E1428")
 const INK_MUTED: Color = Color("#4E4757")
 const CHALK: Color = Color("#F4F1E4")
-const STONE: Color = Color("#6F6A80")
-const PARCHMENT: Color = Color("#F6E7C1")
-const DISABLED_FILL: Color = Color("#CFC6B6")
-const PUMPKIN: Color = Color("#F07A1C")
-const ZOMBIE_GREEN: Color = Color("#6CC24A")
-const ZOMBIE_GREEN_BRIGHT: Color = Color("#B8F27C")
+## The frame's and the tag's theme box per state (data/ui_theme.tres).
+const FRAME_VARIATIONS: Dictionary[State, StringName] = {
+	State.LOCKED: &"TileStone",
+	State.CANT_AFFORD: &"TileDisabled",
+	State.BUY: &"TileParchment",
+	State.WEAR: &"TileParchment",
+	State.WEARING: &"TileParchment",
+}
+const TAG_VARIATIONS: Dictionary[State, StringName] = {
+	State.LOCKED: &"Bare",
+	State.CANT_AFFORD: &"Bare",
+	State.BUY: &"TagPumpkin",
+	State.WEAR: &"TagGreen",
+	State.WEARING: &"TagBright",
+}
 
 const WEAR_TEXT: String = "Wear"
 
@@ -107,16 +118,11 @@ func show_state(state: State) -> void:
 	if not is_node_ready():
 		return
 	var locked: bool = state == State.LOCKED
-	var fill: Color = PARCHMENT
-	if locked:
-		fill = STONE
-	elif state == State.CANT_AFFORD:
-		fill = DISABLED_FILL
-	(%Frame as Panel).add_theme_stylebox_override(&"panel", _box(fill))
+	(%Frame as Panel).theme_type_variation = FRAME_VARIATIONS[state]
+	(%Tag as Panel).theme_type_variation = TAG_VARIATIONS[state]
 	%Art.visible = not locked
 	%Question.visible = locked
 	%Check.visible = state == State.WEARING
-	var tag: StyleBox = StyleBoxEmpty.new()
 	var text_color: Color = INK
 	var text: String = str(_item.price) if _item != null else ""
 	match state:
@@ -124,15 +130,10 @@ func show_state(state: State) -> void:
 			text_color = CHALK
 		State.CANT_AFFORD:
 			text_color = INK_MUTED
-		State.BUY:
-			tag = _box(PUMPKIN)
 		State.WEAR:
-			tag = _box(ZOMBIE_GREEN)
 			text = WEAR_TEXT
 		State.WEARING:
-			tag = _box(ZOMBIE_GREEN_BRIGHT)
 			text = ""
-	(%Tag as Panel).add_theme_stylebox_override(&"panel", tag)
 	var label: Label = %TagLabel
 	label.text = text
 	label.add_theme_color_override(&"font_color", text_color)
@@ -195,11 +196,3 @@ func _show_focus(focused: bool) -> void:
 	if ring != null:
 		ring.visible = focused
 
-
-## A square palette box with a 1 px ink border (DESIGN Shapes; no corner radius until 5.0).
-func _box(fill: Color) -> StyleBoxFlat:
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = fill
-	box.set_border_width_all(1)
-	box.border_color = INK
-	return box

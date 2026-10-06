@@ -1,95 +1,20 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" uid="uid://blk6yqcckri1j" path="res://scripts/screens/report_card.gd" id="1_script"]
+
 [ext_resource type="Resource" path="res://data/levels/level_registry.tres" id="2_registry"]
+
 [ext_resource type="PackedScene" path="res://scenes/characters/professor_zombie.tscn" id="3_professor"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
-bg_color = Color(0.54117647, 0.32156863, 0.15686275, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+[ext_resource type="Script" path="res://scripts/ui/pixel_button.gd" id="4_pixel_button"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_surface"]
-bg_color = Color(0.14117647, 0.25098039, 0.18431373, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/report_card/ui_chalk_tray.png" id="5_tray"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tray"]
-bg_color = Color(0.75294118, 0.51764706, 0.27843137, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/report_card/ui_new_best.png" id="6_stamp"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stub"]
-bg_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/report_card/ui_moon.png" id="7_moon"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stamp"]
-bg_color = Color(0.69019608, 0.16470588, 0.14509804, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stamp_inner"]
-draw_center = false
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_keycap"]
-bg_color = Color(0.96470588, 0.90588235, 0.75686275, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button"]
-bg_color = Color(0.54117647, 0.32156863, 0.15686275, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_focused"]
-bg_color = Color(1, 0.6627451, 0.29019608, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
-bg_color = Color(0.94117647, 0.47843137, 0.10980392, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_focus_ring"]
-draw_center = false
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.82352941, 0.24705882, 1)
-expand_margin_left = 2.0
-expand_margin_top = 2.0
-expand_margin_right = 2.0
-expand_margin_bottom = 2.0
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/report_card/ui_bat.png" id="8_bat"]
 
 [node name="ReportCard" type="Control"]
 layout_mode = 3
@@ -100,8 +25,6 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 level_registry = ExtResource("2_registry")
-button_normal = SubResource("StyleBoxFlat_button")
-button_focused = SubResource("StyleBoxFlat_button_focused")
 
 [node name="Backdrop" type="Control" parent="."]
 layout_mode = 1
@@ -264,23 +187,15 @@ offset_bottom = 111.0
 mouse_filter = 2
 color = Color(0.16862745, 0.11372549, 0.24705882, 1)
 
-[node name="MoonWide" type="ColorRect" parent="Backdrop"]
+[node name="Moon" type="TextureRect" parent="Backdrop"]
 layout_mode = 1
-offset_left = 580.0
-offset_top = 30.0
-offset_right = 606.0
-offset_bottom = 46.0
+offset_left = 579.0
+offset_top = 25.0
+offset_right = 607.0
+offset_bottom = 51.0
 mouse_filter = 2
-color = Color(1, 0.95294118, 0.69019608, 1)
-
-[node name="MoonTall" type="ColorRect" parent="Backdrop"]
-layout_mode = 1
-offset_left = 584.0
-offset_top = 26.0
-offset_right = 602.0
-offset_bottom = 50.0
-mouse_filter = 2
-color = Color(1, 0.95294118, 0.69019608, 1)
+texture = ExtResource("7_moon")
+stretch_mode = 2
 
 [node name="Star0" type="ColorRect" parent="Backdrop"]
 layout_mode = 1
@@ -345,23 +260,15 @@ offset_bottom = 81.0
 mouse_filter = 2
 color = Color(0.95686275, 0.94509804, 0.89411765, 1)
 
-[node name="BatWings" type="ColorRect" parent="Backdrop"]
+[node name="Bat" type="TextureRect" parent="Backdrop"]
 layout_mode = 1
-offset_left = 490.0
-offset_top = 72.0
-offset_right = 498.0
-offset_bottom = 74.0
+offset_left = 486.0
+offset_top = 69.0
+offset_right = 502.0
+offset_bottom = 77.0
 mouse_filter = 2
-color = Color(0.47843137, 0.29411765, 0.70196078, 1)
-
-[node name="BatBody" type="ColorRect" parent="Backdrop"]
-layout_mode = 1
-offset_left = 493.0
-offset_top = 71.0
-offset_right = 495.0
-offset_bottom = 75.0
-mouse_filter = 2
-color = Color(0.47843137, 0.29411765, 0.70196078, 1)
+texture = ExtResource("8_bat")
+stretch_mode = 2
 
 [node name="MullionV" type="ColorRect" parent="Backdrop"]
 layout_mode = 1
@@ -453,14 +360,14 @@ offset_bottom = 339.0
 mouse_filter = 2
 color = Color(0.35294118, 0.19607843, 0.09411765, 1)
 
-[node name="BoardShadow" type="ColorRect" parent="."]
+[node name="BoardShadow" type="Panel" parent="."]
 layout_mode = 1
 offset_left = 18.0
 offset_top = 14.0
 offset_right = 434.0
 offset_bottom = 290.0
 mouse_filter = 2
-color = Color(0.11764706, 0.07843137, 0.15686275, 1)
+theme_type_variation = &"ShadowLg"
 
 [node name="Board" type="Panel" parent="."]
 layout_mode = 1
@@ -469,34 +376,15 @@ offset_top = 12.0
 offset_right = 432.0
 offset_bottom = 288.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
+theme_type_variation = &"Chalkboard"
 
-[node name="BevelTop" type="ColorRect" parent="Board"]
-layout_mode = 1
-offset_left = 1.0
-offset_top = 1.0
-offset_right = 415.0
-offset_bottom = 2.0
-mouse_filter = 2
-color = Color(0.75294118, 0.51764706, 0.27843137, 1)
-
-[node name="BevelLeft" type="ColorRect" parent="Board"]
-layout_mode = 1
-offset_left = 1.0
-offset_top = 1.0
-offset_right = 2.0
-offset_bottom = 275.0
-mouse_filter = 2
-color = Color(0.75294118, 0.51764706, 0.27843137, 1)
-
-[node name="Surface" type="Panel" parent="Board"]
+[node name="Surface" type="Control" parent="Board"]
 layout_mode = 1
 offset_left = 7.0
 offset_top = 7.0
 offset_right = 407.0
 offset_bottom = 261.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_surface")
 
 [node name="Heading" type="Label" parent="Board/Surface"]
 unique_name_in_owner = true
@@ -712,62 +600,26 @@ theme_override_colors/font_color = Color(1, 0.82352941, 0.24705882, 1)
 text = "+0 bonus"
 horizontal_alignment = 2
 
-[node name="Tray" type="Panel" parent="Board"]
+[node name="ChalkTray" type="TextureRect" parent="Board"]
 layout_mode = 1
 offset_left = 3.0
-offset_top = 262.0
+offset_top = 258.0
 offset_right = 411.0
 offset_bottom = 272.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_tray")
+texture = ExtResource("5_tray")
+stretch_mode = 2
 
-[node name="ChalkStub0" type="Panel" parent="Board"]
-layout_mode = 1
-offset_left = 40.0
-offset_top = 258.0
-offset_right = 56.0
-offset_bottom = 262.0
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_stub")
-
-[node name="ChalkStub1" type="Panel" parent="Board"]
-layout_mode = 1
-offset_left = 70.0
-offset_top = 259.0
-offset_right = 80.0
-offset_bottom = 262.0
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_stub")
-
-[node name="Stamp" type="Panel" parent="."]
+[node name="Stamp" type="TextureRect" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
-offset_left = 288.0
-offset_top = 20.0
-offset_right = 448.0
-offset_bottom = 52.0
+offset_left = 290.0
+offset_top = 6.0
+offset_right = 434.0
+offset_bottom = 65.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_stamp")
-
-[node name="Inner" type="Panel" parent="Stamp"]
-layout_mode = 1
-offset_left = 3.0
-offset_top = 3.0
-offset_right = 157.0
-offset_bottom = 29.0
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_stamp_inner")
-
-[node name="Text" type="Label" parent="Stamp"]
-layout_mode = 1
-offset_left = 0.0
-offset_top = 0.0
-offset_right = 160.0
-offset_bottom = 32.0
-theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-text = "New best!"
-horizontal_alignment = 1
-vertical_alignment = 1
+texture = ExtResource("6_stamp")
+stretch_mode = 2
 
 [node name="Professor" parent="." instance=ExtResource("3_professor")]
 unique_name_in_owner = true
@@ -784,16 +636,9 @@ focus_neighbor_left = NodePath("../MenuButton")
 focus_neighbor_top = NodePath(".")
 focus_neighbor_right = NodePath("../MenuButton")
 focus_neighbor_bottom = NodePath(".")
-theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-theme_override_colors/font_hover_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-theme_override_colors/font_focus_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-theme_override_colors/font_pressed_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-theme_override_colors/font_hover_pressed_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-theme_override_styles/normal = SubResource("StyleBoxFlat_button")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/focus = SubResource("StyleBoxFlat_focus_ring")
 text = "Play Again"
+theme_type_variation = &"PixelButton"
+script = ExtResource("4_pixel_button")
 
 [node name="EnterHint" type="Label" parent="."]
 unique_name_in_owner = true
@@ -803,10 +648,10 @@ offset_top = 312.0
 offset_right = 304.0
 offset_bottom = 336.0
 theme_override_colors/font_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-theme_override_styles/normal = SubResource("StyleBoxFlat_keycap")
 text = "Enter"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_type_variation = &"Keycap"
 
 [node name="MenuButton" type="Button" parent="."]
 unique_name_in_owner = true
@@ -819,16 +664,9 @@ focus_neighbor_left = NodePath("../PlayAgainButton")
 focus_neighbor_top = NodePath(".")
 focus_neighbor_right = NodePath("../PlayAgainButton")
 focus_neighbor_bottom = NodePath(".")
-theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-theme_override_colors/font_hover_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-theme_override_colors/font_focus_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-theme_override_colors/font_pressed_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-theme_override_colors/font_hover_pressed_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-theme_override_styles/normal = SubResource("StyleBoxFlat_button")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/focus = SubResource("StyleBoxFlat_focus_ring")
 text = "Menu"
+theme_type_variation = &"PixelButton"
+script = ExtResource("4_pixel_button")
 
 [node name="EscHint" type="Label" parent="."]
 unique_name_in_owner = true
@@ -838,7 +676,7 @@ offset_top = 312.0
 offset_right = 472.0
 offset_bottom = 336.0
 theme_override_colors/font_color = Color(0.11764706, 0.07843137, 0.15686275, 1)
-theme_override_styles/normal = SubResource("StyleBoxFlat_keycap")
 text = "Esc"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_type_variation = &"Keycap"

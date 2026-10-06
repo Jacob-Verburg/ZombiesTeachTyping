@@ -1,51 +1,16 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/run/hud.gd" id="1_script"]
+
 [ext_resource type="PackedScene" path="res://scenes/ui/brain_counter.tscn" id="2_brain_counter"]
+
 [ext_resource type="PackedScene" path="res://scenes/run/zombie_hands.tscn" id="3_zombie_hands"]
+
 [ext_resource type="PackedScene" path="res://scenes/cosmetics/pet_slot.tscn" id="4_pet_slot"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_band"]
-bg_color = Color(0.35294118, 0.19607843, 0.094117647, 1)
-border_width_top = 1
-border_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/hud/ui_cushion.png" id="5_cushion"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_parchment"]
-bg_color = Color(0.96470588, 0.90588235, 0.75686275, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_chalkboard"]
-bg_color = Color(0.14117647, 0.25098039, 0.18431373, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ink"]
-bg_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_candy"]
-bg_color = Color(1, 0.82352941, 0.24705882, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause"]
-bg_color = Color(0.96470588, 0.90588235, 0.75686275, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431373, 0.15686275, 1)
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/common/ui_icon_pause.png" id="6_pause_icon"]
 
 [node name="Hud" type="Control"]
 layout_mode = 3
@@ -64,7 +29,7 @@ offset_top = 256.0
 offset_right = 640.0
 offset_bottom = 360.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_band")
+theme_type_variation = &"HudBand"
 
 [node name="PetSlot" type="Control" parent="."]
 unique_name_in_owner = true
@@ -74,7 +39,7 @@ offset_right = 64.0
 offset_bottom = 360.0
 mouse_filter = 2
 
-[node name="PetCushion" type="Panel" parent="PetSlot"]
+[node name="PetCushion" type="TextureRect" parent="PetSlot"]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 8.0
@@ -82,7 +47,8 @@ offset_top = 44.0
 offset_right = 56.0
 offset_bottom = 92.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_parchment")
+texture = ExtResource("5_cushion")
+stretch_mode = 2
 
 [node name="Pet" parent="PetSlot" instance=ExtResource("4_pet_slot")]
 unique_name_in_owner = true
@@ -105,7 +71,7 @@ offset_top = 4.0
 offset_right = 180.0
 offset_bottom = 44.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_parchment")
+theme_type_variation = &"Sign"
 
 [node name="TargetLabel" type="Label" parent="TargetArea/TargetSign"]
 unique_name_in_owner = true
@@ -138,7 +104,7 @@ offset_top = 260.0
 offset_right = 552.0
 offset_bottom = 356.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_chalkboard")
+theme_type_variation = &"Chalkboard"
 
 [node name="TimerLabel" type="Label" parent="Stats"]
 unique_name_in_owner = true
@@ -248,7 +214,7 @@ offset_top = 228.0
 offset_right = 424.0
 offset_bottom = 252.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ink")
+theme_type_variation = &"InkStrip"
 
 [node name="StartPromptLabel" type="Label" parent="StartPrompt"]
 unique_name_in_owner = true
@@ -270,7 +236,7 @@ offset_top = 196.0
 offset_right = 348.0
 offset_bottom = 224.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_candy")
+theme_type_variation = &"CandySign"
 
 [node name="CapsHintLabel" type="Label" parent="CapsHint"]
 unique_name_in_owner = true
@@ -291,25 +257,14 @@ offset_top = 16.0
 offset_right = 624.0
 offset_bottom = 40.0
 focus_mode = 0
-theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
-theme_override_styles/hover = SubResource("StyleBoxFlat_pause")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_pause")
-theme_override_styles/normal = SubResource("StyleBoxFlat_pause")
+theme_type_variation = &"PauseButton"
 
-[node name="BarLeft" type="ColorRect" parent="PauseButton"]
+[node name="PauseIcon" type="TextureRect" parent="PauseButton"]
 layout_mode = 0
-offset_left = 7.0
-offset_top = 6.0
-offset_right = 11.0
-offset_bottom = 18.0
+offset_left = 6.0
+offset_top = 5.0
+offset_right = 18.0
+offset_bottom = 17.0
 mouse_filter = 2
-color = Color(0.11764706, 0.078431373, 0.15686275, 1)
-
-[node name="BarRight" type="ColorRect" parent="PauseButton"]
-layout_mode = 0
-offset_left = 13.0
-offset_top = 6.0
-offset_right = 17.0
-offset_bottom = 18.0
-mouse_filter = 2
-color = Color(0.11764706, 0.078431373, 0.15686275, 1)
+texture = ExtResource("6_pause_icon")
+stretch_mode = 2

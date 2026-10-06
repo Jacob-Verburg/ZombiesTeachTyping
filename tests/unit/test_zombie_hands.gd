@@ -1,6 +1,7 @@
 extends GutTest
 ## Zombie hands (Story 2.6): which fingers light, the lit/rest look, the ~2 Hz outline pulse, the f/j
 ## bumps, focus/mouse rules and a missing finger map. Disabled instance: _process driven by hand.
+## Story 5.0: the hands are sprites; the glow frame follows the outline width; the art mirrors about x 156.
 
 const HandsScene: PackedScene = preload("res://scenes/run/zombie_hands.tscn")
 const HandsScript := preload("res://scripts/run/zombie_hands.gd")
@@ -168,3 +169,31 @@ func test_missing_finger_map_lights_nothing() -> void:
 	hands.show_char("a")
 	assert_eq(hands.get_lit_fingers(), [] as Array[Vector2i])
 	assert_eq(hands.get_outline_width(), 0)
+
+
+## Story 5.0: the hands and every glow sheet load once; the glow frame is 0 (strong) or 1 (weak) with the pulse.
+func test_hand_and_glow_art_loaded() -> void:
+	for hand: int in [L, R]:
+		assert_not_null(_hands._hand_textures.get(hand), "hand %d" % hand)
+		for finger: int in FingerMap.Finger.values():
+			var glow: Texture2D = _hands._glow_textures.get(_f(hand, finger))
+			assert_not_null(glow, "glow %d %d" % [hand, finger])
+			if glow != null:
+				assert_eq(Vector2i(glow.get_size()), Vector2i(HandsScript.HAND_SIZE.x * 2, HandsScript.HAND_SIZE.y))
+	_hands.show_char("f")
+	assert_eq(_hands.get_glow_frame(), 0, "strong outline -> frame 0")
+	_hands._process(0.25)
+	assert_eq(_hands.get_glow_frame(), 1, "weak outline -> frame 1")
+
+
+func test_hands_mirror_about_the_area_centre() -> void:
+	assert_eq(HandsScript.LEFT_X + HandsScript.HAND_SIZE.x + HandsScript.RIGHT_X, 312, "mirrored about x 156")
+	assert_lte(HandsScript.RIGHT_X + HandsScript.HAND_SIZE.x, 312)
+
+
+func test_missing_art_warns_once_and_draws_nothing() -> void:
+	var texture: Texture2D = _hands._load("res://assets/sprites/ui/hands/nope.png")
+	assert_null(texture)
+	assert_push_warning("[WARN][hands]")
+	_hands._load("res://assets/sprites/ui/hands/nope_again.png")
+	assert_push_warning_count(1)

@@ -8,7 +8,7 @@ extends Control
 ## open, so nothing behind the scrim can be focused by code either.
 ## Yes / No emit answered(yes) once, then close. The prompt never handles Esc itself: the owning screen
 ## routes Esc to cancel() (= No), so Esc has one owner. Yes / No ignore presses for answer_delay_ms after
-## open(), so a double-tap on the Buy tile cannot answer Yes by accident. Hidden until open(). Placeholder chrome until 5.0.
+## open(), so a double-tap on the Buy tile cannot answer Yes by accident. Hidden until open(). Story 5.0 art: a WoodPanel and a parchment Sign over the night scrim.
 
 signal answered(yes: bool)
 

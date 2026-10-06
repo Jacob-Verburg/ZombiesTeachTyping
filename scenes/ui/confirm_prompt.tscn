@@ -1,23 +1,8 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/confirm_prompt.gd" id="1_script"]
+
 [ext_resource type="Script" path="res://scripts/ui/pixel_button.gd" id="2_pixel_button"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
-bg_color = Color(0.3529412, 0.19607843, 0.09411765, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sign"]
-bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
 
 [node name="ConfirmPrompt" type="Control"]
 visible = false
@@ -48,16 +33,7 @@ offset_top = 96.0
 offset_right = 584.0
 offset_bottom = 264.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
-
-[node name="Wood" type="ColorRect" parent="Panel"]
-layout_mode = 0
-offset_left = 4.0
-offset_top = 4.0
-offset_right = 524.0
-offset_bottom = 164.0
-mouse_filter = 2
-color = Color(0.5411765, 0.32156864, 0.15686275, 1)
+theme_type_variation = &"WoodPanel"
 
 [node name="Sign" type="Panel" parent="."]
 unique_name_in_owner = true
@@ -67,7 +43,7 @@ offset_top = 104.0
 offset_right = 576.0
 offset_bottom = 204.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_sign")
+theme_type_variation = &"Sign"
 
 [node name="QuestionLabel" type="Label" parent="Sign"]
 unique_name_in_owner = true

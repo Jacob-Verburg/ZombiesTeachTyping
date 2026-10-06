@@ -6,7 +6,8 @@ extends Control
 ## A view only: RunFrame calls down; the HUD never reads input, never touches the TypingSession, the
 ## clock or any autoload except Log, and only emits pause_pressed. The %Pet slot on the cushion (Story 4.3)
 ## is a cosmetics widget that listens to PlayerData by itself (Boundary 2); this script still doesn't.
-## Placeholder chrome until Story 5.0.
+## Story 5.0 art: the HudBand, Sign, Chalkboard, CandySign and InkStrip theme boxes (9-slices, so the target
+## sign still stretches to 48 x 40, n x 32 + 16 x 40 and 304 x 48), the pet cushion and the round pause button.
 
 ## Emitted when the pause button is clicked. Pausing itself is Story 2.7.
 signal pause_pressed

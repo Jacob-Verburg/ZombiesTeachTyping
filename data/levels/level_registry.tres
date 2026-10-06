@@ -1,14 +1,12 @@
-[gd_resource type="Resource" script_class="LevelRegistry" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="LevelRegistry" load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/level_registry.gd" id="1_registry"]
 [ext_resource type="Script" path="res://scripts/resources/level_entry.gd" id="2_entry"]
 [ext_resource type="PackedScene" path="res://scenes/levels/test_level/test_level.tscn" id="3_test_level"]
 [ext_resource type="PackedScene" path="res://scenes/levels/zombie_run/zombie_run_level.tscn" id="4_zombie_run"]
-[ext_resource type="Texture2D" uid="uid://bl6nefl11kyyl" path="res://assets/sprites/backdrops/sunny_village_green/far.png" id="5_far"]
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_zombie_run_card"]
-atlas = ExtResource("5_far")
-region = Rect2(448, 120, 184, 72)
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_level_card_zombie_run.png" id="5_card_zombie_run"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_level_card_horde_rush.png" id="6_card_horde_rush"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_level_card_pitchfork_panic.png" id="7_card_pitchfork_panic"]
 
 [sub_resource type="Resource" id="Resource_zombie_run"]
 script = ExtResource("2_entry")
@@ -17,7 +15,7 @@ display_name = "Zombie Run"
 scene = ExtResource("4_zombie_run")
 debug_only = false
 available = true
-card_picture = SubResource("AtlasTexture_zombie_run_card")
+card_picture = ExtResource("5_card_zombie_run")
 
 [sub_resource type="Resource" id="Resource_horde_rush"]
 script = ExtResource("2_entry")
@@ -25,6 +23,7 @@ id = &"horde_rush"
 display_name = "Horde Rush"
 debug_only = false
 available = false
+card_picture = ExtResource("6_card_horde_rush")
 
 [sub_resource type="Resource" id="Resource_pitchfork_panic"]
 script = ExtResource("2_entry")
@@ -32,6 +31,7 @@ id = &"pitchfork_panic"
 display_name = "Pitchfork Panic"
 debug_only = false
 available = false
+card_picture = ExtResource("7_card_pitchfork_panic")
 
 [sub_resource type="Resource" id="Resource_test_level"]
 script = ExtResource("2_entry")

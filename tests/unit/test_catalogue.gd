@@ -262,3 +262,17 @@ func test_shipped_mvp_items_have_art() -> void:
 			assert_null(item.icon, "%s has no icon yet (Epic 9)" % item.id)
 			assert_null(item.overlay, "%s has no art yet (Epic 9)" % item.id)
 			assert_null(item.pet_frames, "%s has no art yet (Epic 9)" % item.id)
+
+
+## Story 5.0 (4.4 deferral "the pumpkin sits low"): the hat's Closet icon is its overlay cropped to the opaque
+## pixels and padded back to 32 x 32, so the tile shows it centred.
+func test_pumpkin_icon_is_centred() -> void:
+	var hat: CosmeticItem = load("res://data/cosmetics/hat_pumpkin.tres") as CosmeticItem
+	var icon: AtlasTexture = hat.icon as AtlasTexture
+	assert_not_null(icon, "an AtlasTexture of the overlay")
+	if icon == null:
+		return
+	assert_eq(icon.atlas, hat.overlay)
+	assert_eq(Rect2i(icon.region), hat.overlay.get_image().get_used_rect(), "cropped to the opaque pixels")
+	assert_eq(icon.get_size(), Vector2(32, 32))
+	assert_eq(icon.margin.position * 2.0 + icon.region.size, Vector2(32, 32), "centred both ways")

@@ -61,3 +61,12 @@ func test_the_bob_never_moves_the_position() -> void:
 		assert_eq(arrow.global_position, Vector2(38, 52), "rest position at step %d" % i)
 	assert_eq(offsets.max(), TutorialArrow.BOB_PX, "bobs the full distance")
 	assert_eq(offsets.min(), 0.0, "and back")
+
+
+## Story 5.0: the hand-drawn arrow sprites, one per direction, the arrow's own 24 x 20 size.
+func test_arrow_art_fits_the_arrow() -> void:
+	for direction: TutorialArrow.Direction in TutorialArrow.ARROWS:
+		var texture: Texture2D = TutorialArrow.ARROWS[direction]
+		assert_eq(texture.get_size(), TutorialArrow.ARROW_SIZE, "direction %d" % direction)
+	assert_string_contains(TutorialArrow.ARROWS[TutorialArrow.Direction.DOWN].resource_path, "ui_arrow_down.png")
+	assert_string_contains(TutorialArrow.ARROWS[TutorialArrow.Direction.RIGHT].resource_path, "ui_arrow_right.png")

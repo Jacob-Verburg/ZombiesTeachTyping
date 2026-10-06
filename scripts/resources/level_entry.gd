@@ -13,5 +13,6 @@ extends Resource
 @export var debug_only: bool = false
 ## False = the card shows Coming soon and cannot be chosen (FR26). Coming soon wins over Locked (FR79).
 @export var available: bool = false
-## Card picture; placeholder until Story 5.0's `ui_level_card_<id>.png`. Null = a flat placeholder fill.
+## Card picture, `assets/sprites/ui/menu/ui_level_card_<id>.png` (184 x 72, Story 5.0). Null = the card's flat
+## PictureFill (NFR16 fallback).
 @export var card_picture: Texture2D

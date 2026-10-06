@@ -52,13 +52,14 @@ func _node(tile: ClosetItemTile, path: String) -> Node:
 	return tile.get_node(path)
 
 
+## Story 5.0: the tag's theme box (a 9-slice per state), or null when the tag has no box (Bare).
 func _tag_fill(tile: ClosetItemTile) -> Variant:
-	var box: StyleBox = (_node(tile, "%Tag") as Panel).get_theme_stylebox(&"panel")
-	return (box as StyleBoxFlat).bg_color if box is StyleBoxFlat else null
+	var variation: StringName = (_node(tile, "%Tag") as Panel).theme_type_variation
+	return null if variation == &"Bare" else variation
 
 
-func _frame_fill(tile: ClosetItemTile) -> Color:
-	return ((_node(tile, "%Frame") as Panel).get_theme_stylebox(&"panel") as StyleBoxFlat).bg_color
+func _frame_fill(tile: ClosetItemTile) -> StringName:
+	return (_node(tile, "%Frame") as Panel).theme_type_variation
 
 
 # --- The state rule ------------------------------------------------------------------------------------
@@ -122,10 +123,10 @@ func test_setup_fills_the_art_and_ids() -> void:
 func test_locked_look() -> void:
 	var tile: ClosetItemTile = _tile(_item(&"hat_test", 300, false), ClosetItemTile.State.LOCKED)
 	assert_eq(tile.get_state(), ClosetItemTile.State.LOCKED)
-	assert_true((_node(tile, "%Question") as Label).visible, "the ? shows")
+	assert_true((_node(tile, "%Question") as CanvasItem).visible, "the ? shows")
 	assert_false((_node(tile, "%Art") as Control).visible)
 	assert_false((_node(tile, "%Check") as CanvasItem).visible)
-	assert_eq(_frame_fill(tile), ClosetItemTile.STONE)
+	assert_eq(_frame_fill(tile), &"TileStone")
 	assert_null(_tag_fill(tile), "no tag box")
 	var label: Label = _node(tile, "%TagLabel") as Label
 	assert_eq(label.text, "300", "the price shows by row")
@@ -140,10 +141,10 @@ func test_an_unavailable_item_can_never_show_another_state() -> void:
 
 func test_cant_afford_look() -> void:
 	var tile: ClosetItemTile = _tile(_item(), ClosetItemTile.State.CANT_AFFORD)
-	assert_false((_node(tile, "%Question") as Label).visible)
+	assert_false((_node(tile, "%Question") as CanvasItem).visible)
 	assert_true((_node(tile, "%Art") as Control).visible)
 	assert_false((_node(tile, "%Check") as CanvasItem).visible)
-	assert_eq(_frame_fill(tile), ClosetItemTile.DISABLED_FILL)
+	assert_eq(_frame_fill(tile), &"TileDisabled")
 	assert_null(_tag_fill(tile), "no tag box")
 	var label: Label = _node(tile, "%TagLabel") as Label
 	assert_eq(label.text, "100")
@@ -153,10 +154,10 @@ func test_cant_afford_look() -> void:
 func test_buy_look() -> void:
 	var tile: ClosetItemTile = _tile(_item(), ClosetItemTile.State.BUY)
 	assert_true((_node(tile, "%Art") as Control).visible)
-	assert_false((_node(tile, "%Question") as Label).visible)
+	assert_false((_node(tile, "%Question") as CanvasItem).visible)
 	assert_false((_node(tile, "%Check") as CanvasItem).visible)
-	assert_eq(_frame_fill(tile), ClosetItemTile.PARCHMENT)
-	assert_eq(_tag_fill(tile), ClosetItemTile.PUMPKIN)
+	assert_eq(_frame_fill(tile), &"TileParchment")
+	assert_eq(_tag_fill(tile), &"TagPumpkin")
 	var label: Label = _node(tile, "%TagLabel") as Label
 	assert_eq(label.text, "100", "the price on the pumpkin tag")
 	assert_eq(label.get_theme_color(&"font_color"), ClosetItemTile.INK)
@@ -165,17 +166,17 @@ func test_buy_look() -> void:
 func test_wear_look() -> void:
 	var tile: ClosetItemTile = _tile(_item(), ClosetItemTile.State.WEAR)
 	assert_false((_node(tile, "%Check") as CanvasItem).visible)
-	assert_eq(_frame_fill(tile), ClosetItemTile.PARCHMENT)
-	assert_eq(_tag_fill(tile), ClosetItemTile.ZOMBIE_GREEN)
+	assert_eq(_frame_fill(tile), &"TileParchment")
+	assert_eq(_tag_fill(tile), &"TagGreen")
 	assert_eq((_node(tile, "%TagLabel") as Label).text, "Wear")
 
 
 func test_wearing_look() -> void:
 	var tile: ClosetItemTile = _tile(_item(), ClosetItemTile.State.WEARING)
 	assert_true((_node(tile, "%Check") as CanvasItem).visible, "the drawn check mark")
-	assert_eq(_tag_fill(tile), ClosetItemTile.ZOMBIE_GREEN_BRIGHT)
+	assert_eq(_tag_fill(tile), &"TagBright")
 	assert_eq((_node(tile, "%TagLabel") as Label).text, "", "no word on the tile")
-	assert_false((_node(tile, "%Question") as Label).visible)
+	assert_false((_node(tile, "%Question") as CanvasItem).visible)
 
 
 func test_state_set_before_add_child_applies_on_ready() -> void:
@@ -195,8 +196,8 @@ func test_the_tag_text_fits_at_16px() -> void:
 	for text: String in ["Wear", "100", "200", "300"]:
 		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 		assert_lte(width, label.size.x, "'%s' fits the tag" % text)
-	var question: Label = _node(tile, "%Question") as Label
-	assert_gte(question.get_theme_font_size(&"font_size"), 16)
+	var question: TextureRect = _node(tile, "%Question") as TextureRect
+	assert_eq(question.texture.resource_path, "res://assets/sprites/ui/closet/ui_locked.png", "the ? is a sprite")
 
 
 # --- Input ---------------------------------------------------------------------------------------------
@@ -255,8 +256,8 @@ func test_focus_shows_the_ring_inside_the_tile() -> void:
 	tile.grab_focus()
 	assert_true(ring.visible)
 	assert_eq(ring.get_global_rect(), tile.get_global_rect(), "on the tile's own edge")
-	var box: StyleBoxFlat = ring.get_theme_stylebox(&"panel") as StyleBoxFlat
-	assert_eq(box.border_width_left, 2)
+	var box: StyleBoxTexture = ring.get_theme_stylebox(&"panel") as StyleBoxTexture
+	assert_eq(box.texture.resource_path, "res://assets/sprites/ui/common/ui_focus_ring.png", "the stepped 2 px ring")
 	assert_eq(box.expand_margin_left, 0.0)
 	tile.release_focus()
 	assert_false(ring.visible)

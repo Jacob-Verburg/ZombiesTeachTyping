@@ -247,7 +247,7 @@ func test_rects_match_the_layout_table() -> void:
 		"%Background": Rect2(0, 0, 640, 360),
 		"%Panel": Rect2(120, 52, 400, 240),
 		"%Ribbon": Rect2(308, 52, 24, 240),
-		"%Bow": Rect2(296, 36, 48, 16),
+		"%Bow": Rect2(296, 36, 48, 20),
 		"%Sign": Rect2(156, 68, 328, 40),
 		"%Heading": Rect2(164, 76, 312, 24),
 		"%BrainIcon": Rect2(236, 140, 32, 32),

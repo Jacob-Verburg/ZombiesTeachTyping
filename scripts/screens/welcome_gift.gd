@@ -12,7 +12,8 @@ extends Control
 ## the gift exists to teach the Closet. Mash guard: for INPUT_GUARD_S seconds of live time (counted in
 ## _process, which doesn't run during the Router's paused fade-in) every key or mouse press is swallowed.
 ## Seams (tests assign them before add_child): economy (exported), navigate, player_data, play_sfx.
-## Placeholder chrome until Story 5.0; the gift sound and the counter tick-up are Story 5.1.
+## Story 5.0 art: a WoodPanel wrapped in the pumpkin Ribbon 9-slice with the bow sprite, the parchment Sign and
+## the 32 px brain icon sprite. The gift sound and the counter tick-up are Story 5.1.
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 ## Look value, not a GDD number: presses are ignored this long after the card goes live.

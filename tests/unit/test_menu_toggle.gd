@@ -61,8 +61,28 @@ func test_icon_never_takes_the_mouse() -> void:
 	assert_eq((toggle.get_node("%Caption") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE)
 
 
+## Colour alone must not carry the state (NFR8): the shown icon frame is the sheet's off frame, whose pixels
+## carry a stamp-red diagonal slash; the on frame has none (Story 5.0: a real pixel check, not constants).
 func test_the_slash_carries_the_off_state() -> void:
-	# Colour alone must not carry the state (NFR8): off draws a slash in a third colour.
-	assert_ne(MenuToggle.SLASH_COLOR, MenuToggle.OFF_COLOR)
-	assert_ne(MenuToggle.SLASH_COLOR, MenuToggle.ON_COLOR)
-	assert_gte(MenuToggle.SLASH_PX, 2.0)
+	for kind: MenuToggle.Kind in [MenuToggle.Kind.MUSIC, MenuToggle.Kind.SOUND, MenuToggle.Kind.FULLSCREEN]:
+		var toggle: MenuToggle = _toggle(kind)
+		assert_eq(_stamp_red_diagonal(toggle), 0, "%s on: no slash" % kind)
+		toggle.show_state(false)
+		assert_gte(_stamp_red_diagonal(toggle), 12, "%s off: a diagonal slash" % kind)
+		toggle.show_state(true)
+		assert_eq(_stamp_red_diagonal(toggle), 0, "%s back on" % kind)
+
+
+## Stamp-red pixels on the shown icon frame's bottom-left to top-right diagonal (x = 19 - y, or one left).
+func _stamp_red_diagonal(toggle: MenuToggle) -> int:
+	var atlas: AtlasTexture = (toggle.get_node("%Icon") as TextureRect).texture as AtlasTexture
+	var sheet: Image = Image.load_from_file(ProjectSettings.globalize_path(atlas.atlas.resource_path))
+	var frame: Image = sheet.get_region(Rect2i(atlas.region))
+	var count: int = 0
+	for y: int in frame.get_height():
+		for dx: int in [0, -1]:
+			var x: int = frame.get_width() - 1 - y + dx
+			if x >= 0 and frame.get_pixel(x, y).to_html(false) == "b02a25":
+				count += 1
+				break
+	return count

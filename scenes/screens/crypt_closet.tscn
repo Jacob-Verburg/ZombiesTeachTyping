@@ -1,29 +1,22 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" uid="uid://cv03jc0g8j60e" path="res://scripts/screens/crypt_closet.gd" id="1_script"]
+
 [ext_resource type="Resource" path="res://data/cosmetics/catalogue.tres" id="2_catalogue"]
+
 [ext_resource type="PackedScene" path="res://scenes/ui/brain_counter.tscn" id="3_brain_counter"]
+
 [ext_resource type="Script" path="res://scripts/ui/pixel_button.gd" id="4_pixel_button"]
+
 [ext_resource type="PackedScene" path="res://scenes/characters/player_zombie.tscn" id="5_zombie"]
+
 [ext_resource type="PackedScene" path="res://scenes/cosmetics/pet_slot.tscn" id="6_pet_slot"]
+
 [ext_resource type="PackedScene" path="res://scenes/ui/confirm_prompt.tscn" id="7_confirm_prompt"]
+
 [ext_resource type="PackedScene" path="res://scenes/ui/tutorial_arrow.tscn" id="8_tutorial_arrow"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sign"]
-bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mirror"]
-bg_color = Color(0.5411765, 0.32156864, 0.15686275, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/closet/ui_closet_sign.png" id="9_closet_sign"]
 
 [node name="CryptCloset" type="Control"]
 layout_mode = 3
@@ -55,7 +48,7 @@ offset_top = 16.0
 offset_right = 96.0
 offset_bottom = 44.0
 
-[node name="Title" type="Panel" parent="."]
+[node name="Title" type="TextureRect" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 168.0
@@ -63,22 +56,8 @@ offset_top = 16.0
 offset_right = 472.0
 offset_bottom = 48.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_sign")
-
-[node name="TitleLabel" type="Label" parent="Title"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-theme_override_font_sizes/font_size = 24
-text = "Crypt Closet"
-horizontal_alignment = 1
-vertical_alignment = 1
+texture = ExtResource("9_closet_sign")
+stretch_mode = 3
 
 [node name="MenuButton" type="Button" parent="."]
 unique_name_in_owner = true
@@ -149,16 +128,7 @@ offset_top = 76.0
 offset_right = 396.0
 offset_bottom = 196.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_mirror")
-
-[node name="Glass" type="ColorRect" parent="Mirror"]
-layout_mode = 0
-offset_left = 4.0
-offset_top = 4.0
-offset_right = 148.0
-offset_bottom = 116.0
-mouse_filter = 2
-color = Color(0.8509804, 0.7372549, 0.5176471, 1)
+theme_type_variation = &"Mirror"
 
 [node name="PreviewZombie" parent="." instance=ExtResource("5_zombie")]
 unique_name_in_owner = true
@@ -180,7 +150,7 @@ offset_top = 296.0
 offset_right = 624.0
 offset_bottom = 344.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_sign")
+theme_type_variation = &"Sign"
 
 [node name="InfoName" type="Label" parent="InfoSign"]
 unique_name_in_owner = true

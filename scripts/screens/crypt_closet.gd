@@ -26,7 +26,8 @@ extends Control
 ## still false (a closed tab or an Esc doesn't lose it); never ends from _exit_tree.
 ## Seams (tests assign them before add_child): navigate, is_transitioning, player_data, play_sfx and the
 ## exported catalogue. The payload is consumed.
-## Later: final art and juice (5.0 / 5.1), Closet music (5.1).
+## Story 5.0 art: the hand-lettered "Crypt Closet" sign sprite, the Mirror and Sign theme boxes.
+## Later: juice and Closet music (5.1).
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 const TILE_SCENE: PackedScene = preload("res://scenes/ui/closet_item_tile.tscn")
@@ -419,7 +420,7 @@ func _place_arrow() -> void:
 		arrow.hide()
 		return
 	if %ConfirmPrompt.is_open():
-		arrow.point_at((%ConfirmPrompt as ConfirmPrompt).get_yes_button().get_global_rect(), TutorialArrow.Direction.RIGHT)
+		arrow.point_at(((%ConfirmPrompt as ConfirmPrompt).get_yes_button() as PixelButton).get_rest_rect(), TutorialArrow.Direction.RIGHT)
 		return
 	var tile: ClosetItemTile = get_tile(_tutorial_target)
 	if tile == null or not tile.get_state() in [ClosetItemTile.State.BUY, ClosetItemTile.State.WEAR]:

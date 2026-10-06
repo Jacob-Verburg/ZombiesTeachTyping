@@ -29,6 +29,23 @@ func test_web_preset_is_single_threaded_without_pwa() -> void:
 	assert_eq(_cfg.get_value(options, "progressive_web_app/enabled"), false)
 
 
+## Story 5.0 (AC 2): the loading page matches the title: the head include restyles the default shell (night
+## page, pixelated logo, a pumpkin bar on a dusk track); no script, no text, no custom shell.
+func test_web_loading_page_is_restyled_by_the_head_include() -> void:
+	var section: String = _load_and_find("Web")
+	assert_ne(section, "")
+	if section == "":
+		return
+	var options: String = section + ".options"
+	var head: String = _cfg.get_value(options, "html/head_include", "")
+	for needle: String in ["<style>", "#2B1D3F", "#F07A1C", "#4A3366", "#status-progress", "#status-splash",
+			"image-rendering: pixelated", "body"]:
+		assert_string_contains(head, needle)
+	assert_false(head.contains("<script"), "CSS only")
+	assert_false(head.contains("url("), "no external files or fonts")
+	assert_eq(_cfg.get_value(options, "html/custom_html_shell", ""), "", "the default shell, restyled")
+
+
 func test_windows_preset_exists() -> void:
 	var section: String = _load_and_find("Windows Desktop")
 	assert_ne(section, "", "a preset named Windows Desktop must exist")

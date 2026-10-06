@@ -3,7 +3,9 @@ extends Control
 ## toggles, over the night scrim. Runs only while the tree is paused (PROCESS_MODE_WHEN_PAUSED); it is a
 ## menu, so its buttons take keyboard focus (Up/Down, Enter/Space, click). Esc on the panel = Resume
 ## (EXPERIENCE.md [ASSUMPTION]). It touches no autoload: RunFrame applies what it emits (call down,
-## signal up). Placeholder look (stone panel, word toggles) until Stories 4.2 / 5.0.
+## signal up). Story 5.0 look: a stone panel with a parchment "Paused" sign, PixelButtons, and Music / Sound
+## MenuToggles (icon plus caption; the slash carries the off state). Focus: Up / Down move between Resume, Quit
+## and the toggle row (wrapping), Left / Right between the two toggles.
 
 ## Resume was chosen (button, Enter on it, or Esc on the panel).
 signal resume_chosen
@@ -18,8 +20,9 @@ signal sound_toggled(on: bool)
 func _ready() -> void:
 	%ResumeButton.pressed.connect(_on_resume_button_pressed)
 	%QuitButton.pressed.connect(_on_quit_button_pressed)
-	%MusicToggle.toggled.connect(_on_music_toggle_toggled)
-	%SoundToggle.toggled.connect(_on_sound_toggle_toggled)
+	%MusicToggle.flipped.connect(_on_music_toggle_toggled)
+	%SoundToggle.flipped.connect(_on_sound_toggle_toggled)
+	_wire_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -32,9 +35,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Shows the panel with the saved settings (no toggle signal) and focuses Resume.
 func open(music_on: bool, sound_on: bool) -> void:
-	%MusicToggle.set_pressed_no_signal(music_on)
-	%SoundToggle.set_pressed_no_signal(sound_on)
-	_update_toggle_texts()
+	(%MusicToggle as MenuToggle).show_state(music_on)
+	(%SoundToggle as MenuToggle).show_state(sound_on)
 	visible = true
 	%ResumeButton.grab_focus()
 
@@ -53,9 +55,23 @@ func is_open() -> bool:
 	return visible
 
 
-func _update_toggle_texts() -> void:
-	%MusicToggle.text = "Music: %s" % ("on" if %MusicToggle.button_pressed else "off")
-	%SoundToggle.text = "Sound: %s" % ("on" if %SoundToggle.button_pressed else "off")
+## Resume <-> Quit <-> the toggle row, wrapping; Left / Right between the toggles (their inner buttons).
+func _wire_focus() -> void:
+	var resume: Button = %ResumeButton
+	var quit_button: Button = %QuitButton
+	var music: Button = (%MusicToggle as MenuToggle).get_focus_target()
+	var sound: Button = (%SoundToggle as MenuToggle).get_focus_target()
+	_link(resume, music, quit_button, resume, resume)
+	_link(quit_button, resume, music, quit_button, quit_button)
+	_link(music, quit_button, resume, sound, sound)
+	_link(sound, quit_button, resume, music, music)
+
+
+func _link(button: Button, up: Control, down: Control, left: Control, right: Control) -> void:
+	button.focus_neighbor_top = button.get_path_to(up)
+	button.focus_neighbor_bottom = button.get_path_to(down)
+	button.focus_neighbor_left = button.get_path_to(left)
+	button.focus_neighbor_right = button.get_path_to(right)
 
 
 func _on_resume_button_pressed() -> void:
@@ -69,14 +85,10 @@ func _on_quit_button_pressed() -> void:
 
 
 func _on_music_toggle_toggled(on: bool) -> void:
-	if not visible:
-		return
-	_update_toggle_texts()
-	music_toggled.emit(on)
+	if visible:
+		music_toggled.emit(on)
 
 
 func _on_sound_toggle_toggled(on: bool) -> void:
-	if not visible:
-		return
-	_update_toggle_texts()
-	sound_toggled.emit(on)
+	if visible:
+		sound_toggled.emit(on)

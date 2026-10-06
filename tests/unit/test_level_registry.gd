@@ -110,7 +110,7 @@ func test_shipped_registry_menu_levels() -> void:
 	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic", &"test_level"] as Array[StringName])
 	var zombie_run: LevelEntry = registry.get_entry(&"zombie_run")
 	assert_true(zombie_run.available)
-	assert_not_null(zombie_run.card_picture, "Zombie Run has a placeholder card picture")
+	assert_eq(zombie_run.card_picture.resource_path, "res://assets/sprites/ui/menu/ui_level_card_zombie_run.png")
 	var names: Dictionary[StringName, String] = {&"horde_rush": "Horde Rush", &"pitchfork_panic": "Pitchfork Panic"}
 	for id: StringName in names:
 		var entry: LevelEntry = registry.get_entry(id)
@@ -118,7 +118,8 @@ func test_shipped_registry_menu_levels() -> void:
 		assert_false(entry.available, "%s is Coming soon" % id)
 		assert_false(entry.debug_only)
 		assert_null(entry.scene, "%s has no scene yet" % id)
-		assert_null(entry.card_picture)
+		# Story 5.0: Coming soon cards show their level's picture too (greyed by the card).
+		assert_eq(entry.card_picture.resource_path, "res://assets/sprites/ui/menu/ui_level_card_%s.png" % id)
 		assert_eq(entry.display_name, names[id])
 		assert_null(registry.get_scene(id), "%s has no scene to run" % id)
 	var menu_ids: Array[StringName] = []

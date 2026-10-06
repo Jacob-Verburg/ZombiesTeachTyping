@@ -73,3 +73,16 @@ func test_main_scene_is_set_and_loads() -> void:
 		return
 	var scene: PackedScene = load(path) as PackedScene
 	assert_not_null(scene)
+
+
+## Story 5.0 (AC 3): the engine boot splash is the night page with the 1x title logo (Nearest, no stretch), and
+## the clear colour is night, so loading page -> splash -> title never shows a grey frame.
+func test_boot_splash_is_night_with_the_logo() -> void:
+	var night: Color = Color("#2B1D3F")
+	assert_true((ProjectSettings.get_setting("application/boot_splash/bg_color") as Color).is_equal_approx(night))
+	assert_eq(ProjectSettings.get_setting("application/boot_splash/image"), "res://assets/sprites/ui/menu/ui_logo.png")
+	assert_eq(ProjectSettings.get_setting("application/boot_splash/use_filter"), false)
+	assert_eq(ProjectSettings.get_setting("application/boot_splash/stretch_mode"), 0, "Disabled: no stretch")
+	assert_eq(ProjectSettings.get_setting("application/boot_splash/show_image"), true)
+	assert_true((ProjectSettings.get_setting("rendering/environment/defaults/default_clear_color") as Color)
+			.is_equal_approx(night), "no grey frame between the splash and the first screen")

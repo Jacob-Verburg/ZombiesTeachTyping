@@ -2,7 +2,8 @@ class_name BrainCounter
 extends Panel
 ## The brain counter pill: a brain icon and a number. Shows whatever its owner gives it: the HUD feeds
 ## the level's run total (never the saved wallet during a run), the main menu and the Crypt Closet (Stories
-## 4.2 / 4.4) feed the wallet. Placeholder chrome until Story 5.0; the count-up tick and pop are 5.0/5.1.
+## 4.2 / 4.4) feed the wallet. Story 5.0 art: the BrainPill theme box and
+## the 16 px brain icon sprite. The count-up tick and pop are Story 5.1.
 ## Never focusable, never blocks the mouse.
 
 

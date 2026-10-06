@@ -1,54 +1,8 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/level_card.gd" id="1_script"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
-bg_color = Color(0.3529412, 0.19607843, 0.09411765, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_plank"]
-content_margin_left = 4.0
-content_margin_top = 6.0
-content_margin_right = 4.0
-content_margin_bottom = 6.0
-bg_color = Color(0.5411765, 0.32156864, 0.15686275, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sign"]
-bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sign_soon"]
-bg_color = Color(0.7411765, 0.7137255, 0.76862746, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ring"]
-draw_center = false
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.8235294, 0.24705882, 1)
-expand_margin_left = 2.0
-expand_margin_top = 2.0
-expand_margin_right = 2.0
-expand_margin_bottom = 2.0
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_coming_soon.png" id="2_plank"]
 
 [node name="LevelCard" type="Control"]
 custom_minimum_size = Vector2(192, 124)
@@ -58,10 +12,8 @@ offset_right = 192.0
 offset_bottom = 124.0
 focus_mode = 2
 script = ExtResource("1_script")
-sign_style = SubResource("StyleBoxFlat_sign")
-sign_coming_soon_style = SubResource("StyleBoxFlat_sign_soon")
 
-[node name="Shadow" type="ColorRect" parent="."]
+[node name="Shadow" type="Panel" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 2.0
@@ -69,7 +21,7 @@ offset_top = 2.0
 offset_right = 194.0
 offset_bottom = 126.0
 mouse_filter = 2
-color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+theme_type_variation = &"ShadowLg"
 
 [node name="Frame" type="Panel" parent="."]
 unique_name_in_owner = true
@@ -77,7 +29,7 @@ layout_mode = 0
 offset_right = 192.0
 offset_bottom = 124.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
+theme_type_variation = &"CardFrame"
 
 [node name="PictureFill" type="ColorRect" parent="Frame"]
 layout_mode = 0
@@ -111,28 +63,17 @@ offset_bottom = 76.0
 mouse_filter = 2
 color = Color(0.43529412, 0.41568628, 0.5019608, 0.85)
 
-[node name="ComingSoonPlank" type="PanelContainer" parent="Frame"]
+[node name="ComingSoonPlank" type="TextureRect" parent="Frame"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
-offset_left = 4.0
-offset_top = 26.0
-offset_right = 188.0
-offset_bottom = 54.0
-rotation = -0.13962634
-pivot_offset = Vector2(92, 14)
+offset_left = 18.0
+offset_top = 15.0
+offset_right = 174.0
+offset_bottom = 65.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_plank")
-
-[node name="PlankLabel" type="Label" parent="Frame/ComingSoonPlank"]
-unique_name_in_owner = true
-layout_mode = 2
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-theme_override_font_sizes/font_size = 16
-text = "Coming soon"
-horizontal_alignment = 1
-vertical_alignment = 1
+texture = ExtResource("2_plank")
+stretch_mode = 2
 
 [node name="NameSign" type="Panel" parent="Frame"]
 unique_name_in_owner = true
@@ -142,7 +83,7 @@ offset_top = 80.0
 offset_right = 188.0
 offset_bottom = 120.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_sign")
+theme_type_variation = &"Sign"
 
 [node name="NameLabel" type="Label" parent="Frame/NameSign"]
 unique_name_in_owner = true
@@ -166,4 +107,4 @@ layout_mode = 0
 offset_right = 192.0
 offset_bottom = 124.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ring")
+theme_type_variation = &"FocusRing"

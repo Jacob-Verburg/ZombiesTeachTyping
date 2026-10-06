@@ -2,7 +2,9 @@ extends Control
 ## The resume countdown (FR12, GDD M3): big numbers counting down on the playfield while the tree stays
 ## paused; RunFrame unpauses only when `finished` fires. Runs only while the tree is paused
 ## (PROCESS_MODE_WHEN_PAUSED). Driven by _process with a remaining-time counter (deterministic for
-## tests). The numbers and step come from the caller (GameConstants). Placeholder look until Story 5.0.
+## tests). The numbers and step come from the caller (GameConstants). Look (Story 5.0, font route, no sprites):
+## 64 px candy-yellow numerals with a 1 px ink outline (outline_size 2 draws a closed 1 px ring of hard,
+## palette-only pixels; size 1 leaves gaps) and a 2 px ink shadow label.
 
 ## Emitted once when the last number has been shown for its full step. Never emitted after cancel().
 signal finished

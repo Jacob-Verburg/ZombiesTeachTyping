@@ -125,7 +125,9 @@ func test_labels_use_the_plain_words() -> void:
 	for i: int in 6:
 		words.append((card.get_node("%%Row%d/Label" % i) as Label).text)
 	assert_eq(words, ["Keys Typed", "Errors", "WPM", "Accuracy", "Lesson Time", "Brains Collected"] as Array[String])
-	assert_eq(_text(card, "%Stamp/Text"), "New best!")
+	# Story 5.0: "New best!" is the hand-lettered stamp sprite.
+	assert_eq((card.get_node("%Stamp") as TextureRect).texture.resource_path,
+			"res://assets/sprites/ui/report_card/ui_new_best.png")
 	assert_eq((card.get_node("%PlayAgainButton") as Button).text, "Play Again")
 	assert_eq((card.get_node("%MenuButton") as Button).text, "Menu")
 	assert_eq(_text(card, "%EnterHint"), "Enter")
@@ -251,16 +253,22 @@ func test_right_arrow_moves_focus_after_guard_and_enter_picks_menu() -> void:
 	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
 
 
+## Story 5.0: the buttons are PixelButtons, so the focused one shows the theme's pumpkin-light fill (and ink
+## text), the other the wood plank; the look is unchanged from 2.9.
 func test_focused_button_gets_the_focus_fill() -> void:
 	var card: Control = _card({"result": _result()})
 	var play: Button = card.get_node("%PlayAgainButton")
 	var menu: Button = card.get_node("%MenuButton")
-	assert_eq(play.get_theme_stylebox(&"normal"), card.get("button_focused"))
-	assert_eq(menu.get_theme_stylebox(&"normal"), card.get("button_normal"))
+	assert_true(play is PixelButton)
+	assert_true(menu is PixelButton)
+	var focused: StyleBox = play.get_theme_stylebox(&"normal_focused")
+	assert_eq(play.get_theme_stylebox(&"normal"), focused)
+	assert_ne(menu.get_theme_stylebox(&"normal"), focused)
 	menu.grab_focus()
-	assert_eq(play.get_theme_stylebox(&"normal"), card.get("button_normal"))
-	assert_eq(menu.get_theme_stylebox(&"normal"), card.get("button_focused"))
-	assert_eq(menu.get_theme_color(&"font_hover_color"), menu.get_theme_color(&"font_focus_color"))
+	assert_ne(play.get_theme_stylebox(&"normal"), focused)
+	assert_eq(menu.get_theme_stylebox(&"normal"), focused)
+	assert_eq(menu.get_theme_color(&"font_focus_color"), Color("#1E1428"), "ink text when focused")
+	assert_eq(play.get_theme_color(&"font_color"), Color("#F4F1E4"), "chalk text at rest")
 
 
 func test_decor_never_takes_mouse_or_focus() -> void:
@@ -485,7 +493,8 @@ func test_every_text_at_least_16_px() -> void:
 			var size: int = (node as Control).get_theme_font_size(&"font_size")
 			assert_true(size >= 16, "%s font %d" % [node.name, size])
 			checked += 1
-	assert_eq(checked, 19, "checked %d texts" % checked)
+	# 18 since Story 5.0: "New best!" is a hand-lettered sprite, no longer a Label.
+	assert_eq(checked, 18, "checked %d texts" % checked)
 
 
 # --- Professor Zombie -------------------------------------------------------------------------------

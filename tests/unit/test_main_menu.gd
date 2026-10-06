@@ -351,6 +351,11 @@ func _notice() -> PanelContainer:
 	return _menu.get_node("%StorageNotice") as PanelContainer
 
 
+func test_notice_has_its_sign_panel() -> void:
+	_make()
+	assert_true(_notice().get_theme_stylebox(&"panel") is StyleBoxTexture, "the Sign variation's panel shows on a PanelContainer")
+
+
 func test_notice_hidden_when_storage_is_persistent() -> void:
 	_make()
 	assert_true(WebPlatform.is_storage_persistent(), "desktop storage is persistent")
@@ -504,7 +509,8 @@ func test_text_fits_and_is_at_least_16px() -> void:
 			assert_gte(button.get_theme_font_size(&"font_size"), 16, "%s font size" % button.name)
 			assert_lte(button.get_minimum_size().x, button.size.x, "%s text overflows" % button.name)
 			checked += 1
-	assert_gt(checked, 10, "the walk found the menu's text")
+	# Fewer since Story 5.0: the logo and the two "Coming soon" planks are hand-lettered sprites, not Labels.
+	assert_gt(checked, 8, "the walk found the menu's text")
 
 
 func _assert_label_fits(label: Label) -> void:

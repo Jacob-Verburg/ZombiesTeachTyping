@@ -1,32 +1,24 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" uid="uid://c0j61hcvdcyx0" path="res://scripts/screens/main_menu.gd" id="1_script"]
+
 [ext_resource type="Resource" path="res://data/levels/level_registry.tres" id="2_registry"]
+
 [ext_resource type="PackedScene" path="res://scenes/ui/brain_counter.tscn" id="3_brain_counter"]
+
 [ext_resource type="PackedScene" path="res://scenes/characters/player_zombie.tscn" id="4_zombie"]
+
 [ext_resource type="Script" path="res://scripts/ui/pixel_button.gd" id="5_pixel_button"]
+
 [ext_resource type="PackedScene" path="res://scenes/ui/menu_toggle.tscn" id="6_toggle"]
+
 [ext_resource type="PackedScene" path="res://scenes/cosmetics/pet_slot.tscn" id="7_pet_slot"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_notice"]
-content_margin_left = 8.0
-content_margin_top = 6.0
-content_margin_right = 8.0
-content_margin_bottom = 6.0
-bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_logo_small.png" id="8_logo"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_logo"]
-bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_signpost.png" id="9_post"]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_thumbtack.png" id="10_tack"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -57,7 +49,7 @@ offset_top = 16.0
 offset_right = 96.0
 offset_bottom = 44.0
 
-[node name="Logo" type="Panel" parent="."]
+[node name="Logo" type="TextureRect" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 144.0
@@ -65,21 +57,8 @@ offset_top = 16.0
 offset_right = 496.0
 offset_bottom = 56.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_logo")
-
-[node name="LogoLabel" type="Label" parent="Logo"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-theme_override_font_sizes/font_size = 16
-text = "Zombies Teach Typing"
-horizontal_alignment = 1
-vertical_alignment = 1
+texture = ExtResource("8_logo")
+stretch_mode = 3
 
 [node name="Cards" type="HBoxContainer" parent="."]
 unique_name_in_owner = true
@@ -99,23 +78,25 @@ position = Vector2(48, 284)
 unique_name_in_owner = true
 position = Vector2(84, 284)
 
-[node name="PostLeft" type="ColorRect" parent="."]
+[node name="PostLeft" type="TextureRect" parent="."]
 layout_mode = 0
-offset_left = 40.0
+offset_left = 38.0
 offset_top = 328.0
-offset_right = 44.0
+offset_right = 46.0
 offset_bottom = 344.0
 mouse_filter = 2
-color = Color(0.3529412, 0.19607843, 0.09411765, 1)
+texture = ExtResource("9_post")
+stretch_mode = 2
 
-[node name="PostRight" type="ColorRect" parent="."]
+[node name="PostRight" type="TextureRect" parent="."]
 layout_mode = 0
-offset_left = 196.0
+offset_left = 194.0
 offset_top = 328.0
-offset_right = 200.0
+offset_right = 202.0
 offset_bottom = 344.0
 mouse_filter = 2
-color = Color(0.3529412, 0.19607843, 0.09411765, 1)
+texture = ExtResource("9_post")
+stretch_mode = 2
 
 [node name="ClosetButton" type="Button" parent="."]
 unique_name_in_owner = true
@@ -164,7 +145,7 @@ offset_top = 200.0
 offset_right = 624.0
 offset_bottom = 280.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_notice")
+theme_type_variation = &"Sign"
 
 [node name="StorageNoticeLabel" type="Label" parent="StorageNotice"]
 unique_name_in_owner = true
@@ -176,3 +157,8 @@ theme_override_font_sizes/font_size = 16
 text = "Progress may not be saved in this browser mode"
 vertical_alignment = 1
 autowrap_mode = 2
+
+[node name="Thumbtack" type="Sprite2D" parent="StorageNotice"]
+texture = ExtResource("10_tack")
+centered = false
+position = Vector2(164, -4)

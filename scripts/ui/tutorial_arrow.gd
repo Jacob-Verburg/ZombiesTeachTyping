@@ -1,11 +1,11 @@
 class_name TutorialArrow
 extends Control
 ## The tutorial arrow (Story 4.5; DESIGN.md / EXPERIENCE.md "tutorial-arrow", approved sketch
-## sketches/crypt-closet-4-4.md frame D): a 24 x 20 candy-yellow triangle with a 1 px ink outline that bobs
+## sketches/crypt-closet-4-4.md frame D): a 24 x 20 chunky candy-yellow arrow with a 1 px ink outline that bobs
 ## while it points. point_at() places it next to a target's global rect: DOWN sits centred above the target,
 ## RIGHT sits left of it, centred on its height. It never takes focus and ignores the mouse, so it never
 ## blocks input. The bob is drawn (draw_set_transform), so `position` stays at rest and exact. Carries no
-## text. Hidden until point_at(). Placeholder chrome until Story 5.0 (the hand-drawn arrow).
+## text. Hidden until point_at(). Story 5.0 art: ui_arrow_down.png / ui_arrow_right.png (24 x 20 each).
 
 enum Direction { DOWN, RIGHT }
 
@@ -18,9 +18,10 @@ const ARROW_SIZE: Vector2 = Vector2(24, 20)
 const DOWN_OFFSET: Vector2 = Vector2(-12, -24)
 const RIGHT_OFFSET: Vector2 = Vector2(-32, -10)
 
-## Palette (DESIGN.md Colors).
-const CANDY_YELLOW: Color = Color("#FFD23F")
-const INK: Color = Color("#1E1428")
+const ARROWS: Dictionary[Direction, Texture2D] = {
+	Direction.DOWN: preload("res://assets/sprites/ui/common/ui_arrow_down.png"),
+	Direction.RIGHT: preload("res://assets/sprites/ui/common/ui_arrow_right.png"),
+}
 
 var _direction: Direction = Direction.DOWN
 var _bob_s: float = 0.0
@@ -66,14 +67,5 @@ func get_bob_offset() -> float:
 
 func _draw() -> void:
 	var offset: float = get_bob_offset()
-	var points: PackedVector2Array
-	if _direction == Direction.DOWN:
-		draw_set_transform(Vector2(0, offset))
-		points = PackedVector2Array([Vector2(0, 0), Vector2(24, 0), Vector2(12, 20)])
-	else:
-		draw_set_transform(Vector2(offset, 0))
-		points = PackedVector2Array([Vector2(0, 0), Vector2(24, 10), Vector2(0, 20)])
-	draw_colored_polygon(points, CANDY_YELLOW)
-	var outline: PackedVector2Array = points.duplicate()
-	outline.append(points[0])
-	draw_polyline(outline, INK, 1.0)
+	draw_set_transform(Vector2(0, offset) if _direction == Direction.DOWN else Vector2(offset, 0))
+	draw_texture(ARROWS[_direction], Vector2.ZERO)

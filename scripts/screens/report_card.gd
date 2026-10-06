@@ -11,7 +11,9 @@ extends Control
 ## welcome_bonus_claimed flag still false goes to the Welcome Gift instead of where it was asked, so the first
 ## completed run's exit (Play Again, Menu, Esc or Enter) shows the gift once. The flag is read at leave time
 ## and never written here (the gift owns it). That one flag is all this screen reads from PlayerData.
-## Placeholder chrome until Story 5.0; sounds (chalk-scratch per row, chime, stamp thump) are Story 5.1.
+## Story 5.0 art: the chalkboard and keycaps are theme boxes, the chalk tray, the "New best!" stamp (pre-rotated)
+## and the window's moon and bat are sprites, and Play Again / Menu are PixelButtons (the focused fill and
+## ring are theirs). Sounds (chalk-scratch per row, chime, stamp thump) are Story 5.1.
 ## The worn hat and pet fill the Professor's slots by themselves (Story 4.3).
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
@@ -27,10 +29,6 @@ const BONUS_ROW: int = 6
 
 ## Level name lookup (data/levels/level_registry.tres, set in report_card.tscn).
 @export var level_registry: LevelRegistry
-## Button box when not focused, and the pumpkin-light fill a focused button swaps in (the scene's
-## focus box only draws the candy-yellow ring outside the ink outline).
-@export var button_normal: StyleBox
-@export var button_focused: StyleBox
 
 ## Test seam: called as navigate.call(screen, payload). Defaults to Router.go in _ready; tests assign a
 ## recorder before add_child so the live Router never swaps GUT's scene.
@@ -74,9 +72,6 @@ func _ready() -> void:
 		if i != BONUS_ROW or has_bonus:
 			_rows.append(row)
 	%Stamp.hide()
-	for button: Button in [%PlayAgainButton, %MenuButton]:
-		button.focus_entered.connect(_on_button_focus_changed.bind(button, true))
-		button.focus_exited.connect(_on_button_focus_changed.bind(button, false))
 	%PlayAgainButton.pressed.connect(_on_play_again_button_pressed)
 	%MenuButton.pressed.connect(_on_menu_button_pressed)
 	%PlayAgainButton.grab_focus()
@@ -171,13 +166,3 @@ func _on_play_again_button_pressed() -> void:
 
 func _on_menu_button_pressed() -> void:
 	_leave_to_menu()
-
-
-## Focused buttons get the pumpkin-light fill with ink text (DESIGN.md pixel button), hovered or not.
-func _on_button_focus_changed(button: Button, focused: bool) -> void:
-	var style: StyleBox = button_focused if focused else button_normal
-	if style != null:
-		button.add_theme_stylebox_override(&"normal", style)
-		button.add_theme_stylebox_override(&"hover", style)
-	var text_color: Color = button.get_theme_color(&"font_focus_color" if focused else &"font_color")
-	button.add_theme_color_override(&"font_hover_color", text_color)

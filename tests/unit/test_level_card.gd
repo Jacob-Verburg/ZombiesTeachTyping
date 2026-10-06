@@ -53,6 +53,7 @@ func test_available_entry() -> void:
 	assert_eq((card.get_node("%NameLabel") as Label).text, "Zombie Run")
 	assert_false((card.get_node("%ComingSoonPlank") as Control).visible)
 	assert_false((card.get_node("%Tint") as Control).visible)
+	assert_eq((card.get_node("%NameSign") as Panel).theme_type_variation, &"Sign")
 
 
 func test_unavailable_entry_is_coming_soon() -> void:
@@ -60,9 +61,10 @@ func test_unavailable_entry_is_coming_soon() -> void:
 	assert_eq(card.get_state(), LevelCard.State.COMING_SOON)
 	assert_true((card.get_node("%ComingSoonPlank") as Control).visible)
 	assert_true((card.get_node("%Tint") as Control).visible)
-	assert_eq((card.get_node("%PlankLabel") as Label).text, "Coming soon")
-	var sign_box: StyleBox = (card.get_node("%NameSign") as Panel).get_theme_stylebox(&"panel")
-	assert_eq(sign_box, card.sign_coming_soon_style, "the sign is greyed")
+	# Story 5.0: the hand-lettered plank sprite and the greyed sign variation.
+	assert_eq((card.get_node("%ComingSoonPlank") as TextureRect).texture.resource_path,
+			"res://assets/sprites/ui/menu/ui_coming_soon.png")
+	assert_eq((card.get_node("%NameSign") as Panel).theme_type_variation, &"SignGrey", "the sign is greyed")
 
 
 func test_empty_display_name_falls_back_to_the_capitalized_id() -> void:
@@ -162,3 +164,22 @@ func test_only_the_card_takes_the_mouse() -> void:
 	for child: Node in children:
 		assert_eq((child as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, String(child.name))
 		assert_eq((child as Control).focus_mode, Control.FOCUS_NONE, String(child.name))
+
+
+## Story 5.0: while focused the frame bobs 1 px above the lift, in whole pixels, never sideways; on unfocus it
+## is exactly at rest.
+func test_focus_bob_stays_on_whole_pixels_and_rests_at_zero() -> void:
+	var card: LevelCard = _card(_entry(&"zombie_run", true))
+	card.grab_focus()
+	var seen: Dictionary[float, bool] = {}
+	for i: int in 10:
+		card._process(LevelCard.BOB_PERIOD_S / 4.0)
+		var y: float = _frame(card).position.y
+		seen[y] = true
+		assert_eq(y, roundf(y), "whole pixels")
+		assert_eq(_frame(card).position.x, 0.0, "the bob never moves x")
+	assert_eq_deep(seen.keys().size(), 2)
+	assert_true(seen.has(-LevelCard.LIFT_PX) and seen.has(-LevelCard.LIFT_PX - LevelCard.BOB_PX))
+	card.release_focus()
+	assert_eq(_frame(card).position.y, 0.0)
+	assert_false(card.is_processing(), "no bob while unfocused")

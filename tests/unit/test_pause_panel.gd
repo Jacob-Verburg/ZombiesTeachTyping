@@ -1,7 +1,8 @@
 extends GutTest
 ## Pause panel (Story 2.7): Resume (pre-focused), Quit to Menu, Music and Sound toggles over a night
 ## scrim; Esc on the panel = Resume; signals only while open; focus released on close. The panel
-## touches no autoload: RunFrame applies what it emits.
+## touches no autoload: RunFrame applies what it emits. Story 5.0: the toggles are MenuToggles (icon + caption,
+## the slash carries off), driven through their focus target's `pressed`; Resume / Quit are PixelButtons.
 
 const PanelScene: PackedScene = preload("res://scenes/run/pause_panel.tscn")
 const PanelScript := preload("res://scripts/run/pause_panel.gd")
@@ -34,6 +35,15 @@ func _esc(echo: bool = false) -> InputEventKey:
 	return event
 
 
+func _toggle(path: String) -> MenuToggle:
+	return _panel.get_node(path) as MenuToggle
+
+
+## A user flip, as Enter or a click on the toggle's button does it.
+func _flip(path: String) -> void:
+	_toggle(path).get_focus_target().pressed.emit()
+
+
 func _focus_inside_panel() -> bool:
 	var owner: Control = get_viewport().gui_get_focus_owner()
 	return owner != null and _panel.is_ancestor_of(owner)
@@ -49,10 +59,8 @@ func test_open_shows_settings_and_focuses_resume() -> void:
 	_panel.open(true, false)
 	assert_true(_panel.is_open())
 	assert_true(_button("%ResumeButton").has_focus())
-	assert_eq(_button("%MusicToggle").text, "Music: on")
-	assert_true(_button("%MusicToggle").button_pressed)
-	assert_eq(_button("%SoundToggle").text, "Sound: off")
-	assert_false(_button("%SoundToggle").button_pressed)
+	assert_true(_toggle("%MusicToggle").is_on())
+	assert_false(_toggle("%SoundToggle").is_on())
 	assert_signal_emit_count(_panel, "music_toggled", 0, "open never emits a toggle")
 	assert_signal_emit_count(_panel, "sound_toggled", 0, "open never emits a toggle")
 
@@ -61,8 +69,7 @@ func test_reopen_shows_new_settings() -> void:
 	_panel.open(true, true)
 	_panel.close()
 	_panel.open(false, true)
-	assert_eq(_button("%MusicToggle").text, "Music: off")
-	assert_false(_button("%MusicToggle").button_pressed)
+	assert_false(_toggle("%MusicToggle").is_on())
 	assert_signal_emit_count(_panel, "music_toggled", 0)
 
 
@@ -70,6 +77,10 @@ func test_labels() -> void:
 	assert_eq((_panel.get_node("%Title") as Label).text, "Paused")
 	assert_eq(_button("%ResumeButton").text, "Resume")
 	assert_eq(_button("%QuitButton").text, "Quit to Menu")
+	assert_eq((_toggle("%MusicToggle").get_node("%Caption") as Label).text, "Music")
+	assert_eq((_toggle("%SoundToggle").get_node("%Caption") as Label).text, "Sound")
+	assert_true(_button("%ResumeButton") is PixelButton)
+	assert_true(_button("%QuitButton") is PixelButton)
 
 
 func test_resume_and_quit_emit_once() -> void:
@@ -83,7 +94,7 @@ func test_resume_and_quit_emit_once() -> void:
 func test_presses_while_closed_emit_nothing() -> void:
 	_button("%ResumeButton").pressed.emit()
 	_button("%QuitButton").pressed.emit()
-	_button("%MusicToggle").toggled.emit(false)
+	_toggle("%MusicToggle").flipped.emit(false)
 	assert_signal_emit_count(_panel, "resume_chosen", 0)
 	assert_signal_emit_count(_panel, "quit_chosen", 0)
 	assert_signal_emit_count(_panel, "music_toggled", 0)
@@ -91,19 +102,19 @@ func test_presses_while_closed_emit_nothing() -> void:
 
 func test_music_toggle() -> void:
 	_panel.open(true, true)
-	_button("%MusicToggle").button_pressed = false
+	_flip("%MusicToggle")
 	assert_signal_emitted_with_parameters(_panel, "music_toggled", [false])
-	assert_eq(_button("%MusicToggle").text, "Music: off")
-	_button("%MusicToggle").button_pressed = true
+	assert_false(_toggle("%MusicToggle").is_on())
+	_flip("%MusicToggle")
 	assert_signal_emitted_with_parameters(_panel, "music_toggled", [true])
-	assert_eq(_button("%MusicToggle").text, "Music: on")
+	assert_true(_toggle("%MusicToggle").is_on())
 
 
 func test_sound_toggle() -> void:
 	_panel.open(true, true)
-	_button("%SoundToggle").button_pressed = false
+	_flip("%SoundToggle")
 	assert_signal_emitted_with_parameters(_panel, "sound_toggled", [false])
-	assert_eq(_button("%SoundToggle").text, "Sound: off")
+	assert_false(_toggle("%SoundToggle").is_on())
 	assert_signal_emit_count(_panel, "music_toggled", 0)
 
 
@@ -128,25 +139,48 @@ func test_close_hides_and_releases_focus() -> void:
 	assert_false(_focus_inside_panel())
 
 
-func test_buttons_are_keyboard_focusable_and_wrap() -> void:
-	var order: Array[String] = ["%ResumeButton", "%QuitButton", "%MusicToggle", "%SoundToggle"]
-	for i: int in order.size():
-		var button: Button = _button(order[i])
-		assert_eq(button.focus_mode, Control.FOCUS_ALL, "%s focusable" % order[i])
-		var below: Button = _button(order[(i + 1) % order.size()])
-		var above: Button = _button(order[(i - 1 + order.size()) % order.size()])
-		assert_eq(button.get_node(button.focus_neighbor_bottom), below, "%s down" % order[i])
-		assert_eq(button.get_node(button.focus_neighbor_top), above, "%s up" % order[i])
+## Up / Down: Resume -> Quit -> the toggle row -> Resume; Left / Right between the two toggles.
+func test_focus_moves_between_buttons_and_the_toggle_row() -> void:
+	var resume: Button = _button("%ResumeButton")
+	var quit_button: Button = _button("%QuitButton")
+	var music: Button = _toggle("%MusicToggle").get_focus_target()
+	var sound: Button = _toggle("%SoundToggle").get_focus_target()
+	for button: Button in [resume, quit_button, music, sound]:
+		assert_eq(button.focus_mode, Control.FOCUS_ALL, "%s focusable" % button.name)
+	assert_eq(resume.get_node(resume.focus_neighbor_bottom), quit_button)
+	assert_eq(quit_button.get_node(quit_button.focus_neighbor_bottom), music)
+	assert_eq(music.get_node(music.focus_neighbor_bottom), resume, "wraps")
+	assert_eq(sound.get_node(sound.focus_neighbor_bottom), resume, "wraps")
+	assert_eq(resume.get_node(resume.focus_neighbor_top), music, "wraps")
+	assert_eq(music.get_node(music.focus_neighbor_top), quit_button)
+	assert_eq(sound.get_node(sound.focus_neighbor_top), quit_button)
+	assert_eq(music.get_node(music.focus_neighbor_right), sound)
+	assert_eq(music.get_node(music.focus_neighbor_left), sound)
+	assert_eq(sound.get_node(sound.focus_neighbor_left), music)
 
 
-func test_toggles_are_toggle_buttons() -> void:
-	assert_true(_button("%MusicToggle").toggle_mode)
-	assert_true(_button("%SoundToggle").toggle_mode)
+## The 4.2 decision holds: a MenuToggle keeps the state itself (not toggle_mode).
+func test_toggles_are_menu_toggles() -> void:
+	assert_true(_panel.get_node("%MusicToggle") is MenuToggle)
+	assert_true(_panel.get_node("%SoundToggle") is MenuToggle)
+	assert_false(_toggle("%MusicToggle").get_focus_target().toggle_mode)
 
 
 func test_button_sizes() -> void:
-	for path: String in ["%ResumeButton", "%QuitButton", "%MusicToggle", "%SoundToggle"]:
+	for path: String in ["%ResumeButton", "%QuitButton"]:
 		assert_eq(_button(path).size, Vector2(240, 32), path)
+	for path: String in ["%MusicToggle", "%SoundToggle"]:
+		assert_eq(_toggle(path).get_focus_target().size, Vector2(32, 32), path)
+
+
+## The toggle row sits inside the stone panel, below Quit.
+func test_toggle_row_inside_the_panel() -> void:
+	var panel: Rect2 = (_panel.get_node("%Panel") as Control).get_global_rect()
+	var quit_rect: Rect2 = _button("%QuitButton").get_global_rect()
+	for path: String in ["%MusicToggle", "%SoundToggle"]:
+		var rect: Rect2 = _toggle(path).get_global_rect()
+		assert_true(panel.encloses(rect), path)
+		assert_gt(rect.position.y, quit_rect.end.y, "%s below Quit" % path)
 
 
 func test_readable_text_and_glyphs() -> void:
@@ -156,11 +190,11 @@ func test_readable_text_and_glyphs() -> void:
 		var size: int = label.get_theme_font_size("font_size")
 		assert_true(size >= 16 and size % 8 == 0, "%s font size %d" % [label.name, size])
 	assert_eq((_panel.get_node("%Title") as Label).get_theme_font_size("font_size"), 24)
-	for path: String in ["%ResumeButton", "%QuitButton", "%MusicToggle", "%SoundToggle"]:
+	for path: String in ["%ResumeButton", "%QuitButton"]:
 		var size: int = _button(path).get_theme_font_size("font_size")
 		assert_true(size >= 16 and size % 8 == 0, "%s font size %d" % [path, size])
 	var strings: Array[String] = [
-		"Paused", "Resume", "Quit to Menu", "Music: on", "Music: off", "Sound: on", "Sound: off",
+		"Paused", "Resume", "Quit to Menu", "Music", "Sound",
 	]
 	for s: String in strings:
 		for i: int in s.length():

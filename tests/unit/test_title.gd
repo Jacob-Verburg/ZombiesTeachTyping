@@ -29,11 +29,12 @@ func test_prompt_text_and_size() -> void:
 	assert_gte(prompt.get_theme_font_size("font_size"), 16)
 
 
-func test_placeholder_logo_is_shown() -> void:
-	var logo: Label = _title.get_node("%Logo") as Label
+## Story 5.0: the hand-lettered logo sprite, shown at 1x and centred.
+func test_logo_is_the_ui_logo_texture() -> void:
+	var logo: TextureRect = _title.get_node("%Logo") as TextureRect
 	assert_not_null(logo)
-	assert_eq(logo.text.replace("\n", " "), "Zombies Teach Typing")
-	assert_gte(logo.get_theme_font_size("font_size"), 32)
+	assert_eq(logo.texture.resource_path, "res://assets/sprites/ui/menu/ui_logo.png")
+	assert_eq(logo.stretch_mode, TextureRect.STRETCH_KEEP_CENTERED, "1x, never scaled")
 
 
 func test_controls_let_clicks_through() -> void:

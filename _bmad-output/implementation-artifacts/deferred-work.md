@@ -171,7 +171,7 @@
 
 ## Deferred from: dev of story-2-5 (2026-10-04)
 
-- HUD chrome is placeholder (flat palette `StyleBoxFlat`s, 1 px ink borders, zero corner radius, ColorRect brain icon, two-bar pause icon) until Story 5.0's 9-slice art.
+- ~~HUD chrome is placeholder (flat palette `StyleBoxFlat`s, 1 px ink borders, zero corner radius, ColorRect brain icon, two-bar pause icon) until Story 5.0's 9-slice art.~~ Done in 5.0: HUD band, target sign, stats chalkboard, cushion, Caps Lock sign, pause button and brain pill are 9-slice / sprite art.
 - Brain counter count-up tick and pop (EXPERIENCE.md Game Feel) are Story 5.0 / 5.1 polish; `BrainCounter.set_count()` just sets the number.
 - Word-mode progress colouring / underline (Story 6.2) and paragraph text rendering (Story 8.2) use the target area sized here (word sign grows with the word up to 9 letters; paragraph sign 304 x 48, 2 lines of 24 px).
 - Paragraph mode fits **12 characters per 24 px line** with Press Start 2P. Epic 8 must accept it, use another 8 px-grid size, or widen the target area.
@@ -189,7 +189,7 @@
 
 ## Deferred from: dev of story-2-6 (2026-10-04)
 
-- The zombie hands are placeholder code-drawn rects (`zombie_hands.gd` `_draw()`, about 58 px wide per hand) until Story 5.0 (2 hand sprites + 10 glow states). Keep the getters (`get_lit_fingers`, `is_lit`, `get_outline_width`, `get_finger_fill`, `has_bump`) as the contract. Smuck approved the placeholder look on 2026-10-04.
+- ~~The zombie hands are placeholder code-drawn rects (`zombie_hands.gd` `_draw()`, about 58 px wide per hand) until Story 5.0 (2 hand sprites + 10 glow states). Keep the getters (`get_lit_fingers`, `is_lit`, `get_outline_width`, `get_finger_fill`, `has_bump`) as the contract. Smuck approved the placeholder look on 2026-10-04.~~ Done in 5.0: two hand sprites and ten 2-frame glow sheets; every getter kept.
 - Word and paragraph modes must pass the cursor character to the hands, not the whole target: `ZombieHands.show_char()` lights the first character of what it is given (Stories 6.2 / 8.2).
 - Unmapped keys: `` ` ~ [ ] { } \ | `` (outside the GDD table). Add them to `tools/gen_finger_map.gd` if Epic 8 paragraphs ever use them; until then they log `[WARN][hands]` and light nothing.
 - Non-US keyboard layouts still show US QWERTY fingers (GDD A1, accepted).
@@ -202,7 +202,7 @@
 
 ## Deferred from: dev of story-2-7 (2026-10-04)
 
-- Pause panel and countdown are placeholder chrome (flat stone `StyleBoxFlat`, default theme buttons, a 2 px ink shadow label behind the candy-yellow numbers); the toggles show their state in words ("Music: on/off") instead of DESIGN.md's icon + red slash. Stories 4.2 / 5.0.
+- ~~Pause panel and countdown are placeholder chrome (flat stone `StyleBoxFlat`, default theme buttons, a 2 px ink shadow label behind the candy-yellow numbers); the toggles show their state in words ("Music: on/off") instead of DESIGN.md's icon + red slash. Stories 4.2 / 5.0.~~ Done in 5.0: stone panel, Sign, PixelButtons and Music / Sound MenuToggles (icon + slash); the countdown keeps the font route (1 px outline verified palette-only).
 - ~~Restoring the saved Music / Sound settings on launch is Story 4.2's AC. Until then a muted setting is saved and shown on the pause panel, but the buses start unmuted after a reload.~~ Done in 4.2: AudioManager applies the saved settings in `_ready()` and follows `settings_changed`.
 - Windows-fallback auto-pause (desktop window focus) stays deferred (G5); only the web `focus_lost` / `visibility_hidden` signals pause.
 - Esc in browser fullscreen leaves fullscreen first (browser rule); whether it also pauses is Story 5.3's check.
@@ -234,14 +234,14 @@
 ## Deferred from: dev of story-2-9 (2026-10-04)
 
 - ~~Hand-off to Story 3.1: register `zombie_run` in `data/levels/level_registry.tres` with `display_name = "Zombie Run"` (the report card heading). Without it the card falls back to `"zombie_run".capitalize()`, which happens to read the same.~~ Done in 3.1.
-- Final chalkboard, chalk tray, "New best!" stamp (hand-lettered, pre-rotated -8°), pixel buttons, key-hint keycaps, smiling moon and night-classroom backdrop art: Story 5.0. Today they are square `StyleBoxFlat` / `ColorRect` placeholders in palette colours.
+- ~~Final chalkboard, chalk tray, "New best!" stamp (hand-lettered, pre-rotated -8°), pixel buttons, key-hint keycaps, smiling moon and night-classroom backdrop art: Story 5.0. Today they are square `StyleBoxFlat` / `ColorRect` placeholders in palette colours.~~ Done in 5.0: chalkboard 9-slice, tray sprite, skewed stamp sprite, PixelButtons, Keycap boxes, moon and bat sprites; the wall / window / floor ColorRects stay (approved 2.9 composition).
 - Chalk-scratch per revealed row, the chime, the stamp thump and menu music on the report card: Story 5.1 (no `AudioCue`s exist for them yet).
 - ~~The worn hat and pet in Professor Zombie's `%HatSlot` / `%PetSlot`, `SpriteAnchors` for the professor, and lifting the mortarboard by the hat's height: Story 4.3.~~ Done in 4.3: the professor's slots are a `HatSlot` (on `professor_anchors.tres`) and a `PetSlot` on the floor to his right, and `_stack_mortarboard` lifts the mortarboard by the hat's rise (11 px for the pumpkin).
 - ~~First completed run goes through the Welcome Gift: Story 4.5 hooks into `report_card.gd` `_leave()`, the card's only navigation.~~ Done in 4.5: `_leave()` sends a card with a `RunResult` to `WELCOME_GIFT` while `welcome_bonus_claimed` is false.
 - Long level names vs the stamp: at 24 px the heading has 245 px before the stamp (10 glyphs); "Pitchfork Panic" (15 glyphs = 360 px) would run under it. Epic 8 (or the 5.0 stamp art) resolves it; `test_stamp_clear_of_heading_and_rows` checks only "Test level" today.
 - Professor Zombie is 32×32 at 1× (one sprite scale rule), so he is much smaller than in the mock. An exception to the rule or a 48×48 professor sprite is Smuck's call.
 - ~~`test_level` has no completion bonus, so the "+N bonus" line is only seen in tests until Story 3.5.~~ Done in 3.5: a completed Zombie Run shows "+10 bonus" (seen in the web build).
-- The pixel-button focus look is two parts: the scene's `focus` box draws only the 2 px candy-yellow ring (outside the ink outline), and `report_card.gd` swaps the `normal`/`hover` box to the pumpkin-light fill on focus. A shared pixel-button widget/theme type (Stories 4.2 / 5.0) should absorb this. Partly done in 4.2: the `PixelButton` theme variation + `scripts/ui/pixel_button.gd` absorb it for new buttons; migrating the report card and pause panel is still Story 5.0.
+- ~~The pixel-button focus look is two parts: the scene's `focus` box draws only the 2 px candy-yellow ring (outside the ink outline), and `report_card.gd` swaps the `normal`/`hover` box to the pumpkin-light fill on focus. A shared pixel-button widget/theme type (Stories 4.2 / 5.0) should absorb this. Partly done in 4.2: the `PixelButton` theme variation + `scripts/ui/pixel_button.gd` absorb it for new buttons; migrating the report card and pause panel is still Story 5.0.~~ Done in 5.0: the report card and pause panel buttons are PixelButtons; `report_card.gd` lost its own swap.
 
 ## Deferred from: code review of 2-9-chalkboard-report-card (2026-10-04)
 
@@ -324,7 +324,7 @@
 
 - ~~The end dance is a code placeholder (bounce 4 px at 2 beats/s + a `flip_h` per beat) until Story 3.6's `dance` 4f; `PlayerZombie.dance()` plays a `dance` animation as soon as the SpriteFrames has one. Party zombies have no dance frames in the GDD list, so the conga line keeps the code dance (3.6 decides).~~ Done in 3.6: `zombie_dance.png` (4f at 8 fps = one 2 Hz bounce); with the frames the `flip_h` beat goes. Party zombies: no dance sheet (decided), idle plus the code bounce and flip.
 - No dance music or SFX: Story 5.1.
-- The active target's arrow and the HUD letter stay visible during the dance; decide in 5.0 if it looks odd.
+- ~~The active target's arrow and the HUD letter stay visible during the dance; decide in 5.0 if it looks odd.~~ Decided in 5.0: leave (no change in an art story); revisit only if the 5.4 playtest shows confusion.
 - The completion bonus applies to every recorded end reason (`timer`, F6, `caught`, `escaped`). Epic 8 must split Pitchfork Panic's bonuses (GDD: caught +10, escaped +25).
 - The Router fade freezes the last moment of the dance (the tree is paused during the fade).
 - Web manual check: once the browser pane was hidden, `requestAnimationFrame` stopped (0 calls in 2.5 s) and the run only advanced on screenshots, so a third F6 run sat in ENDING. Environment only: the same flow reached the report card after the dance while the pane was visible, and `test_zombie_run_keys_and_timer_end` pins the 1.9 s / 2.1 s timing.
@@ -340,7 +340,7 @@
 - Party-zombie dance sheet: decided **no** (not in the GDD sprite list). Dancing followers keep idle plus the code bounce and flip.
 - No groans or SFX for the new animations: ~~Story 3.7 (groans)~~ Done in 3.7: ambience groans every 3-8 s while RUNNING. SFX for the new animations stay 5.1 (audio pass).
 - ~~Hat anchors on the new frames (the crown moves on some frames: hop crouch 2 px down, hop land, hug release and dance frame 4 1 px down, hug squeeze 1 px right): Story 4.3 sets per-frame anchors. `%HatSlot` still sits at the idle crown.~~ Done in 4.3: `data/anchors/zombie_anchors.tres` has a head point per frame (measured by `tools/gen_sprite_anchors.gd`, re-measured by `test_sprite_anchors.gd`), and `HatSlot` follows every frame and animation change.
-- HUD, pause panel, report card and menu art stay placeholder: Story 5.0.
+- ~~HUD, pause panel, report card and menu art stay placeholder: Story 5.0.~~ Done in 5.0.
 - Readability changes made during the 1x check (not in the story text): the far hills are `chalk-dim` with a `zombie-green` crest instead of solid `zombie-green` (the zombie's and party zombies' skin sat on their own colour), and the pumpkin moved to a short post in front of the fence at x 120 (on a full fence post it sat behind the zombie's head at run start and read as a pumpkin hat, which clashes with the 4.3 hats).
 - The distant houses and windmill (`stone-light` on `chalk-dim`) are low contrast; accepted as far-layer decoration.
 - The seam test is a heuristic (x 0 vs x 639 opacity per row); the art puts features across the seam on purpose (a cloud, the seam tree, the fence rails, the bunting). The 2:00 scroll check by eye is the real proof.
@@ -369,7 +369,7 @@
 ## Deferred from: dev of story 4-2-main-menu (2026-10-05)
 
 - `test_audio_manager.gd::test_sfx_pool_exhaustion_never_steals_the_voice_player` failed once in a full-suite run (calls 4 and 5) and passed in 6 of 6 isolated runs and the next 2 full runs. Under the headless Dummy driver `playing` flips on the mixing thread, so the 8-byte test streams end between `play()` and the `voice.playing` check and a free player gets reused legitimately. This is the same root cause as the 2.5 note above. The test needs the `_is_busy()` seam to be deterministic.
-- `MenuToggle`'s icon button is not in `toggle_mode` (the story said `toggle_mode = true` + `set_pressed_no_signal`): a toggled-on Button draws its `pressed` box the whole time, which hides the focused fill. The toggle keeps its own state. Story 5.0's toggle art can revisit it.
+- ~~`MenuToggle`'s icon button is not in `toggle_mode` (the story said `toggle_mode = true` + `set_pressed_no_signal`): a toggled-on Button draws its `pressed` box the whole time, which hides the focused fill. The toggle keeps its own state. Story 5.0's toggle art can revisit it.~~ Done in 5.0: kept the decision; the icon art (2 frames) shows the state.
 - The menu's toggle columns moved to x 240 / 352 / 464 (the story's table had 280 / 368 / 464): with 8 px gaps "Music" and "Sound" read as one word. 32 px gaps now.
 
 ## Deferred from: code review of 4-2-main-menu (2026-10-05)
@@ -377,7 +377,7 @@
 - A fourth non-debug level overflows the menu's `Cards` row (608 px exactly full, no wrap or scroll).
 - A long single word in a level name overflows the level card sign (WORD autowrap never breaks inside a word).
 - Up from the bottom row does nothing when no level card is Available (coming-soon cards are focusable but not wired as a cross target).
-- `PixelButton` keeps the focused `normal` stylebox override if disabled or hidden while focused; revisit in Story 5.0.
+- ~~`PixelButton` keeps the focused `normal` stylebox override if disabled or hidden while focused; revisit in Story 5.0.~~ Done in 5.0: the override is dropped on disable (redraw hook) and on hide; tested.
 - Debug overlay jump buttons have no re-entry guard, and stay disabled when `main_menu.tscn` is run directly (F6) because `Router.current_screen` is still TITLE.
 - Test hardening: `test_the_slash_carries_the_off_state` asserts constants only, the Esc test does not assert the event was handled, and the wiggle tests use real-time `wait_seconds`.
 
@@ -391,12 +391,12 @@
 
 ## Deferred from: dev of story 4-4 (2026-10-06)
 
-- Final Closet art: tile frames and tags, the confirm prompt's wood panel and parchment sign, the mirror, the hand-lettered "Crypt Closet" sign (all placeholder `StyleBoxFlat`s in palette colours today), plus the brain counter tick-down and the button squish after a purchase: Story 5.0 / 5.1.
+- Final Closet art: tile frames and tags, the confirm prompt's wood panel and parchment sign, the mirror, the hand-lettered "Crypt Closet" sign (all placeholder `StyleBoxFlat`s in palette colours today), plus the brain counter tick-down and the button squish after a purchase: Story 5.0 / 5.1. Art part done in 5.0 (tile / tag 9-slices, WoodPanel, Sign, Mirror, the lettered sign; the squish is in the button art); the tick-down stays for 5.1.
 - ~~The tutorial arrow and the `tutorial_seen` flag: Story 4.5. Its positions are in `sketches/crypt-closet-4-4.md` frame D; the hooks are `get_tile(id)` and `get_confirm_prompt()`, and the Closet already consumes the payload.~~ Done in 4.5: `TutorialArrow` widget; the Closet guides Buy, Yes, Wear from the `{"tutorial": true}` payload and sets `tutorial_seen` on equip or leave.
 - Closet music (the Closet starts no music of its own): Story 5.1.
 - Approved sketch deviations (Smuck, 2026-10-06, "Approve as drawn"): the long words ("Coming soon", "Need N more", "Wearing") live on the info sign for the focused tile, Buy tiles show the price on the pumpkin tag, Wearing is a drawn check mark (Press Start 2P has no U+2713), tiles are 68 px instead of DESIGN.md's 48 px, locked items show no name, and the focus ring sits on the tile's own edge. DESIGN.md was not edited; the sketch is the override.
 - Story 5.2's grayscale review should look at the five tile states side by side: Locked (stone, "?"), Can't afford (disabled fill, no tag box), Buy (pumpkin tag), Wear (green tag, word), Wearing (bright tag, check). Buy vs Wear vs Wearing differ by tag content as well as colour, but the tag fills are close in grey.
-- The MVP tile icons are the hat's 32x32 overlay and the ghost's first idle frame, so the pumpkin sits low and small in its art box (the overlay is drawn for the head, brim on row 30). Proper tile icons belong with the Epic 9 / 5.0 art.
+- ~~The MVP tile icons are the hat's 32x32 overlay and the ghost's first idle frame, so the pumpkin sits low and small in its art box (the overlay is drawn for the head, brim on row 30). Proper tile icons belong with the Epic 9 / 5.0 art.~~ Done in 5.0 (pumpkin): the icon is an AtlasTexture cropped to the opaque pixels with a centring margin, still 32 × 32.
 - Observed in the browser pane (web debug build): the first one or two mouse moves after a screen change don't move focus on hover; later moves do. The main menu (4.2) does the same, so it predates the Closet. With a real mouse the cursor sends many moves and it is barely noticeable. Worth a look in 5.0 (the Router fade or Godot's first motion after a scene swap).
 - The confirm prompt closes before it emits `answered` (the story text said emit then close), so a handler always sees `is_open() == false` and can reopen it safely.
 
@@ -414,7 +414,7 @@
 
 ## Deferred from: dev of story-4-5 (2026-10-06)
 
-- Final Welcome Gift art (wood panel, pumpkin ribbon and bow, the brain icon) and the hand-drawn tutorial arrow: Story 5.0. Today they are palette `StyleBoxFlat`s / `ColorRect`s and a drawn triangle.
+- ~~Final Welcome Gift art (wood panel, pumpkin ribbon and bow, the brain icon) and the hand-drawn tutorial arrow: Story 5.0. Today they are palette `StyleBoxFlat`s / `ColorRect`s and a drawn triangle.~~ Done in 5.0: WoodPanel, Ribbon 9-slice, bow and 32 px brain sprites, arrow sprites.
 - A gift sound, an arrow sound and the brain counter tick-up on the gift: Story 5.1.
 - A tab closed mid-tutorial leaves `tutorial_seen` false. Harmless: the tutorial only starts from the gift's payload, and the gift never comes back on that save.
 - The debug overlay's "Welcome gift" jump now grants +100 on a save whose `welcome_bonus_claimed` is false (that is how a dev tests the gift). On a claimed save it shows the card and grants nothing. `test_debug_overlay.gd` only records the jump through its seam; it never instances the real gift.
@@ -425,3 +425,25 @@
 
 - Integration test `test_first_purchase_flow.gd` checks only PlayerZombie HatSlot/PetSlot wiring, not a real run or report card (matches Task 5.6 wording; AC 8 prose is broader).
 - Tests hard-code the 100 welcome bonus and arrow pixel coordinates (Vector2(176, 222), (38, 52)); they break on economy or layout changes.
+
+## Deferred from: dev of story 5-0 (2026-10-06)
+
+- Brain counter count-up tick and pop, the conga "×N" badge pop, and the Closet tick-down: Story 5.1 (juice with sound).
+- Web and desktop letterbox bars are still **black**: the engine draws them itself, so `default_clear_color` (now night) and the head include's night `body` don't reach them. The 1.2 item stays open; a fix needs `RenderingServer` black-bar images (out of an art story's scope).
+- The first-mouse-move focus quirk after a screen change (4.4 note) was not looked at.
+- The Coming soon card `Tint` is a stone `ColorRect` at 85 % alpha over the picture (the approved 4.2 look), so it blends off-palette pixels; a pre-greyed picture per level would keep it palette-only (5.2 readability pass can decide).
+- Professor Zombie's scale is unchanged (Smuck's call).
+- Level names on the cards stay font text on the parchment sign (Decision 2; Smuck did not ask for lettered names at Gate 1).
+- The pause and toggle icons don't follow the pressed plank's 2 px squish (they are child sprites); the label of a PixelButton does.
+- `scenes/debug/ui_art_review.tscn` ships in exports like `art_review.tscn` (dev only, never routed to).
+
+## Deferred from: code review of 5-0-mvp-ui-art-pass (2026-10-06)
+
+- Pause/toggle icons don't follow the pressed plank's 2 px squish (already noted under 5.0).
+- Letterbox bars stay black on web/desktop; only the clear colour and `body` were changed.
+- `ZombieHands._load` builds 12 texture paths at runtime: a Web export resource filter would drop them, and only the first missing file is warned.
+- `scripts/debug/ui_art_review.gd` has no null guards for missing sheets and ships in exports.
+- Brittle tests: exact pixel counts, hardcoded colours, label counts (`checked == 18`, `> 8`), editor-only `Image.load_from_file`.
+- HUD grayscale legibility (AC 5) is covered by a screenshot only, not a test.
+- In-run Zombie Run scenes (`zombie_run_target`, `brain_block`, `villager`, `conga_line`) still use StyleBoxFlat; deferred to 5.2 by Smuck. The 5.0 'no placeholder look' claim covers menus, screens and HUD only.
+- Coming-soon card `Tint` stays an 85 % alpha overlay; accepted for MVP by Smuck.
