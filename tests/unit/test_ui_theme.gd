@@ -53,3 +53,31 @@ func test_font_has_confusable_glyphs_and_title_copy() -> void:
 	var font: Font = _theme.default_font
 	for c: String in "lI1O0" + "Click or press any key":
 		assert_true(font.has_char(c.unicode_at(0)), "missing glyph '%s'" % c)
+
+
+## Story 4.2: the shared PixelButton variation.
+func test_pixel_button_variation_exists_and_reads() -> void:
+	assert_eq(_theme.get_type_variation_base(&"PixelButton"), &"Button")
+	assert_true(_theme.has_font_size(&"font_size", &"PixelButton"))
+	var size: int = _theme.get_font_size(&"font_size", &"PixelButton")
+	assert_gte(size, 16)
+	assert_eq(size % NATIVE_PX, 0)
+	for style: StringName in [&"normal", &"hover", &"pressed", &"disabled", &"focus", &"normal_focused"]:
+		assert_true(_theme.has_stylebox(style, &"PixelButton"), String(style))
+
+
+func test_pixel_button_boxes_are_square() -> void:
+	for style: StringName in _theme.get_stylebox_list(&"PixelButton"):
+		var flat: StyleBoxFlat = _theme.get_stylebox(style, &"PixelButton") as StyleBoxFlat
+		assert_not_null(flat, String(style))
+		for corner: int in 4:
+			assert_eq(flat.get_corner_radius(corner), 0, "%s corner %d" % [style, corner])
+
+
+func test_pixel_button_focus_ring_sits_outside_the_outline() -> void:
+	var ring: StyleBoxFlat = _theme.get_stylebox(&"focus", &"PixelButton") as StyleBoxFlat
+	assert_false(ring.draw_center)
+	assert_eq(ring.border_color, Color("#FFD23F"))
+	for side: int in 4:
+		assert_eq(ring.get_border_width(side), 2)
+		assert_eq(ring.get_expand_margin(side), 2.0)

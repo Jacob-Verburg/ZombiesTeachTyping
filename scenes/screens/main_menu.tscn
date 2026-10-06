@@ -1,12 +1,25 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" uid="uid://c0j61hcvdcyx0" path="res://scripts/screens/main_menu.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/levels/level_registry.tres" id="2_registry"]
+[ext_resource type="PackedScene" path="res://scenes/ui/brain_counter.tscn" id="3_brain_counter"]
+[ext_resource type="PackedScene" path="res://scenes/characters/player_zombie.tscn" id="4_zombie"]
+[ext_resource type="Script" path="res://scripts/ui/pixel_button.gd" id="5_pixel_button"]
+[ext_resource type="PackedScene" path="res://scenes/ui/menu_toggle.tscn" id="6_toggle"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_notice"]
 content_margin_left = 8.0
 content_margin_top = 6.0
 content_margin_right = 8.0
 content_margin_bottom = 6.0
+bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_logo"]
 bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
 border_width_left = 1
 border_width_top = 1
@@ -22,8 +35,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
+level_registry = ExtResource("2_registry")
 
 [node name="Background" type="ColorRect" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -33,85 +48,130 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.16862746, 0.11372549, 0.24705882, 1)
 
-[node name="Box" type="VBoxContainer" parent="."]
+[node name="BrainCounter" parent="." instance=ExtResource("3_brain_counter")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 96.0
+offset_bottom = 44.0
+
+[node name="Logo" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 144.0
+offset_top = 16.0
+offset_right = 496.0
+offset_bottom = 56.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_logo")
+
+[node name="LogoLabel" type="Label" parent="Logo"]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -120.0
-offset_right = 200.0
-offset_bottom = 120.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-alignment = 1
-theme_override_constants/separation = 8
-
-[node name="Heading" type="Label" parent="Box"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-theme_override_font_sizes/font_size = 24
-text = "Main Menu"
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+theme_override_font_sizes/font_size = 16
+text = "Zombies Teach Typing"
 horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="PayloadLabel" type="Label" parent="Box"]
+[node name="Cards" type="HBoxContainer" parent="."]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
-horizontal_alignment = 1
-autowrap_mode = 3
+layout_mode = 0
+offset_left = 16.0
+offset_top = 64.0
+offset_right = 624.0
+offset_bottom = 188.0
+mouse_filter = 2
+theme_override_constants/separation = 16
 
-[node name="PlayButton" type="Button" parent="Box"]
+[node name="Zombie" parent="." instance=ExtResource("4_zombie")]
 unique_name_in_owner = true
-layout_mode = 2
-text = "Zombie Run"
+position = Vector2(48, 284)
 
-[node name="TestLevelButton" type="Button" parent="Box"]
+[node name="PetSpot" type="Marker2D" parent="."]
 unique_name_in_owner = true
-layout_mode = 2
-text = "Test level"
+position = Vector2(84, 284)
 
-[node name="ClosetButton" type="Button" parent="Box"]
+[node name="PostLeft" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 328.0
+offset_right = 44.0
+offset_bottom = 344.0
+mouse_filter = 2
+color = Color(0.3529412, 0.19607843, 0.09411765, 1)
+
+[node name="PostRight" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 196.0
+offset_top = 328.0
+offset_right = 200.0
+offset_bottom = 344.0
+mouse_filter = 2
+color = Color(0.3529412, 0.19607843, 0.09411765, 1)
+
+[node name="ClosetButton" type="Button" parent="."]
 unique_name_in_owner = true
-layout_mode = 2
+layout_mode = 0
+offset_left = 16.0
+offset_top = 296.0
+offset_right = 224.0
+offset_bottom = 328.0
+theme_type_variation = &"PixelButton"
 text = "Crypt Closet"
+script = ExtResource("5_pixel_button")
 
-[node name="GiftButton" type="Button" parent="Box"]
+[node name="MusicToggle" parent="." instance=ExtResource("6_toggle")]
 unique_name_in_owner = true
-layout_mode = 2
-text = "Welcome Gift"
+layout_mode = 0
+offset_left = 240.0
+offset_top = 288.0
+offset_right = 320.0
+offset_bottom = 340.0
+kind = 0
 
-[node name="KeyboardTestButton" type="Button" parent="Box"]
+[node name="SoundToggle" parent="." instance=ExtResource("6_toggle")]
 unique_name_in_owner = true
-layout_mode = 2
-text = "Keyboard Test"
+layout_mode = 0
+offset_left = 352.0
+offset_top = 288.0
+offset_right = 432.0
+offset_bottom = 340.0
+kind = 1
+
+[node name="FullscreenToggle" parent="." instance=ExtResource("6_toggle")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 464.0
+offset_top = 288.0
+offset_right = 624.0
+offset_bottom = 340.0
+kind = 2
 
 [node name="StorageNotice" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 visible = false
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -272.0
-offset_top = -60.0
-offset_right = -12.0
-offset_bottom = -12.0
-grow_horizontal = 0
-grow_vertical = 0
+layout_mode = 0
+offset_left = 288.0
+offset_top = 200.0
+offset_right = 624.0
+offset_bottom = 280.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_notice")
 
 [node name="StorageNoticeLabel" type="Label" parent="StorageNotice"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(244, 0)
+custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
 theme_override_font_sizes/font_size = 16
 text = "Progress may not be saved in this browser mode"
-autowrap_mode = 3
+vertical_alignment = 1
+autowrap_mode = 2

@@ -86,3 +86,42 @@ func test_shipped_registry_has_zombie_run() -> void:
 	assert_true(level is LevelBase)
 	assert_true((level as LevelBase).get_level_config() is ZombieRunConfig)
 	level.free()
+
+
+## Story 4.2: the menu lists the non-null, non-debug entries in registry order.
+func test_menu_entries_skip_debug_only_and_null_and_keep_order() -> void:
+	var registry: LevelRegistry = LevelRegistry.new()
+	registry.entries = [_entry(&"c", null), null, _entry(&"dbg", SCENE_A, true), _entry(&"a", SCENE_A)]
+	var ids: Array[StringName] = []
+	for entry: LevelEntry in registry.menu_entries():
+		ids.append(entry.id)
+	assert_eq(ids, [&"c", &"a"] as Array[StringName])
+
+
+func test_menu_entries_of_an_empty_registry_is_empty() -> void:
+	assert_eq(LevelRegistry.new().menu_entries().size(), 0)
+
+
+func test_shipped_registry_menu_levels() -> void:
+	var registry: LevelRegistry = load(REGISTRY_PATH) as LevelRegistry
+	var ids: Array[StringName] = []
+	for entry: LevelEntry in registry.entries:
+		ids.append(entry.id)
+	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic", &"test_level"] as Array[StringName])
+	var zombie_run: LevelEntry = registry.get_entry(&"zombie_run")
+	assert_true(zombie_run.available)
+	assert_not_null(zombie_run.card_picture, "Zombie Run has a placeholder card picture")
+	var names: Dictionary[StringName, String] = {&"horde_rush": "Horde Rush", &"pitchfork_panic": "Pitchfork Panic"}
+	for id: StringName in names:
+		var entry: LevelEntry = registry.get_entry(id)
+		assert_not_null(entry, String(id))
+		assert_false(entry.available, "%s is Coming soon" % id)
+		assert_false(entry.debug_only)
+		assert_null(entry.scene, "%s has no scene yet" % id)
+		assert_null(entry.card_picture)
+		assert_eq(entry.display_name, names[id])
+		assert_null(registry.get_scene(id), "%s has no scene to run" % id)
+	var menu_ids: Array[StringName] = []
+	for entry: LevelEntry in registry.menu_entries():
+		menu_ids.append(entry.id)
+	assert_eq(menu_ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic"] as Array[StringName])

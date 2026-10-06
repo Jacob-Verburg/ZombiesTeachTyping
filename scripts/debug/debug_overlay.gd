@@ -15,9 +15,13 @@ extends CanvasLayer
 ## clears it.
 ## Keys are read in _input, not _unhandled_input: the Keyboard Test screen swallows every key in
 ## _unhandled_input. PROCESS_MODE_ALWAYS so it works while the tree is paused (Router fade, run pause).
+## Jump row (Story 4.2): mouse-only "Test level" / "Welcome gift" / "Keyboard test" buttons that replace the
+## placeholder menu's debug buttons. They work only while the main menu is the current screen (a jump out of
+## a run would skip RunFrame's quit path) and are disabled elsewhere. FOCUS_NONE: they never take the menu's
+## keyboard focus. They are the only controls here that take the mouse, and only while the overlay is open.
 ## Closed = no per-frame work (_process off, refresh timer stopped). Nothing is logged per frame.
 ## A section is one label plus one _refresh_* called from _refresh().
-## player_data, save_service and find_run_frame are test seams: tests assign them before add_child.
+## player_data, save_service, find_run_frame, navigate and current_screen are test seams: tests assign them before add_child.
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 const SaveServiceScript: GDScript = preload("res://scripts/autoloads/save_service.gd")
@@ -40,6 +44,10 @@ var save_service: SaveServiceScript = null
 ## Test seam: returns the node that may be the run frame. Defaults (in _ready) to the current scene,
 ## which is the RunFrame during a run (the Router swaps scenes with change_scene_to_packed).
 var find_run_frame: Callable
+## Test seam: called as navigate.call(screen, payload) by the jump buttons. Defaults to Router.go.
+var navigate: Callable
+## Test seam: returns the Router.Screen on show. Defaults to reading Router.current_screen.
+var current_screen: Callable
 
 var _tracker: FrameTracker = FrameTracker.new()
 var _last_frame_usec: int = 0
@@ -62,6 +70,13 @@ func _ready() -> void:
 		save_service = SaveService
 	if not find_run_frame.is_valid():
 		find_run_frame = func() -> Node: return get_tree().current_scene
+	if not navigate.is_valid():
+		navigate = Router.go
+	if not current_screen.is_valid():
+		current_screen = func() -> Router.Screen: return Router.current_screen
+	%JumpTestLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_level"}))
+	%JumpGiftButton.pressed.connect(_jump.bind(Router.Screen.WELCOME_GIFT, {}))
+	%JumpKeyboardTestButton.pressed.connect(_jump.bind(Router.Screen.KEYBOARD_TEST, {}))
 	visible = false
 	set_process(false)
 	%HelpLabel.text = HELP_TEXT
@@ -208,6 +223,7 @@ func _cancel_confirm() -> void:
 
 
 func _refresh() -> void:
+	_refresh_jumps()
 	_refresh_stats()
 	_refresh_run()
 	_refresh_save()
@@ -265,6 +281,24 @@ func _refresh_save() -> void:
 	%SaveLabel.text = "%s\nStorage: %s" % [
 		format_save_age(save_service.last_write_ticks_msec, Time.get_ticks_msec()), storage
 	]
+
+
+## The jump buttons work only on the main menu.
+func _refresh_jumps() -> void:
+	var on_menu: bool = _on_main_menu()
+	for button: Button in [%JumpTestLevelButton, %JumpGiftButton, %JumpKeyboardTestButton]:
+		button.disabled = not on_menu
+
+
+func _on_main_menu() -> bool:
+	return current_screen.call() == Router.Screen.MAIN_MENU
+
+
+func _jump(screen: Router.Screen, payload: Dictionary) -> void:
+	if not visible or not _on_main_menu():
+		return
+	Log.info(&"debug", "jump to %s" % Router.Screen.keys()[screen])
+	navigate.call(screen, payload)
 
 
 func _on_confirm_timer_timeout() -> void:

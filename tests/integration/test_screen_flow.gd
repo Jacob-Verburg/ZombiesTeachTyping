@@ -6,7 +6,7 @@ extends GutTest
 ## recorder before add_child, so the live Router never runs.
 
 const FLOW_BUTTONS: Dictionary = {
-	"MAIN_MENU": ["%PlayButton", "%TestLevelButton", "%ClosetButton", "%GiftButton", "%KeyboardTestButton"],
+	"MAIN_MENU": ["%ClosetButton"],
 	"REPORT_CARD": ["%PlayAgainButton", "%MenuButton"],
 	"WELCOME_GIFT": ["%OpenClosetButton"],
 	"CRYPT_CLOSET": ["%BackButton"],
@@ -76,6 +76,28 @@ func test_run_with_empty_payload_returns_to_menu() -> void:
 	assert_push_error("[ERROR][run]")
 
 
-func test_empty_payload_shows_nothing() -> void:
+## Story 4.2: the real menu has no payload label; it consumes whatever payload it was given.
+func test_main_menu_consumes_the_payload() -> void:
+	Router._store_payload({"stale": true})
 	var menu: Control = _instance(Router.Screen.MAIN_MENU)
-	assert_eq((menu.get_node("%PayloadLabel") as Label).text, "")
+	assert_not_null(menu)
+	assert_eq(Router.take_payload(), {})
+
+
+## Story 4.2 (closes the 3.1 deferral): the menu's Zombie Run card asks for a Zombie Run, and that
+## payload starts the zombie_run level in a real RunFrame.
+func test_menu_card_routes_to_a_zombie_run() -> void:
+	var packed: PackedScene = load(Router.SCREEN_PATHS[Router.Screen.MAIN_MENU]) as PackedScene
+	var menu: Control = packed.instantiate() as Control
+	menu.process_mode = Node.PROCESS_MODE_DISABLED
+	menu.set("navigate", _record)
+	add_child_autofree(menu)
+	var cards: Array[LevelCard] = menu.call("get_cards")
+	cards[0]._activate()
+	assert_eq(_nav, [[Router.Screen.RUN, {"level_id": &"zombie_run"}]])
+	Router._store_payload(_nav[0][1])
+	_nav = []
+	var run: Control = _instance(Router.Screen.RUN)
+	assert_eq(run.call("get_level_id"), &"zombie_run")
+	assert_not_null(run.call("get_session"), "the run built a typing session")
+	assert_eq(_nav, [], "the run started instead of bouncing back to the menu")

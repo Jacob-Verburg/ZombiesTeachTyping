@@ -7,6 +7,7 @@ extends GutTest
 ## test_run_frame.gd (disabled, recorder navigate / pause_tree, a PlayerData on the temp save) and
 ## reached through the find_run_frame seam.
 ## Story 3.4: the run-worst frame time, driven through the pure _note_run_frame() bookkeeping.
+## Story 4.2: the jump row, through the navigate / current_screen seams (the live Router never swaps).
 
 const OverlayScene: PackedScene = preload("res://scenes/debug/debug_overlay.tscn")
 const OverlayScript := preload("res://scripts/debug/debug_overlay.gd")
@@ -21,12 +22,16 @@ var _player: PlayerDataScript = null
 var _downloads: Array[String] = []
 var _frame: RunFrameScript = null
 var _nav: Array = []
+var _jumps: Array = []
+var _screen: Router.Screen = Router.Screen.MAIN_MENU
 
 
 func before_each() -> void:
 	DirAccess.make_dir_recursive_absolute(TEST_DIR)
 	_clear()
 	_downloads = []
+	_jumps = []
+	_screen = Router.Screen.MAIN_MENU
 
 
 func after_each() -> void:
@@ -66,6 +71,8 @@ func _make() -> OverlayScript:
 	sut.player_data = _player
 	sut.save_service = _save
 	sut.find_run_frame = func() -> Node: return _frame
+	sut.navigate = func(screen: int, payload: Dictionary) -> void: _jumps.append([screen, payload])
+	sut.current_screen = func() -> Router.Screen: return _screen
 	add_child_autofree(sut)
 	return sut
 
@@ -229,13 +236,16 @@ func test_unused_keys_are_not_consumed() -> void:
 	assert_false(sut._handle_key(KEY_ESCAPE))
 
 
+## Only the jump buttons take the mouse (Story 4.2); nothing here ever takes keyboard focus.
 func test_never_blocks_the_mouse() -> void:
 	var sut: OverlayScript = _make()
 	var controls: Array[Control] = _controls(sut, [])
 	assert_gt(controls.size(), 0)
+	var jumps: Array[Control] = _jump_buttons(sut)
 	for control: Control in controls:
-		assert_eq(control.mouse_filter, Control.MOUSE_FILTER_IGNORE, str(control.name))
 		assert_eq(control.focus_mode, Control.FOCUS_NONE, str(control.name))
+		if control not in jumps:
+			assert_eq(control.mouse_filter, Control.MOUSE_FILTER_IGNORE, str(control.name))
 
 
 func test_labels_fill_in_when_opened() -> void:
@@ -490,3 +500,70 @@ func test_run_worst_survives_the_run_and_shows() -> void:
 	assert_eq(sut.get_run_worst_ms(), 25.0, "kept after the run frame goes away")
 	sut._refresh()
 	assert_string_contains(_text(sut, "StatsLabel"), "Run: 25.0 ms")
+
+
+# --- Story 4.2: jump row ---------------------------------------------------------
+
+func _jump_buttons(sut: OverlayScript) -> Array[Control]:
+	return [
+		sut.get_node("%JumpTestLevelButton") as Control, sut.get_node("%JumpGiftButton") as Control,
+		sut.get_node("%JumpKeyboardTestButton") as Control,
+	]
+
+
+func test_jump_buttons_exist_and_never_take_focus() -> void:
+	var sut: OverlayScript = _make()
+	var texts: Array[String] = []
+	for control: Control in _jump_buttons(sut):
+		var button: Button = control as Button
+		assert_not_null(button)
+		assert_eq(button.focus_mode, Control.FOCUS_NONE, str(button.name))
+		texts.append(button.text)
+	assert_eq(texts, ["Test level", "Welcome gift", "Keyboard test"] as Array[String])
+
+
+func test_jump_buttons_navigate_from_the_main_menu() -> void:
+	var sut: OverlayScript = _make()
+	sut._handle_key(KEY_F3)
+	for control: Control in _jump_buttons(sut):
+		assert_false((control as Button).disabled, str(control.name))
+		(control as Button).pressed.emit()
+	assert_eq(_jumps, [
+		[Router.Screen.RUN, {"level_id": &"test_level"}],
+		[Router.Screen.WELCOME_GIFT, {}],
+		[Router.Screen.KEYBOARD_TEST, {}],
+	])
+
+
+func test_jump_buttons_do_nothing_off_the_main_menu() -> void:
+	var sut: OverlayScript = _make()
+	_screen = Router.Screen.RUN
+	sut._handle_key(KEY_F3)
+	for control: Control in _jump_buttons(sut):
+		assert_true((control as Button).disabled, str(control.name))
+		(control as Button).pressed.emit()
+	assert_eq(_jumps, [])
+
+
+func test_jump_buttons_follow_the_screen_on_refresh() -> void:
+	var sut: OverlayScript = _make()
+	sut._handle_key(KEY_F3)
+	_screen = Router.Screen.REPORT_CARD
+	sut._refresh()
+	assert_true((sut.get_node("%JumpGiftButton") as Button).disabled)
+	_screen = Router.Screen.MAIN_MENU
+	sut._refresh()
+	assert_false((sut.get_node("%JumpGiftButton") as Button).disabled)
+
+
+func test_jump_buttons_do_nothing_while_closed() -> void:
+	var sut: OverlayScript = _make()
+	(sut.get_node("%JumpGiftButton") as Button).pressed.emit()
+	assert_eq(_jumps, [])
+
+
+func test_jump_seams_default_to_the_router() -> void:
+	var sut: OverlayScript = OverlayScene.instantiate() as OverlayScript
+	add_child_autofree(sut)
+	assert_true(sut.navigate.is_valid())
+	assert_eq(sut.current_screen.call(), Router.current_screen)

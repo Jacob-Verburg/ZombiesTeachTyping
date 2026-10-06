@@ -759,3 +759,94 @@ func test_default_ambience_rng_exists() -> void:
 	var fresh: AudioManagerScript = AudioManagerScript.new()
 	assert_not_null(fresh.ambience_rng)
 	fresh.free()
+
+
+# --- Story 4.2: saved Music/Sound settings drive the buses -------------------------------------------
+
+const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
+const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
+const SETTINGS_DIR: String = "user://test_audio_manager_settings/"
+
+
+func _clear_settings_dir() -> void:
+	if not DirAccess.dir_exists_absolute(SETTINGS_DIR):
+		return
+	for file_name: String in DirAccess.get_files_at(SETTINGS_DIR):
+		DirAccess.remove_absolute(SETTINGS_DIR.path_join(file_name))
+
+
+## A fresh PlayerData on a temp-dir SaveService (never the real save), with `settings` applied
+## before the AudioManager under test sees it.
+func _player_data(settings: Dictionary = {}) -> PlayerDataScript:
+	DirAccess.make_dir_recursive_absolute(SETTINGS_DIR)
+	_clear_settings_dir()
+	var save: SaveServiceScript = SaveServiceScript.new()
+	save.save_dir = SETTINGS_DIR
+	add_child_autofree(save)
+	var player: PlayerDataScript = PlayerDataScript.new()
+	player.save_service = save
+	add_child_autofree(player)
+	for key: StringName in settings:
+		player.set_setting(key, settings[key])
+	return player
+
+
+## A fresh AudioManager listening to `player`.
+func _am_with(player: PlayerDataScript) -> AudioManagerScript:
+	var am: AudioManagerScript = AudioManagerScript.new()
+	am.library = _am.library
+	am.player_data = player
+	add_child_autofree(am)
+	return am
+
+
+func test_saved_music_off_mutes_music_bus_at_startup() -> void:
+	var am: AudioManagerScript = _am_with(_player_data({&"music_on": false}))
+	assert_true(am.is_music_muted(), "music_on = false is applied in _ready")
+	assert_false(am.is_sfx_muted())
+	_clear_settings_dir()
+
+
+func test_saved_sound_off_mutes_sfx_bus_at_startup() -> void:
+	var am: AudioManagerScript = _am_with(_player_data({&"sound_on": false}))
+	assert_true(am.is_sfx_muted())
+	assert_false(am.is_music_muted())
+	_clear_settings_dir()
+
+
+func test_saved_settings_on_unmute_buses_at_startup() -> void:
+	_am.set_music_muted(true)
+	_am.set_sfx_muted(true)
+	var am: AudioManagerScript = _am_with(_player_data())
+	assert_false(am.is_music_muted(), "defaults are on")
+	assert_false(am.is_sfx_muted())
+	_clear_settings_dir()
+
+
+func test_settings_changed_follows_each_key() -> void:
+	var player: PlayerDataScript = _player_data()
+	var am: AudioManagerScript = _am_with(player)
+	player.set_setting(&"sound_on", false)
+	assert_true(am.is_sfx_muted())
+	assert_false(am.is_music_muted(), "only the changed key is applied")
+	player.set_setting(&"music_on", false)
+	assert_true(am.is_music_muted())
+	player.set_setting(&"sound_on", true)
+	assert_false(am.is_sfx_muted())
+	assert_true(am.is_music_muted())
+	_clear_settings_dir()
+
+
+func test_profile_replaced_reapplies_defaults() -> void:
+	var player: PlayerDataScript = _player_data({&"music_on": false, &"sound_on": false})
+	var am: AudioManagerScript = _am_with(player)
+	assert_true(am.is_music_muted())
+	assert_true(am.is_sfx_muted())
+	player.reset_all()
+	assert_false(am.is_music_muted(), "reset_all re-applies the default music_on")
+	assert_false(am.is_sfx_muted(), "reset_all re-applies the default sound_on")
+	_clear_settings_dir()
+
+
+func test_default_player_data_is_the_autoload() -> void:
+	assert_eq(_am.player_data, PlayerData)

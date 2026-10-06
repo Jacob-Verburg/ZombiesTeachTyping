@@ -25,3 +25,13 @@ func get_scene(id: StringName, debug_build: bool = OS.is_debug_build()) -> Packe
 	if entry == null or (entry.debug_only and not debug_build):
 		return null
 	return entry.scene
+
+
+## The entries that get a main-menu card, in registry order: non-null and not debug_only. Debug-only
+## levels never get a card, even in a debug build (the debug overlay jumps to them, Story 4.2).
+func menu_entries() -> Array[LevelEntry]:
+	var result: Array[LevelEntry] = []
+	for entry: LevelEntry in entries:
+		if entry != null and not entry.debug_only:
+			result.append(entry)
+	return result

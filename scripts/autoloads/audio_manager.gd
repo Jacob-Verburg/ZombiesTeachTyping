@@ -15,9 +15,12 @@ extends Node
 ## the last voice line that played is skipped, not delayed; a groan never stamps the voice time. RunFrame
 ## owns on/off (on exactly while RUNNING): this node is PROCESS_MODE_ALWAYS, so a tree pause does not stop
 ## the groan clock, and RunFrame stops ambience on pause instead.
+## Settings (Story 4.2): the Music/Sound buses follow PlayerData's music_on/sound_on, applied at startup and
+## on every settings_changed / profile_replaced. Screens only call PlayerData.set_setting().
 ## Later: the music crossfade (5.1). Audio rules live only here.
 
 const LIBRARY: AudioLibrary = preload("res://data/audio/audio_library.tres")
+const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 const SFX_POOL_SIZE: int = 8
 const MUSIC_BUS: StringName = &"Music"
 const SFX_BUS: StringName = &"SFX"
@@ -29,6 +32,9 @@ var now_msec: Callable = Time.get_ticks_msec
 ## Test seam: the RNG for groan gaps and picks (created and randomized in _init). Tests reseed it before
 ## start_ambience(). Never the run RNG (seed replays) nor the global one.
 var ambience_rng: RandomNumberGenerator
+## Test seam: the PlayerData whose settings drive the bus mutes. Defaults to the PlayerData autoload in
+## _ready() (autoload #3, ready before this one). Tests assign a fresh one on a temp save before add_child.
+var player_data: PlayerDataScript = null
 
 var _unlocked: bool = false
 var _sfx_players: Array[AudioStreamPlayer] = []
@@ -68,6 +74,11 @@ func _ready() -> void:
 	_music_player.name = "Music"
 	_music_player.bus = MUSIC_BUS
 	add_child(_music_player)
+	if player_data == null:
+		player_data = PlayerData
+	player_data.settings_changed.connect(_on_settings_changed)
+	player_data.profile_replaced.connect(_apply_saved_settings)
+	_apply_saved_settings()
 
 
 func _process(_delta: float) -> void:
@@ -270,6 +281,20 @@ func is_music_muted() -> bool:
 
 func is_sfx_muted() -> bool:
 	return _is_bus_mute(SFX_BUS)
+
+
+## Mutes each bus whose saved setting is off, unmutes it otherwise.
+func _apply_saved_settings() -> void:
+	set_music_muted(not player_data.get_setting(&"music_on"))
+	set_sfx_muted(not player_data.get_setting(&"sound_on"))
+
+
+func _on_settings_changed(key: StringName, value: bool) -> void:
+	match key:
+		&"music_on":
+			set_music_muted(not value)
+		&"sound_on":
+			set_sfx_muted(not value)
 
 
 func _start_music(id: StringName) -> void:
