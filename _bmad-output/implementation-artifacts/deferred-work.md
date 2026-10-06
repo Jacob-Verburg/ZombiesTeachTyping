@@ -236,7 +236,7 @@
 - ~~Hand-off to Story 3.1: register `zombie_run` in `data/levels/level_registry.tres` with `display_name = "Zombie Run"` (the report card heading). Without it the card falls back to `"zombie_run".capitalize()`, which happens to read the same.~~ Done in 3.1.
 - Final chalkboard, chalk tray, "New best!" stamp (hand-lettered, pre-rotated -8°), pixel buttons, key-hint keycaps, smiling moon and night-classroom backdrop art: Story 5.0. Today they are square `StyleBoxFlat` / `ColorRect` placeholders in palette colours.
 - Chalk-scratch per revealed row, the chime, the stamp thump and menu music on the report card: Story 5.1 (no `AudioCue`s exist for them yet).
-- The worn hat and pet in Professor Zombie's `%HatSlot` / `%PetSlot`, `SpriteAnchors` for the professor, and lifting the mortarboard by the hat's height: Story 4.3.
+- ~~The worn hat and pet in Professor Zombie's `%HatSlot` / `%PetSlot`, `SpriteAnchors` for the professor, and lifting the mortarboard by the hat's height: Story 4.3.~~ Done in 4.3: the professor's slots are a `HatSlot` (on `professor_anchors.tres`) and a `PetSlot` on the floor to his right, and `_stack_mortarboard` lifts the mortarboard by the hat's rise (11 px for the pumpkin).
 - First completed run goes through the Welcome Gift: Story 4.5 hooks into `report_card.gd` `_leave()`, the card's only navigation.
 - Long level names vs the stamp: at 24 px the heading has 245 px before the stamp (10 glyphs); "Pitchfork Panic" (15 glyphs = 360 px) would run under it. Epic 8 (or the 5.0 stamp art) resolves it; `test_stamp_clear_of_heading_and_rows` checks only "Test level" today.
 - Professor Zombie is 32×32 at 1× (one sprite scale rule), so he is much smaller than in the mock. An exception to the rule or a 48×48 professor sprite is Smuck's call.
@@ -339,7 +339,7 @@
 
 - Party-zombie dance sheet: decided **no** (not in the GDD sprite list). Dancing followers keep idle plus the code bounce and flip.
 - No groans or SFX for the new animations: ~~Story 3.7 (groans)~~ Done in 3.7: ambience groans every 3-8 s while RUNNING. SFX for the new animations stay 5.1 (audio pass).
-- Hat anchors on the new frames (the crown moves on some frames: hop crouch 2 px down, hop land, hug release and dance frame 4 1 px down, hug squeeze 1 px right): Story 4.3 sets per-frame anchors. `%HatSlot` still sits at the idle crown.
+- ~~Hat anchors on the new frames (the crown moves on some frames: hop crouch 2 px down, hop land, hug release and dance frame 4 1 px down, hug squeeze 1 px right): Story 4.3 sets per-frame anchors. `%HatSlot` still sits at the idle crown.~~ Done in 4.3: `data/anchors/zombie_anchors.tres` has a head point per frame (measured by `tools/gen_sprite_anchors.gd`, re-measured by `test_sprite_anchors.gd`), and `HatSlot` follows every frame and animation change.
 - HUD, pause panel, report card and menu art stay placeholder: Story 5.0.
 - Readability changes made during the 1x check (not in the story text): the far hills are `chalk-dim` with a `zombie-green` crest instead of solid `zombie-green` (the zombie's and party zombies' skin sat on their own colour), and the pumpkin moved to a short post in front of the fence at x 120 (on a full fence post it sat behind the zombie's head at run start and read as a pumpkin hat, which clashes with the 4.3 hats).
 - The distant houses and windmill (`stone-light` on `chalk-dim`) are low contrast; accepted as far-layer decoration.
@@ -380,3 +380,16 @@
 - `PixelButton` keeps the focused `normal` stylebox override if disabled or hidden while focused; revisit in Story 5.0.
 - Debug overlay jump buttons have no re-entry guard, and stay disabled when `main_menu.tscn` is run directly (F6) because `Router.current_screen` is still TITLE.
 - Test hardening: `test_the_slash_carries_the_off_state` asserts constants only, the Esc test does not assert the event was handled, and the wiggle tests use real-time `wait_seconds`.
+
+## Deferred from: dev of story 4-3 (2026-10-05)
+
+- `HatSlot` logs every anchor move with `Log.debug(&"cosmetics", ...)` (the architecture's "DEBUG for anchor positions"). In a debug build that is one console line per animation frame (about 10 a second while walking). Release builds print nothing. If it drowns other debug output, gate it behind a verbose flag like `Log.verbose_typing`.
+- The slots listen to PlayerData once, from `_ready()`, and disconnect in `_exit_tree()`. A slot removed and re-added to the tree (a reparent) would not reconnect. Nothing reparents a slot today. The Crypt Closet preview (4.4) uses `follow_equipped = false`, so it is not affected.
+- The screens' `player_data` test seams (main menu, report card) don't reach their slots: a slot defaults to the live `PlayerData`. `test_main_menu.gd` sets the slots' own seams. Other screen tests assert slot type and position only, as the story asked.
+- Godot quirk handled in `HatSlot._follow()`: `AnimatedSprite2D` emits `animation_changed` before it resets the frame, so the old frame index is read against the new animation for a moment. An index past the new animation's end is skipped quietly, and the reset's `frame_changed` lands the hat. A same-length switch briefly reads the new animation at the old index, then corrects within the same call.
+- The fit check's `E` key writes the real save (it gives each item's price in brains, then buys and equips it, so the wallet nets zero). It is debug-only and works as specified. Story 4.5's welcome gift and the Closet (4.4) make it unnecessary.
+
+## Deferred from: code review of story-4-3-hat-and-pet-display-everywhere (2026-10-05)
+
+- `HatSlot`/`PetSlot` connect to PlayerData only in `_ready` (reparent leaves them stale). Move to `_enter_tree` if anything starts reparenting.
+- Test robustness: `test_hud.gd` and `test_report_card.gd` use the live `PlayerData` autoload (a saved hat/pet on the dev machine can change results); art-number magic constants in report card/main menu tests; fit-check key bindings and warning counts are untested.

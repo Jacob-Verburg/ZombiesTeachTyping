@@ -61,6 +61,20 @@ func test_band_layout() -> void:
 	assert_eq(_rect("%PauseButton"), Rect2(600, 16, 24, 24))
 
 
+## Story 4.3: the pet slot sits on the cushion, its feet inside the cushion rect, and its 32 px frame
+## stays inside the 64 px pet column.
+func test_pet_sits_on_the_cushion() -> void:
+	_letter_setup()
+	var pet: PetSlot = _hud.get_node("%Pet") as PetSlot
+	assert_not_null(pet, "%Pet is a PetSlot")
+	assert_eq(pet.get_parent(), _hud.get_node("%PetSlot"), "inside the %PetSlot column")
+	assert_true(pet.get_index() > _hud.get_node("%PetCushion").get_index(), "drawn over the cushion")
+	var feet: Vector2 = pet.global_position - _hud.global_position
+	assert_true(_rect("%PetCushion").has_point(feet), "feet on the cushion")
+	var frame: Rect2 = Rect2(feet + Vector2(-16, -31), Vector2(32, 32))
+	assert_true(_rect("%PetSlot").encloses(frame), "the pet stays inside the 64 px column")
+
+
 func test_left_to_right_order() -> void:
 	_letter_setup()
 	assert_lt(_rect("%PetSlot").position.x, _rect("%TargetArea").position.x)

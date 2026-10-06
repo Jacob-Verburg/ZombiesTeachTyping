@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://scripts/characters/player_zombie.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://brjnih7a64hb6" path="res://assets/sprites/characters/zombie/zombie_idle.png" id="2_idle"]
@@ -6,6 +6,8 @@
 [ext_resource type="Texture2D" uid="uid://d4adnidbmqb64" path="res://assets/sprites/characters/zombie/zombie_hop.png" id="4_hop"]
 [ext_resource type="Texture2D" uid="uid://1upixvgujxqx" path="res://assets/sprites/characters/zombie/zombie_hug.png" id="5_hug"]
 [ext_resource type="Texture2D" uid="uid://bdu3aabah2j5e" path="res://assets/sprites/characters/zombie/zombie_dance.png" id="6_dance"]
+[ext_resource type="PackedScene" path="res://scenes/cosmetics/hat_slot.tscn" id="7_hat_slot"]
+[ext_resource type="Resource" path="res://data/anchors/zombie_anchors.tres" id="8_anchors"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_idle_0"]
 atlas = ExtResource("2_idle")
@@ -157,6 +159,7 @@ animation = &"idle"
 autoplay = "idle"
 centered = false
 
-[node name="HatSlot" type="Node2D" parent="Body"]
+[node name="HatSlot" parent="Body" node_paths=PackedStringArray("sprite") instance=ExtResource("7_hat_slot")]
 unique_name_in_owner = true
-position = Vector2(16, 1)
+sprite = NodePath("..")
+anchors = ExtResource("8_anchors")

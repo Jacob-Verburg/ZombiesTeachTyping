@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SpriteAnchors" format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/sprite_anchors.gd" id="1_78uuf"]
+
+[resource]
+script = ExtResource("1_78uuf")
+head = Dictionary[StringName, PackedVector2Array]({
+&"point": PackedVector2Array(16, 5, 16, 5)
+})

@@ -4,7 +4,8 @@ extends Control
 ## Errors) and the brain counter, plus the start prompt, the Caps Lock hint and the pause button in
 ## the playfield. Layout: the approved Story 2.5 sketch (ux-designs/.../sketches/hud-band-2-5.md).
 ## A view only: RunFrame calls down; the HUD never reads input, never touches the TypingSession, the
-## clock or any autoload except Log, and only emits pause_pressed.
+## clock or any autoload except Log, and only emits pause_pressed. The %Pet slot on the cushion (Story 4.3)
+## is a cosmetics widget that listens to PlayerData by itself (Boundary 2); this script still doesn't.
 ## Placeholder chrome until Story 5.0.
 
 ## Emitted when the pause button is clicked. Pausing itself is Story 2.7.

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SpriteAnchors" format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/sprite_anchors.gd" id="1_748w2"]
+
+[resource]
+script = ExtResource("1_748w2")
+head = Dictionary[StringName, PackedVector2Array]({
+&"dance": PackedVector2Array(16, 1, 16, 1, 16, 1, 16, 2),
+&"hop": PackedVector2Array(16, 3, 16, 1, 16, 2),
+&"hug": PackedVector2Array(16, 1, 17, 1, 16, 2),
+&"idle": PackedVector2Array(16, 1, 16, 2),
+&"walk": PackedVector2Array(16, 2, 16, 1, 16, 2, 16, 1)
+})

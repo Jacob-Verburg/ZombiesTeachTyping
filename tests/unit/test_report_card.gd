@@ -381,7 +381,9 @@ func test_every_text_at_least_16_px() -> void:
 
 # --- Professor Zombie -------------------------------------------------------------------------------
 
-func test_professor_points_at_1x_with_empty_slots() -> void:
+## Story 4.3: the slots are a HatSlot (following the professor's anchors) and a PetSlot. They follow the
+## live PlayerData, so the shown hat is set by hand here (show_item) rather than asserted empty.
+func test_professor_points_at_1x_with_cosmetic_slots() -> void:
 	var card: Control = _card({"result": _result()})
 	var professor: Node2D = card.get_node("%Professor")
 	assert_eq(professor.scale, Vector2.ONE)
@@ -390,12 +392,48 @@ func test_professor_points_at_1x_with_empty_slots() -> void:
 	assert_eq(body.sprite_frames.get_frame_count(&"point"), 2)
 	assert_eq(body.sprite_frames.get_animation_speed(&"point"), 8.0)
 	assert_eq(body.animation, &"point")
-	var hat: Node2D = professor.get_node("%HatSlot")
-	var pet: Node2D = professor.get_node("%PetSlot")
-	assert_eq(hat.get_child_count(), 0, "hat slot empty until Story 4.3")
-	assert_eq(pet.get_child_count(), 0, "pet slot empty until Story 4.3")
+	var hat: HatSlot = professor.get_node("%HatSlot") as HatSlot
+	assert_not_null(hat, "%HatSlot is a HatSlot")
+	assert_true(professor.get_node("%PetSlot") is PetSlot, "%PetSlot is a PetSlot")
+	assert_eq(hat.sprite, body)
+	assert_eq(hat.anchors, load("res://data/anchors/professor_anchors.tres"))
+	assert_eq(hat.position, Vector2(16, 5), "on the crown")
 	var mortarboard: Sprite2D = body.get_node("Mortarboard")
 	assert_true(mortarboard.get_index() > hat.get_index(), "mortarboard drawn over the hat")
+	hat.show_item(null)
+	assert_eq(mortarboard.position.y, 0.0, "no hat: the mortarboard sits on the crown")
+
+
+## D16: with a hat on, the mortarboard rises by how far the hat reaches above the head point.
+func test_mortarboard_stacks_on_the_hat() -> void:
+	var card: Control = _card({"result": _result()})
+	var professor: Node2D = card.get_node("%Professor")
+	var hat: HatSlot = professor.get_node("%HatSlot") as HatSlot
+	var mortarboard: Sprite2D = professor.get_node("Body/Mortarboard")
+	var pumpkin: CosmeticItem = load("res://data/cosmetics/hat_pumpkin.tres") as CosmeticItem
+	hat.show_item(pumpkin)
+	var top: int = pumpkin.overlay.get_image().get_used_rect().position.y
+	assert_eq(top, 19, "the pumpkin's top row")
+	assert_eq(mortarboard.position.y, -(HatSlot.SEAT.y - top), "lifted by the hat's rise")
+	assert_eq(mortarboard.position.y, -11.0)
+	hat.show_item(null)
+	assert_eq(mortarboard.position.y, 0.0)
+	# A lifted mortarboard (top row 1) stays clear of the board's heading and the stamp: it tops out
+	# around y 258.
+	hat.show_item(pumpkin)
+	assert_almost_eq(mortarboard.global_position.y + 1.0, 260.0, 2.0)
+
+
+func test_pet_stands_clear_of_the_board_stamp_and_buttons() -> void:
+	var card: Control = _card({"result": _result()})
+	var pet: Node2D = card.get_node("%Professor").get_node("%PetSlot")
+	var feet: Vector2 = pet.global_position
+	var pet_rect: Rect2 = Rect2(feet + Vector2(-16, -31), Vector2(32, 32))
+	assert_eq(feet.y, 300.0, "on the floor with the professor's soles")
+	for path: String in ["Board", "Stamp", "%PlayAgainButton", "%MenuButton"]:
+		var rect: Rect2 = (card.get_node(path) as Control).get_global_rect()
+		assert_false(pet_rect.intersects(rect), "pet clear of %s" % path)
+	assert_true(pet_rect.end.x <= 640.0, "on screen")
 
 
 func test_professor_stands_on_the_floor_and_reaches_the_board() -> void:

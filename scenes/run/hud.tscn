@@ -1,8 +1,9 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/run/hud.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/ui/brain_counter.tscn" id="2_brain_counter"]
 [ext_resource type="PackedScene" path="res://scenes/run/zombie_hands.tscn" id="3_zombie_hands"]
+[ext_resource type="PackedScene" path="res://scenes/cosmetics/pet_slot.tscn" id="4_pet_slot"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_band"]
 bg_color = Color(0.35294118, 0.19607843, 0.094117647, 1)
@@ -82,6 +83,10 @@ offset_right = 56.0
 offset_bottom = 92.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_parchment")
+
+[node name="Pet" parent="PetSlot" instance=ExtResource("4_pet_slot")]
+unique_name_in_owner = true
+position = Vector2(32, 80)
 
 [node name="TargetArea" type="Control" parent="."]
 unique_name_in_owner = true

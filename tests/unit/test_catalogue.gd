@@ -240,3 +240,19 @@ func test_shipped_economy_config() -> void:
 	var economy: Variant = load(ECONOMY_PATH)
 	assert_true(economy is EconomyConfig, "economy.tres is an EconomyConfig")
 	assert_eq((economy as EconomyConfig).welcome_bonus, 100)
+
+
+## Story 4.3: the MVP items carry their art; the Epic 9 items still have none. icon stays empty (4.4).
+func test_shipped_mvp_items_have_art() -> void:
+	var catalogue: Catalogue = _shipped()
+	var hat: CosmeticItem = catalogue.get_item(&"hat_pumpkin")
+	assert_not_null(hat.overlay, "the pumpkin hat has an overlay")
+	assert_eq(hat.overlay.get_size(), Vector2(32, 32))
+	var pet: CosmeticItem = catalogue.get_item(&"pet_cute_ghost")
+	assert_not_null(pet.pet_frames, "the cute ghost has pet frames")
+	assert_true(pet.pet_frames.has_animation(&"idle"))
+	for item: CosmeticItem in catalogue.items:
+		assert_null(item.icon, "%s icon is Story 4.4" % item.id)
+		if not item.is_available:
+			assert_null(item.overlay, "%s has no art yet (Epic 9)" % item.id)
+			assert_null(item.pet_frames, "%s has no art yet (Epic 9)" % item.id)

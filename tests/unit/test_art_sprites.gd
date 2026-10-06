@@ -1,7 +1,7 @@
 extends GutTest
 ## Prototype sprite sheets (Story 1.9, NFR13), the Professor Zombie (Story 2.9), the party-hat zombie
-## (Story 3.3) and the Story 3.6 Zombie Run set (hop, hug, dance, poof, party walk, brain block, brain
-## pop, down-arrow): size, hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty
+## (Story 3.3), the Story 3.6 Zombie Run set (hop, hug, dance, poof, party walk, brain block, brain
+## pop, down-arrow) and the Story 4.3 cosmetics (Pumpkin hat overlay, Cute ghost idle): size, hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty
 ## distinct frames on one ground line, and pixel-crisp import settings.
 ## Read from the committed PNG bytes (Image.load_from_file), so import state doesn't matter.
 ## Frame size per sheet: characters (and the poof) 32x32, props 16x16 (style sheet section 3).
@@ -23,6 +23,7 @@ const SHEETS: Dictionary[String, int] = {
 	"res://assets/sprites/characters/zombie/zombie_dance.png": 4,
 	"res://assets/sprites/characters/villager/villager_poof.png": 4,
 	"res://assets/sprites/characters/party_zombie/party_zombie_walk.png": 4,
+	PET_GHOST_PATH: 4,
 }
 ## Prop sheet path -> frame count (PROP_FRAME x PROP_FRAME frames).
 const PROP_SHEETS: Dictionary[String, int] = {
@@ -30,6 +31,8 @@ const PROP_SHEETS: Dictionary[String, int] = {
 	PROPS_DIR + "brain_block_bonk.png": 3,
 	PROPS_DIR + "brain_pop.png": 2,
 }
+const HAT_PUMPKIN_PATH: String = "res://assets/sprites/cosmetics/hats/hat_pumpkin.png"
+const PET_GHOST_PATH: String = "res://assets/sprites/cosmetics/pets/pet_cute_ghost_idle.png"
 const PARTY_ZOMBIE_PATH: String = "res://assets/sprites/characters/party_zombie/party_zombie_idle.png"
 const PARTY_ZOMBIE_WALK_PATH: String = "res://assets/sprites/characters/party_zombie/party_zombie_walk.png"
 const POOF_PATH: String = "res://assets/sprites/characters/villager/villager_poof.png"
@@ -40,7 +43,11 @@ const ARROW_PATH: String = PROPS_DIR + "down_arrow.png"
 const OVERLAYS: Dictionary[String, int] = {
 	"res://assets/sprites/characters/professor/professor_mortarboard.png": FRAME,
 	ARROW_PATH: PROP_FRAME,
+	HAT_PUMPKIN_PATH: FRAME,
 }
+## Hats (Story 4.3): one 32x32 frame whose seat (the brim's bottom-centre) is pixel (16, 30).
+const HATS: Array[String] = [HAT_PUMPKIN_PATH]
+const HAT_SEAT_ROW: int = 30
 ## The party-hat zombie walk changes the legs only: rows above this are the idle frame's pixels.
 const PARTY_LEGS_TOP: int = 24
 ## The poof (and every frame of it) is never wider than the 24 px tag (ZombieRunTarget.HALF_WIDTH).
@@ -58,6 +65,9 @@ const BRAIN_PINK: String = "f29ab8"
 const BRAIN_SHADE: String = "c9607f"
 const CANDY_YELLOW: String = "ffd23f"
 const PUMPKIN: String = "f07a1c"
+const PUMPKIN_LIGHT: String = "ffa94a"
+const WOOD_DARK: String = "5a3218"
+const STAMP_RED: String = "b02a25"
 ## Orthogonal neighbours (up, down, left, right).
 const NEIGHBOURS: Array[Vector2i] = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]
 
@@ -267,6 +277,7 @@ func test_characters_stand_on_row_30() -> void:
 
 
 ## The professor is the player zombie in a gown, so his sheet uses the zombie greens. Overlays: ink only.
+## Pets (Story 4.3): the Cute ghost is chalk with an ink outline.
 ## The poof is a white dust cloud; the props are cartoon brain pink (the bonk ends grey).
 func test_right_color_ramps_used() -> void:
 	var sheets: Dictionary[String, Image] = _valid_sheets(true)
@@ -279,6 +290,8 @@ func test_right_color_ramps_used() -> void:
 		if path == POOF_PATH:
 			assert_true(colors.has(CHALK), "poof has no chalk fill")
 			assert_true(colors.has(STONE_LIGHT), "poof has no stone-light shade")
+		elif path.contains("/cosmetics/pets/"):
+			assert_true(colors.has(CHALK), "%s has no chalk" % _name(path))
 		elif PROP_SHEETS.has(path):
 			assert_true(colors.has(BRAIN_PINK), "%s has no art-brain-pink" % _name(path))
 			assert_true(colors.has(BRAIN_SHADE), "%s has no art-brain-shade" % _name(path))
@@ -395,3 +408,42 @@ func test_hug_reach_stays_in_the_frame() -> void:
 	for frame: int in SHEETS[ZOMBIE_DIR + "zombie_hug.png"]:
 		for y: int in FRAME:
 			assert_false(_opaque(image, frame * FRAME + 31, y), "hug frame %d row %d touches x 31" % [frame, y])
+
+
+## Story 4.3: a hat sits on row 30 (its seat), centred on column 16, and never uses the focus or stamp
+## colours; row 31 is the empty margin.
+func test_hats_seat_on_row_30_centred() -> void:
+	for path: String in HATS:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		assert_eq(_lowest_opaque_row(image, 0, FRAME), HAT_SEAT_ROW, "%s seat row" % _name(path))
+		var used: Rect2i = image.get_used_rect()
+		assert_eq(used.position.x + used.end.x, FRAME, "%s centred on x 16" % _name(path))
+		assert_true(used.size.x >= 12, "%s covers the 12 px crown" % _name(path))
+		var colors: Dictionary[String, bool] = _colors(image)
+		assert_false(colors.has(CANDY_YELLOW), "%s: no candy-yellow" % _name(path))
+		assert_false(colors.has(STAMP_RED), "%s: no stamp-red" % _name(path))
+
+
+## The pumpkin hat: pumpkin, its highlight, a wood stem and a green leaf.
+func test_pumpkin_hat_colours() -> void:
+	var image: Image = _load(HAT_PUMPKIN_PATH)
+	assert_not_null(image)
+	if image == null:
+		return
+	var colors: Dictionary[String, bool] = _colors(image)
+	for hex: String in [INK, PUMPKIN, PUMPKIN_LIGHT, WOOD_DARK, ZOMBIE_GREEN_DARK]:
+		assert_true(colors.has(hex), "pumpkin hat uses %s" % hex)
+
+
+## The Cute ghost reads as a pet beside a 32 px zombie: 16-20 px tall in every frame.
+func test_ghost_is_pet_sized() -> void:
+	var image: Image = _load(PET_GHOST_PATH)
+	assert_not_null(image)
+	if image == null:
+		return
+	for frame: int in SHEETS[PET_GHOST_PATH]:
+		var used: Rect2i = image.get_region(Rect2i(frame * FRAME, 0, FRAME, FRAME)).get_used_rect()
+		assert_between(used.size.y, 16, 20, "ghost frame %d height" % frame)

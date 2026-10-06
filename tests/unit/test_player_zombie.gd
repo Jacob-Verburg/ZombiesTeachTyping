@@ -70,11 +70,14 @@ func test_play_walk_and_idle_switch() -> void:
 	assert_true(body.is_playing())
 
 
+## Story 4.3: a HatSlot following Body with the zombie's anchors (test_hat_slot.gd covers the rest).
 func test_hat_slot_exists() -> void:
 	var zombie: PlayerZombie = _zombie()
-	var slot: Node = zombie.get_node("%HatSlot")
-	assert_true(slot is Node2D)
-	assert_eq(slot.get_child_count(), 0, "empty until Story 4.3")
+	var slot: HatSlot = zombie.get_node("%HatSlot") as HatSlot
+	assert_not_null(slot, "%HatSlot is a HatSlot")
+	assert_eq(slot.sprite, _body(zombie))
+	assert_eq(slot.get_parent(), _body(zombie), "a child of Body, so the tweens carry it")
+	assert_eq(slot.anchors, load("res://data/anchors/zombie_anchors.tres"))
 
 
 # --- hop (Story 3.2) --------------------------------------------------------
@@ -142,13 +145,18 @@ func test_stop_hop_mid_hop() -> void:
 	assert_eq(zombie.position, Vector2(100, 192))
 
 
+## The hop lifts Body and the slot rides along; the slot's own position follows the hop frame (the
+## crouch's head point is 2 px lower than idle's), so compare against Body + that frame's anchor.
 func test_hop_carries_the_hat_slot() -> void:
 	var zombie: PlayerZombie = _still_zombie()
-	var slot: Node2D = zombie.get_node("%HatSlot") as Node2D
-	var rest: float = slot.global_position.y
+	var slot: HatSlot = zombie.get_node("%HatSlot") as HatSlot
+	var body: AnimatedSprite2D = _body(zombie)
+	var rest: float = body.global_position.y
 	zombie.hop(0.35, 16.0)
 	zombie.get_hop_tween().custom_step(0.175)
-	assert_almost_eq(slot.global_position.y, rest - 16.0, 0.01)
+	var anchor: Vector2 = slot.anchors.get_head(body.animation, body.frame)
+	assert_eq(body.animation, &"hop")
+	assert_almost_eq(slot.global_position.y, rest - 16.0 + anchor.y, 0.01)
 
 
 func test_hop_without_sprite_frames_does_not_crash() -> void:

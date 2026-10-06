@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="CosmeticItem" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="CosmeticItem" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/cosmetic_item.gd" id="1_item"]
+[ext_resource type="Texture2D" uid="uid://0iae3ixhkecu" path="res://assets/sprites/cosmetics/hats/hat_pumpkin.png" id="2_overlay"]
 
 [resource]
 script = ExtResource("1_item")
@@ -10,3 +11,4 @@ slot = 0
 price = 100
 row = 1
 is_available = true
+overlay = ExtResource("2_overlay")

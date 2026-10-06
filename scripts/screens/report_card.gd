@@ -8,8 +8,8 @@ extends Control
 ## counted in _process, which does not run while the Router keeps the tree paused for its fade-in.
 ## One exit: every navigation goes through _leave(), at most once per card. Story 4.5 redirects the
 ## first completed run through the Welcome Gift there; keep it the only place that navigates.
-## Placeholder chrome until Story 5.0; sounds (chalk-scratch per row, chime, stamp thump) are Story 5.1;
-## the hat and pet in the Professor's slots are Story 4.3. Reads nothing from PlayerData.
+## Placeholder chrome until Story 5.0; sounds (chalk-scratch per row, chime, stamp thump) are Story 5.1.
+## The worn hat and pet fill the Professor's slots by themselves (Story 4.3). Reads nothing from PlayerData.
 
 ## Level replayed by Play Again when the payload has no result.
 const FALLBACK_LEVEL_ID: StringName = &"zombie_run"

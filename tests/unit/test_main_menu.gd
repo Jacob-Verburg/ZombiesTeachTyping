@@ -63,6 +63,9 @@ func _make(registry: LevelRegistry = null, use_registry: bool = false) -> MainMe
 	menu.navigate = func(screen: int, payload: Dictionary) -> void: _nav.append([screen, payload])
 	menu.is_transitioning = func() -> bool: return _transitioning
 	menu.player_data = _player
+	# The cosmetic slots listen to PlayerData themselves; point them at the temp save too.
+	(menu.get_node("%PetSlot") as PetSlot).player_data = _player
+	(menu.get_node("%Zombie").get_node("%HatSlot") as HatSlot).player_data = _player
 	menu.toggle_fullscreen = func() -> void:
 		_toggles += 1
 		_fullscreen = not _fullscreen
@@ -442,6 +445,46 @@ func test_zombie_stands_inside_the_margin() -> void:
 	_make()
 	var feet: Vector2 = (_menu.get_node("%Zombie") as Node2D).position
 	assert_true(SAFE_RECT.has_point(feet - Vector2(16, 32)) and SAFE_RECT.has_point(feet + Vector2(16, 0)))
+
+
+## Story 4.3: the pet stands beside the zombie and the zombie wears the hat; both follow the wallet's
+## PlayerData with no call from the menu.
+func test_hat_and_pet_slots() -> void:
+	_make()
+	var pet: PetSlot = _menu.get_node("%PetSlot") as PetSlot
+	assert_not_null(pet, "%PetSlot is a PetSlot")
+	assert_eq(pet.position, Vector2(84, 284))
+	var hat: HatSlot = _menu.get_node("%Zombie").get_node("%HatSlot") as HatSlot
+	assert_not_null(hat, "the zombie's %HatSlot is a HatSlot")
+	assert_false(pet.is_showing(), "fresh save: no pet")
+	assert_false(hat.is_showing(), "fresh save: no hat")
+	_player.add_brains(200)
+	for id: StringName in [&"hat_pumpkin", &"pet_cute_ghost"]:
+		_player.buy_item(_player.catalogue.get_item(id))
+		_player.equip(id)
+	assert_eq(hat.get_item_id(), &"hat_pumpkin")
+	assert_eq(pet.get_item_id(), &"pet_cute_ghost")
+	assert_true(hat.is_showing())
+	assert_true(pet.is_showing())
+
+
+## The pet (32 px, feet origin) and the hat (up to 11 px above the head) stay inside the margin and clear
+## of every control.
+func test_hat_and_pet_overlap_nothing() -> void:
+	_make()
+	var feet: Vector2 = (_menu.get_node("%PetSlot") as Node2D).position
+	var pet_rect: Rect2 = Rect2(feet + Vector2(-16, -31), Vector2(32, 32))
+	var zombie_feet: Vector2 = (_menu.get_node("%Zombie") as Node2D).position
+	var hat_rect: Rect2 = Rect2(zombie_feet + Vector2(-16, -31 + 1 - 11), Vector2(32, 11))
+	assert_true(SAFE_RECT.encloses(pet_rect), "pet inside the margin")
+	assert_true(SAFE_RECT.encloses(hat_rect), "hat inside the margin")
+	for node: Node in _menu.find_children("*", "Control", true, false):
+		var control: Control = node as Control
+		if not control.is_visible_in_tree() or control == _menu or control.name == "Background":
+			continue
+		var rect: Rect2 = control.get_global_rect()
+		assert_false(rect.intersects(pet_rect), "pet clear of %s" % control.name)
+		assert_false(rect.intersects(hat_rect), "hat clear of %s" % control.name)
 
 
 func test_text_fits_and_is_at_least_16px() -> void:

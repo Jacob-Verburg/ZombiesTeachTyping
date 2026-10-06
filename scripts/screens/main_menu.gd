@@ -13,8 +13,10 @@ extends Control
 ## Kept from Stories 1.7 / 1.8: the FR27 storage notice (a non-interactive corner note shown only when
 ## WebPlatform.is_storage_persistent() is false) and the hidden Ctrl+Shift+E SaveService.offer_export()
 ## chord in every build, with no visible change.
-## Later: the hat and pet on the zombie (Story 4.3: the zombie's %HatSlot, %PetSpot), Locked/New card
-## states and the hint sign (6.8), final art and button feel (5.0), menu music crossfades (5.1).
+## Story 4.3: the worn hat rides on the zombie's %HatSlot and the pet stands in %PetSlot beside it; both
+## listen to PlayerData themselves, so this script calls nothing for them.
+## Later: Locked/New card states and the hint sign (6.8), final art and button feel (5.0), menu music
+## crossfades (5.1).
 ## Seams (tests assign them before add_child): navigate, player_data, toggle_fullscreen, is_fullscreen and
 ## the exported level_registry.
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" uid="uid://c0j61hcvdcyx0" path="res://scripts/screens/main_menu.gd" id="1_script"]
 [ext_resource type="Resource" path="res://data/levels/level_registry.tres" id="2_registry"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/characters/player_zombie.tscn" id="4_zombie"]
 [ext_resource type="Script" path="res://scripts/ui/pixel_button.gd" id="5_pixel_button"]
 [ext_resource type="PackedScene" path="res://scenes/ui/menu_toggle.tscn" id="6_toggle"]
+[ext_resource type="PackedScene" path="res://scenes/cosmetics/pet_slot.tscn" id="7_pet_slot"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_notice"]
 content_margin_left = 8.0
@@ -94,7 +95,7 @@ theme_override_constants/separation = 16
 unique_name_in_owner = true
 position = Vector2(48, 284)
 
-[node name="PetSpot" type="Marker2D" parent="."]
+[node name="PetSlot" parent="." instance=ExtResource("7_pet_slot")]
 unique_name_in_owner = true
 position = Vector2(84, 284)
 

@@ -3,7 +3,8 @@ extends Node2D
 ## The player's zombie (Story 3.1): idle and walk loops from the approved prototype sheets, drawn at
 ## 1x with the node origin at the feet centre (soles on sheet row 30, so Body sits at (-16, -31)).
 ## Zombie Run drives it; Professor Zombie, the menu (4.2) and the Crypt Closet (4.4) reuse the look.
-## %HatSlot (head point, top-centre of the crown) stays empty until Story 4.3.
+## %HatSlot follows SpriteAnchors per frame (Story 4.3): it listens to Body's frame and animation changes
+## and to PlayerData by itself, so nothing here drives it.
 ## Hop (Story 3.2): a sine arc that lifts Body (and the hat slot with it), never the node itself; the
 ## level owns the node's position and the camera reads its x. One hop tween at a time: a new hop or
 ## stop_hop() kills the running one. Story 3.6: hop() plays the hop frames (drawn grounded; the tween

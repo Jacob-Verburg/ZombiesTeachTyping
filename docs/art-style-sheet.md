@@ -113,6 +113,16 @@ animations and are exempt from the frame count only; every pixel rule applies to
 | brain `pop` (3.6) | 2 | 16×16 | 8 | loop while it rises |
 | `professor_mortarboard.png` | overlay | 32×32 | – | drawn at the body's origin |
 | `down_arrow.png` (3.6) | overlay | 16×16 | – | the active target's arrow; the bob is code |
+| pet `cute_ghost` `idle` (4.3) | 4 | 32×32 | 8 | loop (the float: a 1 px body bob and a wavy tail) |
+| `hat_pumpkin.png` (4.3) | overlay | 32×32 | – | seat on row 30 at x 16 |
+
+**Hats** (Story 4.3) are 32×32 one-frame overlays whose **seat** (the bottom-centre of the brim) is pixel
+(16, 30): the lowest opaque row is row 30 and the opaque columns are centred on column 16 (*tested*). Row
+31 stays empty. `HatSlot` sits on the character's per-frame head point and draws the overlay with the seat
+on it, so the brim's bottom ink row overlaps the crown's top ink row. **Pets** are 32×32 sheets drawn from
+the feet like the characters (soles on row 30; a float is drawn in the frames without moving the lowest
+row). Paths: `assets/sprites/cosmetics/hats/hat_<name>.png`, `assets/sprites/cosmetics/pets/pet_<name>_idle.png`;
+made by `tools/gen_cosmetics_art.gd`.
 
 Hop and hug are drawn **grounded** (the soles stay on row 30): the zombie's hop and hug tweens move the
 body, so frames that also lifted it would double the motion.
@@ -142,8 +152,8 @@ This is accepted. The same sprite scale is used on every screen; characters are 
 screen for legibility.
 
 **How sprites are made:** code-authored pixel art. Each frame is an ASCII map in
-`tools/gen_art_prototypes.gd` (the prototypes) or `tools/gen_zombie_run_art.gd` (Story 3.6, which reads
-the palette, legends and approved maps from the first), one character per pixel, a legend from
+`tools/gen_art_prototypes.gd` (the prototypes), `tools/gen_zombie_run_art.gd` (Story 3.6, which reads
+the palette, legends and approved maps from the first) or `tools/gen_cosmetics_art.gd` (Story 4.3), one character per pixel, a legend from
 character to palette **name**, written to PNG by running the tool headless and then `--import`. The
 backdrop is drawn by the same tool from shapes at fixed positions (no randomness). Never hand-edit a
 PNG. Commit the PNGs and `.import` files.
@@ -184,8 +194,12 @@ The sprites are drawn so that later art can be made by reuse (GDD → Reuse):
 - **Horde Rush copies = the player sprite, scaled** for size classes. Note: a 1.5× nearest scale of a
   32 px sprite gives uneven pixels; Story 6.3 decides between redrawn 48×48 brutes and an integer scale.
 - **The mob = 2 base sprites, recolored.**
-- **Hats anchor to a head point** (Story 4.3 sets the anchors). The zombie keeps a flat crown (about
-  12 px wide) so a pumpkin hat, party hat or mortarboard can sit on it.
+- **Hats anchor to a head point.** Story 4.3 set the anchors: one head point per frame of every animation
+  (the top-centre of the crown), in `data/anchors/` (`zombie_anchors.tres`, `professor_anchors.tres`),
+  measured from the sheets by `tools/gen_sprite_anchors.gd` and re-measured by
+  `tests/unit/test_sprite_anchors.gd`. Redraw a character sheet, rerun the tool. The zombie keeps a flat
+  crown (about 12 px wide) so a pumpkin hat, party hat or mortarboard can sit on it; the professor's
+  mortarboard is lifted onto a worn hat.
 
 ## Approval
 
