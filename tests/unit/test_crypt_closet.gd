@@ -2,6 +2,7 @@ extends GutTest
 ## The Crypt Closet (Story 4.4): tiles from the catalogue, the five states, buying through the confirm
 ## prompt, wear / take off, the preview, live updates from PlayerData, focus wiring, Esc and Menu, the
 ## modal prompt, disconnects, and the approved sketch's layout (text fit, 16 px, the margin, the rects).
+## Story 4.5: the guided first purchase (the tutorial payload, the arrow's three steps, tutorial_seen).
 ## Disabled instances: no real input reaches them, so handlers and _gui_input are called directly.
 ## The live Router, AudioManager and save are never touched (recorder seams, temp SaveService).
 
@@ -637,7 +638,9 @@ func test_scrim_is_night_at_60_percent_and_stops_the_mouse() -> void:
 	var scrim: ColorRect = _prompt().get_node("%Scrim") as ColorRect
 	assert_eq(scrim.color, Color("#2B1D3F", 0.6))
 	assert_eq(scrim.mouse_filter, Control.MOUSE_FILTER_STOP)
-	assert_eq(_closet.get_child(_closet.get_child_count() - 1), _prompt(), "the prompt draws on top")
+	var last: int = _closet.get_child_count() - 1
+	assert_eq(_closet.get_child(last), _closet.get_tutorial_arrow(), "only the tutorial arrow draws above the prompt")
+	assert_eq(_closet.get_child(last - 1), _prompt(), "the prompt draws above everything else")
 
 
 func test_every_control_is_inside_the_margin() -> void:
@@ -736,3 +739,224 @@ func test_an_open_prompt_is_cancelled_when_the_wallet_changes() -> void:
 	assert_false(_prompt().is_open(), "its question is out of date")
 	assert_eq(_player.owns(&"hat_pumpkin"), false)
 	assert_true(_tile(&"hat_pumpkin").has_focus())
+
+
+# --- Tutorial (Story 4.5) ------------------------------------------------------------------------------
+
+const HAT_BUY_ARROW: Vector2 = Vector2(38, 52)
+const PET_BUY_ARROW: Vector2 = Vector2(434, 52)
+const YES_ARROW: Vector2 = Vector2(176, 222)
+
+
+## A Closet opened by the Welcome Gift, laid out.
+func _make_tutorial(catalogue: Catalogue = null, use_catalogue: bool = false) -> ClosetScript:
+	Router._store_payload({"tutorial": true})
+	_make(catalogue, use_catalogue)
+	await wait_process_frames(2)
+	return _closet
+
+
+func _arrow() -> TutorialArrow:
+	return _closet.get_tutorial_arrow()
+
+
+func _assert_arrow(at: Vector2, direction: TutorialArrow.Direction, label: String) -> void:
+	assert_true(_arrow().visible, label + ": arrow shown")
+	assert_eq(_arrow().get_global_rect(), Rect2(at, Vector2(24, 20)), label + ": arrow rect")
+	assert_eq(_arrow().get_direction(), direction, label + ": direction")
+
+
+func test_tutorial_guides_buy_yes_wear_on_the_pumpkin_hat() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	watch_signals(_player)
+	assert_true(_closet.is_tutorial_active())
+	assert_true(_tile(&"hat_pumpkin").has_focus(), "focus on the target")
+	_assert_arrow(HAT_BUY_ARROW, TutorialArrow.Direction.DOWN, "buy")
+	_activate(&"hat_pumpkin")
+	_assert_arrow(YES_ARROW, TutorialArrow.Direction.RIGHT, "confirm")
+	assert_gt(_arrow().get_index(), _prompt().get_index(), "the arrow draws above the scrim")
+	(_prompt().get_node("%NoButton") as Button).pressed.emit()
+	_assert_arrow(HAT_BUY_ARROW, TutorialArrow.Direction.DOWN, "back to buy after No")
+	_activate(&"hat_pumpkin")
+	(_prompt().get_node("%YesButton") as Button).pressed.emit()
+	assert_eq(_tile(&"hat_pumpkin").get_state(), ClosetItemTile.State.WEAR)
+	_assert_arrow(HAT_BUY_ARROW, TutorialArrow.Direction.DOWN, "wear")
+	assert_true(_closet.is_tutorial_active(), "buying does not end it")
+	assert_false(_player.get_flag(&"tutorial_seen"))
+	_activate(&"hat_pumpkin")
+	assert_eq(_player.get_equipped(&"hat"), &"hat_pumpkin")
+	assert_false(_arrow().visible, "arrow gone once worn")
+	assert_false(_closet.is_tutorial_active())
+	assert_true(_player.get_flag(&"tutorial_seen"))
+	assert_signal_emit_count(_player, "flags_changed", 1)
+	_closet._refresh()
+	assert_false(_arrow().visible, "a refresh does not restart it")
+	assert_false(_closet.is_tutorial_active())
+
+
+func test_esc_on_the_prompt_puts_the_arrow_back_on_buy() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	_activate(&"hat_pumpkin")
+	_closet._unhandled_input(_esc())
+	_assert_arrow(HAT_BUY_ARROW, TutorialArrow.Direction.DOWN, "after Esc")
+	assert_true(_closet.is_tutorial_active())
+	assert_eq(_nav, [], "Esc on the prompt is No, not leave")
+
+
+func test_a_stale_prompt_cancel_puts_the_arrow_back_on_buy() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	_activate(&"hat_pumpkin")
+	_player.add_brains(5)
+	_assert_arrow(HAT_BUY_ARROW, TutorialArrow.Direction.DOWN, "after a stale cancel")
+
+
+func test_no_payload_means_no_tutorial() -> void:
+	_player.add_brains(100)
+	_make()
+	await wait_process_frames(2)
+	assert_false(_closet.is_tutorial_active())
+	assert_false(_arrow().visible)
+	_closet._unhandled_input(_esc())
+	assert_false(_player.get_flag(&"tutorial_seen"), "leaving without a tutorial touches nothing")
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+
+
+func test_a_claimed_gift_starts_the_tutorial_without_a_payload() -> void:
+	_player.add_brains(100)
+	_player.set_flag(&"welcome_bonus_claimed", true)
+	_make()
+	await wait_process_frames(2)
+	assert_true(_closet.is_tutorial_active())
+	assert_true(_arrow().visible)
+
+
+func test_leaving_without_equipping_keeps_the_tutorial_unseen() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	_closet._unhandled_input(_esc())
+	assert_false(_player.get_flag(&"tutorial_seen"))
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+
+
+func test_a_refused_navigate_leaves_the_arrow_and_the_flag() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	_closet.navigate = func(_screen: int, _payload: Dictionary) -> void: pass
+	_closet._unhandled_input(_esc())
+	assert_true(_closet.is_tutorial_active())
+	assert_true(_arrow().visible)
+	assert_false(_player.get_flag(&"tutorial_seen"))
+
+
+func test_an_inventory_change_from_elsewhere_does_not_retarget_the_arrow() -> void:
+	_player.add_brains(1000)
+	await _make_tutorial()
+	_player.buy_item(SHIPPED.get_item(&"pet_cute_ghost"))
+	await wait_process_frames(1)
+	assert_true(_closet.is_tutorial_active())
+	assert_eq(_closet._tutorial_target, &"hat_pumpkin")
+
+
+func test_tutorial_seen_means_no_tutorial() -> void:
+	_player.add_brains(100)
+	_player.set_flag(&"tutorial_seen", true)
+	await _make_tutorial()
+	assert_false(_closet.is_tutorial_active())
+	assert_false(_arrow().visible)
+
+
+func test_nothing_affordable_means_no_tutorial() -> void:
+	await _make_tutorial()
+	assert_false(_closet.is_tutorial_active())
+	assert_false(_arrow().visible)
+	_closet._unhandled_input(_esc())
+	assert_false(_player.get_flag(&"tutorial_seen"))
+
+
+func test_a_payload_that_is_not_true_means_no_tutorial() -> void:
+	_player.add_brains(100)
+	Router._store_payload({"tutorial": "yes"})
+	_make()
+	assert_false(_closet.is_tutorial_active())
+
+
+func test_an_owned_unworn_item_is_the_wear_target() -> void:
+	_own_pumpkin()
+	await _make_tutorial()
+	assert_true(_closet.is_tutorial_active())
+	_assert_arrow(HAT_BUY_ARROW, TutorialArrow.Direction.DOWN, "wear target")
+
+
+func test_a_pet_only_affordable_catalogue_points_at_the_pet() -> void:
+	var catalogue: Catalogue = Catalogue.new()
+	for source: CosmeticItem in SHIPPED.items:
+		var item: CosmeticItem = source.duplicate() as CosmeticItem
+		if item.id == &"hat_pumpkin":
+			item.price = 200
+		catalogue.items.append(item)
+	_player.add_brains(100)
+	await _make_tutorial(catalogue, true)
+	assert_true(_closet.is_tutorial_active())
+	assert_true(_pets()[0].has_focus())
+	_assert_arrow(PET_BUY_ARROW, TutorialArrow.Direction.DOWN, "pet buy")
+
+
+func test_menu_button_while_active_leaves_without_spending_the_tutorial() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	(_node("%MenuButton") as Button).pressed.emit()
+	assert_false(_player.get_flag(&"tutorial_seen"))
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+
+
+func test_leaving_mid_transition_does_not_end_the_tutorial() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	_transitioning = true
+	_closet._unhandled_input(_esc())
+	assert_true(_closet.is_tutorial_active())
+	assert_false(_player.get_flag(&"tutorial_seen"))
+
+
+func test_buying_another_item_moves_the_arrow_to_it() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	_activate(&"pet_cute_ghost")
+	_assert_arrow(YES_ARROW, TutorialArrow.Direction.RIGHT, "confirm for the ghost")
+	(_prompt().get_node("%YesButton") as Button).pressed.emit()
+	assert_true(_player.owns(&"pet_cute_ghost"))
+	_assert_arrow(PET_BUY_ARROW, TutorialArrow.Direction.DOWN, "wear the ghost")
+	_activate(&"pet_cute_ghost")
+	assert_true(_player.get_flag(&"tutorial_seen"))
+	assert_false(_arrow().visible)
+
+
+func test_equipping_any_item_ends_it() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	_player.add_brains(100)
+	_player.buy_item(SHIPPED.get_item(&"pet_cute_ghost"))
+	_player.equip(&"pet_cute_ghost")
+	assert_false(_closet.is_tutorial_active())
+	assert_true(_player.get_flag(&"tutorial_seen"))
+
+
+func test_reset_all_while_active_follows_the_new_state() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	_player.reset_all()
+	assert_true(_closet.is_tutorial_active(), "still active")
+	assert_false(_arrow().visible, "nothing to point at on a fresh save")
+	_player.add_brains(100)
+	_assert_arrow(HAT_BUY_ARROW, TutorialArrow.Direction.DOWN, "back once affordable")
+
+
+func test_freeing_the_closet_mid_tutorial_writes_nothing() -> void:
+	_player.add_brains(100)
+	await _make_tutorial()
+	remove_child(_closet)
+	_closet.free()
+	assert_false(_player.get_flag(&"tutorial_seen"))

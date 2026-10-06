@@ -6,11 +6,15 @@ extends Control
 ## Mash guard (FR21): for the first GameConstants.REPORT_CARD_INPUT_GUARD_S seconds the screen is live,
 ## every key or mouse press is swallowed in _input, before the focused button sees it. The time is
 ## counted in _process, which does not run while the Router keeps the tree paused for its fade-in.
-## One exit: every navigation goes through _leave(), at most once per card. Story 4.5 redirects the
-## first completed run through the Welcome Gift there; keep it the only place that navigates.
+## One exit: every navigation goes through _leave(), at most once per card; keep it the only place that
+## navigates. Welcome Gift (Story 4.5): a card opened with a RunResult whose exit finds the
+## welcome_bonus_claimed flag still false goes to the Welcome Gift instead of where it was asked, so the first
+## completed run's exit (Play Again, Menu, Esc or Enter) shows the gift once. The flag is read at leave time
+## and never written here (the gift owns it). That one flag is all this screen reads from PlayerData.
 ## Placeholder chrome until Story 5.0; sounds (chalk-scratch per row, chime, stamp thump) are Story 5.1.
-## The worn hat and pet fill the Professor's slots by themselves (Story 4.3). Reads nothing from PlayerData.
+## The worn hat and pet fill the Professor's slots by themselves (Story 4.3).
 
+const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 ## Level replayed by Play Again when the payload has no result.
 const FALLBACK_LEVEL_ID: StringName = &"zombie_run"
 ## Heading when there is no level to name (no result, or a result without a level id).
@@ -31,9 +35,13 @@ const BONUS_ROW: int = 6
 ## Test seam: called as navigate.call(screen, payload). Defaults to Router.go in _ready; tests assign a
 ## recorder before add_child so the live Router never swaps GUT's scene.
 var navigate: Callable
+## Test seam: defaults to the PlayerData autoload in _ready.
+var player_data: PlayerDataScript = null
 
 var _level_id: StringName = FALLBACK_LEVEL_ID
 var _new_best: bool = false
+## The payload had a RunResult: only such a card can send the first exit to the Welcome Gift.
+var _has_result: bool = false
 ## Seconds the screen has been live (unpaused); drives the guard and the reveal.
 var _open_s: float = 0.0
 ## Set by the one navigation; nothing navigates after it.
@@ -45,6 +53,8 @@ var _rows: Array[Control] = []
 func _ready() -> void:
 	if not navigate.is_valid():
 		navigate = Router.go
+	if player_data == null:
+		player_data = PlayerData
 	var payload: Dictionary = Router.take_payload()
 	var raw: Variant = payload.get("result")
 	var result: RunResult = raw if raw is RunResult else null
@@ -52,6 +62,7 @@ func _ready() -> void:
 	if result == null:
 		Log.warn(&"ui", "report card opened without a RunResult")
 	else:
+		_has_result = true
 		_new_best = flag is bool and flag
 		if result.level_id != &"":
 			_level_id = result.level_id
@@ -142,11 +153,15 @@ func _leave_to_menu() -> void:
 	_leave(Router.Screen.MAIN_MENU, {})
 
 
-## The only navigation: ignored during the guard and after the first call.
+## The only navigation: ignored during the guard and after the first call. The first completed run's exit
+## goes to the Welcome Gift instead (Story 4.5).
 func _leave(screen: Router.Screen, payload: Dictionary) -> void:
 	if _leaving or not _guard_passed():
 		return
 	_leaving = true
+	if _has_result and not player_data.get_flag(&"welcome_bonus_claimed"):
+		screen = Router.Screen.WELCOME_GIFT
+		payload = {}
 	navigate.call(screen, payload)
 
 

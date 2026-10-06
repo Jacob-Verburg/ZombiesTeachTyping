@@ -4,6 +4,8 @@ extends GutTest
 ## Instances are disabled so real input during the run can't press a focused button.
 ## RUN (Story 2.4) navigates on its own when it cannot start a level; its navigate seam gets a
 ## recorder before add_child, so the live Router never runs.
+## WELCOME_GIFT (Story 4.5) grants brains and sets a flag in _ready(), so it gets a temp-dir PlayerData and
+## recorder seams before add_child: the real save is never written.
 
 const FLOW_BUTTONS: Dictionary = {
 	"MAIN_MENU": ["%ClosetButton"],
@@ -14,6 +16,10 @@ const FLOW_BUTTONS: Dictionary = {
 }
 
 
+const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
+const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
+const TEST_DIR: String = "user://test_screen_flow/"
+
 var _nav: Array = []
 
 
@@ -22,10 +28,31 @@ var _nav: Array = []
 func before_each() -> void:
 	assert_false(WebPlatform.capture_keys, "keyboard test left capture_keys on")
 	_nav = []
+	DirAccess.make_dir_recursive_absolute(TEST_DIR)
+	_clear()
 
 
 func after_each() -> void:
 	Router.take_payload()
+	_clear()
+
+
+func _clear() -> void:
+	if not DirAccess.dir_exists_absolute(TEST_DIR):
+		return
+	for file_name: String in DirAccess.get_files_at(TEST_DIR):
+		DirAccess.remove_absolute(TEST_DIR.path_join(file_name))
+
+
+## A PlayerData on a temp-dir SaveService, so a screen that writes never reaches the real save.
+func _temp_player_data() -> PlayerDataScript:
+	var save: SaveServiceScript = SaveServiceScript.new()
+	save.save_dir = TEST_DIR
+	add_child_autofree(save)
+	var player: PlayerDataScript = PlayerDataScript.new()
+	player.save_service = save
+	add_child_autofree(player)
+	return player
 
 
 func after_all() -> void:
@@ -38,6 +65,10 @@ func _instance(screen: Router.Screen) -> Control:
 	node.process_mode = Node.PROCESS_MODE_DISABLED
 	if screen == Router.Screen.RUN:
 		node.set("navigate", _record)
+	if screen == Router.Screen.WELCOME_GIFT:
+		node.set("navigate", _record)
+		node.set("play_sfx", func(_id: StringName) -> void: pass)
+		node.set("player_data", _temp_player_data())
 	add_child_autofree(node)
 	return node
 
@@ -84,12 +115,22 @@ func test_main_menu_consumes_the_payload() -> void:
 	assert_eq(Router.take_payload(), {})
 
 
-## Story 4.4: the real Closet consumes whatever payload it was given (Story 4.5 reads a tutorial flag).
+## Story 4.4: the real Closet consumes whatever payload it was given (Story 4.5 reads its tutorial key).
 func test_closet_consumes_the_payload() -> void:
 	Router._store_payload({"stale": true})
 	var closet: Control = _instance(Router.Screen.CRYPT_CLOSET)
 	assert_not_null(closet)
 	assert_eq(Router.take_payload(), {})
+
+
+## Story 4.5: the real gift consumes whatever payload it was given (and grants into a temp save).
+func test_welcome_gift_consumes_the_payload() -> void:
+	Router._store_payload({"stale": true})
+	var gift: Control = _instance(Router.Screen.WELCOME_GIFT)
+	assert_not_null(gift)
+	assert_eq(Router.take_payload(), {})
+	var player: PlayerDataScript = gift.get("player_data")
+	assert_eq(player.get_brains(), 100, "granted into the temp save, not the real one")
 
 
 ## Story 4.2 (closes the 3.1 deferral): the menu's Zombie Run card asks for a Zombie Run, and that

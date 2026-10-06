@@ -40,6 +40,10 @@ func close() -> void:
 	visible = false
 
 
+func get_yes_button() -> Button:
+	return %YesButton
+
+
 func is_open() -> bool:
 	return _open
 

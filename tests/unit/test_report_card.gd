@@ -4,23 +4,52 @@ extends GutTest
 ## Navigation goes to a recorder through the `navigate` seam, never the live Router. Time is driven by
 ## calling _process by hand (real processing is switched off). Keys go through the real viewport
 ## (push_input), so the focused button and _unhandled_input see them in Godot's own order.
+## Story 4.5: every card gets a temp-dir PlayerData (never the real save) with welcome_bonus_claimed set,
+## so the navigation tests mean the same on any machine; the Welcome Gift redirect tests clear it.
 
 const ReportScene: PackedScene = preload("res://scenes/screens/report_card.tscn")
 const ProfessorScene: PackedScene = preload("res://scenes/characters/professor_zombie.tscn")
 const ReportScript: GDScript = preload("res://scripts/screens/report_card.gd")
+const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
+const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
 const GUARD: float = GameConstants.REPORT_CARD_INPUT_GUARD_S
+const TEST_DIR: String = "user://test_report_card/"
 const STATS: Array[String] = ["%KeysValue", "%ErrorsValue", "%WpmValue", "%AccuracyValue", "%TimeValue", "%BrainsValue"]
 
 var _nav: Array = []
+var _player: PlayerDataScript
 
 
 func before_each() -> void:
+	DirAccess.make_dir_recursive_absolute(TEST_DIR)
+	_clear()
 	_nav = []
+	_player = _make_player_data()
+	_player.set_flag(&"welcome_bonus_claimed", true)
 
 
 func after_each() -> void:
 	Router.take_payload()
 	_reset_input_handled()
+	_clear()
+	_player = null
+
+
+func _clear() -> void:
+	if not DirAccess.dir_exists_absolute(TEST_DIR):
+		return
+	for file_name: String in DirAccess.get_files_at(TEST_DIR):
+		DirAccess.remove_absolute(TEST_DIR.path_join(file_name))
+
+
+func _make_player_data() -> PlayerDataScript:
+	var save: SaveServiceScript = SaveServiceScript.new()
+	save.save_dir = TEST_DIR
+	add_child_autofree(save)
+	var player: PlayerDataScript = PlayerDataScript.new()
+	player.save_service = save
+	add_child_autofree(player)
+	return player
 
 
 func _record(screen: int, payload: Dictionary) -> void:
@@ -37,6 +66,7 @@ func _card(payload: Dictionary, registry: bool = true) -> Control:
 	Router._store_payload(payload)
 	var card: Control = ReportScene.instantiate() as Control
 	card.set("navigate", _record)
+	card.set("player_data", _player)
 	if not registry:
 		card.set("level_registry", null)
 	add_child_autofree(card)
@@ -333,6 +363,85 @@ func test_enter_without_focus_still_plays_again() -> void:
 	get_viewport().gui_release_focus()
 	_tap(KEY_ENTER)
 	assert_eq(_nav, [[Router.Screen.RUN, {"level_id": &"test_level"}]])
+
+
+# --- Welcome Gift redirect (Story 4.5) ----------------------------------------------------------------
+
+## A card with a result on a save whose gift is unclaimed, past the guard.
+func _first_run_card() -> Control:
+	_player.set_flag(&"welcome_bonus_claimed", false)
+	var card: Control = _card({"result": _result()})
+	card._process(GUARD)
+	return card
+
+
+func test_first_run_play_again_goes_to_the_gift() -> void:
+	var card: Control = _first_run_card()
+	(card.get_node("%PlayAgainButton") as Button).pressed.emit()
+	(card.get_node("%PlayAgainButton") as Button).pressed.emit()
+	assert_eq(_nav, [[Router.Screen.WELCOME_GIFT, {}]])
+
+
+func test_first_run_menu_goes_to_the_gift() -> void:
+	var card: Control = _first_run_card()
+	(card.get_node("%MenuButton") as Button).pressed.emit()
+	assert_eq(_nav, [[Router.Screen.WELCOME_GIFT, {}]])
+
+
+func test_first_run_esc_goes_to_the_gift() -> void:
+	_first_run_card()
+	_tap(KEY_ESCAPE)
+	_tap(KEY_ESCAPE)
+	assert_eq(_nav, [[Router.Screen.WELCOME_GIFT, {}]])
+
+
+func test_first_run_enter_without_focus_goes_to_the_gift() -> void:
+	_first_run_card()
+	get_viewport().gui_release_focus()
+	_tap(KEY_ENTER)
+	assert_eq(_nav, [[Router.Screen.WELCOME_GIFT, {}]])
+
+
+func test_no_result_never_spends_the_gift() -> void:
+	_player.set_flag(&"welcome_bonus_claimed", false)
+	var card: Control = _card({})
+	assert_push_warning("report card opened without a RunResult")
+	card._process(GUARD)
+	(card.get_node("%MenuButton") as Button).pressed.emit()
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+
+
+func test_claimed_gift_goes_where_asked() -> void:
+	var card: Control = _card({"result": _result()})
+	card._process(GUARD)
+	(card.get_node("%MenuButton") as Button).pressed.emit()
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+
+
+func test_the_guard_still_blocks_the_redirect() -> void:
+	_player.set_flag(&"welcome_bonus_claimed", false)
+	var card: Control = _card({"result": _result()})
+	card._process(GUARD - 0.01)
+	_tap(KEY_ENTER)
+	(card.get_node("%MenuButton") as Button).pressed.emit()
+	assert_eq(_nav, [])
+
+
+func test_the_flag_is_read_at_leave_time() -> void:
+	var card: Control = _card({"result": _result()})
+	_player.set_flag(&"welcome_bonus_claimed", false)
+	card._process(GUARD)
+	_tap(KEY_ENTER)
+	assert_eq(_nav, [[Router.Screen.WELCOME_GIFT, {}]])
+
+
+func test_the_card_never_sets_the_flag() -> void:
+	var card: Control = _first_run_card()
+	watch_signals(_player)
+	_tap(KEY_ENTER)
+	assert_false(_player.get_flag(&"welcome_bonus_claimed"))
+	assert_signal_not_emitted(_player, "flags_changed")
+	assert_not_null(card)
 
 
 # --- Write-on reveal --------------------------------------------------------------------------------

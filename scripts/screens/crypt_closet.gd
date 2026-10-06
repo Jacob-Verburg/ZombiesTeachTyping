@@ -16,10 +16,17 @@ extends Control
 ## to the pet tile under it; outer edges stop. Hover moves focus (tiles and PixelButton do it).
 ## While the prompt is open, every tile and the Menu button are FOCUS_NONE, and the scrim eats clicks.
 ## Esc: back to the menu, except while the prompt is open, where Esc = No. This script owns Esc.
+## Tutorial (Story 4.5, FR45): only the Welcome Gift opens the Closet with {"tutorial": true}. If the
+## tutorial_seen flag is false and a tile is BUY (else WEAR), the first such tile (hats, then pets) is the
+## target: focus goes there and the TutorialArrow (the last child, above the prompt's scrim) points at it.
+## The step is derived from state every time (_update_tutorial): prompt open -> left of Yes; else the target
+## tile (Buy, then Wear). Buying another item makes it the target. The tutorial ends for good (arrow hidden,
+## tutorial_seen set once) only when any item is equipped; leaving without equipping keeps it for the next
+## visit. It starts on the gift's payload, or on any visit once the gift is claimed and tutorial_seen is
+## still false (a closed tab or an Esc doesn't lose it); never ends from _exit_tree.
 ## Seams (tests assign them before add_child): navigate, is_transitioning, player_data, play_sfx and the
-## exported catalogue. The payload is consumed (Story 4.5 reads a tutorial flag from it).
-## Later: the tutorial arrow (4.5; get_tile() and get_confirm_prompt() are its hooks), final art and juice
-## (5.0 / 5.1), Closet music (5.1).
+## exported catalogue. The payload is consumed.
+## Later: final art and juice (5.0 / 5.1), Closet music (5.1).
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 const TILE_SCENE: PackedScene = preload("res://scenes/ui/closet_item_tile.tscn")
@@ -46,6 +53,10 @@ var _focused_tile: ClosetItemTile = null
 var _pending: CosmeticItem = null
 ## Set by the one navigation; nothing navigates after it.
 var _leaving: bool = false
+## The guided first purchase is running (Story 4.5).
+var _tutorial_active: bool = false
+## The item the arrow guides to (Buy, then Wear).
+var _tutorial_target: StringName = &""
 
 
 func _ready() -> void:
@@ -57,7 +68,9 @@ func _ready() -> void:
 		player_data = PlayerData
 	if not play_sfx.is_valid():
 		play_sfx = AudioManager.play_sfx
-	Router.take_payload()
+	var payload: Dictionary = Router.take_payload()
+	var tutorial: Variant = payload.get("tutorial", false)
+	var wants_tutorial: bool = (tutorial is bool and tutorial) or player_data.get_flag(&"welcome_bonus_claimed")
 	_build_tiles()
 	player_data.brains_changed.connect(_on_brains_changed)
 	player_data.inventory_changed.connect(_on_inventory_changed)
@@ -66,6 +79,9 @@ func _ready() -> void:
 	%MenuButton.pressed.connect(_leave)
 	%MenuButton.focus_entered.connect(_on_menu_focused)
 	%ConfirmPrompt.answered.connect(_on_confirm_answered)
+	%HatGrid.sort_children.connect(_update_tutorial)
+	%PetGrid.sort_children.connect(_update_tutorial)
+	get_viewport().size_changed.connect(_place_arrow)
 	_wire_focus()
 	var tiles: Array[ClosetItemTile] = get_tiles()
 	if tiles.is_empty():
@@ -74,6 +90,8 @@ func _ready() -> void:
 		_focused_tile = tiles[0]
 		tiles[0].grab_focus()
 	_refresh()
+	if wants_tutorial and not player_data.get_flag(&"tutorial_seen"):
+		_start_tutorial()
 
 
 func _exit_tree() -> void:
@@ -114,6 +132,14 @@ func get_tile(item_id: StringName) -> ClosetItemTile:
 
 func get_confirm_prompt() -> ConfirmPrompt:
 	return %ConfirmPrompt
+
+
+func is_tutorial_active() -> bool:
+	return _tutorial_active
+
+
+func get_tutorial_arrow() -> TutorialArrow:
+	return %TutorialArrow
 
 
 func _build_tiles() -> void:
@@ -200,6 +226,7 @@ func _refresh() -> void:
 		tile.show_state(_state_of(item, brains))
 	_show_info()
 	_show_preview()
+	_update_tutorial()
 
 
 func _state_of(item: CosmeticItem, brains: int) -> ClosetItemTile.State:
@@ -270,6 +297,7 @@ func _on_tile_activated(item_id: StringName) -> void:
 			_pending = item
 			%ConfirmPrompt.open("Buy the %s for %d brains?" % [item.display_name, item.price])
 			_set_background_focus(false)
+			_update_tutorial()
 		ClosetItemTile.State.WEAR:
 			if player_data.equip(item_id):
 				play_sfx.call(&"sfx_ui_click")
@@ -292,13 +320,18 @@ func _on_confirm_answered(yes: bool) -> void:
 	else:
 		%MenuButton.grab_focus()
 	if not yes or item == null:
+		_update_tutorial()
 		return
 	var result: PlayerDataScript.PurchaseResult = player_data.buy_item(item)
 	if result == PlayerDataScript.PurchaseResult.OK:
 		play_sfx.call(&"sfx_purchase")
-		return
-	Log.warn(&"economy", "closet: unexpected buy result %s for %s" % [PlayerDataScript.PurchaseResult.keys()[result], item.id])
-	_refresh()
+		if _tutorial_active:
+			# The bought item is what to wear next.
+			_tutorial_target = item.id
+	else:
+		Log.warn(&"economy", "closet: unexpected buy result %s for %s" % [PlayerDataScript.PurchaseResult.keys()[result], item.id])
+		_refresh()
+	_update_tutorial()
 
 
 ## The wallet or the inventory changed under an open prompt: its question is out of date, so it counts as No.
@@ -322,7 +355,9 @@ func _on_profile_replaced() -> void:
 	_refresh()
 
 
-func _on_equipment_changed(_slot: StringName, _item_id: StringName) -> void:
+func _on_equipment_changed(_slot: StringName, item_id: StringName) -> void:
+	if item_id != &"":
+		_end_tutorial()
 	_refresh()
 
 
@@ -346,3 +381,65 @@ func _release_leave_when_idle() -> void:
 		return
 	get_tree().process_frame.disconnect(_release_leave_when_idle)
 	_leaving = false
+
+
+## The first BUY tile (hats, then pets), else the first WEAR tile; none -> no tutorial.
+func _start_tutorial() -> void:
+	var target: ClosetItemTile = _first_tile_in(ClosetItemTile.State.BUY)
+	if target == null:
+		target = _first_tile_in(ClosetItemTile.State.WEAR)
+	if target == null:
+		return
+	_tutorial_active = true
+	_tutorial_target = target.get_item_id()
+	target.grab_focus()
+	_update_tutorial()
+
+
+func _first_tile_in(state: ClosetItemTile.State) -> ClosetItemTile:
+	for tile: ClosetItemTile in get_tiles():
+		if tile.get_state() == state:
+			return tile
+	return null
+
+
+## Places the arrow for the step the state says; see _place_arrow(). With the prompt open, the arrow is placed
+## again next frame, once the prompt's layout has settled.
+func _update_tutorial() -> void:
+	_place_arrow()
+	if _tutorial_active and %ConfirmPrompt.is_open():
+		_place_arrow.call_deferred()
+
+
+## The prompt is open -> left of Yes; else the target tile while it is Buy or Wear (a lost target is
+## re-picked: the first Buy tile, else the first Wear tile); else hidden (the tutorial stays active).
+func _place_arrow() -> void:
+	var arrow: TutorialArrow = %TutorialArrow
+	if not _tutorial_active:
+		arrow.hide()
+		return
+	if %ConfirmPrompt.is_open():
+		arrow.point_at((%ConfirmPrompt as ConfirmPrompt).get_yes_button().get_global_rect(), TutorialArrow.Direction.RIGHT)
+		return
+	var tile: ClosetItemTile = get_tile(_tutorial_target)
+	if tile == null or not tile.get_state() in [ClosetItemTile.State.BUY, ClosetItemTile.State.WEAR]:
+		tile = _first_tile_in(ClosetItemTile.State.BUY)
+		if tile == null:
+			tile = _first_tile_in(ClosetItemTile.State.WEAR)
+		if tile != null:
+			_tutorial_target = tile.get_item_id()
+	if tile != null:
+		arrow.point_at(tile.get_global_rect(), TutorialArrow.Direction.DOWN)
+	else:
+		arrow.hide()
+
+
+## Ends the tutorial for good, once: hides the arrow and sets tutorial_seen.
+func _end_tutorial() -> void:
+	if not _tutorial_active:
+		return
+	_tutorial_active = false
+	%TutorialArrow.hide()
+	if not is_instance_valid(player_data):
+		return
+	player_data.set_flag(&"tutorial_seen", true)

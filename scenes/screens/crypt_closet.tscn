@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" uid="uid://cv03jc0g8j60e" path="res://scripts/screens/crypt_closet.gd" id="1_script"]
 [ext_resource type="Resource" path="res://data/cosmetics/catalogue.tres" id="2_catalogue"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/characters/player_zombie.tscn" id="5_zombie"]
 [ext_resource type="PackedScene" path="res://scenes/cosmetics/pet_slot.tscn" id="6_pet_slot"]
 [ext_resource type="PackedScene" path="res://scenes/ui/confirm_prompt.tscn" id="7_confirm_prompt"]
+[ext_resource type="PackedScene" path="res://scenes/ui/tutorial_arrow.tscn" id="8_tutorial_arrow"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sign"]
 bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
@@ -206,5 +207,9 @@ theme_override_font_sizes/font_size = 16
 [node name="ConfirmPrompt" parent="." instance=ExtResource("7_confirm_prompt")]
 unique_name_in_owner = true
 layout_mode = 1
+
+[node name="TutorialArrow" parent="." instance=ExtResource("8_tutorial_arrow")]
+unique_name_in_owner = true
+layout_mode = 0
 
 [editable path="PreviewZombie"]

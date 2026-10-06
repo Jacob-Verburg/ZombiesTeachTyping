@@ -20,7 +20,7 @@
 ## Deferred from: code review of 1-3-screen-router-and-title-screen (2026-10-02)
 
 - Router sets `get_tree().paused = false` unconditionally after every transition, which clobbers any pause owned elsewhere (e.g. Story 1.5's tab-blur pause) and pauses other autoloads (AudioManager) for 0.3 s per transition. Revisit when a second pause owner appears: save/restore prior state or centralise pause ownership.
-- `Router.go()` during a transition is dropped with only a `Log.debug`. A screen that redirects from its own `_ready()` (e.g. Welcome Gift → Closet when already claimed) loses the redirect silently. Options: queue the last request, return a bool, or defer the redirect with `call_deferred` after `screen_changed`.
+- `Router.go()` during a transition is dropped with only a `Log.debug`. A screen that redirects from its own `_ready()` (e.g. Welcome Gift → Closet when already claimed) loses the redirect silently. Options: queue the last request, return a bool, or defer the redirect with `call_deferred` after `screen_changed`. (4.5: not affected. The gift never redirects from `_ready()`; the decision is made on the report card at leave time, and an already-claimed gift still shows its card.)
 - On web, Godot dispatches buffered input from its main loop, not inside the browser's event handler. Story 1.4 must verify that `AudioManager.unlock()` called from `_unhandled_input` actually satisfies the browser gesture rule (Safari especially), or rely on the engine's own AudioContext resume.
 - Placeholder button wiring (targets, payloads, Esc on Crypt Closet) and the title's once-only latch / unlock-before-go order are untested; needs a Router test double or injectable router reference. Done in 4.4: the real Closet has `navigate` / `is_transitioning` seams, and `test_crypt_closet.gd` covers Esc and the Menu button (once each, the `_leaving` guard, Esc = No while the prompt is open).
 
@@ -237,7 +237,7 @@
 - Final chalkboard, chalk tray, "New best!" stamp (hand-lettered, pre-rotated -8°), pixel buttons, key-hint keycaps, smiling moon and night-classroom backdrop art: Story 5.0. Today they are square `StyleBoxFlat` / `ColorRect` placeholders in palette colours.
 - Chalk-scratch per revealed row, the chime, the stamp thump and menu music on the report card: Story 5.1 (no `AudioCue`s exist for them yet).
 - ~~The worn hat and pet in Professor Zombie's `%HatSlot` / `%PetSlot`, `SpriteAnchors` for the professor, and lifting the mortarboard by the hat's height: Story 4.3.~~ Done in 4.3: the professor's slots are a `HatSlot` (on `professor_anchors.tres`) and a `PetSlot` on the floor to his right, and `_stack_mortarboard` lifts the mortarboard by the hat's rise (11 px for the pumpkin).
-- First completed run goes through the Welcome Gift: Story 4.5 hooks into `report_card.gd` `_leave()`, the card's only navigation.
+- ~~First completed run goes through the Welcome Gift: Story 4.5 hooks into `report_card.gd` `_leave()`, the card's only navigation.~~ Done in 4.5: `_leave()` sends a card with a `RunResult` to `WELCOME_GIFT` while `welcome_bonus_claimed` is false.
 - Long level names vs the stamp: at 24 px the heading has 245 px before the stamp (10 glyphs); "Pitchfork Panic" (15 glyphs = 360 px) would run under it. Epic 8 (or the 5.0 stamp art) resolves it; `test_stamp_clear_of_heading_and_rows` checks only "Test level" today.
 - Professor Zombie is 32×32 at 1× (one sprite scale rule), so he is much smaller than in the mock. An exception to the rule or a 48×48 professor sprite is Smuck's call.
 - ~~`test_level` has no completion bonus, so the "+N bonus" line is only seen in tests until Story 3.5.~~ Done in 3.5: a completed Zombie Run shows "+10 bonus" (seen in the web build).
@@ -392,7 +392,7 @@
 ## Deferred from: dev of story 4-4 (2026-10-06)
 
 - Final Closet art: tile frames and tags, the confirm prompt's wood panel and parchment sign, the mirror, the hand-lettered "Crypt Closet" sign (all placeholder `StyleBoxFlat`s in palette colours today), plus the brain counter tick-down and the button squish after a purchase: Story 5.0 / 5.1.
-- The tutorial arrow and the `tutorial_seen` flag: Story 4.5. Its positions are in `sketches/crypt-closet-4-4.md` frame D; the hooks are `get_tile(id)` and `get_confirm_prompt()`, and the Closet already consumes the payload.
+- ~~The tutorial arrow and the `tutorial_seen` flag: Story 4.5. Its positions are in `sketches/crypt-closet-4-4.md` frame D; the hooks are `get_tile(id)` and `get_confirm_prompt()`, and the Closet already consumes the payload.~~ Done in 4.5: `TutorialArrow` widget; the Closet guides Buy, Yes, Wear from the `{"tutorial": true}` payload and sets `tutorial_seen` on equip or leave.
 - Closet music (the Closet starts no music of its own): Story 5.1.
 - Approved sketch deviations (Smuck, 2026-10-06, "Approve as drawn"): the long words ("Coming soon", "Need N more", "Wearing") live on the info sign for the focused tile, Buy tiles show the price on the pumpkin tag, Wearing is a drawn check mark (Press Start 2P has no U+2713), tiles are 68 px instead of DESIGN.md's 48 px, locked items show no name, and the focus ring sits on the tile's own edge. DESIGN.md was not edited; the sketch is the override.
 - Story 5.2's grayscale review should look at the five tile states side by side: Locked (stone, "?"), Can't afford (disabled fill, no tag box), Buy (pumpkin tag), Wear (green tag, word), Wearing (bright tag, check). Buy vs Wear vs Wearing differ by tag content as well as colour, but the tag fills are close in grey.
@@ -411,3 +411,17 @@
 - Closet item tile wiggle tween is node-bound, so a tree pause can leave `Frame.position.x` off rest until the next wiggle.
 - `uid://51tlvsl155x7` in `audio_library.tres` was hand-written; if `sfx_purchase.wav.import` is regenerated with another UID Godot warns and falls back to the path.
 - Placeholder jingle waveform in `tools/gen_placeholder_audio.gd` starts at -1 (masked by the 4 ms attack).
+
+## Deferred from: dev of story-4-5 (2026-10-06)
+
+- Final Welcome Gift art (wood panel, pumpkin ribbon and bow, the brain icon) and the hand-drawn tutorial arrow: Story 5.0. Today they are palette `StyleBoxFlat`s / `ColorRect`s and a drawn triangle.
+- A gift sound, an arrow sound and the brain counter tick-up on the gift: Story 5.1.
+- A tab closed mid-tutorial leaves `tutorial_seen` false. Harmless: the tutorial only starts from the gift's payload, and the gift never comes back on that save.
+- The debug overlay's "Welcome gift" jump now grants +100 on a save whose `welcome_bonus_claimed` is false (that is how a dev tests the gift). On a claimed save it shows the card and grants nothing. `test_debug_overlay.gd` only records the jump through its seam; it never instances the real gift.
+- The "Play with it!" button after Wear (epics design note): post-MVP.
+- The browser pane throttles the web build to about 1 fps while the pane is hidden, so a live walk there stalls (it did again in 4.5, in the run's end dance). A live walk needs the pane on screen, or a desktop run with a backed-up save.
+
+## Deferred from: code review of story-4-5 (2026-10-06)
+
+- Integration test `test_first_purchase_flow.gd` checks only PlayerZombie HatSlot/PetSlot wiring, not a real run or report card (matches Task 5.6 wording; AC 8 prose is broader).
+- Tests hard-code the 100 welcome bonus and arrow pixel coordinates (Vector2(176, 222), (38, 52)); they break on economy or layout changes.
