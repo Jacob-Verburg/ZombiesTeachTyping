@@ -31,6 +31,8 @@ var _player: PlayerDataScript
 var _save: CountingSave
 var _nav: Array = []
 var _sfx: Array[StringName] = []
+## play_music recorder (Story 5.1).
+var _music: Array[StringName] = []
 
 
 func before_each() -> void:
@@ -38,6 +40,7 @@ func before_each() -> void:
 	_clear()
 	_nav = []
 	_sfx = []
+	_music = []
 	_save = CountingSave.new()
 	_save.save_dir = TEST_DIR
 	add_child_autofree(_save)
@@ -66,6 +69,7 @@ func _gift(economy: EconomyConfig = null, swap_economy: bool = false) -> Control
 	gift.process_mode = Node.PROCESS_MODE_DISABLED
 	gift.set("navigate", func(screen: int, payload: Dictionary) -> void: _nav.append([screen, payload]))
 	gift.set("play_sfx", func(id: StringName) -> void: _sfx.append(id))
+	gift.set("play_music", func(id: StringName) -> void: _music.append(id))
 	gift.set("player_data", _player)
 	if swap_economy:
 		gift.set("economy", economy)
@@ -309,3 +313,10 @@ func _assert_label_fits(label: Label) -> void:
 	var text_size: Vector2 = font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 	assert_lte(text_size.x, label.size.x, "%s '%s' overflows" % [label.name, label.text])
 	assert_lte(float(font_size), label.size.y, "%s too short for its font" % label.name)
+
+
+# --- Sounds (Story 5.1) --------------------------------------------------------------------------------
+
+func test_opening_asks_for_the_menu_loop() -> void:
+	_gift()
+	assert_eq(_music, [&"mus_menu"] as Array[StringName])

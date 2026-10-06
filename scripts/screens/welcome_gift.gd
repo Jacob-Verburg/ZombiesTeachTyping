@@ -13,7 +13,8 @@ extends Control
 ## _process, which doesn't run during the Router's paused fade-in) every key or mouse press is swallowed.
 ## Seams (tests assign them before add_child): economy (exported), navigate, player_data, play_sfx.
 ## Story 5.0 art: a WoodPanel wrapped in the pumpkin Ribbon 9-slice with the bow sprite, the parchment Sign and
-## the 32 px brain icon sprite. The gift sound and the counter tick-up are Story 5.1.
+## the 32 px brain icon sprite. Sounds (Story 5.1): the menu loop on open (play_music seam) and the button's
+## click. A gift sound and the counter tick-up are post-MVP (not in FR50).
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 ## Look value, not a GDD number: presses are ignored this long after the card goes live.
@@ -28,6 +29,8 @@ var navigate: Callable
 var player_data: PlayerDataScript = null
 ## Test seam: called as play_sfx.call(cue_id). Defaults to AudioManager.play_sfx in _ready.
 var play_sfx: Callable
+## Test seam: called as play_music.call(music_id). Defaults to AudioManager.play_music in _ready.
+var play_music: Callable
 
 ## Seconds the card has been live (unpaused); drives the guard.
 var _open_s: float = 0.0
@@ -42,6 +45,9 @@ func _ready() -> void:
 		player_data = PlayerData
 	if not play_sfx.is_valid():
 		play_sfx = AudioManager.play_sfx
+	if not play_music.is_valid():
+		play_music = AudioManager.play_music
+	play_music.call(&"mus_menu")
 	Router.take_payload()
 	_grant()
 	%AmountLabel.text = "+%d" % (economy.welcome_bonus if economy != null else 0)

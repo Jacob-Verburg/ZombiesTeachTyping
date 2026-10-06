@@ -30,6 +30,8 @@ var _run_rng: RandomNumberGenerator
 var _voices: Array[StringName] = []
 ## The level's brain total at each voice request (which brain rolled it).
 var _voice_brains: Array[int] = []
+## Sound effect ids the level and its villagers played, in order (the play_sfx recorder, Story 5.1).
+var _sfx: Array[StringName] = []
 
 
 ## `tweak` (optional) changes a duplicate of the shipped config before the level is added.
@@ -38,6 +40,8 @@ func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> LevelScript:
 	_level.process_mode = Node.PROCESS_MODE_DISABLED
 	_voices = []
 	_voice_brains = []
+	_sfx = []
+	_level.play_sfx = func(id: StringName) -> void: _sfx.append(id)
 	_level.request_voice = func(id: StringName) -> void:
 		_voices.append(id)
 		_voice_brains.append(_level.get_brains_earned())
@@ -1133,3 +1137,32 @@ func test_backdrop_layers_scroll_at_different_speeds() -> void:
 	for layer: StringName in SunnyVillageBackdrop.FACTORS:
 		assert_eq(_backdrop().get_layer_offset(layer),
 				fposmod(roundf(camera_x * SunnyVillageBackdrop.FACTORS[layer]), 640.0), String(layer))
+
+
+# --- sounds (Story 5.1) ---------------------------------------------------------
+
+func test_one_bonk_per_brain_block_none_for_villagers() -> void:
+	_make(42)
+	for i: int in 40:
+		var before_brains: int = _level.get_brains_earned()
+		var before_bonks: int = _sfx.count(&"sfx_brain_bonk")
+		_key()
+		var block: bool = _level.get_brains_earned() > before_brains
+		assert_eq(_sfx.count(&"sfx_brain_bonk") - before_bonks, 1 if block else 0, "key %d" % i)
+	assert_eq(_sfx.count(&"sfx_brain_bonk"), 10, "10 blocks, 10 bonks")
+	assert_eq(_sfx.count(&"sfx_hug_poof"), 0, "no poof has started yet: the poof sound waits for it")
+
+
+func test_villagers_play_the_hug_poof_through_the_level_seam() -> void:
+	_make(42)
+	for i: int in 8:
+		_key()
+	_finish_poofs()
+	assert_eq(_sfx.count(&"sfx_hug_poof"), 6, "8 keys = 2 blocks + 6 villagers, one poof each")
+
+
+func test_play_sfx_defaults_to_the_audio_manager() -> void:
+	var level: LevelScript = LevelScene.instantiate() as LevelScript
+	level.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child_autofree(level)
+	assert_eq(level.play_sfx, Callable(AudioManager.play_sfx))

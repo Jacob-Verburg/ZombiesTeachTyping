@@ -1,5 +1,8 @@
 extends GutTest
-## AudioLibrary lookup, and the shipped library instance (placeholder cues until Story 5.1).
+## AudioLibrary lookup, and the shipped library instance. Story 5.1: the final MVP list (FR49, FR50), the
+## music loops (OGG, looping, 60-120 s), every SFX/voice source file (16-bit PCM mono WAV, peak <= -1 dBFS,
+## no leading silence, starting and ending at zero), the mix order (music under every effect but the
+## wrong-key tick, the tick the quietest effect), the crossfade and the pause duck.
 
 const LIBRARY_PATH: String = "res://data/audio/audio_library.tres"
 
@@ -25,37 +28,6 @@ func test_get_cue_unknown_returns_null() -> void:
 	library.cues = [_cue(&"sfx_a")]
 	assert_null(library.get_cue(&"nope"))
 	assert_null(AudioLibrary.new().get_cue(&"sfx_a"))
-
-
-func test_real_library_has_placeholders() -> void:
-	var library: AudioLibrary = load(LIBRARY_PATH) as AudioLibrary
-	assert_not_null(library, "not an AudioLibrary: %s" % LIBRARY_PATH)
-	if library == null:
-		return
-	var click: AudioCue = library.get_cue(&"sfx_ui_click")
-	var music: AudioCue = library.get_cue(&"mus_menu")
-	assert_not_null(click)
-	assert_not_null(music)
-	if click == null or music == null:
-		return
-	assert_not_null(click.stream)
-	assert_not_null(music.stream)
-	assert_lt(music.volume_db, click.volume_db, "music sits below SFX (NFR14)")
-
-
-func test_real_library_menu_music_loops() -> void:
-	var library: AudioLibrary = load(LIBRARY_PATH) as AudioLibrary
-	assert_not_null(library)
-	if library == null:
-		return
-	var music: AudioCue = library.get_cue(&"mus_menu")
-	assert_not_null(music)
-	if music == null:
-		return
-	var wav: AudioStreamWAV = music.stream as AudioStreamWAV
-	assert_not_null(wav, "mus_menu is a WAV placeholder until 5.1")
-	if wav != null:
-		assert_ne(wav.loop_mode, AudioStreamWAV.LOOP_DISABLED)
 
 
 func test_real_library_ids_are_unique() -> void:
@@ -111,7 +83,6 @@ func test_real_library_purchase_jingle() -> void:
 	if jingle == null:
 		return
 	assert_not_null(jingle.stream)
-	assert_eq(jingle.volume_db, -6.0)
 	assert_eq(jingle.min_interval_s, 0.0, "the jingle is not throttled")
 
 
@@ -146,3 +117,164 @@ func test_groan_defaults_are_neutral() -> void:
 	assert_eq(library.groan_min_interval_s, 0.0)
 	assert_eq(library.groan_max_interval_s, 0.0)
 	assert_eq(library.groan_voice_mute_s, 0.0)
+
+
+# --- the MVP audio list (Story 5.1) -----------------------------------------------------------------------
+
+const SFX_IDS: Array[StringName] = [&"sfx_ui_click", &"sfx_wrong_key", &"sfx_brain_bonk", &"sfx_hug_poof",
+		&"sfx_purchase", &"sfx_chalk_scratch", &"sfx_report_chime",
+		&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04"]
+const VOICE_IDS: Array[StringName] = [&"vo_brainsss"]
+const MUSIC_IDS: Array[StringName] = [&"mus_menu", &"mus_zombie_run"]
+## -1 dBFS as a 16-bit sample value.
+const PEAK_LIMIT: int = 29204
+## "Silence" for the leading-silence check: about -60 dBFS.
+const SILENCE: int = 33
+
+
+func _library() -> AudioLibrary:
+	return load(LIBRARY_PATH) as AudioLibrary
+
+
+## Every stream of a cue: stream plus alt_streams.
+func _takes(cue: AudioCue) -> Array[AudioStream]:
+	var takes: Array[AudioStream] = [cue.stream]
+	takes.append_array(cue.alt_streams)
+	return takes
+
+
+func test_every_mvp_id_has_a_stream() -> void:
+	var library: AudioLibrary = _library()
+	for id: StringName in SFX_IDS + VOICE_IDS + MUSIC_IDS:
+		var cue: AudioCue = library.get_cue(id)
+		assert_not_null(cue, String(id))
+		if cue != null:
+			assert_not_null(cue.stream, String(id))
+	assert_eq(library.cues.size(), SFX_IDS.size() + VOICE_IDS.size() + MUSIC_IDS.size(), "nothing else")
+
+
+func test_brainsss_has_exactly_two_takes() -> void:
+	var cue: AudioCue = _library().get_cue(&"vo_brainsss")
+	var takes: Array[AudioStream] = _takes(cue)
+	assert_eq(takes.size(), 2)
+	assert_ne(takes[0], takes[1])
+	assert_eq(takes[0].resource_path, "res://assets/audio/voice/vo_brainsss_01.wav")
+	assert_eq(takes[1].resource_path, "res://assets/audio/voice/vo_brainsss_02.wav")
+
+
+func test_music_is_looping_ogg_of_60_to_120_s() -> void:
+	for id: StringName in MUSIC_IDS:
+		var ogg: AudioStreamOggVorbis = _library().get_cue(id).stream as AudioStreamOggVorbis
+		assert_not_null(ogg, "%s is OGG Vorbis" % id)
+		if ogg == null:
+			continue
+		assert_true(ogg.loop, "%s loops" % id)
+		assert_eq(ogg.loop_offset, 0.0, String(id))
+		assert_between(ogg.get_length(), 60.0, 120.0, "%s length" % id)
+
+
+func test_effects_are_wavs_that_never_loop() -> void:
+	for id: StringName in SFX_IDS + VOICE_IDS:
+		for take: AudioStream in _takes(_library().get_cue(id)):
+			var wav: AudioStreamWAV = take as AudioStreamWAV
+			assert_not_null(wav, "%s is a WAV" % id)
+			if wav != null:
+				assert_eq(wav.loop_mode, AudioStreamWAV.LOOP_DISABLED, take.resource_path)
+
+
+## The source file of a WAV take: 16-bit PCM mono, peak <= -1 dBFS, sound within 10 ms, zero at both ends.
+func test_effect_source_files_follow_the_spec() -> void:
+	for id: StringName in SFX_IDS + VOICE_IDS:
+		for take: AudioStream in _takes(_library().get_cue(id)):
+			_check_wav_file(take.resource_path)
+
+
+func _check_wav_file(path: String) -> void:
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(path)
+	assert_gt(bytes.size(), 44, path)
+	if bytes.size() <= 44:
+		return
+	assert_eq(bytes.slice(0, 4).get_string_from_ascii(), "RIFF", path)
+	assert_eq(bytes.slice(8, 12).get_string_from_ascii(), "WAVE", path)
+	var at: int = 12
+	var format: int = -1
+	var channels: int = -1
+	var rate: int = -1
+	var bits: int = -1
+	var data: PackedByteArray = PackedByteArray()
+	while at + 8 <= bytes.size():
+		var chunk: String = bytes.slice(at, at + 4).get_string_from_ascii()
+		var size: int = bytes.decode_u32(at + 4)
+		if chunk == "fmt ":
+			format = bytes.decode_u16(at + 8)
+			channels = bytes.decode_u16(at + 10)
+			rate = bytes.decode_u32(at + 12)
+			bits = bytes.decode_u16(at + 22)
+		elif chunk == "data":
+			data = bytes.slice(at + 8, at + 8 + size)
+		at += 8 + size + (size % 2)
+	assert_eq(format, 1, "%s is PCM" % path)
+	assert_eq(bits, 16, "%s is 16-bit" % path)
+	assert_eq(channels, 1, "%s is mono" % path)
+	assert_true(rate == 44100 or rate == 22050, "%s rate %d" % [path, rate])
+	var count: int = data.size() >> 1
+	assert_gt(count, 0, path)
+	if count == 0:
+		return
+	var peak: int = 0
+	var first_sound: int = -1
+	for i: int in count:
+		var sample: int = absi(data.decode_s16(i * 2))
+		peak = maxi(peak, sample)
+		if first_sound == -1 and sample > SILENCE:
+			first_sound = i
+	assert_lte(peak, PEAK_LIMIT, "%s peak <= -1 dBFS" % path)
+	assert_gt(peak, SILENCE, "%s is not silent" % path)
+	assert_lte(first_sound, roundi(0.01 * rate), "%s: no leading silence over 10 ms" % path)
+	assert_eq(data.decode_s16(0), 0, "%s starts at zero" % path)
+	assert_eq(data.decode_s16((count - 1) * 2), 0, "%s ends at zero" % path)
+
+
+func test_music_sits_below_every_effect_but_the_tick() -> void:
+	var library: AudioLibrary = _library()
+	for music_id: StringName in MUSIC_IDS:
+		var music_db: float = library.get_cue(music_id).volume_db
+		for id: StringName in SFX_IDS + VOICE_IDS:
+			if id == &"sfx_wrong_key":
+				continue
+			assert_lt(music_db, library.get_cue(id).volume_db, "%s under %s (NFR14)" % [music_id, id])
+
+
+func test_wrong_key_tick_is_the_quietest_effect() -> void:
+	var library: AudioLibrary = _library()
+	var tick_db: float = library.get_cue(&"sfx_wrong_key").volume_db
+	for id: StringName in SFX_IDS + VOICE_IDS:
+		if id != &"sfx_wrong_key":
+			assert_lt(tick_db, library.get_cue(id).volume_db, "the tick is quieter than %s" % id)
+
+
+func test_burst_cues_are_throttled() -> void:
+	var library: AudioLibrary = _library()
+	for id: StringName in [&"sfx_brain_bonk", &"sfx_hug_poof"]:
+		var cue: AudioCue = library.get_cue(id)
+		assert_gt(cue.min_interval_s, 0.0, "%s can't stack in a burst" % id)
+		assert_lt(cue.min_interval_s, 0.1, "%s still plays once per report row / fast key" % id)
+
+
+func test_crossfade_and_pause_duck() -> void:
+	var library: AudioLibrary = _library()
+	assert_eq(library.music_crossfade_s, 0.5, "screen changes crossfade over 0.5 s (EXPERIENCE)")
+	assert_lt(library.music_pause_duck_db, 0.0, "a paused run lowers the music")
+	assert_gte(library.music_pause_duck_db, -40.0)
+
+
+func test_crossfade_and_duck_defaults_are_neutral() -> void:
+	var library: AudioLibrary = AudioLibrary.new()
+	assert_eq(library.music_crossfade_s, 0.0)
+	assert_eq(library.music_pause_duck_db, 0.0)
+	assert_eq(AudioCue.new().alt_streams.size(), 0)
+
+
+func test_chalk_scratch_is_never_throttled() -> void:
+	# One scratch per report row must survive a frame hitch that shows several rows at once.
+	assert_eq(_library().get_cue(&"sfx_chalk_scratch").min_interval_s, 0.0)

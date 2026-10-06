@@ -15,6 +15,10 @@ var _nav: Array = []
 var _paused: Array[bool] = []
 ## set_ambience recorder (Story 3.7): the live AudioManager never groans for a test frame.
 var _ambience: Array[bool] = []
+## play_music / duck_music / play_sfx recorders (Story 5.1): the live AudioManager is never asked.
+var _music: Array[StringName] = []
+var _duck: Array[bool] = []
+var _sfx: Array[StringName] = []
 
 
 func before_each() -> void:
@@ -22,6 +26,9 @@ func before_each() -> void:
 	_nav = []
 	_paused = []
 	_ambience = []
+	_music = []
+	_duck = []
+	_sfx = []
 
 
 func after_each() -> void:
@@ -54,6 +61,9 @@ func _make(
 	frame.navigate = _record
 	frame.pause_tree = func(paused: bool) -> void: _paused.append(paused)
 	frame.set_ambience = func(on: bool) -> void: _ambience.append(on)
+	frame.play_music = func(id: StringName) -> void: _music.append(id)
+	frame.duck_music = func(on: bool) -> void: _duck.append(on)
+	frame.play_sfx = func(id: StringName) -> void: _sfx.append(id)
 	# A finished run writes through record_run: never to the real save. Tests may pass their own.
 	frame.player_data = data if data != null else _fake_player_data()
 	if registry != null:
@@ -1374,3 +1384,141 @@ func test_default_ambience_seam_drives_the_audio_manager() -> void:
 	frame.free()
 	assert_false(AudioManager.is_ambience_on(), "freed: off")
 	assert_eq(_ambience, [] as Array[bool], "the recorder was not used")
+
+
+# --- music and clicks (Story 5.1) ------------------------------------------------------------------
+# play_music, duck_music and play_sfx are recorders in every test here but the last.
+
+func test_zombie_run_asks_for_its_music_once_at_start() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"zombie_run", "seed": 42})
+	assert_eq(_music, [&"mus_zombie_run"] as Array[StringName])
+	_type_correct(frame)
+	frame._process(121.0)
+	frame._process(5.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_music, [&"mus_zombie_run"] as Array[StringName], "the loop plays on through the dance")
+
+
+func test_test_level_never_asks_for_music() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	_type_correct(frame)
+	frame._process(200.0)
+	frame._process(5.0)
+	assert_eq(_music, [] as Array[StringName], "an empty music_id leaves the music alone")
+
+
+func test_failed_load_never_asks_for_music() -> void:
+	_start({"level_id": &"nope"})
+	assert_push_error("[ERROR][run]")
+	assert_eq(_music, [] as Array[StringName])
+
+
+func test_music_is_ducked_from_pause_until_the_countdown_ends() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	assert_eq(_duck, [] as Array[bool], "not ducked while running")
+	frame._unhandled_input(_esc())
+	assert_eq(_duck, [true] as Array[bool], "paused: ducked")
+	_resume(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.COUNTDOWN)
+	assert_eq(_duck, [true] as Array[bool], "still ducked during the countdown")
+	_run_countdown(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	assert_eq(_duck, [true, false] as Array[bool], "back to full when the run is live")
+
+
+func test_pause_from_the_countdown_ducks_again() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._unhandled_input(_esc())
+	_resume(frame)
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	assert_eq(_duck, [true, true] as Array[bool])
+	_resume(frame)
+	_run_countdown(frame)
+	assert_eq(_duck, [true, true, false] as Array[bool])
+
+
+func test_pause_while_waiting_unducks_back_in_waiting() -> void:
+	var frame: RunFrameScript = _start_pausable(_fake_player_data())
+	frame._unhandled_input(_esc())
+	_resume(frame)
+	_run_countdown(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.WAITING_FIRST_KEY)
+	assert_eq(_duck, [true, false] as Array[bool])
+
+
+func test_quit_to_menu_unducks_when_the_frame_leaves() -> void:
+	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 42}, null, _fake_player_data())
+	add_child(frame)
+	_type_correct(frame)
+	frame._unhandled_input(_esc())
+	_panel(frame).emit_signal("quit_chosen")
+	assert_eq(_duck, [true] as Array[bool])
+	remove_child(frame)
+	frame.free()
+	assert_eq(_duck, [true, false] as Array[bool], "never left ducked behind the run")
+
+
+func test_pause_clicks_for_esc_and_the_button_not_focus_loss() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._unhandled_input(_esc())
+	assert_eq(_sfx, [&"sfx_ui_click"] as Array[StringName], "Esc")
+	_resume(frame)
+	_run_countdown(frame)
+	_sfx.clear()
+	frame.get_node("%Hud").emit_signal("pause_pressed")
+	assert_eq(_sfx, [&"sfx_ui_click"] as Array[StringName], "pause button")
+	_resume(frame)
+	_run_countdown(frame)
+	_sfx.clear()
+	frame.call("_on_web_platform_focus_lost")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	assert_eq(_sfx, [] as Array[StringName], "focus loss is silent")
+
+
+func test_pause_panel_clicks_once_per_press() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var frame: RunFrameScript = _running_frame(data)
+	frame._unhandled_input(_esc())
+	_sfx.clear()
+	_panel(frame).emit_signal("music_toggled", false)
+	assert_eq(_sfx.size(), 1, "Music toggle")
+	_panel(frame).emit_signal("sound_toggled", false)
+	assert_eq(_sfx.size(), 2, "Sound toggle")
+	_resume(frame)
+	assert_eq(_sfx.size(), 3, "Resume")
+	_resume(frame)
+	assert_eq(_sfx.size(), 3, "a Resume ignored in the countdown is silent")
+	_run_countdown(frame)
+	frame._unhandled_input(_esc())
+	_sfx.clear()
+	_panel(frame).emit_signal("quit_chosen")
+	assert_eq(_sfx, [&"sfx_ui_click"] as Array[StringName], "Quit to Menu")
+	_panel(frame).emit_signal("quit_chosen")
+	_panel(frame).emit_signal("music_toggled", true)
+	assert_eq(_sfx.size(), 1, "nothing after quitting")
+	_restore_audio()
+
+
+func test_esc_while_paused_does_not_click_twice() -> void:
+	var frame: RunFrameScript = _running_frame(_fake_player_data())
+	frame._unhandled_input(_esc())
+	frame.get_node("%Hud").emit_signal("pause_pressed")
+	assert_eq(_sfx.size(), 1, "already paused: no second click")
+
+
+func test_default_music_seams_drive_the_audio_manager() -> void:
+	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 42})
+	frame.play_music = Callable()
+	frame.duck_music = Callable()
+	frame.play_sfx = Callable()
+	add_child(frame)
+	assert_eq(frame.play_music, Callable(AudioManager.play_music))
+	assert_eq(frame.duck_music, Callable(AudioManager.set_music_ducked))
+	assert_eq(frame.play_sfx, Callable(AudioManager.play_sfx))
+	_type_correct(frame)
+	frame._unhandled_input(_esc())
+	assert_true(AudioManager.is_music_ducked(), "paused: the live music is ducked")
+	remove_child(frame)
+	frame.free()
+	assert_false(AudioManager.is_music_ducked(), "freed: un-ducked")

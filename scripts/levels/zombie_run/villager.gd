@@ -18,6 +18,7 @@ extends ZombieRunTarget
 ## tag and arrow); %PartyZombie is a child of the root, so it never bobs. Story 3.6: the poof is the
 ## villager_poof.png sheet, drawn from the feet like every character, so it sits at the villager's origin
 ## (the zombie's hug frames play on the zombie; the 3 px lean stays as motion).
+## Story 5.1: the level hands it play_sfx before add_child; _start_poof() plays sfx_hug_poof through it.
 
 signal poofed(party_zombie: PartyZombie)
 
@@ -29,6 +30,9 @@ var _state: State = State.WAITING
 var _hug_time_s: float = 0.0
 var _sequence: Tween
 var _party_zombie_shown: bool = false
+## Set by the level before add_child (Story 5.1): plays the hug-poof as the poof starts. Without it the
+## villager is silent (no autoload fallback, so villager tests stay silent).
+var play_sfx: Callable
 
 
 ## Called after setup() and before add_child: when the villager poofs after its hug.
@@ -73,6 +77,8 @@ func _set_state(new_state: State) -> void:
 func _start_poof() -> void:
 	_set_state(State.POOFED)
 	%Body.hide()
+	if play_sfx.is_valid():
+		play_sfx.call(&"sfx_hug_poof")
 	var poof: Poof = POOF_SCENE.instantiate() as Poof
 	poof.position = Vector2.ZERO
 	poof.finished.connect(_show_party_zombie)

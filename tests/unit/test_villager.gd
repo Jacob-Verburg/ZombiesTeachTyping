@@ -139,3 +139,29 @@ func test_state_never_skips_back_from_hugged() -> void:
 
 func test_arrow_is_the_sprite_above_the_tag() -> void:
 	ArrowTipAssert.assert_tip(self, _villager(), -57.0)
+
+
+# --- sound (Story 5.1) ----------------------------------------------------------
+
+func test_hug_poof_plays_once_as_the_poof_starts() -> void:
+	var played: Array[StringName] = []
+	var villager: Villager = VillagerScene.instantiate() as Villager
+	villager.setup("k", 2)
+	villager.configure(HUG_TIME_S)
+	villager.play_sfx = func(id: StringName) -> void: played.append(id)
+	villager.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child_autofree(villager)
+	villager.resolve()
+	assert_eq(played, [] as Array[StringName], "not on the keypress")
+	villager.get_sequence_tween().custom_step(HUG_TIME_S + 0.01)
+	assert_eq(played, [&"sfx_hug_poof"] as Array[StringName], "with the visible poof")
+	_poofs(villager)[0].get_tween().custom_step(Poof.FRAMES / Poof.FPS + 0.01)
+	assert_eq(played.size(), 1, "once")
+
+
+func test_villager_without_the_seam_is_silent() -> void:
+	var villager: Villager = _villager()
+	villager.resolve()
+	villager.get_sequence_tween().custom_step(HUG_TIME_S + 0.01)
+	assert_false(villager.play_sfx.is_valid())
+	assert_eq(villager.get_state(), Villager.State.POOFED, "poofs fine without a sound")

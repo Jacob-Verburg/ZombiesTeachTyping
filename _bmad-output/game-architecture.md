@@ -299,9 +299,9 @@ func get_brains_earned() -> int
 ### Audio Architecture
 
 - Buses: `Master` → `Music`, `SFX`. The Music and Sound toggles mute their bus. No bus effects are used.
-- `AudioManager` API: `play_sfx(id: StringName)`, `play_music(id: StringName)`, `play_voice(id: StringName)`, `start_ambience()` / `stop_ambience()`.
+- `AudioManager` API: `play_sfx(id: StringName)`, `play_music(id: StringName)`, `play_voice(id: StringName)`, `start_ambience()` / `stop_ambience()`, `set_music_ducked(on: bool)` (a paused run, Story 5.1).
 - **Throttling lives only in `AudioManager`:** wrong-key tick at most 1 per 150 ms; voice lines at least 8 s apart; the "Brainsss" chance (20%) is decided by the caller, and the cooldown by `AudioManager`; groans every 3–8 s at random and muted within 2 s of a voice line.
-- A pool of 8 `AudioStreamPlayer`s for SFX, plus one music player.
+- A pool of 8 `AudioStreamPlayer`s for SFX, plus two music players (0.5 s crossfade, Story 5.1).
 - **Unlock:** no audio plays before the first key press or click on the title screen; `AudioManager.unlock()` is called from that input callback.
 
 ### Web Platform

@@ -29,6 +29,8 @@ var _player: PlayerDataScript
 var _save: CountingSave
 var _nav: Array = []
 var _sfx: Array[StringName] = []
+## play_music recorder (Story 5.1).
+var _music: Array[StringName] = []
 var _transitioning: bool = false
 
 
@@ -37,6 +39,7 @@ func before_each() -> void:
 	_clear()
 	_nav = []
 	_sfx = []
+	_music = []
 	_transitioning = false
 	_player = _make_player_data()
 
@@ -73,6 +76,7 @@ func _make(catalogue: Catalogue = null, use_catalogue: bool = false) -> ClosetSc
 	closet.navigate = func(screen: int, payload: Dictionary) -> void: _nav.append([screen, payload])
 	closet.is_transitioning = func() -> bool: return _transitioning
 	closet.play_sfx = func(id: StringName) -> void: _sfx.append(id)
+	closet.play_music = func(id: StringName) -> void: _music.append(id)
 	closet.player_data = _player
 	if use_catalogue:
 		closet.catalogue = catalogue
@@ -226,7 +230,7 @@ func test_buy_opens_the_prompt_with_yes_focused_and_the_background_off() -> void
 		assert_eq(tile.focus_mode, Control.FOCUS_NONE, "%s can't take focus" % tile.get_item_id())
 	assert_eq(_node("%MenuButton").focus_mode, Control.FOCUS_NONE)
 	assert_eq(_player.get_brains(), 100, "nothing bought yet")
-	assert_eq(_sfx, [] as Array[StringName])
+	assert_eq(_sfx, [&"sfx_ui_click"] as Array[StringName], "Buy clicks as the prompt opens (Story 5.1)")
 
 
 func test_yes_buys_plays_the_jingle_and_saves() -> void:
@@ -239,7 +243,7 @@ func test_yes_buys_plays_the_jingle_and_saves() -> void:
 	assert_true(_player.owns(&"hat_pumpkin"))
 	assert_eq(_tile(&"hat_pumpkin").get_state(), ClosetItemTile.State.WEAR)
 	assert_eq(_tile(&"pet_cute_ghost").get_state(), ClosetItemTile.State.CANT_AFFORD)
-	assert_eq(_sfx, [&"sfx_purchase"] as Array[StringName], "the jingle, once")
+	assert_eq(_sfx, [&"sfx_ui_click", &"sfx_purchase"] as Array[StringName], "the Buy click, then the jingle alone on Yes")
 	assert_eq(_count(), "0")
 	assert_false(_prompt().is_open())
 	assert_false(_prompt().visible)
@@ -256,7 +260,7 @@ func test_yes_buys_plays_the_jingle_and_saves() -> void:
 func _assert_nothing_bought(label: String) -> void:
 	assert_eq(_player.get_brains(), 100, label)
 	assert_false(_player.owns(&"hat_pumpkin"), label)
-	assert_eq(_sfx, [] as Array[StringName], label)
+	assert_eq(_sfx, [&"sfx_ui_click", &"sfx_ui_click"] as Array[StringName], label + ": Buy and No click")
 	assert_eq(_nav, [], label + ": no navigation")
 	assert_false(_prompt().is_open(), label)
 	assert_eq(_tile(&"hat_pumpkin").get_state(), ClosetItemTile.State.BUY, label)
@@ -308,7 +312,7 @@ func test_an_unexpected_buy_result_warns_and_refreshes() -> void:
 	(_prompt().get_node("%YesButton") as Button).pressed.emit()
 	assert_push_warning("closet: unexpected buy result NOT_ENOUGH_BRAINS for hat_pumpkin")
 	assert_false(_player.owns(&"hat_pumpkin"))
-	assert_eq(_sfx, [] as Array[StringName])
+	assert_eq(_sfx, [&"sfx_ui_click"] as Array[StringName], "only the Buy click: no jingle")
 	assert_eq(_tile(&"hat_pumpkin").get_state(), ClosetItemTile.State.CANT_AFFORD)
 	assert_eq(_count(), "0")
 
@@ -960,3 +964,22 @@ func test_freeing_the_closet_mid_tutorial_writes_nothing() -> void:
 	remove_child(_closet)
 	_closet.free()
 	assert_false(_player.get_flag(&"tutorial_seen"))
+
+
+# --- Sounds (Story 5.1) --------------------------------------------------------------------------------
+
+func test_opening_asks_for_the_menu_loop() -> void:
+	_make()
+	assert_eq(_music, [&"mus_menu"] as Array[StringName])
+
+
+func test_a_stale_prompt_cancel_is_silent() -> void:
+	_player.add_brains(100)
+	_make()
+	_activate(&"hat_pumpkin")
+	_player.add_brains(5)
+	assert_false(_prompt().is_open(), "the stale prompt closed")
+	assert_eq(_sfx, [&"sfx_ui_click"] as Array[StringName], "only the Buy click: the game's No makes no sound")
+	_activate(&"hat_pumpkin")
+	(_prompt().get_node("%NoButton") as Button).pressed.emit()
+	assert_eq(_sfx.size(), 3, "a pressed No still clicks afterwards")

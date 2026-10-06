@@ -55,6 +55,10 @@ extends LevelBase
 ## parallax layers from the camera x; _set_zombie_x() calls its scroll_to() in the same call that moves
 ## the world, so the backdrop, the world and the zombie never drift apart (the ground layer moves exactly
 ## with the world). It draws nothing from any RNG.
+##
+## Sounds (Story 5.1): the play_sfx seam plays sfx_brain_bonk in the same call that resolves a brain
+## block, and each villager gets the seam in _spawn() to play sfx_hug_poof when its poof starts (with the
+## cloud, not the key). Neither touches the run RNG; the Zombie Run music is RunFrame's (LevelConfig.music_id).
 
 ## The non-block slots (Story 3.3). The generic zombie_run_target.tscn stays the base and test fixture.
 const VILLAGER_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/villager.tscn")
@@ -72,6 +76,9 @@ const FIRST_TARGET_X: float = ZOMBIE_SCREEN_X
 ## Test seam: how the level asks for a voice line. _ready() points it at AudioManager.play_voice unless
 ## a test assigned a recorder before add_child.
 var request_voice: Callable
+## Test seam (Story 5.1): how the level and its villagers play sound effects (the bonk on a brain block, the
+## hug-poof). _ready() points it at AudioManager.play_sfx unless a test assigned a recorder before add_child.
+var play_sfx: Callable
 
 var _cfg: ZombieRunConfig
 ## The run RNG: used only for the Brainsss roll (one randf() per collected brain).
@@ -100,6 +107,8 @@ var _dancing: bool = false
 func _ready() -> void:
 	if not request_voice.is_valid():
 		request_voice = AudioManager.play_voice
+	if not play_sfx.is_valid():
+		play_sfx = AudioManager.play_sfx
 	_cfg = config as ZombieRunConfig
 	if _cfg == null:
 		assert(false, "ZombieRunLevel needs a ZombieRunConfig")
@@ -171,6 +180,8 @@ func on_char_accepted(expected: String, _index: int) -> void:
 		_queue[0].set_active(true)
 	# A block key cuts a running hug; a villager key restarts it from the current lean.
 	if done is BrainBlock:
+		if play_sfx.is_valid():
+			play_sfx.call(&"sfx_brain_bonk")
 		_zombie.stop_hug()
 		_zombie.hop(_cfg.hop_time_s, hop_height())
 	elif done is Villager:
@@ -287,6 +298,8 @@ func _spawn(slot: int, letter: String) -> void:
 		var villager: Villager = VILLAGER_SCENE.instantiate() as Villager
 		villager.setup(letter, slot)
 		villager.configure(_cfg.hug_time_s)
+		# The hug-poof sound goes with the visible poof, so the villager plays it (Story 5.1).
+		villager.play_sfx = play_sfx
 		villager.poofed.connect(_on_villager_poofed)
 		target = villager
 	target.position = Vector2(target_x(slot), GROUND_Y)

@@ -73,6 +73,8 @@ func _finish_run() -> Control:
 	var card: Control = ReportScene.instantiate() as Control
 	card.process_mode = Node.PROCESS_MODE_DISABLED
 	card.set("navigate", _record)
+	card.set("play_sfx", _mute)
+	card.set("play_music", _mute)
 	card.set("player_data", _player)
 	add_child_autofree(card)
 	card._process(GameConstants.REPORT_CARD_INPUT_GUARD_S)
@@ -84,6 +86,7 @@ func _open_gift() -> Control:
 	gift.process_mode = Node.PROCESS_MODE_DISABLED
 	gift.set("navigate", _record)
 	gift.set("play_sfx", _mute)
+	gift.set("play_music", _mute)
 	gift.set("player_data", _player)
 	add_child_autofree(gift)
 	gift._process(1.0)
@@ -96,6 +99,7 @@ func _open_closet() -> Control:
 	closet.set("navigate", _record)
 	closet.set("is_transitioning", func() -> bool: return false)
 	closet.set("play_sfx", _mute)
+	closet.set("play_music", _mute)
 	closet.set("player_data", _player)
 	add_child_autofree(closet)
 	await wait_process_frames(2)

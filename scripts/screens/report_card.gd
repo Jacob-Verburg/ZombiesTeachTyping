@@ -13,7 +13,10 @@ extends Control
 ## and never written here (the gift owns it). That one flag is all this screen reads from PlayerData.
 ## Story 5.0 art: the chalkboard and keycaps are theme boxes, the chalk tray, the "New best!" stamp (pre-rotated)
 ## and the window's moon and bat are sprites, and Play Again / Menu are PixelButtons (the focused fill and
-## ring are theirs). Sounds (chalk-scratch per row, chime, stamp thump) are Story 5.1.
+## ring are theirs).
+## Sounds (Story 5.1): the menu loop on open (play_music seam), one chalk-scratch per row the frame it is
+## first shown, one chime the frame the last row shows (before the stamp), and a click
+## when _leave() actually navigates (play_sfx seam). The stamp is silent (no stamp thump in FR50).
 ## The worn hat and pet fill the Professor's slots by themselves (Story 4.3).
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
@@ -35,6 +38,10 @@ const BONUS_ROW: int = 6
 var navigate: Callable
 ## Test seam: defaults to the PlayerData autoload in _ready.
 var player_data: PlayerDataScript = null
+## Test seam: called as play_sfx.call(cue_id). Defaults to AudioManager.play_sfx in _ready.
+var play_sfx: Callable
+## Test seam: called as play_music.call(music_id). Defaults to AudioManager.play_music in _ready.
+var play_music: Callable
 
 var _level_id: StringName = FALLBACK_LEVEL_ID
 var _new_best: bool = false
@@ -46,6 +53,9 @@ var _open_s: float = 0.0
 var _leaving: bool = false
 ## Rows in reveal order; the bonus row is only in it when there is a bonus.
 var _rows: Array[Control] = []
+## How many rows have had their chalk-scratch, and whether the chime has played: never replayed.
+var _rows_sounded: int = 0
+var _chimed: bool = false
 
 
 func _ready() -> void:
@@ -53,6 +63,11 @@ func _ready() -> void:
 		navigate = Router.go
 	if player_data == null:
 		player_data = PlayerData
+	if not play_sfx.is_valid():
+		play_sfx = AudioManager.play_sfx
+	if not play_music.is_valid():
+		play_music = AudioManager.play_music
+	play_music.call(&"mus_menu")
 	var payload: Dictionary = Router.take_payload()
 	var raw: Variant = payload.get("result")
 	var result: RunResult = raw if raw is RunResult else null
@@ -84,11 +99,22 @@ func _process(delta: float) -> void:
 		if _open_s >= i * REVEAL_STEP_S:
 			_rows[i].show()
 			shown += 1
+	while _rows_sounded < shown:
+		_sfx(&"sfx_chalk_scratch")
+		_rows_sounded += 1
+	if shown == _rows.size() and not _chimed:
+		_chimed = true
+		_sfx(&"sfx_report_chime")
 	var stamp_done: bool = not _new_best or _open_s >= _rows.size() * REVEAL_STEP_S
 	if _new_best and stamp_done:
 		%Stamp.show()
-	if shown == _rows.size() and stamp_done and _guard_passed():
+	if shown == _rows.size() and stamp_done and _chimed and _guard_passed():
 		set_process(false)
+
+
+func _sfx(cue_id: StringName) -> void:
+	if play_sfx.is_valid():
+		play_sfx.call(cue_id)
 
 
 func _input(event: InputEvent) -> void:
@@ -154,6 +180,7 @@ func _leave(screen: Router.Screen, payload: Dictionary) -> void:
 	if _leaving or not _guard_passed():
 		return
 	_leaving = true
+	_sfx(&"sfx_ui_click")
 	if _has_result and not player_data.get_flag(&"welcome_bonus_claimed"):
 		screen = Router.Screen.WELCOME_GIFT
 		payload = {}

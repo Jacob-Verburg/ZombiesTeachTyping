@@ -27,7 +27,9 @@ extends Control
 ## Seams (tests assign them before add_child): navigate, is_transitioning, player_data, play_sfx and the
 ## exported catalogue. The payload is consumed.
 ## Story 5.0 art: the hand-lettered "Crypt Closet" sign sprite, the Mirror and Sign theme boxes.
-## Later: juice and Closet music (5.1).
+## Sounds (Story 5.1): the menu loop on open (play_music seam); a click on Buy (the prompt opens), No / Esc
+## on the prompt, Wear, Take off and leaving; the jingle alone on a successful Yes. Wiggles stay silent.
+## Later: juice (the counter tick-down).
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 const TILE_SCENE: PackedScene = preload("res://scenes/ui/closet_item_tile.tscn")
@@ -45,6 +47,8 @@ var is_transitioning: Callable
 var player_data: PlayerDataScript = null
 ## Test seam: called as play_sfx.call(cue_id). Defaults to AudioManager.play_sfx in _ready.
 var play_sfx: Callable
+## Test seam: called as play_music.call(music_id). Defaults to AudioManager.play_music in _ready.
+var play_music: Callable
 
 var _hat_tiles: Array[ClosetItemTile] = []
 var _pet_tiles: Array[ClosetItemTile] = []
@@ -58,6 +62,8 @@ var _leaving: bool = false
 var _tutorial_active: bool = false
 ## The item the arrow guides to (Buy, then Wear).
 var _tutorial_target: StringName = &""
+## True while _cancel_stale_prompt() cancels: that No is the game's, not a press, so it is silent.
+var _cancelling_stale: bool = false
 
 
 func _ready() -> void:
@@ -69,6 +75,9 @@ func _ready() -> void:
 		player_data = PlayerData
 	if not play_sfx.is_valid():
 		play_sfx = AudioManager.play_sfx
+	if not play_music.is_valid():
+		play_music = AudioManager.play_music
+	play_music.call(&"mus_menu")
 	var payload: Dictionary = Router.take_payload()
 	var tutorial: Variant = payload.get("tutorial", false)
 	var wants_tutorial: bool = (tutorial is bool and tutorial) or player_data.get_flag(&"welcome_bonus_claimed")
@@ -297,18 +306,24 @@ func _on_tile_activated(item_id: StringName) -> void:
 		ClosetItemTile.State.BUY:
 			_pending = item
 			%ConfirmPrompt.open("Buy the %s for %d brains?" % [item.display_name, item.price])
+			_sfx(&"sfx_ui_click")
 			_set_background_focus(false)
 			_update_tutorial()
 		ClosetItemTile.State.WEAR:
 			if player_data.equip(item_id):
-				play_sfx.call(&"sfx_ui_click")
+				_sfx(&"sfx_ui_click")
 			else:
 				_refresh()
 		ClosetItemTile.State.WEARING:
 			player_data.unequip(item.slot_key())
-			play_sfx.call(&"sfx_ui_click")
+			_sfx(&"sfx_ui_click")
 		_:
 			_refresh()
+
+
+func _sfx(cue_id: StringName) -> void:
+	if play_sfx.is_valid():
+		play_sfx.call(cue_id)
 
 
 func _on_confirm_answered(yes: bool) -> void:
@@ -321,11 +336,13 @@ func _on_confirm_answered(yes: bool) -> void:
 	else:
 		%MenuButton.grab_focus()
 	if not yes or item == null:
+		if not yes and not _cancelling_stale:
+			_sfx(&"sfx_ui_click")
 		_update_tutorial()
 		return
 	var result: PlayerDataScript.PurchaseResult = player_data.buy_item(item)
 	if result == PlayerDataScript.PurchaseResult.OK:
-		play_sfx.call(&"sfx_purchase")
+		_sfx(&"sfx_purchase")
 		if _tutorial_active:
 			# The bought item is what to wear next.
 			_tutorial_target = item.id
@@ -338,7 +355,9 @@ func _on_confirm_answered(yes: bool) -> void:
 ## The wallet or the inventory changed under an open prompt: its question is out of date, so it counts as No.
 func _cancel_stale_prompt() -> void:
 	if %ConfirmPrompt.is_open():
+		_cancelling_stale = true
 		%ConfirmPrompt.cancel()
+		_cancelling_stale = false
 
 
 func _on_brains_changed(_total: int, _delta: int) -> void:
@@ -368,7 +387,7 @@ func _leave() -> void:
 	if _leaving or is_transitioning.call():
 		return
 	_leaving = true
-	play_sfx.call(&"sfx_ui_click")
+	_sfx(&"sfx_ui_click")
 	navigate.call(Router.Screen.MAIN_MENU, {})
 	if not is_transitioning.call():
 		return

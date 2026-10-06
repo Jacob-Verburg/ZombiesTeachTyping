@@ -26,19 +26,19 @@
 
 ## Deferred from: dev of story-1-4 (2026-10-03)
 
-- **Web: the first UI click is silent (accepted by Smuck, AC 3 partially met on web).** Chrome: the menu loop starts on the first gesture, but `sfx_ui_click` played from that same gesture is never heard. Console shows two "AudioContext was not allowed to start" warnings right after `[INFO][audio] unlocked`. Cause: Godot dispatches input from its main loop, outside the browser's event handler, so `play()` calls made in `unlock()`'s frame hit a still-suspended context; Godot's own resume lands a moment later. The loop survives the gap, the 40 ms click doesn't. Desktop is fine. Options when revisited: (a) AudioManager holds SFX requested in the unlock frame and plays them one frame later (no JS); (b) `WebPlatform` adds a capture-phase `pointerdown`/`keydown` listener that resumes the AudioContext inside the real gesture (Story 1.5 territory; Godot's context is internal). Natural homes: 1.5 (WebPlatform) or 5.1 (real audio + mix). Safari/Edge/Firefox not checked.
+- ~~**Web: the first UI click is silent (accepted by Smuck, AC 3 partially met on web).** Chrome: the menu loop starts on the first gesture, but `sfx_ui_click` played from that same gesture is never heard. Console shows two "AudioContext was not allowed to start" warnings right after `[INFO][audio] unlocked`. Cause: Godot dispatches input from its main loop, outside the browser's event handler, so `play()` calls made in `unlock()`'s frame hit a still-suspended context; Godot's own resume lands a moment later. The loop survives the gap, the 40 ms click doesn't. Desktop is fine. Options when revisited: (a) AudioManager holds SFX requested in the unlock frame and plays them one frame later (no JS); (b) `WebPlatform` adds a capture-phase `pointerdown`/`keydown` listener that resumes the AudioContext inside the real gesture (Story 1.5 territory; Godot's context is internal). Natural homes: 1.5 (WebPlatform) or 5.1 (real audio + mix). Safari/Edge/Firefox not checked.~~ Done in 5.1 (option a): AudioManager holds SFX asked for in the unlock frame and plays them once on the next frame. Web check: the held click starts on the first frame after the press (~115 ms after the menu loop starts); audibility is Mix Checklist M11.
 - ~~Godot imports images under `_bmad-output/` on every `--import`. Add an empty `_bmad-output/.gdignore`.~~ Done in Story 1.5.
-- AudioManager's round-robin steal path isn't exercised by GUT: `AudioStreamPlayer.playing` stays `false` under the headless Dummy driver, so the first pool player is always "free". Covered by code review and the desktop listen only; a `_is_busy()` seam would make it testable if 2.5's throttle needs it.
+- ~~AudioManager's round-robin steal path isn't exercised by GUT: `AudioStreamPlayer.playing` stays `false` under the headless Dummy driver, so the first pool player is always "free". Covered by code review and the desktop listen only; a `_is_busy()` seam would make it testable if 2.5's throttle needs it.~~ Done in 5.1: `_is_busy()` seam; `test_busy_pool_steals_round_robin` and the voice-steal test are deterministic.
 
 ## Deferred from: code review of story-1-4 (2026-10-03)
 
-- `test_play_music_same_id_does_not_restart` is vacuous under the headless Dummy driver (`playing` is false, position 0 both ways). Needs a seam (e.g. `_is_busy()`/`_is_music_playing()`) to be meaningful; same seam would cover the SFX steal path.
+- ~~`test_play_music_same_id_does_not_restart` is vacuous under the headless Dummy driver (`playing` is false, position 0 both ways). Needs a seam (e.g. `_is_busy()`/`_is_music_playing()`) to be meaningful; same seam would cover the SFX steal path.~~ Done in 5.1: `_is_busy()` + `_play_player()` seams make it count restarts.
 - `test_title_requests_menu_music_on_ready` mutates and asserts on the live AudioManager autoload (`stop_music()`, `_pending_music`); breaks if any earlier test unlocks it.
 - `stop_music()` while locked clears the pending track, so music stopped before the first gesture never starts later. No caller yet; revisit when screens manage their own music.
 
 ## Deferred from: code review of story-1-5 (2026-10-03)
 
-- `AudioManager.play_music()` while locked lets an unknown id overwrite a valid pending id (warning + silence at unlock); unlocked, an unknown id keeps the old loop but `_current_music` doesn't record the request. Validate with `_get_playable_cue()` before setting pending when screens start managing music.
+- ~~`AudioManager.play_music()` while locked lets an unknown id overwrite a valid pending id (warning + silence at unlock); unlocked, an unknown id keeps the old loop but `_current_music` doesn't record the request. Validate with `_get_playable_cue()` before setting pending when screens start managing music.~~ Done in 5.1: `play_music()` validates with `_get_playable_cue()` first, locked or not.
 - ~~Desktop `WebPlatform.offer_download()` ignores `bytes` and only opens `user://`. Story 1.8 must write the save to `user://<file_name>` (check the FileAccess error) before opening the folder, or the desktop export silently loses data.~~ Done in Story 1.8: `SaveService.offer_export()` writes the file first (errors logged).
 - ~~The temporary Keyboard Test button on the main menu ships in release builds (desktop Download opens Explorer, Fullscreen flips the window). Gate on `OS.is_debug_build()` or remove the screen in 1.8/5.0.~~ Done in 4.2: the button left the menu; the keyboard test is reached from the F3 debug overlay's jump row (debug builds only). The screen itself still exists until 5.0.
 - `test_unlock_is_idempotent` (passes with or without the guard) and the `is_fullscreen` test (expected value computed with the same expression) can't fail. Needs the same playing/mode seam as the 1.4 deferrals.
@@ -235,7 +235,7 @@
 
 - ~~Hand-off to Story 3.1: register `zombie_run` in `data/levels/level_registry.tres` with `display_name = "Zombie Run"` (the report card heading). Without it the card falls back to `"zombie_run".capitalize()`, which happens to read the same.~~ Done in 3.1.
 - ~~Final chalkboard, chalk tray, "New best!" stamp (hand-lettered, pre-rotated -8°), pixel buttons, key-hint keycaps, smiling moon and night-classroom backdrop art: Story 5.0. Today they are square `StyleBoxFlat` / `ColorRect` placeholders in palette colours.~~ Done in 5.0: chalkboard 9-slice, tray sprite, skewed stamp sprite, PixelButtons, Keycap boxes, moon and bat sprites; the wall / window / floor ColorRects stay (approved 2.9 composition).
-- Chalk-scratch per revealed row, the chime, the stamp thump and menu music on the report card: Story 5.1 (no `AudioCue`s exist for them yet).
+- ~~Chalk-scratch per revealed row, the chime, the stamp thump and menu music on the report card: Story 5.1 (no `AudioCue`s exist for them yet).~~ Done in 5.1 except the stamp thump (not in FR50): post-MVP / Smuck's call.
 - ~~The worn hat and pet in Professor Zombie's `%HatSlot` / `%PetSlot`, `SpriteAnchors` for the professor, and lifting the mortarboard by the hat's height: Story 4.3.~~ Done in 4.3: the professor's slots are a `HatSlot` (on `professor_anchors.tres`) and a `PetSlot` on the floor to his right, and `_stack_mortarboard` lifts the mortarboard by the hat's rise (11 px for the pumpkin).
 - ~~First completed run goes through the Welcome Gift: Story 4.5 hooks into `report_card.gd` `_leave()`, the card's only navigation.~~ Done in 4.5: `_leave()` sends a card with a `RunResult` to `WELCOME_GIFT` while `welcome_bonus_claimed` is false.
 - Long level names vs the stamp: at 24 px the heading has 245 px before the stamp (10 glyphs); "Pitchfork Panic" (15 glyphs = 360 px) would run under it. Epic 8 (or the 5.0 stamp art) resolves it; `test_stamp_clear_of_heading_and_rows` checks only "Test level" today.
@@ -276,9 +276,9 @@
 ## Deferred from: dev of story-3-2 (2026-10-05)
 
 - ~~Placeholder brain block, bonk, brain pop and hop arc (code-drawn, palette only) until the Story 3.6 art. The hop/scoot timing feel (the zombie bonks while scooting under the block, 16 px arc over 0.35 s) is untuned; 3.6 adds the 3 hop frames and the "don't clobber hop" animation guard.~~ Done in 3.6: brain block idle/bonk, brain pop and hop (3f) sheets, and `PlayerZombie._play()` no longer clobbers a running hop, hug or dance. The hop/scoot timing stays untuned (unchanged).
-- No bonk or brain-collect SFX yet (GDD audio list "bonk"): Story 5.1, unless 3.7 takes it.
+- ~~No bonk or brain-collect SFX yet (GDD audio list "bonk"): Story 5.1, unless 3.7 takes it.~~ Done in 5.1: `sfx_brain_bonk` per brain block.
 - The HUD counter just changes number; the "tick up with a small pop" (EXPERIENCE Game Feel) is 5.0/5.1, per the `BrainCounter` header.
-- `vo_brainsss_01.wav` is a generated placeholder (CC0) until the real voice lines in Story 5.1. In the web manual check the Brainsss line could not be confirmed by ear from the browser pane; the roll and spacing are covered by tests only.
+- ~~`vo_brainsss_01.wav` is a generated placeholder (CC0) until the real voice lines in Story 5.1. In the web manual check the Brainsss line could not be confirmed by ear from the browser pane; the roll and spacing are covered by tests only.~~ Done in 5.1: two final generated takes (`vo_brainsss_01/02`, CC0), picked at random.
 - ~~The hop was not visible in the browser-pane screenshots (0.35 s, 16 px, and the pause panel covers the zombie). It is verified by the unit tests (arc, cut, restart, one tween); worth a look by eye in the 3.6 art pass.~~ Done in 3.6: the hop frames (crouch, arms-up peak, land) showed mid-hop in the 1x web screenshots (`screenshots/3-6/`).
 
 ## Deferred from: code review of story-3-2 (2026-10-05)
@@ -290,7 +290,7 @@
 
 - ~~The hug is a placeholder 3 px lean of `Body` on x and the poof is a code-drawn 4-frame cloud (`poof.gd`), until Story 3.6's hug (3f) and poof (4f) frames.~~ Done in 3.6: hug (3f) and poof (4f) sheets play; the 3 px lean stays as motion.
 - ~~The party-hat zombie is an idle-only prototype (`party_zombie_idle.png`, 2f at 8 fps); Story 3.6 adds the walk (4f).~~ Done in 3.6: `party_zombie_walk.png` (4f at 10 fps).
-- No hug-poof SFX (GDD audio list "hug-poof"): Story 5.1, unless 3.7 takes it.
+- ~~No hug-poof SFX (GDD audio list "hug-poof"): Story 5.1, unless 3.7 takes it.~~ Done in 5.1: `sfx_hug_poof` as the poof starts.
 - Conga hand-off for 3.4: `Villager.poofed(party_zombie)` is the seam that adds a zombie to the line, but 3.4 must count conga members logically at resolve time (a villager resolved = +1), not on `poofed`. At high speed a villager can scroll off and be freed before its poof ends (0.4 s hug + 0.33 s poof vs. about 1 s to scroll off at 5 keys/s), so `poofed` may never fire for it. *3.4:* counted at resolve; villagers aren't freed before their hand-off.
 - `Villager._set_state()` asserts on a backward move. The assert logs a `SCRIPT ERROR` in the test output (3 lines from `test_villager.gd`, consumed with `assert_engine_error`), so the suite's error count is no longer 0 by design.
 
@@ -305,7 +305,7 @@
 ## Deferred from: dev of story-3-4 (2026-10-05)
 
 - ~~Conga followers use the party zombie's idle frames plus a code bob (2 px, 2 Hz, index-phased) until Story 3.6's walk (4f).~~ Done in 3.6: followers play walk while moving and idle once settled; the code bob stays as the conga wave.
-- No join SFX when a party zombie joins the line: Story 5.1.
+- No join SFX when a party zombie joins the line: Story 5.1. 5.1: not in FR50, left open: post-MVP / Smuck's call.
 - A join beyond the 12 cap only ticks the "×N" badge (no extra walk-in); a small pop on the badge is a 5.0 polish candidate.
 - Extreme speed: a newcomer joins where its villager poofed, which can be well behind the tail (or at the left edge when the villager was kept off screen by the freeing guard), and walks in from there; the badge rides the last drawn follower, so it can lag the tail briefly. Normal speeds (the 2:00 web run, ~1 key/s average with 10-key bursts) kept the line and the badge on screen.
 - The chase clamp (`minf(new_x, maxf(x, leader_x - SPACING_PX))`) is redundant with the lerp (weight is in [0, 1) and every slot is behind `leader_x - SPACING_PX`), so removing it alone fails no test; kept as a cheap guard.
@@ -323,7 +323,7 @@
 ## Deferred from: dev of story-3-5 (2026-10-05)
 
 - ~~The end dance is a code placeholder (bounce 4 px at 2 beats/s + a `flip_h` per beat) until Story 3.6's `dance` 4f; `PlayerZombie.dance()` plays a `dance` animation as soon as the SpriteFrames has one. Party zombies have no dance frames in the GDD list, so the conga line keeps the code dance (3.6 decides).~~ Done in 3.6: `zombie_dance.png` (4f at 8 fps = one 2 Hz bounce); with the frames the `flip_h` beat goes. Party zombies: no dance sheet (decided), idle plus the code bounce and flip.
-- No dance music or SFX: Story 5.1.
+- No dance music or SFX: Story 5.1. 5.1: not in FR49/FR50 (the Zombie Run loop plays on through the dance), left open: post-MVP / Smuck's call.
 - ~~The active target's arrow and the HUD letter stay visible during the dance; decide in 5.0 if it looks odd.~~ Decided in 5.0: leave (no change in an art story); revisit only if the 5.4 playtest shows confusion.
 - The completion bonus applies to every recorded end reason (`timer`, F6, `caught`, `escaped`). Epic 8 must split Pitchfork Panic's bonuses (GDD: caught +10, escaped +25).
 - The Router fade freezes the last moment of the dance (the tree is paused during the fade).
@@ -338,7 +338,7 @@
 ## Deferred from: dev of story-3-6 (2026-10-05)
 
 - Party-zombie dance sheet: decided **no** (not in the GDD sprite list). Dancing followers keep idle plus the code bounce and flip.
-- No groans or SFX for the new animations: ~~Story 3.7 (groans)~~ Done in 3.7: ambience groans every 3-8 s while RUNNING. SFX for the new animations stay 5.1 (audio pass).
+- No groans or SFX for the new animations: ~~Story 3.7 (groans)~~ Done in 3.7: ambience groans every 3-8 s while RUNNING. SFX for the new animations stay 5.1 (audio pass). 5.1: bonk and hug-poof done; other animation SFX are not in FR50: post-MVP.
 - ~~Hat anchors on the new frames (the crown moves on some frames: hop crouch 2 px down, hop land, hug release and dance frame 4 1 px down, hug squeeze 1 px right): Story 4.3 sets per-frame anchors. `%HatSlot` still sits at the idle crown.~~ Done in 4.3: `data/anchors/zombie_anchors.tres` has a head point per frame (measured by `tools/gen_sprite_anchors.gd`, re-measured by `test_sprite_anchors.gd`), and `HatSlot` follows every frame and animation change.
 - ~~HUD, pause panel, report card and menu art stay placeholder: Story 5.0.~~ Done in 5.0.
 - Readability changes made during the 1x check (not in the story text): the far hills are `chalk-dim` with a `zombie-green` crest instead of solid `zombie-green` (the zombie's and party zombies' skin sat on their own colour), and the pumpkin moved to a short post in front of the fence at x 120 (on a full fence post it sat behind the zombie's head at run start and read as a pumpkin hat, which clashes with the 4.3 hats).
@@ -354,7 +354,7 @@
 
 ## Deferred from: dev of story-3-7 (2026-10-05)
 
-- Real groan recordings and the mix (groans sit at -8 dB under the Brainsss line at -6 dB for now): Story 5.1. The 4 `sfx_groan_0N.wav` files are generated placeholders.
+- ~~Real groan recordings and the mix (groans sit at -8 dB under the Brainsss line at -6 dB for now): Story 5.1. The 4 `sfx_groan_0N.wav` files are generated placeholders.~~ Done in 5.1: four final generated formant groans (Gate A chose generated over recordings), mixed at -9 dB; final values from the Mix Checklist.
 - A groan already playing is not cut when the run pauses or ends (by design: it is under 1 s, and a cut would sound like a glitch). `stop_ambience()` only stops new groans.
 - Ambience runs in every level that uses `RunFrame` (Horde Rush and Pitchfork Panic get groans for free). If a level should have none, add a `LevelConfig` flag that `RunFrame` checks before `set_ambience.call(true)`.
 - The 2 s mute is one-directional, as FR48 asks: a groan is skipped within 2 s after a voice line, but a voice line right after a groan still plays.
@@ -393,7 +393,7 @@
 
 - Final Closet art: tile frames and tags, the confirm prompt's wood panel and parchment sign, the mirror, the hand-lettered "Crypt Closet" sign (all placeholder `StyleBoxFlat`s in palette colours today), plus the brain counter tick-down and the button squish after a purchase: Story 5.0 / 5.1. Art part done in 5.0 (tile / tag 9-slices, WoodPanel, Sign, Mirror, the lettered sign; the squish is in the button art); the tick-down stays for 5.1.
 - ~~The tutorial arrow and the `tutorial_seen` flag: Story 4.5. Its positions are in `sketches/crypt-closet-4-4.md` frame D; the hooks are `get_tile(id)` and `get_confirm_prompt()`, and the Closet already consumes the payload.~~ Done in 4.5: `TutorialArrow` widget; the Closet guides Buy, Yes, Wear from the `{"tutorial": true}` payload and sets `tutorial_seen` on equip or leave.
-- Closet music (the Closet starts no music of its own): Story 5.1.
+- ~~Closet music (the Closet starts no music of its own): Story 5.1.~~ Done in 5.1: the Closet, the Welcome Gift and the report card ask for `mus_menu`.
 - Approved sketch deviations (Smuck, 2026-10-06, "Approve as drawn"): the long words ("Coming soon", "Need N more", "Wearing") live on the info sign for the focused tile, Buy tiles show the price on the pumpkin tag, Wearing is a drawn check mark (Press Start 2P has no U+2713), tiles are 68 px instead of DESIGN.md's 48 px, locked items show no name, and the focus ring sits on the tile's own edge. DESIGN.md was not edited; the sketch is the override.
 - Story 5.2's grayscale review should look at the five tile states side by side: Locked (stone, "?"), Can't afford (disabled fill, no tag box), Buy (pumpkin tag), Wear (green tag, word), Wearing (bright tag, check). Buy vs Wear vs Wearing differ by tag content as well as colour, but the tag fills are close in grey.
 - ~~The MVP tile icons are the hat's 32x32 overlay and the ghost's first idle frame, so the pumpkin sits low and small in its art box (the overlay is drawn for the head, brim on row 30). Proper tile icons belong with the Epic 9 / 5.0 art.~~ Done in 5.0 (pumpkin): the icon is an AtlasTexture cropped to the opaque pixels with a centring margin, still 32 × 32.
@@ -409,13 +409,13 @@
 
 - Task 7.1 live walk was in a web export and never reached the report card; the hat on the report card is covered only by 4.3's check.
 - Closet item tile wiggle tween is node-bound, so a tree pause can leave `Frame.position.x` off rest until the next wiggle.
-- `uid://51tlvsl155x7` in `audio_library.tres` was hand-written; if `sfx_purchase.wav.import` is regenerated with another UID Godot warns and falls back to the path.
-- Placeholder jingle waveform in `tools/gen_placeholder_audio.gd` starts at -1 (masked by the 4 ms attack).
+- ~~`uid://51tlvsl155x7` in `audio_library.tres` was hand-written; if `sfx_purchase.wav.import` is regenerated with another UID Godot warns and falls back to the path.~~ Done in 5.1: the `.import` was regenerated by Godot (`uid://83x7bo15sy2k`) and the library uses it.
+- ~~Placeholder jingle waveform in `tools/gen_placeholder_audio.gd` starts at -1 (masked by the 4 ms attack).~~ Done in 5.1: the tool is retired; `tools/gen_audio.gd` edge-fades every file and pins both ends to zero.
 
 ## Deferred from: dev of story-4-5 (2026-10-06)
 
 - ~~Final Welcome Gift art (wood panel, pumpkin ribbon and bow, the brain icon) and the hand-drawn tutorial arrow: Story 5.0. Today they are palette `StyleBoxFlat`s / `ColorRect`s and a drawn triangle.~~ Done in 5.0: WoodPanel, Ribbon 9-slice, bow and 32 px brain sprites, arrow sprites.
-- A gift sound, an arrow sound and the brain counter tick-up on the gift: Story 5.1.
+- A gift sound, an arrow sound and the brain counter tick-up on the gift: Story 5.1. 5.1: not in FR50, left open: post-MVP / Smuck's call (the gift's button clicks).
 - A tab closed mid-tutorial leaves `tutorial_seen` false. Harmless: the tutorial only starts from the gift's payload, and the gift never comes back on that save.
 - The debug overlay's "Welcome gift" jump now grants +100 on a save whose `welcome_bonus_claimed` is false (that is how a dev tests the gift). On a claimed save it shows the card and grants nothing. `test_debug_overlay.gd` only records the jump through its seam; it never instances the real gift.
 - The "Play with it!" button after Wear (epics design note): post-MVP.
@@ -428,7 +428,7 @@
 
 ## Deferred from: dev of story 5-0 (2026-10-06)
 
-- Brain counter count-up tick and pop, the conga "×N" badge pop, and the Closet tick-down: Story 5.1 (juice with sound).
+- Brain counter count-up tick and pop, the conga "×N" badge pop, and the Closet tick-down: Story 5.1 (juice with sound). 5.1: not in FR50, left open: post-MVP / Smuck's call.
 - Web and desktop letterbox bars are still **black**: the engine draws them itself, so `default_clear_color` (now night) and the head include's night `body` don't reach them. The 1.2 item stays open; a fix needs `RenderingServer` black-bar images (out of an art story's scope).
 - The first-mouse-move focus quirk after a screen change (4.4 note) was not looked at.
 - The Coming soon card `Tint` is a stone `ColorRect` at 85 % alpha over the picture (the approved 4.2 look), so it blends off-palette pixels; a pre-greyed picture per level would keep it palette-only (5.2 readability pass can decide).
@@ -447,3 +447,19 @@
 - HUD grayscale legibility (AC 5) is covered by a screenshot only, not a test.
 - In-run Zombie Run scenes (`zombie_run_target`, `brain_block`, `villager`, `conga_line`) still use StyleBoxFlat; deferred to 5.2 by Smuck. The 5.0 'no placeholder look' claim covers menus, screens and HUD only.
 - Coming-soon card `Tint` stays an 85 % alpha overlay; accepted for MVP by Smuck.
+
+## Deferred from: dev of story 5-1 (2026-10-06)
+
+- Not in FR50, so not added in 5.1 (post-MVP or Smuck's call): stamp thump, brain counter tick / ×N pop, conga join, gift and tutorial-arrow sounds, dance music, the Closet tick-down.
+- Web: the first play of each 96 s music loop costs one long main-thread task (Godot decodes the whole OGG into a Web Audio sample): ~110–145 ms at the title unlock, ~165 ms entering the first run; later plays are free. Shorter loops or `PLAYBACK_TYPE_STREAM` on the music players would avoid it (stream playback risks crackle on the single-threaded web build). Part of 5.3 (technical metrics) if it shows on family computers.
+- In the browser pane the 0.5 s crossfade stretched to ~1.6 s at the run start (the pane ran ~15 fps with smoothed delta right after the level load); judged by ear in real Chrome in the Mix Checklist (M7).
+
+## Deferred from: code review of story-5-1-mvp-audio-pass-and-mix (2026-10-06)
+
+- Voice lines and music started in the unlock frame aren't held like SFX; title doesn't request voice at unlock today.
+- Debug end / F6 while PAUSED leaves music ducked until the scene swap (debug-only).
+- `sfx_wrong_key` (-14 dB) equals `mus_menu` level; tick can be masked in menus. Gate B approved the mix.
+- OGG loop seam (encoder padding) untested; `tools/encode_ogg.py` has no per-file error handling.
+- Default-seam tests mutate the live `AudioManager` autoload (possible state leak between tests).
+- Failed `buy_item` path in the Closet plays no sound.
+- `_is_busy`/`_play_player` test seams: the real `playing` guard is untested against real playback (Dummy driver limitation).

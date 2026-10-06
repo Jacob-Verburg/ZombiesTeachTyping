@@ -18,12 +18,17 @@ const STATS: Array[String] = ["%KeysValue", "%ErrorsValue", "%WpmValue", "%Accur
 
 var _nav: Array = []
 var _player: PlayerDataScript
+## play_sfx / play_music recorders (Story 5.1): the live AudioManager is never asked.
+var _sfx: Array[StringName] = []
+var _music: Array[StringName] = []
 
 
 func before_each() -> void:
 	DirAccess.make_dir_recursive_absolute(TEST_DIR)
 	_clear()
 	_nav = []
+	_sfx = []
+	_music = []
 	_player = _make_player_data()
 	_player.set_flag(&"welcome_bonus_claimed", true)
 
@@ -66,6 +71,8 @@ func _card(payload: Dictionary, registry: bool = true) -> Control:
 	Router._store_payload(payload)
 	var card: Control = ReportScene.instantiate() as Control
 	card.set("navigate", _record)
+	card.set("play_sfx", func(id: StringName) -> void: _sfx.append(id))
+	card.set("play_music", func(id: StringName) -> void: _music.append(id))
 	card.set("player_data", _player)
 	if not registry:
 		card.set("level_registry", null)
@@ -569,3 +576,72 @@ func test_professor_without_frames_hides_body() -> void:
 	add_child_autofree(professor)
 	assert_push_warning("professor zombie has no sprite frames")
 	assert_false((professor.get_node("Body") as CanvasItem).visible)
+
+
+# --- Sounds (Story 5.1) --------------------------------------------------------------------------------
+
+func _count(id: StringName) -> int:
+	return _sfx.count(id)
+
+
+func test_opening_asks_for_the_menu_loop() -> void:
+	_card({"result": _result()})
+	assert_eq(_music, [&"mus_menu"] as Array[StringName])
+
+
+func test_a_scratch_per_row_as_it_shows_then_one_chime() -> void:
+	var card: Control = _card({"result": _result()})
+	assert_eq(_sfx, [] as Array[StringName], "nothing before the card is live")
+	card._process(0.0)
+	assert_eq(_sfx, [&"sfx_chalk_scratch"] as Array[StringName], "row 1 at once")
+	for i: int in range(1, 5):
+		card._process(0.1)
+		assert_eq(_count(&"sfx_chalk_scratch"), i + 1, "row %d" % (i + 1))
+		assert_eq(_count(&"sfx_report_chime"), 0, "no chime before the last row")
+	# A hair over 0.1: five float steps of 0.1 sum to just under 5 * REVEAL_STEP_S.
+	card._process(0.11)
+	assert_eq(_count(&"sfx_chalk_scratch"), 6, "6 rows, 6 scratches")
+	assert_eq(_sfx[_sfx.size() - 1], &"sfx_report_chime", "then the chime, the frame the last row shows")
+	assert_eq(_count(&"sfx_report_chime"), 1)
+
+
+func test_seven_rows_with_a_bonus_make_seven_scratches() -> void:
+	var card: Control = _card({"result": _result(10), "new_best": true})
+	card._process(GUARD)
+	assert_eq(_count(&"sfx_chalk_scratch"), 7)
+	assert_eq(_count(&"sfx_report_chime"), 1)
+	assert_eq(_sfx[_sfx.size() - 1], &"sfx_report_chime", "chime last; the stamp makes no sound")
+
+
+func test_nothing_replays_on_later_frames() -> void:
+	var card: Control = _card({"result": _result()})
+	card._process(GUARD)
+	var after_reveal: Array[StringName] = _sfx.duplicate()
+	for i: int in 10:
+		card._process(0.5)
+	assert_eq(_sfx, after_reveal)
+
+
+func test_a_click_when_leaving_once_and_never_during_the_guard() -> void:
+	var card: Control = _card({"result": _result()})
+	card._process(0.99)
+	(card.get_node("%MenuButton") as Button).pressed.emit()
+	assert_eq(_count(&"sfx_ui_click"), 0, "guarded: silent")
+	card._process(0.01)
+	(card.get_node("%PlayAgainButton") as Button).pressed.emit()
+	(card.get_node("%MenuButton") as Button).pressed.emit()
+	_tap(KEY_ESCAPE)
+	assert_eq(_count(&"sfx_ui_click"), 1, "one click for the one navigation")
+
+
+func test_esc_clicks_too() -> void:
+	_card({"result": _result()})._process(GUARD)
+	_tap(KEY_ESCAPE)
+	assert_eq(_count(&"sfx_ui_click"), 1)
+
+
+func test_enter_clicks_too() -> void:
+	_card({"result": _result()})._process(GUARD)
+	get_viewport().gui_release_focus()
+	_tap(KEY_ENTER)
+	assert_eq(_count(&"sfx_ui_click"), 1)

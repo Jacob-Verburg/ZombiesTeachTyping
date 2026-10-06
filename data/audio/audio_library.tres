@@ -3,75 +3,116 @@
 [ext_resource type="Script" uid="uid://q83dm74shlws" path="res://scripts/resources/audio_library.gd" id="1_lib"]
 [ext_resource type="Script" uid="uid://bfkch1kxwpe8c" path="res://scripts/resources/audio_cue.gd" id="2_cue"]
 [ext_resource type="AudioStream" uid="uid://bnqcw84jqcsix" path="res://assets/audio/sfx/sfx_ui_click.wav" id="3_click"]
-[ext_resource type="AudioStream" uid="uid://bkgistubxp8xy" path="res://assets/audio/music/mus_menu.wav" id="4_menu"]
+[ext_resource type="AudioStream" uid="uid://do14mwvqf8c2q" path="res://assets/audio/music/mus_menu.ogg" id="4_menu"]
 [ext_resource type="AudioStream" uid="uid://djxlkyxtpet1y" path="res://assets/audio/sfx/sfx_wrong_key.wav" id="5_wrong_key"]
 [ext_resource type="AudioStream" uid="uid://bs4qig4xtolfv" path="res://assets/audio/voice/vo_brainsss_01.wav" id="6_brainsss"]
 [ext_resource type="AudioStream" uid="uid://ds88pipbkvg2f" path="res://assets/audio/sfx/sfx_groan_01.wav" id="7_groan_01"]
 [ext_resource type="AudioStream" uid="uid://d3u86185b5bd7" path="res://assets/audio/sfx/sfx_groan_02.wav" id="8_groan_02"]
 [ext_resource type="AudioStream" uid="uid://dthmw4obr7a" path="res://assets/audio/sfx/sfx_groan_03.wav" id="9_groan_03"]
 [ext_resource type="AudioStream" uid="uid://d3pe2ppnlb7oe" path="res://assets/audio/sfx/sfx_groan_04.wav" id="10_groan_04"]
-[ext_resource type="AudioStream" uid="uid://51tlvsl155x7" path="res://assets/audio/sfx/sfx_purchase.wav" id="11_purchase"]
+[ext_resource type="AudioStream" uid="uid://83x7bo15sy2k" path="res://assets/audio/sfx/sfx_purchase.wav" id="11_purchase"]
+[ext_resource type="AudioStream" uid="uid://bju24w3l8ctnl" path="res://assets/audio/voice/vo_brainsss_02.wav" id="12_brainsss_02"]
+[ext_resource type="AudioStream" uid="uid://cblui303f0trv" path="res://assets/audio/sfx/sfx_brain_bonk.wav" id="13_bonk"]
+[ext_resource type="AudioStream" uid="uid://c0k0qf8fcu8xt" path="res://assets/audio/sfx/sfx_hug_poof.wav" id="14_poof"]
+[ext_resource type="AudioStream" uid="uid://bkjjnjucmnm45" path="res://assets/audio/sfx/sfx_chalk_scratch.wav" id="15_chalk"]
+[ext_resource type="AudioStream" uid="uid://ck2i3lca74oy8" path="res://assets/audio/sfx/sfx_report_chime.wav" id="16_chime"]
+[ext_resource type="AudioStream" uid="uid://dcw1ecaj7veyw" path="res://assets/audio/music/mus_zombie_run.ogg" id="17_run_music"]
 
 [sub_resource type="Resource" id="Resource_click"]
 script = ExtResource("2_cue")
 id = &"sfx_ui_click"
 stream = ExtResource("3_click")
-volume_db = -6.0
+volume_db = -8.0
 
 [sub_resource type="Resource" id="Resource_menu"]
 script = ExtResource("2_cue")
 id = &"mus_menu"
 stream = ExtResource("4_menu")
-volume_db = -10.0
+volume_db = -14.0
 
 [sub_resource type="Resource" id="Resource_wrong_key"]
 script = ExtResource("2_cue")
 id = &"sfx_wrong_key"
 stream = ExtResource("5_wrong_key")
-volume_db = -6.0
+volume_db = -14.0
 min_interval_s = 0.15
 
 [sub_resource type="Resource" id="Resource_brainsss"]
 script = ExtResource("2_cue")
 id = &"vo_brainsss"
 stream = ExtResource("6_brainsss")
-volume_db = -6.0
+alt_streams = Array[AudioStream]([ExtResource("12_brainsss_02")])
+volume_db = -4.0
 
 [sub_resource type="Resource" id="Resource_groan_01"]
 script = ExtResource("2_cue")
 id = &"sfx_groan_01"
 stream = ExtResource("7_groan_01")
-volume_db = -8.0
+volume_db = -9.0
 
 [sub_resource type="Resource" id="Resource_groan_02"]
 script = ExtResource("2_cue")
 id = &"sfx_groan_02"
 stream = ExtResource("8_groan_02")
-volume_db = -8.0
+volume_db = -9.0
 
 [sub_resource type="Resource" id="Resource_groan_03"]
 script = ExtResource("2_cue")
 id = &"sfx_groan_03"
 stream = ExtResource("9_groan_03")
-volume_db = -8.0
+volume_db = -9.0
 
 [sub_resource type="Resource" id="Resource_groan_04"]
 script = ExtResource("2_cue")
 id = &"sfx_groan_04"
 stream = ExtResource("10_groan_04")
-volume_db = -8.0
+volume_db = -9.0
 
 [sub_resource type="Resource" id="Resource_purchase"]
 script = ExtResource("2_cue")
 id = &"sfx_purchase"
 stream = ExtResource("11_purchase")
+volume_db = -5.0
+
+[sub_resource type="Resource" id="Resource_bonk"]
+script = ExtResource("2_cue")
+id = &"sfx_brain_bonk"
+stream = ExtResource("13_bonk")
 volume_db = -6.0
+min_interval_s = 0.06
+
+[sub_resource type="Resource" id="Resource_poof"]
+script = ExtResource("2_cue")
+id = &"sfx_hug_poof"
+stream = ExtResource("14_poof")
+volume_db = -7.0
+min_interval_s = 0.08
+
+[sub_resource type="Resource" id="Resource_chalk"]
+script = ExtResource("2_cue")
+id = &"sfx_chalk_scratch"
+stream = ExtResource("15_chalk")
+volume_db = -12.0
+
+[sub_resource type="Resource" id="Resource_chime"]
+script = ExtResource("2_cue")
+id = &"sfx_report_chime"
+stream = ExtResource("16_chime")
+volume_db = -6.0
+
+[sub_resource type="Resource" id="Resource_run_music"]
+script = ExtResource("2_cue")
+id = &"mus_zombie_run"
+stream = ExtResource("17_run_music")
+volume_db = -16.0
 
 [resource]
 script = ExtResource("1_lib")
-cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04"), SubResource("Resource_purchase")])
+cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04"), SubResource("Resource_purchase"), SubResource("Resource_bonk"), SubResource("Resource_poof"), SubResource("Resource_chalk"), SubResource("Resource_chime"), SubResource("Resource_run_music")])
 voice_min_gap_s = 8.0
 groan_ids = Array[StringName]([&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04"])
 groan_min_interval_s = 3.0
 groan_max_interval_s = 8.0
 groan_voice_mute_s = 2.0
+music_crossfade_s = 0.5
+music_pause_duck_db = -10.0

@@ -17,3 +17,6 @@ enum TargetMode { LETTER, WORD, PARAGRAPH }
 ## Brains added to every completed run's RunResult.bonus_brains by RunFrame (Zombie Run 10); never on
 ## quit.
 @export var completion_bonus: int = 0
+## The music loop the run asks AudioManager for when it starts (Story 5.1: Zombie Run &"mus_zombie_run").
+## Empty = leave the music as it is (the test level).
+@export var music_id: StringName = &""

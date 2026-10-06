@@ -12,6 +12,11 @@ extends Control
 ## Debug hooks (Story 2.10): the overlay reads the plain getters, pins a replay seed in the debug_seed
 ## static and ends a run with debug_end_run(); both are gated by the is_debug_build seam.
 ## Ambience (the groans, Story 3.7) is on exactly while RUNNING, switched through the set_ambience seam.
+## Music (Story 5.1): a started level asks for its LevelConfig.music_id (empty = leave the music alone)
+## through the play_music seam; the loop keeps playing through the dance and the report card crossfades to
+## the menu loop. It is ducked from PAUSED until the countdown ends (duck_music seam) and un-ducked when the
+## frame leaves the tree. Clicks (play_sfx seam): the pause panel's buttons and toggles, and Esc / the HUD
+## pause button when they pause; focus loss pauses silently. The wrong-key tick stays a direct call.
 ## Everything in the typing path is synchronous: nothing in it waits or defers a call.
 ## A level config with duration_s <= 0 means "no timer": the level must end the run with end_requested.
 
@@ -49,6 +54,13 @@ var is_debug_build: Callable
 ## Test seam: called as set_ambience.call(on). Defaults (in _ready) to AudioManager.start_ambience() /
 ## stop_ambience(); tests assign a recorder before add_child so the live AudioManager never groans.
 var set_ambience: Callable
+## Test seam: called as play_music.call(music_id). Defaults (in _ready) to AudioManager.play_music; tests
+## assign a recorder before add_child so the live AudioManager's pending music is never touched.
+var play_music: Callable
+## Test seam: called as duck_music.call(on). Defaults (in _ready) to AudioManager.set_music_ducked.
+var duck_music: Callable
+## Test seam: called as play_sfx.call(cue_id) for clicks. Defaults (in _ready) to AudioManager.play_sfx.
+var play_sfx: Callable
 
 var _state: RunState = RunState.WAITING_FIRST_KEY
 var _clock: RunClock = RunClock.new()
@@ -92,10 +104,26 @@ func _ready() -> void:
 				AudioManager.start_ambience()
 			else:
 				AudioManager.stop_ambience()
+	if not play_music.is_valid():
+		play_music = AudioManager.play_music
+	if not duck_music.is_valid():
+		duck_music = AudioManager.set_music_ducked
+	if not play_sfx.is_valid():
+		play_sfx = AudioManager.play_sfx
 	var payload: Dictionary = Router.take_payload()
 	var error: String = _start_level(payload)
 	if error != "":
 		_fail_to_menu(error)
+
+
+func _sfx(cue_id: StringName) -> void:
+	if play_sfx.is_valid():
+		play_sfx.call(cue_id)
+
+
+func _duck(on: bool) -> void:
+	if duck_music.is_valid():
+		duck_music.call(on)
 
 
 func _exit_tree() -> void:
@@ -103,6 +131,8 @@ func _exit_tree() -> void:
 	# A frame freed mid-run (scene swap, tests) must not leave the groans on. Quit already went via PAUSED.
 	if _state == RunState.RUNNING and set_ambience.is_valid():
 		set_ambience.call(false)
+	# Quit to Menu leaves from PAUSED: never leave the music ducked behind the run.
+	_duck(false)
 	# The autoload outlives the run: drop its connections explicitly.
 	if WebPlatform.focus_lost.is_connected(_on_web_platform_focus_lost):
 		WebPlatform.focus_lost.disconnect(_on_web_platform_focus_lost)
@@ -119,7 +149,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _session == null:
 		return
 	get_viewport().set_input_as_handled()
-	_request_pause()
+	_on_pause_asked()
 
 
 func _process(delta: float) -> void:
@@ -232,7 +262,7 @@ func _start_level(payload: Dictionary) -> String:
 	%TypingInput.caps_lock_suspected.connect(_on_typing_input_caps_lock_suspected)
 	%TypingInput.caps_lock_cleared.connect(_on_typing_input_caps_lock_cleared)
 	# Pause flow (Story 2.7).
-	%Hud.pause_pressed.connect(_request_pause)
+	%Hud.pause_pressed.connect(_on_pause_asked)
 	%PausePanel.resume_chosen.connect(_on_pause_panel_resume_chosen)
 	%PausePanel.quit_chosen.connect(_quit_to_menu)
 	%PausePanel.music_toggled.connect(_on_pause_panel_music_toggled)
@@ -240,6 +270,8 @@ func _start_level(payload: Dictionary) -> String:
 	%Countdown.finished.connect(_on_countdown_finished)
 	WebPlatform.focus_lost.connect(_on_web_platform_focus_lost)
 	WebPlatform.visibility_hidden.connect(_on_web_platform_focus_lost)
+	if config.music_id != &"":
+		play_music.call(config.music_id)
 	last_seed = _seed
 	last_seed_level = _level_id
 	Log.info(&"run", "started level=%s seed=%d%s" % [_level_id, _seed, " (replay)" if _replayed else ""])
@@ -303,6 +335,7 @@ func _set_state(new_state: RunState) -> void:
 	# The tree is unpaused only when a countdown ends (into RUNNING or WAITING_FIRST_KEY).
 	if from_state == RunState.COUNTDOWN and (new_state == RunState.RUNNING or new_state == RunState.WAITING_FIRST_KEY):
 		pause_tree.call(false)
+		_duck(false)
 	# Groans only while RUNNING: every way out of it (pause, timer, F6, end_requested) passes here.
 	if from_state == RunState.RUNNING:
 		set_ambience.call(false)
@@ -316,6 +349,7 @@ func _set_state(new_state: RunState) -> void:
 		RunState.PAUSED:
 			_clock.pause()
 			pause_tree.call(true)
+			_duck(true)
 			%PausePanel.open(player_data.get_setting(&"music_on"), player_data.get_setting(&"sound_on"))
 		RunState.COUNTDOWN:
 			# The tree stays paused until the countdown has finished.
@@ -332,6 +366,14 @@ func _set_state(new_state: RunState) -> void:
 			_record_result()
 		RunState.DONE:
 			_send_result()
+
+
+## Esc or the HUD pause button: the kid asked, so a pause that happens clicks (focus loss is silent).
+func _on_pause_asked() -> void:
+	var before: RunState = _state
+	_request_pause()
+	if _state == RunState.PAUSED and before != RunState.PAUSED:
+		_sfx(&"sfx_ui_click")
 
 
 ## Esc, the HUD pause button and focus loss all end here.
@@ -354,6 +396,7 @@ func _quit_to_menu() -> void:
 	if _quitting or _state != RunState.PAUSED:
 		return
 	_quitting = true
+	_sfx(&"sfx_ui_click")
 	%TypingInput.active = false
 	var brains: int = _level.get_brains_earned()
 	player_data.add_brains(brains)
@@ -428,6 +471,7 @@ func _on_typing_input_caps_lock_cleared() -> void:
 func _on_pause_panel_resume_chosen() -> void:
 	if _quitting or _state != RunState.PAUSED:
 		return
+	_sfx(&"sfx_ui_click")
 	_set_state(RunState.COUNTDOWN)
 
 
@@ -443,13 +487,16 @@ func _on_pause_panel_music_toggled(on: bool) -> void:
 		return
 	AudioManager.set_music_muted(not on)
 	player_data.set_setting(&"music_on", on)
+	_sfx(&"sfx_ui_click")
 
 
+## The click plays after the mute, so turning Sound on clicks audibly (like the main menu).
 func _on_pause_panel_sound_toggled(on: bool) -> void:
 	if _quitting:
 		return
 	AudioManager.set_sfx_muted(not on)
 	player_data.set_setting(&"sound_on", on)
+	_sfx(&"sfx_ui_click")
 
 
 ## Window blur or tab hidden (one tab switch fires both): pauses a running run or a countdown only.
