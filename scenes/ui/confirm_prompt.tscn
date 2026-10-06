@@ -1,0 +1,107 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/confirm_prompt.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/ui/pixel_button.gd" id="2_pixel_button"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
+bg_color = Color(0.3529412, 0.19607843, 0.09411765, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sign"]
+bg_color = Color(0.9647059, 0.9058824, 0.75686276, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+
+[node name="ConfirmPrompt" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="Scrim" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.16862746, 0.11372549, 0.24705882, 0.6)
+
+[node name="Panel" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 56.0
+offset_top = 96.0
+offset_right = 584.0
+offset_bottom = 264.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
+
+[node name="Wood" type="ColorRect" parent="Panel"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 524.0
+offset_bottom = 164.0
+mouse_filter = 2
+color = Color(0.5411765, 0.32156864, 0.15686275, 1)
+
+[node name="Sign" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 64.0
+offset_top = 104.0
+offset_right = 576.0
+offset_bottom = 204.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_sign")
+
+[node name="QuestionLabel" type="Label" parent="Sign"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="YesButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 208.0
+offset_top = 216.0
+offset_right = 304.0
+offset_bottom = 248.0
+theme_type_variation = &"PixelButton"
+text = "Yes"
+script = ExtResource("2_pixel_button")
+
+[node name="NoButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 336.0
+offset_top = 216.0
+offset_right = 432.0
+offset_bottom = 248.0
+theme_type_variation = &"PixelButton"
+text = "No"
+script = ExtResource("2_pixel_button")

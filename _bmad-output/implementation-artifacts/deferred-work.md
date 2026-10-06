@@ -22,7 +22,7 @@
 - Router sets `get_tree().paused = false` unconditionally after every transition, which clobbers any pause owned elsewhere (e.g. Story 1.5's tab-blur pause) and pauses other autoloads (AudioManager) for 0.3 s per transition. Revisit when a second pause owner appears: save/restore prior state or centralise pause ownership.
 - `Router.go()` during a transition is dropped with only a `Log.debug`. A screen that redirects from its own `_ready()` (e.g. Welcome Gift → Closet when already claimed) loses the redirect silently. Options: queue the last request, return a bool, or defer the redirect with `call_deferred` after `screen_changed`.
 - On web, Godot dispatches buffered input from its main loop, not inside the browser's event handler. Story 1.4 must verify that `AudioManager.unlock()` called from `_unhandled_input` actually satisfies the browser gesture rule (Safari especially), or rely on the engine's own AudioContext resume.
-- Placeholder button wiring (targets, payloads, Esc on Crypt Closet) and the title's once-only latch / unlock-before-go order are untested; needs a Router test double or injectable router reference.
+- Placeholder button wiring (targets, payloads, Esc on Crypt Closet) and the title's once-only latch / unlock-before-go order are untested; needs a Router test double or injectable router reference. Done in 4.4: the real Closet has `navigate` / `is_transitioning` seams, and `test_crypt_closet.gd` covers Esc and the Menu button (once each, the `_leaving` guard, Esc = No while the prompt is open).
 
 ## Deferred from: dev of story-1-4 (2026-10-03)
 
@@ -387,9 +387,27 @@
 - The slots listen to PlayerData once, from `_ready()`, and disconnect in `_exit_tree()`. A slot removed and re-added to the tree (a reparent) would not reconnect. Nothing reparents a slot today. The Crypt Closet preview (4.4) uses `follow_equipped = false`, so it is not affected.
 - The screens' `player_data` test seams (main menu, report card) don't reach their slots: a slot defaults to the live `PlayerData`. `test_main_menu.gd` sets the slots' own seams. Other screen tests assert slot type and position only, as the story asked.
 - Godot quirk handled in `HatSlot._follow()`: `AnimatedSprite2D` emits `animation_changed` before it resets the frame, so the old frame index is read against the new animation for a moment. An index past the new animation's end is skipped quietly, and the reset's `frame_changed` lands the hat. A same-length switch briefly reads the new animation at the old index, then corrects within the same call.
-- The fit check's `E` key writes the real save (it gives each item's price in brains, then buys and equips it, so the wallet nets zero). It is debug-only and works as specified. Story 4.5's welcome gift and the Closet (4.4) make it unnecessary.
+- The fit check's `E` key writes the real save (it gives each item's price in brains, then buys and equips it, so the wallet nets zero). It is debug-only and works as specified. Story 4.5's welcome gift and the Closet (4.4) make it unnecessary. 4.4 note: the Closet now buys and wears for real; the debug key stays for art checks.
+
+## Deferred from: dev of story 4-4 (2026-10-06)
+
+- Final Closet art: tile frames and tags, the confirm prompt's wood panel and parchment sign, the mirror, the hand-lettered "Crypt Closet" sign (all placeholder `StyleBoxFlat`s in palette colours today), plus the brain counter tick-down and the button squish after a purchase: Story 5.0 / 5.1.
+- The tutorial arrow and the `tutorial_seen` flag: Story 4.5. Its positions are in `sketches/crypt-closet-4-4.md` frame D; the hooks are `get_tile(id)` and `get_confirm_prompt()`, and the Closet already consumes the payload.
+- Closet music (the Closet starts no music of its own): Story 5.1.
+- Approved sketch deviations (Smuck, 2026-10-06, "Approve as drawn"): the long words ("Coming soon", "Need N more", "Wearing") live on the info sign for the focused tile, Buy tiles show the price on the pumpkin tag, Wearing is a drawn check mark (Press Start 2P has no U+2713), tiles are 68 px instead of DESIGN.md's 48 px, locked items show no name, and the focus ring sits on the tile's own edge. DESIGN.md was not edited; the sketch is the override.
+- Story 5.2's grayscale review should look at the five tile states side by side: Locked (stone, "?"), Can't afford (disabled fill, no tag box), Buy (pumpkin tag), Wear (green tag, word), Wearing (bright tag, check). Buy vs Wear vs Wearing differ by tag content as well as colour, but the tag fills are close in grey.
+- The MVP tile icons are the hat's 32x32 overlay and the ghost's first idle frame, so the pumpkin sits low and small in its art box (the overlay is drawn for the head, brim on row 30). Proper tile icons belong with the Epic 9 / 5.0 art.
+- Observed in the browser pane (web debug build): the first one or two mouse moves after a screen change don't move focus on hover; later moves do. The main menu (4.2) does the same, so it predates the Closet. With a real mouse the cursor sends many moves and it is barely noticeable. Worth a look in 5.0 (the Router fade or Godot's first motion after a scene swap).
+- The confirm prompt closes before it emits `answered` (the story text said emit then close), so a handler always sees `is_open() == false` and can reopen it safely.
 
 ## Deferred from: code review of story-4-3-hat-and-pet-display-everywhere (2026-10-05)
 
 - `HatSlot`/`PetSlot` connect to PlayerData only in `_ready` (reparent leaves them stale). Move to `_enter_tree` if anything starts reparenting.
 - Test robustness: `test_hud.gd` and `test_report_card.gd` use the live `PlayerData` autoload (a saved hat/pet on the dev machine can change results); art-number magic constants in report card/main menu tests; fit-check key bindings and warning counts are untested.
+
+## Deferred from: code review of story-4-4-crypt-closet (2026-10-06)
+
+- Task 7.1 live walk was in a web export and never reached the report card; the hat on the report card is covered only by 4.3's check.
+- Closet item tile wiggle tween is node-bound, so a tree pause can leave `Frame.position.x` off rest until the next wiggle.
+- `uid://51tlvsl155x7` in `audio_library.tres` was hand-written; if `sfx_purchase.wav.import` is regenerated with another UID Godot warns and falls back to the path.
+- Placeholder jingle waveform in `tools/gen_placeholder_audio.gd` starts at -1 (masked by the 4 ms attack).

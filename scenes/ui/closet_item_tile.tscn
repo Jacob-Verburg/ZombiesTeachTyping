@@ -1,0 +1,101 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://b8lp7ivcoa7os" path="res://scripts/ui/closet_item_tile.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ring"]
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.8235294, 0.24705882, 1)
+
+[node name="ClosetItemTile" type="Control"]
+custom_minimum_size = Vector2(68, 68)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 68.0
+offset_bottom = 68.0
+focus_mode = 2
+script = ExtResource("1_script")
+
+[node name="Shadow" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 70.0
+offset_bottom = 70.0
+mouse_filter = 2
+color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+
+[node name="Frame" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 68.0
+offset_bottom = 68.0
+mouse_filter = 2
+
+[node name="Art" type="TextureRect" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 18.0
+offset_top = 6.0
+offset_right = 50.0
+offset_bottom = 38.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 3
+
+[node name="Question" type="Label" parent="Frame"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 18.0
+offset_top = 6.0
+offset_right = 50.0
+offset_bottom = 38.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.30588236, 0.2784314, 0.34117648, 1)
+theme_override_font_sizes/font_size = 32
+text = "?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Tag" type="Panel" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 2.0
+offset_top = 46.0
+offset_right = 66.0
+offset_bottom = 66.0
+mouse_filter = 2
+
+[node name="TagLabel" type="Label" parent="Frame/Tag"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Check" type="Line2D" parent="Frame/Tag"]
+unique_name_in_owner = true
+visible = false
+points = PackedVector2Array(25, 9, 30, 14, 39, 4)
+width = 3.0
+default_color = Color(0.18039216, 0.41960785, 0.14901961, 1)
+joint_mode = 0
+
+[node name="FocusRing" type="Panel" parent="Frame"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_right = 68.0
+offset_bottom = 68.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ring")

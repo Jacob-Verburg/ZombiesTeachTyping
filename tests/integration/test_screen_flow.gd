@@ -9,7 +9,7 @@ const FLOW_BUTTONS: Dictionary = {
 	"MAIN_MENU": ["%ClosetButton"],
 	"REPORT_CARD": ["%PlayAgainButton", "%MenuButton"],
 	"WELCOME_GIFT": ["%OpenClosetButton"],
-	"CRYPT_CLOSET": ["%BackButton"],
+	"CRYPT_CLOSET": ["%MenuButton"],
 	"KEYBOARD_TEST": ["%FullscreenButton", "%DownloadButton", "%BackButton", "%BrainButton"],
 }
 
@@ -81,6 +81,14 @@ func test_main_menu_consumes_the_payload() -> void:
 	Router._store_payload({"stale": true})
 	var menu: Control = _instance(Router.Screen.MAIN_MENU)
 	assert_not_null(menu)
+	assert_eq(Router.take_payload(), {})
+
+
+## Story 4.4: the real Closet consumes whatever payload it was given (Story 4.5 reads a tutorial flag).
+func test_closet_consumes_the_payload() -> void:
+	Router._store_payload({"stale": true})
+	var closet: Control = _instance(Router.Screen.CRYPT_CLOSET)
+	assert_not_null(closet)
 	assert_eq(Router.take_payload(), {})
 
 

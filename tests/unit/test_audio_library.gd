@@ -101,6 +101,20 @@ func test_real_library_brainsss_voice() -> void:
 	assert_eq(library.voice_min_gap_s, 8.0, "voice lines at least 8 s apart (FR48)")
 
 
+func test_real_library_purchase_jingle() -> void:
+	var library: AudioLibrary = load(LIBRARY_PATH) as AudioLibrary
+	assert_not_null(library)
+	if library == null:
+		return
+	var jingle: AudioCue = library.get_cue(&"sfx_purchase")
+	assert_not_null(jingle, "sfx_purchase cue (Story 4.4)")
+	if jingle == null:
+		return
+	assert_not_null(jingle.stream)
+	assert_eq(jingle.volume_db, -6.0)
+	assert_eq(jingle.min_interval_s, 0.0, "the jingle is not throttled")
+
+
 func test_voice_gap_default_is_neutral() -> void:
 	assert_eq(AudioLibrary.new().voice_min_gap_s, 0.0)
 

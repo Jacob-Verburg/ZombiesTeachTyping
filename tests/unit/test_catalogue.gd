@@ -242,7 +242,8 @@ func test_shipped_economy_config() -> void:
 	assert_eq((economy as EconomyConfig).welcome_bonus, 100)
 
 
-## Story 4.3: the MVP items carry their art; the Epic 9 items still have none. icon stays empty (4.4).
+## Story 4.3: the MVP items carry their art; the Epic 9 items still have none. Story 4.4: the MVP items
+## have a 32x32 Closet icon; the Epic 9 items have none (their tiles are Locked and show "?").
 func test_shipped_mvp_items_have_art() -> void:
 	var catalogue: Catalogue = _shipped()
 	var hat: CosmeticItem = catalogue.get_item(&"hat_pumpkin")
@@ -251,8 +252,13 @@ func test_shipped_mvp_items_have_art() -> void:
 	var pet: CosmeticItem = catalogue.get_item(&"pet_cute_ghost")
 	assert_not_null(pet.pet_frames, "the cute ghost has pet frames")
 	assert_true(pet.pet_frames.has_animation(&"idle"))
+	assert_not_null(hat.icon, "the pumpkin hat has a Closet icon")
+	assert_not_null(pet.icon, "the cute ghost has a Closet icon")
+	if hat.icon != null and pet.icon != null:
+		assert_eq(hat.icon.get_size(), Vector2(32, 32))
+		assert_eq(pet.icon.get_size(), Vector2(32, 32))
 	for item: CosmeticItem in catalogue.items:
-		assert_null(item.icon, "%s icon is Story 4.4" % item.id)
 		if not item.is_available:
+			assert_null(item.icon, "%s has no icon yet (Epic 9)" % item.id)
 			assert_null(item.overlay, "%s has no art yet (Epic 9)" % item.id)
 			assert_null(item.pet_frames, "%s has no art yet (Epic 9)" % item.id)

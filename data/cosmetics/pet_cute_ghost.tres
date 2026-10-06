@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CosmeticItem" load_steps=8 format=3]
+[gd_resource type="Resource" script_class="CosmeticItem" load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/cosmetic_item.gd" id="1_item"]
 [ext_resource type="Texture2D" uid="uid://c1ykfhq4clp82" path="res://assets/sprites/cosmetics/pets/pet_cute_ghost_idle.png" id="2_idle"]
@@ -18,6 +18,10 @@ region = Rect2(64, 0, 32, 32)
 [sub_resource type="AtlasTexture" id="AtlasTexture_idle_3"]
 atlas = ExtResource("2_idle")
 region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_icon"]
+atlas = ExtResource("2_idle")
+region = Rect2(0, 0, 32, 32)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_ghost"]
 animations = [{
@@ -47,4 +51,5 @@ slot = 1
 price = 100
 row = 1
 is_available = true
+icon = SubResource("AtlasTexture_icon")
 pet_frames = SubResource("SpriteFrames_ghost")

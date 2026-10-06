@@ -1,5 +1,5 @@
 # generated: 2026-09-27 12:21
-# last_updated: 2026-10-05
+# last_updated: 2026-10-06
 # project: zombies-teach-typing
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-09-27 12:21
-last_updated: 2026-10-05
+last_updated: 2026-10-06
 project: zombies-teach-typing
 project_key: NOKEY
 tracking_system: file-system
@@ -81,7 +81,7 @@ development_status:
   4-1-cosmetic-catalogue-and-brain-wallet-rules: done
   4-2-main-menu: done
   4-3-hat-and-pet-display-everywhere: done
-  4-4-crypt-closet: backlog
+  4-4-crypt-closet: done
   4-5-welcome-gift-and-guided-first-purchase: backlog
   epic-4-retrospective: optional
 

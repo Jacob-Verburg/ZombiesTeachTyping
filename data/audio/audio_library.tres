@@ -10,6 +10,7 @@
 [ext_resource type="AudioStream" uid="uid://d3u86185b5bd7" path="res://assets/audio/sfx/sfx_groan_02.wav" id="8_groan_02"]
 [ext_resource type="AudioStream" uid="uid://dthmw4obr7a" path="res://assets/audio/sfx/sfx_groan_03.wav" id="9_groan_03"]
 [ext_resource type="AudioStream" uid="uid://d3pe2ppnlb7oe" path="res://assets/audio/sfx/sfx_groan_04.wav" id="10_groan_04"]
+[ext_resource type="AudioStream" uid="uid://51tlvsl155x7" path="res://assets/audio/sfx/sfx_purchase.wav" id="11_purchase"]
 
 [sub_resource type="Resource" id="Resource_click"]
 script = ExtResource("2_cue")
@@ -60,9 +61,15 @@ id = &"sfx_groan_04"
 stream = ExtResource("10_groan_04")
 volume_db = -8.0
 
+[sub_resource type="Resource" id="Resource_purchase"]
+script = ExtResource("2_cue")
+id = &"sfx_purchase"
+stream = ExtResource("11_purchase")
+volume_db = -6.0
+
 [resource]
 script = ExtResource("1_lib")
-cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04")])
+cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04"), SubResource("Resource_purchase")])
 voice_min_gap_s = 8.0
 groan_ids = Array[StringName]([&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04"])
 groan_min_interval_s = 3.0

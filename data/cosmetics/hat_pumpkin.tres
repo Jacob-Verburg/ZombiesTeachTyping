@@ -11,4 +11,5 @@ slot = 0
 price = 100
 row = 1
 is_available = true
+icon = ExtResource("2_overlay")
 overlay = ExtResource("2_overlay")

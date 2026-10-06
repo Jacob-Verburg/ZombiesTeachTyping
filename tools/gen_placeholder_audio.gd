@@ -8,6 +8,8 @@ const CLICK_PATH: String = "res://assets/audio/sfx/sfx_ui_click.wav"
 const MUSIC_PATH: String = "res://assets/audio/music/mus_menu.wav"
 const WRONG_KEY_PATH: String = "res://assets/audio/sfx/sfx_wrong_key.wav"
 const VOICE_PATH: String = "res://assets/audio/voice/vo_brainsss_01.wav"
+## The Crypt Closet purchase jingle (Story 4.4).
+const PURCHASE_PATH: String = "res://assets/audio/sfx/sfx_purchase.wav"
 ## Ambience groans (Story 3.7), one per _groan_samples() variant.
 const GROAN_PATHS: Array[String] = [
 	"res://assets/audio/sfx/sfx_groan_01.wav",
@@ -36,6 +38,11 @@ const VOICE_NOISE_SEED: int = 3202
 const GROAN_PEAK: float = 0.3
 ## Groan lengths in seconds, one per variant.
 const GROAN_SECONDS: Array[float] = [0.8, 0.7, 0.65, 0.85]
+## Happy, a bit under the click: C5, E5, G5 rising, then C6 held (MIDI note numbers).
+const PURCHASE_PEAK: float = 0.4
+const PURCHASE_NOTES: Array[int] = [72, 76, 79, 84]
+const PURCHASE_NOTE_SECONDS: float = 0.08
+const PURCHASE_HOLD_SECONDS: float = 0.25
 
 
 func _init() -> void:
@@ -51,6 +58,7 @@ func _init() -> void:
 		_save(_groan_samples(1), GROAN_PATHS[1]),
 		_save(_groan_samples(2), GROAN_PATHS[2]),
 		_save(_groan_samples(3), GROAN_PATHS[3]),
+		_save(_purchase_samples(), PURCHASE_PATH),
 	]
 	# Non-zero exit on any failure, so a bad path or cwd doesn't look like success.
 	quit(0 if errors.all(func(err: Error) -> bool: return err == OK) else 1)
@@ -149,6 +157,25 @@ func _groan_pitch(variant: int, u: float) -> float:
 			return 100.0 if u < 0.6 else lerpf(100.0, 150.0, (u - 0.6) / 0.4)
 		_:
 			return lerpf(100.0, 145.0, u / 0.25) if u < 0.25 else lerpf(145.0, 100.0, (u - 0.25) / 0.75)
+
+
+## About 0.49 s: three short triangle notes rising C5-E5-G5, then C6 held with a fade. Every note starts
+## and ends at zero amplitude. No noise, so no RNG.
+func _purchase_samples() -> PackedFloat32Array:
+	var samples: PackedFloat32Array = PackedFloat32Array()
+	for n: int in PURCHASE_NOTES.size():
+		var held: bool = n == PURCHASE_NOTES.size() - 1
+		var count: int = int((PURCHASE_HOLD_SECONDS if held else PURCHASE_NOTE_SECONDS) * MIX_RATE)
+		var freq: float = 440.0 * pow(2.0, (PURCHASE_NOTES[n] - 69) / 12.0)
+		for i: int in count:
+			var t: float = float(i) / MIX_RATE
+			var phase: float = freq * t
+			var triangle: float = 4.0 * absf(phase - floorf(phase + 0.5)) - 1.0
+			var attack: float = minf(1.0, t / 0.004)
+			var release: float = minf(1.0, float(count - 1 - i) / (0.01 * MIX_RATE))
+			var fade: float = (1.0 - float(i) / count) if held else 1.0
+			samples.append(triangle * attack * release * fade * PURCHASE_PEAK)
+	return samples
 
 
 ## Soft triangle-wave arpeggios. Every note starts and ends at zero amplitude,
