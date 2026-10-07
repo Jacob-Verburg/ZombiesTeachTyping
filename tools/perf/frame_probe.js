@@ -19,6 +19,10 @@
 	var MAX_KEY_ROWS = 500;
 	var NFR1_FAIL_MS = 33.4;
 	var VSYNC_MISS_MS = 17.5;
+	// NFR1: no frame over 33 ms. 33.4 (not 33.0) so a vsync-rounded 33.33 ms frame is not counted.
+	// NFR1 FPS floor is 59 so 59.94 Hz panels pass. NFR2: one 60 Hz refresh (16.7) plus 0.5 ms.
+	var NFR2_LIMIT_MS = 17.2;
+	var LONG_GAP_MS = 1000;
 	var WATCHED_KEYS = [" ", "'", "/", "Backspace", "Tab", "Escape"];
 
 	if (window.zts_probe && window.zts_probe._teardown) {
@@ -32,18 +36,23 @@
 	var latencyCount = 0;
 	var pendingKeys = [];
 	var keyRows = [];
+	var droppedLatencies = 0;
+	var droppedKeyRows = 0;
+	var truncated = false;
 
 	var state = "idle"; // idle | armed | recording | done
 	var mode = "running"; // running | load window
 	var startTs = 0;
-	var focused = document.hasFocus();
+	var focused = document.hasFocus() && !document.hidden;
 	var focusTimer = 0;
 	var rafId = 0;
 	var lastSummary = null;
 	var lastRun = null;
 
 	function isLetter(evt) {
-		return typeof evt.key === "string" && evt.key.length === 1 && evt.key >= "a" && evt.key <= "z"
+		if (typeof evt.key !== "string" || evt.key.length !== 1) { return false; }
+		var k = evt.key.toLowerCase(); // Caps Lock / Shift give "A"
+		return k >= "a" && k <= "z"
 			&& !evt.ctrlKey && !evt.metaKey && !evt.altKey;
 	}
 
@@ -93,8 +102,8 @@
 			p95_ms: round2(percentile(sorted, 95)),
 			max_ms: round2(maxMs),
 			refresh_ms: round2(refreshMs),
-			// The frame is presented at the following vsync.
-			nfr2_pass: n > 0 && maxMs <= Math.max(refreshMs, 16.7) + 0.5,
+			// Fixed limit, not derived from the measured refresh: a throttled (30 Hz) tab must fail.
+			nfr2_pass: n > 0 && maxMs <= NFR2_LIMIT_MS,
 			note: "keydown timeStamp -> next rAF frame timestamp; the visual is presented at the following vsync"
 		};
 	}
@@ -103,24 +112,30 @@
 		var all = [];
 		var focusedOnly = [];
 		var unfocusedFrames = 0;
-		var firstSecond = [];
+		var longGaps = 0;
 		for (var i = 1; i < frameCount; i++) {
 			var dt = frameTimes[i] - frameTimes[i - 1];
 			all.push(dt);
-			if (frameTimes[i] - frameTimes[0] <= 1000) { firstSecond.push(dt); }
 			if (frameFocus[i] && frameFocus[i - 1]) {
 				focusedOnly.push(dt);
+				if (dt > LONG_GAP_MS) { longGaps++; }
 			} else {
 				unfocusedFrames++;
 			}
 		}
-		var focusedStats = summarize(focusedOnly, firstSecond.length ? firstSecond : null);
-		var rawStats = summarize(all, firstSecond.length ? firstSecond : null);
+		// refresh_ms is the median of the whole run, not the (hitchy) first second.
+		var focusedStats = summarize(focusedOnly, null);
+		var rawStats = summarize(all, null);
 		var lat = latencySummary(latencies.subarray(0, latencyCount), focusedStats.refresh_ms);
 		return {
 			label: mode === "load window" ? "load window (not M1 RUNNING)" : "RUNNING (first letter -> 120 s)",
 			duration_s: frameCount > 1 ? round2((frameTimes[frameCount - 1] - frameTimes[0]) / 1000) : 0,
+			is_running_row: mode !== "load window",
 			frames_while_unfocused: unfocusedFrames,
+			focused_gaps_over_1s: longGaps,
+			truncated: truncated,
+			dropped_latency_samples: droppedLatencies,
+			dropped_key_rows: droppedKeyRows,
 			nfr1: focusedStats,
 			raw_including_unfocused: rawStats,
 			nfr2_latency: lat
@@ -133,13 +148,24 @@
 		console.log("[zts_probe] frames " + s.frames + " | mean " + s.mean_ms + " | p50 " + s.p50_ms
 			+ " | p95 " + s.p95_ms + " | p99 " + s.p99_ms + " | max " + s.max_ms + " ms");
 		console.log("[zts_probe] > 33 ms: " + s.over_33ms + " | > 17.5 ms: " + s.over_17_5ms
-			+ " | FPS " + s.fps + " | refresh " + s.refresh_ms + " ms | NFR1 " + (s.nfr1_pass ? "PASS" : "FAIL"));
+			+ " | FPS " + s.fps + " | refresh " + s.refresh_ms + " ms | NFR1 "
+			+ (run.is_running_row ? (s.nfr1_pass ? "PASS" : "FAIL") : "n/a (load window)"));
+		if (run.focused_gaps_over_1s > 0) {
+			console.log("[zts_probe] WARNING " + run.focused_gaps_over_1s
+				+ " focused gap(s) over 1 s: a real freeze, or the tab was hidden. They are counted in the numbers above.");
+		}
+		if (run.truncated) {
+			console.log("[zts_probe] WARNING the frame buffer filled before the run ended (screen faster than 240 Hz); the run is incomplete.");
+		}
+		if (run.dropped_latency_samples > 0) {
+			console.log("[zts_probe] WARNING " + run.dropped_latency_samples + " key latency samples dropped (buffer full).");
+		}
 		if (run.frames_while_unfocused > 0) {
 			console.log("[zts_probe] " + run.frames_while_unfocused
 				+ " frames while unfocused (left out of the numbers above; the run pauses on blur)");
 		}
 		console.log("[zts_probe] latency keys " + l.keys + " | p50 " + l.p50_ms + " | p95 " + l.p95_ms
-			+ " | max " + l.max_ms + " ms | NFR2 " + (l.nfr2_pass ? "PASS" : "FAIL") + " (" + l.note + ")");
+			+ " | max " + l.max_ms + " ms | NFR2 " + (run.is_running_row ? (l.nfr2_pass ? "PASS" : "FAIL") : "n/a (load window)") + " (" + l.note + ")");
 		console.log("[zts_probe] copy(JSON.stringify(zts_probe.result())) to copy everything");
 	}
 
@@ -155,25 +181,34 @@
 		for (var i = 0; i < pendingKeys.length; i++) {
 			if (latencyCount < MAX_KEYS) {
 				latencies[latencyCount++] = Math.max(0, ts - pendingKeys[i]);
+			} else {
+				droppedLatencies++;
 			}
 		}
 		pendingKeys.length = 0;
 		if (ts - startTs >= ZTS_PROBE_SECONDS * 1000 + EXTRA_MS || frameCount >= MAX_FRAMES) {
+			truncated = ts - startTs < ZTS_PROBE_SECONDS * 1000;
 			finish();
 			return;
 		}
 		rafId = requestAnimationFrame(onFrame);
 	}
 
+	function updateFocus() {
+		focused = document.hasFocus() && !document.hidden;
+	}
+
 	function startRecording() {
 		frameCount = 0;
 		latencyCount = 0;
+		droppedLatencies = 0;
+		truncated = false;
 		pendingKeys.length = 0;
 		state = "recording";
 		startTs = performance.now();
-		focused = document.hasFocus();
+		updateFocus();
 		clearInterval(focusTimer);
-		focusTimer = setInterval(function () { focused = document.hasFocus(); }, 250);
+		focusTimer = setInterval(updateFocus, 250);
 		rafId = requestAnimationFrame(onFrame);
 	}
 
@@ -205,7 +240,8 @@
 
 	// Bubble phase: runs after the game's capture-phase listener has had its say.
 	function onKeyWatch(evt) {
-		if (WATCHED_KEYS.indexOf(evt.key) === -1 || keyRows.length >= MAX_KEY_ROWS) { return; }
+		if (evt.repeat || WATCHED_KEYS.indexOf(evt.key) === -1) { return; }
+		if (keyRows.length >= MAX_KEY_ROWS) { droppedKeyRows++; return; }
 		var before = scrollPos();
 		var row = {
 			t_s: round2(performance.now() / 1000),
@@ -237,11 +273,18 @@
 
 	window.addEventListener("keydown", onKeyLatency, { capture: true, passive: true });
 	window.addEventListener("keydown", onKeyWatch, { capture: false, passive: true });
+	document.addEventListener("visibilitychange", updateFocus);
+	window.addEventListener("blur", updateFocus);
+	window.addEventListener("focus", updateFocus);
 
 	window.zts_probe = {
 		arm: function (opts) {
 			if (state === "recording") { console.log("[zts_probe] already recording; stop() first"); return; }
 			mode = opts && opts.startNow ? "load window" : "running";
+			lastRun = null;
+			lastSummary = null;
+			keyRows = [];
+			droppedKeyRows = 0;
 			if (mode === "load window") {
 				startRecording();
 				console.log("[zts_probe] recording the load window now for " + ZTS_PROBE_SECONDS + " s");
@@ -270,6 +313,7 @@
 				inner: { width: window.innerWidth, height: window.innerHeight },
 				canvas: canvasInfo(),
 				state: state,
+				dropped_key_rows: droppedKeyRows,
 				run: lastRun,
 				keys: keyRows
 			};
@@ -311,6 +355,9 @@
 			clearInterval(focusTimer);
 			window.removeEventListener("keydown", onKeyLatency, { capture: true });
 			window.removeEventListener("keydown", onKeyWatch, { capture: false });
+			document.removeEventListener("visibilitychange", updateFocus);
+			window.removeEventListener("blur", updateFocus);
+			window.removeEventListener("focus", updateFocus);
 		}
 	};
 	console.log("[zts_probe] ready. zts_probe.arm() on the 'Type the letter to start!' screen.");

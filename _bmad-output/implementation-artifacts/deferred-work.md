@@ -486,3 +486,12 @@
 - M7 Windows exe: the quit run's brains were written to the save (59 → 68), but the exe wasn't relaunched afterwards to show it reloads them. Smuck recorded it as passing.
 - `epics.md` Story 5.3 AC 7 says "(NFR8 fallback smoke check)"; the Windows fallback is NFR5 (NFR8 is colour accessibility). For the PM; not edited.
 - CI: GitHub warns `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19; check the Godot install step still works after that date.
+
+## Deferred from: code review of story-5-3 (2026-10-06)
+
+- NFR1/NFR2 on weak (2018-era) hardware, Chrome and Firefox remain unmeasured (pending measurement).
+- M4 is aggregate only (not per round) and not run for Chrome.
+- M7: exe not relaunched after the brains write; windowed 1280x720 start, no console window, F3 no overlay and fullscreen toggle sub-checks not recorded.
+- 5.1 OGG-decode load hitch (runbook step 3) not captured and not labelled Skipped.
+- `tools/perf/frame_probe.js` key watcher matches `evt.key`, so Dead `'` (US-International) and Shift+`/` are not logged; same limit in `scripts/autoloads/web_platform.gd` `CAPTURED_KEYS`.
+- Probe selftest covers only the pure maths; add `buildRun`/state-machine cases. README should note Firefox `resistFingerprinting` rounds timestamps.
