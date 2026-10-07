@@ -3,7 +3,7 @@ baseline_commit: 4704855
 ---
 # Story 5.5: Playtest Fixes and Publish the MVP Link
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,15 +25,15 @@ so that family and friends can play Zombies Teach Typing.
 - [x] **Task 1: Baseline (AC: 1)**
   - [x] 1.1 Starting commit `4704855` (clean `main`). `"/c/Program Files/Godot/Godot.exe" --headless --path . --import`, then the full GUT run; 5.4 ended at **1319** passing (confirm the count yourself; no `Parse Error|Compile Error|Failed to load script` in the output). Hash the real dev save (`%APPDATA%/Godot/app_userdata/ZombiesTeachTyping/save.json`, sha256) before and after every suite run (the 4.5 / 5.3 real-save trap). The new tests must not touch it (temp `SaveService`, fake fullscreen seams, as `test_main_menu.gd` does).
   - [x] 1.2 Reproduce F1 before changing anything: write the failing test first (Task 2.1), watch it fail, then fix. Note in the Debug Log what the failing test showed.
-- [ ] **Task 2: Fix F1, the Fullscreen toggle icon state (AC: 1)**
+- [x] **Task 2: Fix F1, the Fullscreen toggle icon state (AC: 1)**
   - [x] 2.1 **Failing test first** in `tests/unit/test_main_menu.gd` (or a new `test_main_menu_fullscreen.gd` if the file is long): a fake window whose `is_fullscreen` flips **N frames after** `toggle_fullscreen` is called (the real behaviour: the browser applies the mode later, the desktop maybe a frame late). Cases: (a) press the toggle: the icon follows the mode once it lands (on after it enters fullscreen, off after it leaves), and never stays on the stale state; (b) the mode never changes (the browser refused the request): the icon returns to the real state instead of showing a state the window is not in; (c) the browser's own Esc exit while the menu is open: the icon follows without any press; (d) one flip calls `toggle_fullscreen` exactly once and plays the click once (existing test `test_fullscreen_flip_calls_the_toggle_once_and_follows_the_mode`, line ~305, must still pass or be updated to the new timing). Use `await wait_frames(...)` / `wait_physical_frames` from GUT, not real time.
   - [x] 2.2 **Fix** in `scripts/screens/main_menu.gd`. Recommended: keep `_sync_fullscreen()` as the single place that reads `is_fullscreen.call()` and calls `%FullscreenToggle.show_state(...)`, and call it **every frame while the menu is open** from `_process` (a bool compare; `show_state` only when the value differs from `toggle.is_on()`, so no redraw churn). In `_on_fullscreen_flipped` remove the immediate `_sync_fullscreen()` that reads the stale mode and overwrites the optimistic flip (keep the call to `toggle_fullscreen.call()` inside the input callback: the browser only allows fullscreen from a user gesture). Keep the existing `get_tree().root.size_changed.connect(_sync_fullscreen)` (harmless, helps the windowed desktop case). Stop processing when `_leaving` is set. Do **not** change `WebPlatform.toggle_fullscreen` / `is_fullscreen` semantics (they already re-read the engine on every call, `web_platform.gd:62-73`). If the polling approach turns out wrong on the Windows exe, the alternative is a short `SceneTreeTimer` re-read after the flip plus `NOTIFICATION_WM_SIZE_CHANGED`; pick by what the re-check shows, and write the reason in the Debug Log.
   - [x] 2.3 **Why the old code failed (documented in 5.3 F1):** `main_menu.gd:219-221` called `toggle_fullscreen` then immediately `_sync_fullscreen()` → `is_fullscreen()`, but the window-mode change lands later, so it re-read the old state. `window/stretch/mode="viewport"` keeps the root viewport at 640×360, so `root.size_changed` (line 66) never fired to correct it. The icon is a 2-frame sheet (`MenuToggle._show_icon`, frame 0 on / frame 1 off with the red slash); `MenuToggle._on_icon_button_pressed` already flips optimistically, which is correct once the stale re-read is gone.
-  - [ ] 2.4 Re-check in the real thing, recorded in the Debug Log (Smuck does the exe, the agent does the web pane): (a) **Web** (a local Web export served from `build/web` with `python -m http.server`, or the Pages build after the tag): menu → click Fullscreen: the icon is on (no slash) while fullscreen, slash while windowed; browser Esc out: the icon flips back with no press. (b) **Windows exe** (`build/windows/ZombiesTeachTyping.exe`, rebuilt from the fix; the dev PC save is backed up first, as in 5.3): same two checks. If the agent cannot drive fullscreen in the pane (the browser may refuse without a real user gesture), say so and ask Smuck to do (a) too: record it as "Smuck, reported".
-- [ ] **Task 3: Release build has no debug (AC: 2)**
+  - [x] 2.4 Re-check in the real thing, recorded in the Debug Log (Smuck does the exe, the agent does the web pane): (a) **Web** (a local Web export served from `build/web` with `python -m http.server`, or the Pages build after the tag): menu → click Fullscreen: the icon is on (no slash) while fullscreen, slash while windowed; browser Esc out: the icon flips back with no press. (b) **Windows exe** (`build/windows/ZombiesTeachTyping.exe`, rebuilt from the fix; the dev PC save is backed up first, as in 5.3): same two checks. If the agent cannot drive fullscreen in the pane (the browser may refuse without a real user gesture), say so and ask Smuck to do (a) too: record it as "Smuck, reported".
+- [x] **Task 3: Release build has no debug (AC: 2)**
   - [x] 3.1 Confirm by code and by test that every debug path is gated and that release is covered: `Router._is_debug_build()` → overlay (`router.gd:59,151`); `RunFrame.is_debug_build` seam gates `debug_seed` and `debug_end_run` (`run_frame.gd:202,286`, tests `test_release_ignores_the_pinned_seed`, `test_release_refuses_the_debug_end_run` in `tests/integration/test_run_frame.gd:922,931`); `LevelRegistry.get_scene(..., debug_build)` hides `debug_only` levels (`level_registry.gd:23`); `Log.debug_enabled = OS.is_debug_build()`. Grep `scripts/` for any other `Input.is_key_pressed` / `KEY_F*` handler outside `scripts/debug/` (the `KEY_F1..F35` in `game_constants.gd:15` is the typing filter, not a cheat). The only release-safe debug-ish feature is the **Ctrl+Shift+E save export on the main menu** (Story 1.8, by design: it is what lets families send a save); list it in `## Release Check` as "present by design". If a gap is found (a cheat reachable in release), that is a new must-fix: add it to the register and fix it with a test; do not stretch the story silently.
   - [x] 3.2 Add or confirm one automated guard that the shipped release has no overlay: the existing `test_debug_overlay.gd` / `test_screen_flow.gd` release-case test(s) via the `_is_debug_build` seam. If none asserts "release build → no `DebugOverlay` child on the Router", add one test (do not call the real `OS.is_debug_build`).
-  - [ ] 3.3 On the **published release build** (Task 6 re-check): F3, F5–F9, F2 do nothing on the title, menu, run and report card; no `DebugOverlay` node. In the pane, `javascript_tool` can only inspect the page, not the Godot tree, so judge by the keys doing nothing and by the title/menu looking unchanged; record exactly that.
+  - [x] 3.3 On the **published release build** (Task 6 re-check): F3, F5–F9, F2 do nothing on the title, menu, run and report card; no `DebugOverlay` node. In the pane, `javascript_tool` can only inspect the page, not the Godot tree, so judge by the keys doing nothing and by the title/menu looking unchanged; record exactly that.
 - [x] **Task 4: How-to-play note (AC: 3)**
   - [x] 4.1 Write the note, plain words a parent can read in 20 seconds, 5–7 short lines max (see `## How To Play Note` below for the draft). Fixed facts: needs a **computer with a physical keyboard** (no phones or tablets), **desktop Chrome, Edge or Firefox**, no sign-up, no ads, nothing is sent anywhere; progress is saved in the browser on that computer, so use the same browser each time (and the "This browser might forget your brains" notice on the menu means the browser may clear it). Mention the one hidden grown-up feature only if Smuck wants it: Ctrl+Shift+E on the main menu downloads a copy of the save (Chrome/Edge verified; Firefox uses that chord for its own tool, so it is unverified there; 1.8 deferral).
   - [x] 4.2 Where it goes (Gate A decides): recommended **the GitHub Release notes for `v1.0.0`** (created with `gh release create v1.0.0 --notes-file …` at Gate B, only after Smuck's yes) and the same text pasted wherever Smuck shares the link. Do **not** add a game screen or a repo `README` unless Smuck asks (no game code beyond F1 in this story; UX has no how-to-play screen, the tutorial arrow and the Welcome Gift teach the loop). If Smuck wants a README, it is a small separate docs-only change in the same commit and not under `docs/` (export-excluded folder).
@@ -42,15 +42,15 @@ so that family and friends can play Zombies Teach Typing.
   - [x] 5.2 **Promote any deferral?** Candidates worth a thought before strangers play: NFR1/NFR2 on a weak computer is unmeasured (5.3), the one-off ~110–165 ms OGG-decode hitch on first music play (5.1), Firefox Ctrl+Shift+E unverified. Recommend: promote none (all are known and measured or declared; they can follow in a 1.0.x patch). Record the answer.
   - [x] 5.3 **How-to-play note: wording and home.** Show the draft; ask if anything should change and where it lives (GitHub Release notes recommended).
   - [x] 5.4 **Release shape.** Recommend: tag `v1.0.0` on the fix commit after the push to `main` is green, and `gh release create` for the notes. Confirm the tag name `v1.0.0` (the epic's AC) and that Pages stays the host (ADR-4, NFR12: no analytics).
-- [ ] **Task 6: Gate B — publish (AC: 2, 3)**
-  - [ ] 6.1 Commit the fix (Task 2, 3.2, 4 draft) on `main` as one commit `Story 5.5: playtest fixes (in progress)` and push. Wait for the `build` workflow on `main` to go green (GUT, Web export; **it does not deploy**, deploy only runs on `v*`). If CI is red, fix first; do not tag. Watch the Ubuntu runner note from 5.3: GitHub moves `ubuntu-latest` to Ubuntu 26 on **2026-10-19**; if the tag build happens after that date and the Godot install step fails, that is the likely cause (not a game bug).
-  - [ ] 6.2 **Smuck's explicit yes** to publish ("Push the `v1.0.0` tag now? This deploys the build to the public Pages link."). Only after a clear yes: `git tag v1.0.0` on the pushed commit and `git push origin v1.0.0`; use the `ccd_pr`/`gh` tools only for what they are for (no PR here). Watch the tag run: `gh run list --branch v1.0.0` / `gh run watch` (a single check, not a poll loop). Record the run id and result in the Debug Log.
-  - [ ] 6.3 **Release check on the live link** (AC 2). Fresh profile = a new private/incognito window or cleared site data (the built-in pane's storage may not be fresh: clear it via DevTools → Application → "Clear site data" first and say so). Open https://jacob-verburg.github.io/ZombiesTeachTyping/ and walk the loop: title ("Click or press any key") → menu → pick Zombie Run → play the 2:00 run (the agent may type with `computer`; or Smuck plays and reports) → report card → welcome gift opens → Closet → buy the guided item → wear it → Play Again → hat visible on the zombie in the run. Plus: F1 fix visible on the live menu (Task 2.4a), debug keys do nothing (Task 3.3), reload keeps the brains and the worn hat, no console errors (`read_console_messages`). Anything the agent cannot do in the pane (real keyboard capture, fullscreen) is "Skipped" with the reason or "Smuck, reported". Record each step in `## Release Check`.
-  - [ ] 6.4 Create the GitHub Release `v1.0.0` with the note (only with the same yes as 6.2 or a separate one if Smuck prefers) and show the final link + note to Smuck for sharing. Nothing is sent to anyone by the agent.
-- [ ] **Task 7: Wrap-up (AC: 1, 4)**
-  - [ ] 7.1 `deferred-work.md`: add "Deferred from: dev of story 5-5" with anything found and not fixed (one line each); strike the 5.3 deferral lines this story closes (F1) with `~~…~~ Done in 5.5: …`. Update the hypothesis tally line: still "0 of 0 kids so far (needs 2 of the first 3); all 3 come after the link is shared", now with the live link and the instruction to ask families for the Ctrl+Shift+E export and run `python tools/playtest/summarize_save.py <file>`.
-  - [ ] 7.2 Full GUT suite twice (`--import` first), real `save.json` hash unchanged before, between and after; local Web export once (`"/c/Program Files/Godot/Godot.exe" --headless --path . --export-release "Web" build/web/index.html`; `build/` is git-ignored) to prove the fix exports; the Windows export only if Smuck does the exe re-check (Task 2.4b).
-  - [ ] 7.3 Dev Agent Record, File List, Change Log; Status → `review`; `sprint-status.yaml` → `review` (and `last_updated`). Suggested final commit: `Story 5.5: playtest fixes and publish the MVP link`. After review, Epic 5's other stories are all done: the epic stays `in-progress` until Smuck marks it done (retrospective optional).
+- [x] **Task 6: Gate B — publish (AC: 2, 3)**
+  - [x] 6.1 Commit the fix (Task 2, 3.2, 4 draft) on `main` as one commit `Story 5.5: playtest fixes (in progress)` and push. Wait for the `build` workflow on `main` to go green (GUT, Web export; **it does not deploy**, deploy only runs on `v*`). If CI is red, fix first; do not tag. Watch the Ubuntu runner note from 5.3: GitHub moves `ubuntu-latest` to Ubuntu 26 on **2026-10-19**; if the tag build happens after that date and the Godot install step fails, that is the likely cause (not a game bug).
+  - [x] 6.2 **Smuck's explicit yes** to publish ("Push the `v1.0.0` tag now? This deploys the build to the public Pages link."). Only after a clear yes: `git tag v1.0.0` on the pushed commit and `git push origin v1.0.0`; use the `ccd_pr`/`gh` tools only for what they are for (no PR here). Watch the tag run: `gh run list --branch v1.0.0` / `gh run watch` (a single check, not a poll loop). Record the run id and result in the Debug Log.
+  - [x] 6.3 **Release check on the live link** (AC 2). Fresh profile = a new private/incognito window or cleared site data (the built-in pane's storage may not be fresh: clear it via DevTools → Application → "Clear site data" first and say so). Open https://jacob-verburg.github.io/ZombiesTeachTyping/ and walk the loop: title ("Click or press any key") → menu → pick Zombie Run → play the 2:00 run (the agent may type with `computer`; or Smuck plays and reports) → report card → welcome gift opens → Closet → buy the guided item → wear it → Play Again → hat visible on the zombie in the run. Plus: F1 fix visible on the live menu (Task 2.4a), debug keys do nothing (Task 3.3), reload keeps the brains and the worn hat, no console errors (`read_console_messages`). Anything the agent cannot do in the pane (real keyboard capture, fullscreen) is "Skipped" with the reason or "Smuck, reported". Record each step in `## Release Check`.
+  - [x] 6.4 Create the GitHub Release `v1.0.0` with the note (only with the same yes as 6.2 or a separate one if Smuck prefers) and show the final link + note to Smuck for sharing. Nothing is sent to anyone by the agent.
+- [x] **Task 7: Wrap-up (AC: 1, 4)**
+  - [x] 7.1 `deferred-work.md`: add "Deferred from: dev of story 5-5" with anything found and not fixed (one line each); strike the 5.3 deferral lines this story closes (F1) with `~~…~~ Done in 5.5: …`. Update the hypothesis tally line: still "0 of 0 kids so far (needs 2 of the first 3); all 3 come after the link is shared", now with the live link and the instruction to ask families for the Ctrl+Shift+E export and run `python tools/playtest/summarize_save.py <file>`.
+  - [x] 7.2 Full GUT suite twice (`--import` first), real `save.json` hash unchanged before, between and after; local Web export once (`"/c/Program Files/Godot/Godot.exe" --headless --path . --export-release "Web" build/web/index.html`; `build/` is git-ignored) to prove the fix exports; the Windows export only if Smuck does the exe re-check (Task 2.4b).
+  - [x] 7.3 Dev Agent Record, File List, Change Log; Status → `review`; `sprint-status.yaml` → `review` (and `last_updated`). Suggested final commit: `Story 5.5: playtest fixes and publish the MVP link`. After review, Epic 5's other stories are all done: the epic stays `in-progress` until Smuck marks it done (retrospective optional).
 
 ## Must-Fix Register
 
@@ -58,7 +58,7 @@ _(The agent fills Evidence as it works. Gate A may add rows.)_
 
 | Id | Source | What | Fix | Evidence (test or re-check) |
 | --- | --- | --- | --- | --- |
-| F1 | 5.3 (Smuck, Gate B 2026-10-06: "Must-fix before publish") | Main-menu Fullscreen toggle shows the wrong state: Windows exe icon flips backwards; web icon always shows the red slash. Fullscreen itself works. NFR8: the slash carries the state. | `main_menu.gd`: re-read the mode every frame while the menu is open (`_process`); no stale re-read right after the flip; a press holds the asked-for state up to `FULLSCREEN_SETTLE_FRAMES` (60) until the window switches, then the real mode shows (Task 2.2) | `tests/unit/test_main_menu_fullscreen.gd`: 3 of 4 failed on the old code, 4/4 pass on the fix; existing `test_main_menu.gd` 37/37. Web pane (local export): the refused-request path returns to the slash (the pane refuses fullscreen). Accept path + Esc exit: Smuck (web, exe) — see Debug Log |
+| F1 | 5.3 (Smuck, Gate B 2026-10-06: "Must-fix before publish") | Main-menu Fullscreen toggle shows the wrong state: Windows exe icon flips backwards; web icon always shows the red slash. Fullscreen itself works. NFR8: the slash carries the state. | `main_menu.gd`: re-read the mode every frame while the menu is open (`_process`); no stale re-read right after the flip; a press holds the asked-for state up to `FULLSCREEN_SETTLE_FRAMES` (60) until the window switches, then the real mode shows (Task 2.2) | `tests/unit/test_main_menu_fullscreen.gd`: 3 of 4 failed on the old code, 4/4 pass on the fix; existing `test_main_menu.gd` 37/37. Web pane (local export): the refused-request path returns to the slash (the pane refuses fullscreen). Accept path + Esc exit: Smuck, reported: exe "Pass: icon follows", web (localhost:8060, same commit) "Done now: Pass" (2026-10-07). CI green on `3fbb91f` (run 37673669288) |
 | — | 5.4 | None. P1 ("no kid playtested") → Smuck: no action. | — | — |
 
 ## How To Play Note
@@ -80,20 +80,20 @@ _(Filled live. Pass / Fail / Skipped; Skipped carries Smuck's reason verbatim; s
 
 | Step | Result | Who / how | Notes |
 | --- | --- | --- | --- |
-| CI on the fix commit is green | | | |
-| Tag `v1.0.0` pushed (Smuck's yes, date) | | | |
-| Tag run deployed to Pages | | | |
-| Fresh profile: title → menu | | | |
-| Menu → Zombie Run → full run | | | |
-| Report card | | | |
-| Welcome gift | | | |
-| Closet: buy and wear | | | |
-| Play again: hat visible | | | |
-| Fullscreen icon follows the mode (F1 fixed) | | | |
-| Debug keys do nothing; no overlay | | | |
-| Reload keeps brains and hat | | | |
-| No console errors | | | |
-| How-to-play note ready with the link | | | |
+| CI on the fix commit is green | Pass | agent, `gh run watch` | `3fbb91f`, run 37673669288: build success, deploy skipped (main) |
+| Tag `v1.0.0` pushed (Smuck's yes, date) | Pass | agent, after Smuck's "Yes, push v1.0.0" (2026-10-07) | `v1.0.0` → `3fbb91f` |
+| Tag run deployed to Pages | Pass | agent, `gh run watch` | run 37674075732: build success, deploy success |
+| Fresh profile: title → menu | Pass | agent, built-in pane (Chromium) | Site data cleared first in the pane (IndexedDB `/userfs` deleted, caches and storage cleared). Title "Click or press any key" → menu with 0 brains, no hat |
+| Menu → Zombie Run → full run | Pass | agent, built-in pane | Agent pressed the shown letters (33 keys, 0 errors), then let the 2:00 clock run out. While the pane was hidden the game throttled; Smuck put the pane on screen and the run continued |
+| Report card | Pass | agent, built-in pane | Keys 33, Errors 0, WPM 3, Accuracy 100%, Lesson Time 2:00, Brains 18 (+10 bonus) |
+| Welcome gift | Pass | agent, built-in pane | Report card → Menu opened "Welcome gift! +100" → "Open the Crypt Closet" |
+| Closet: buy and wear | Pass | agent, built-in pane | Arrow on Pumpkin hat (118 brains); Buy → "Buy the Pumpkin hat for 100 brains?" Yes → 18 brains → Wear → "Wearing" |
+| Play again: hat visible | Pass | agent, built-in pane | Closet → Menu (hat on the menu zombie) → Zombie Run: pumpkin hat on the zombie in the run. Entered via the menu card, not the report card's Play Again button |
+| Fullscreen icon follows the mode (F1 fixed) | Pass | Smuck, reported (exe + web on the local export of `3fbb91f`, the deployed commit); agent pane: refused path only | The pane refuses real fullscreen; not re-done on the Pages URL |
+| Debug keys do nothing; no overlay | Pass | agent, built-in pane | F3 on the title only acted as "any key"; F3 F2 F5 F6 F7 F8 F9 on the menu and F3 F2 F6–F9 in the run (before the first letter): nothing changed, no overlay, no page reload, Errors 0. Report card not tried. Ctrl+Shift+E save export: present by design |
+| Reload keeps brains and hat | Pass | agent, built-in pane | After reload: 18 brains, pumpkin hat on the menu zombie; no storage notice shown |
+| No console errors | Pass | agent, `read_console_messages` + network list | One error: a 404 for `/ZombiesTeachTyping/__clear__`, the agent's own blank page used to clear site data. Every game request 200 |
+| How-to-play note ready with the link | Pass | agent, after Smuck's "Yes, create the Release" | https://github.com/Jacob-Verburg/ZombiesTeachTyping/releases/tag/v1.0.0 (the draft as-is plus one "Play:" link line) |
 
 ## Review Approval
 
@@ -104,6 +104,15 @@ _(Gate A and Gate B answers, verbatim with the date.)_
 - 5.2 Promote any deferral: "Promote none (Recommended)"
 - 5.3 How-to-play note: "Draft as-is, Release notes (Recommended)"
 - 5.4 Release shape: "Yes, v1.0.0 on Pages (Recommended)"
+
+**F1 re-checks (2026-10-07, Smuck via `AskUserQuestion`):**
+- Exe: "Pass: icon follows"
+- Web: "Done now: Pass" (localhost:8060, the local export of the fix)
+
+**Gate B (2026-10-07, Smuck via `AskUserQuestion`):**
+- 6.2 Push the tag: "Yes, push v1.0.0"
+- 6.4 GitHub Release: "Yes, create the Release"
+- Live check: "I'll show the pane, you keep going (Recommended)"
 
 ## Dev Notes
 
@@ -203,11 +212,32 @@ Claude Opus 5.5 (claude-opus-5-5)
 - **Release audit (Task 3.1):** outside `scripts/debug/`, the only `OS.is_debug_build` gates are `Router._is_debug_build()` (overlay), `RunFrame.is_debug_build` (seed, end run), `LevelRegistry.get_scene(debug_build)`, `Log.debug_enabled`. No `Input.is_key_pressed`/F-key handler elsewhere (`game_constants.gd` F1..F35 is the typing filter). `KEYBOARD_TEST` and the debug scenes are reached only from the overlay; the `debug_only` level is the test level. Ctrl+Shift+E export: present by design. No new must-fix. Guard (3.2): already present, `tests/unit/test_router.gd:121` `test_release_build_never_instances_the_overlay` (a `ReleaseRouter` overriding `_is_debug_build`); no new test needed.
 - **Web re-check (2.4a, agent, built-in pane, local `--export-release "Web"` served on :8060):** menu opens with the slash (windowed). Click Fullscreen: the pane refused the request (`document.fullscreenElement` stayed `null`); 2 s later the icon showed the slash again = the refused-request path works in a real browser. The accept path and the browser Esc exit cannot be driven in the pane: Smuck's.
 - **Windows exe** rebuilt from the fix (`build/windows/ZombiesTeachTyping.exe`, 2026-10-07 12:18); dev save backed up first to `%TEMP%/save-backup-5-5.json` (same hash).
+- **F1 re-checks by Smuck:** exe "Pass: icon follows"; web on localhost:8060 "Done now: Pass". The polling + settle-window approach stays (no exe issue, so the `SceneTreeTimer` alternative was not needed).
+- **Fix commit:** `3fbb91f` "Story 5.5: playtest fixes (in progress)" pushed to `main`; CI run 37673669288 success (build success, deploy skipped).
+- **Publish:** after Smuck's yes, `git tag v1.0.0 3fbb91f` + push; tag run 37674075732 success (build + deploy). GitHub Release created: https://github.com/Jacob-Verburg/ZombiesTeachTyping/releases/tag/v1.0.0 .
+- **Live check:** see `## Release Check`. The `computer` `type` action doesn't reach Godot (Keys stayed 0); `key` presses do. A hidden pane throttles the game (the clock stalled at 1:59); fine once the pane was shown.
+- **Final (7.2):** two full GUT runs: 75 scripts, 1323/1323 each, 0 load errors; real save hash `c34c7559b3761b0…` unchanged before, between and after. Local Web export ok (exit 0); Windows export rebuilt for Smuck's exe re-check.
 
 ### Completion Notes List
 
+- F1 fixed: `main_menu.gd` re-reads the window mode every frame while the menu is open and no longer re-reads the stale mode right after a press; a press holds the asked-for icon until the window switches (≤ 60 frames), then the real mode shows (refused request). One toggle call and one click per press are kept; `MenuToggle`, `WebPlatform` unchanged.
+- New `tests/unit/test_main_menu_fullscreen.gd` (4 tests: late flip in and out, refused request, the browser's own exit, stops after leaving). 3 failed on the old code. Suite 1319 → 1323, all passing.
+- Release audit: no debug path reachable in release beyond the by-design Ctrl+Shift+E export; existing guard `test_router.gd` `test_release_build_never_instances_the_overlay`.
+- Gate A: F1 only, no deferral promoted, note as-is in the Release notes, v1.0.0 on Pages. Gate B: tag pushed and Release created on Smuck's explicit yes.
+- Published v1.0.0: https://jacob-verburg.github.io/ZombiesTeachTyping/ ; the full MVP loop passes on the live link (agent, built-in pane, cleared site data). F1 checked by Smuck on the exe and the web (local export of the deployed commit).
+- `deferred-work.md`: F1 marked done; 5.5 section with the hypothesis tally, the live-link line and what was not walked.
+
 ### File List
+
+- `scripts/screens/main_menu.gd` (modified)
+- `tests/unit/test_main_menu_fullscreen.gd` (new)
+- `tests/unit/test_main_menu_fullscreen.gd.uid` (new)
+- `_bmad-output/implementation-artifacts/5-5-playtest-fixes-and-publish-the-mvp-link.md` (this story)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (modified)
+- Outside the repo: git tag `v1.0.0`, GitHub Release `v1.0.0` (notes = the how-to-play note)
 
 ## Change Log
 
 - 2026-10-07: Story 5.5 created (ready-for-dev).
+- 2026-10-07: F1 fixed with tests (1323 passing); v1.0.0 tagged, deployed to Pages and released with the how-to-play note; live MVP loop checked; status → review.

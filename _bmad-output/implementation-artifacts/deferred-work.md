@@ -491,7 +491,7 @@
 
 - NFR1/NFR2 on weak (2018-era) hardware, Chrome and Firefox remain unmeasured (pending measurement).
 - M4 is aggregate only (not per round) and not run for Chrome.
-- M7: exe not relaunched after the brains write; windowed 1280x720 start, no console window, F3 no overlay and fullscreen toggle sub-checks not recorded.
+- M7: exe not relaunched after the brains write; windowed 1280x720 start, no console window, F3 no overlay and ~~fullscreen toggle~~ sub-checks not recorded. ~~Fullscreen toggle (F1)~~ Done in 5.5: icon follows the real mode (`main_menu.gd` per-frame re-read; `test_main_menu_fullscreen.gd`; exe and web re-checked by Smuck, 2026-10-07).
 - 5.1 OGG-decode load hitch (runbook step 3) not captured and not labelled Skipped.
 - `tools/perf/frame_probe.js` key watcher matches `evt.key`, so Dead `'` (US-International) and Shift+`/` are not logged; same limit in `scripts/autoloads/web_platform.gd` `CAPTURED_KEYS`.
 - Probe selftest covers only the pure maths; add `buildRun`/state-machine cases. README should note Firefox `resistFingerprinting` rounds timestamps.
@@ -499,7 +499,7 @@
 ## Deferred from: dev of story 5-4 (2026-10-07)
 
 - **No kid playtest before publishing (5.4 P1, Smuck: no action).** Smuck demoed the MVP to coworkers instead ("lets mark all as good, no action, while not a kid I gave demo to coworkers"). Every kid check in `5-4-first-kid-playtest.md` is Skipped. The watch-list items still wait for kid evidence: dance-time arrow (5.0), 32 px letter size (5.2), Caps Lock hint, accuracy/WPM rounding down, Story 4.5's "Play with it!" button, the 6-year-old full keyboard note.
-- **Core hypothesis: 0 of 0 kids so far (needs 2 of the first 3); all 3 come after the link is shared.** Ask families for the Ctrl+Shift+E export (main menu) and run `python tools/playtest/summarize_save.py <file>`.
+- **Core hypothesis: 0 of 0 kids so far (needs 2 of the first 3); all 3 come after the link is shared.** (Superseded by the 5.5 tally line below.) Ask families for the Ctrl+Shift+E export (main menu) and run `python tools/playtest/summarize_save.py <file>`.
 - NFR1/NFR2 on weak hardware (5.3) is still unmeasured: no family computer was used in 5.4.
 - The Ctrl+Shift+E export was verified on the Pages build in a Chromium pane (2026-10-07); Firefox is still unverified.
 
@@ -507,3 +507,11 @@
 
 - `tools/playtest/summarize_save.py` does not warn when `schema_version` is missing or newer than the script knows (the game goes read-only above `CURRENT_SCHEMA`); renamed fields would silently show "—".
 - `summarize_save.py` `merge_per_key` accepts negative counts, `errors > attempts` and non-numeric `typed` values without a warning; the game never writes these.
+
+## Deferred from: dev of story 5-5 (2026-10-07)
+
+- **Core hypothesis: 0 of 0 kids so far (needs 2 of the first 3); all 3 come after the link is shared.** Live link (v1.0.0): https://jacob-verburg.github.io/ZombiesTeachTyping/ . Ask families for the Ctrl+Shift+E export (main menu) and run `python tools/playtest/summarize_save.py <file>`.
+- The v1.0.0 live-link loop was walked only in the built-in Chromium pane (agent, cleared site data); real Chrome, Edge and Firefox on the live link were not walked. The F1 web accept path + Esc exit were checked by Smuck on the local export of the same commit (`3fbb91f`), not on Pages.
+- Fullscreen press "click once" has no test seam (the live `AudioManager`); covered by code only. Toggle-once is tested.
+- A `root.size_changed` during the 60-frame settle window after a Fullscreen press re-reads the mode at once and could show the old state for a frame until the window switches; not seen in any re-check.
+- Still open from 5.x (not promoted at Gate A): NFR1/NFR2 on weak hardware, the first-music OGG-decode hitch, Firefox Ctrl+Shift+E, the `ubuntu-latest` → Ubuntu 26 switch on 2026-10-19.
