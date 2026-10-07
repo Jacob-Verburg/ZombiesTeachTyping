@@ -495,3 +495,15 @@
 - 5.1 OGG-decode load hitch (runbook step 3) not captured and not labelled Skipped.
 - `tools/perf/frame_probe.js` key watcher matches `evt.key`, so Dead `'` (US-International) and Shift+`/` are not logged; same limit in `scripts/autoloads/web_platform.gd` `CAPTURED_KEYS`.
 - Probe selftest covers only the pure maths; add `buildRun`/state-machine cases. README should note Firefox `resistFingerprinting` rounds timestamps.
+
+## Deferred from: dev of story 5-4 (2026-10-07)
+
+- **No kid playtest before publishing (5.4 P1, Smuck: no action).** Smuck demoed the MVP to coworkers instead ("lets mark all as good, no action, while not a kid I gave demo to coworkers"). Every kid check in `5-4-first-kid-playtest.md` is Skipped. The watch-list items still wait for kid evidence: dance-time arrow (5.0), 32 px letter size (5.2), Caps Lock hint, accuracy/WPM rounding down, Story 4.5's "Play with it!" button, the 6-year-old full keyboard note.
+- **Core hypothesis: 0 of 0 kids so far (needs 2 of the first 3); all 3 come after the link is shared.** Ask families for the Ctrl+Shift+E export (main menu) and run `python tools/playtest/summarize_save.py <file>`.
+- NFR1/NFR2 on weak hardware (5.3) is still unmeasured: no family computer was used in 5.4.
+- The Ctrl+Shift+E export was verified on the Pages build in a Chromium pane (2026-10-07); Firefox is still unverified.
+
+## Deferred from: code review of story-5-4-first-kid-playtest (2026-10-07)
+
+- `tools/playtest/summarize_save.py` does not warn when `schema_version` is missing or newer than the script knows (the game goes read-only above `CURRENT_SCHEMA`); renamed fields would silently show "—".
+- `summarize_save.py` `merge_per_key` accepts negative counts, `errors > attempts` and non-numeric `typed` values without a warning; the game never writes these.
