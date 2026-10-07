@@ -394,8 +394,8 @@
 - Final Closet art: tile frames and tags, the confirm prompt's wood panel and parchment sign, the mirror, the hand-lettered "Crypt Closet" sign (all placeholder `StyleBoxFlat`s in palette colours today), plus the brain counter tick-down and the button squish after a purchase: Story 5.0 / 5.1. Art part done in 5.0 (tile / tag 9-slices, WoodPanel, Sign, Mirror, the lettered sign; the squish is in the button art); the tick-down stays for 5.1.
 - ~~The tutorial arrow and the `tutorial_seen` flag: Story 4.5. Its positions are in `sketches/crypt-closet-4-4.md` frame D; the hooks are `get_tile(id)` and `get_confirm_prompt()`, and the Closet already consumes the payload.~~ Done in 4.5: `TutorialArrow` widget; the Closet guides Buy, Yes, Wear from the `{"tutorial": true}` payload and sets `tutorial_seen` on equip or leave.
 - ~~Closet music (the Closet starts no music of its own): Story 5.1.~~ Done in 5.1: the Closet, the Welcome Gift and the report card ask for `mus_menu`.
-- Approved sketch deviations (Smuck, 2026-10-06, "Approve as drawn"): the long words ("Coming soon", "Need N more", "Wearing") live on the info sign for the focused tile, Buy tiles show the price on the pumpkin tag, Wearing is a drawn check mark (Press Start 2P has no U+2713), tiles are 68 px instead of DESIGN.md's 48 px, locked items show no name, and the focus ring sits on the tile's own edge. DESIGN.md was not edited; the sketch is the override.
-- Story 5.2's grayscale review should look at the five tile states side by side: Locked (stone, "?"), Can't afford (disabled fill, no tag box), Buy (pumpkin tag), Wear (green tag, word), Wearing (bright tag, check). Buy vs Wear vs Wearing differ by tag content as well as colour, but the tag fills are close in grey.
+- Approved sketch deviations (Smuck, 2026-10-06, "Approve as drawn"): the long words ("Coming soon", "Need N more", "Wearing") live on the info sign for the focused tile, Buy tiles show the price on the pumpkin tag, Wearing is a drawn check mark (Press Start 2P has no U+2713), tiles are 68 px instead of DESIGN.md's 48 px, locked items show no name, and the focus ring sits on the tile's own edge (superseded in Story 5.2 Gate B: the ring now sits 2 px outside the ink edge, same ring art). DESIGN.md was not edited; the sketch is the override.
+- ~~Story 5.2's grayscale review should look at the five tile states side by side: Locked (stone, "?"), Can't afford (disabled fill, no tag box), Buy (pumpkin tag), Wear (green tag, word), Wearing (bright tag, check). Buy vs Wear vs Wearing differ by tag content as well as colour, but the tag fills are close in grey.~~ Done in 5.2: all five side by side in `screenshots/5-2/18-closet-five-states-focus-buy-gray.png` (pass, Gate B); pinned by `test_grayscale_states.gd::test_the_five_tile_states_differ_by_shape_or_content`. The review also moved tile focus outside the ink edge (it vanished in grey).
 - ~~The MVP tile icons are the hat's 32x32 overlay and the ghost's first idle frame, so the pumpkin sits low and small in its art box (the overlay is drawn for the head, brim on row 30). Proper tile icons belong with the Epic 9 / 5.0 art.~~ Done in 5.0 (pumpkin): the icon is an AtlasTexture cropped to the opaque pixels with a centring margin, still 32 × 32.
 - Observed in the browser pane (web debug build): the first one or two mouse moves after a screen change don't move focus on hover; later moves do. The main menu (4.2) does the same, so it predates the Closet. With a real mouse the cursor sends many moves and it is barely noticeable. Worth a look in 5.0 (the Router fade or Godot's first motion after a scene swap).
 - The confirm prompt closes before it emits `answered` (the story text said emit then close), so a handler always sees `is_open() == false` and can reopen it safely.
@@ -431,7 +431,7 @@
 - Brain counter count-up tick and pop, the conga "×N" badge pop, and the Closet tick-down: Story 5.1 (juice with sound). 5.1: not in FR50, left open: post-MVP / Smuck's call.
 - Web and desktop letterbox bars are still **black**: the engine draws them itself, so `default_clear_color` (now night) and the head include's night `body` don't reach them. The 1.2 item stays open; a fix needs `RenderingServer` black-bar images (out of an art story's scope).
 - The first-mouse-move focus quirk after a screen change (4.4 note) was not looked at.
-- The Coming soon card `Tint` is a stone `ColorRect` at 85 % alpha over the picture (the approved 4.2 look), so it blends off-palette pixels; a pre-greyed picture per level would keep it palette-only (5.2 readability pass can decide).
+- The Coming soon card `Tint` is a stone `ColorRect` at 85 % alpha over the picture (the approved 4.2 look), so it blends off-palette pixels; a pre-greyed picture per level would keep it palette-only (5.2 readability pass can decide). Accepted for MVP at the 5.0 review; 5.2 grayscale: pass (plank + darker picture read clearly, G8), so it stays.
 - Professor Zombie's scale is unchanged (Smuck's call).
 - Level names on the cards stay font text on the parchment sign (Decision 2; Smuck did not ask for lettered names at Gate 1).
 - The pause and toggle icons don't follow the pressed plank's 2 px squish (they are child sprites); the label of a PixelButton does.
@@ -444,9 +444,9 @@
 - `ZombieHands._load` builds 12 texture paths at runtime: a Web export resource filter would drop them, and only the first missing file is warned.
 - `scripts/debug/ui_art_review.gd` has no null guards for missing sheets and ships in exports.
 - Brittle tests: exact pixel counts, hardcoded colours, label counts (`checked == 18`, `> 8`), editor-only `Image.load_from_file`.
-- HUD grayscale legibility (AC 5) is covered by a screenshot only, not a test.
-- In-run Zombie Run scenes (`zombie_run_target`, `brain_block`, `villager`, `conga_line`) still use StyleBoxFlat; deferred to 5.2 by Smuck. The 5.0 'no placeholder look' claim covers menus, screens and HUD only.
-- Coming-soon card `Tint` stays an 85 % alpha overlay; accepted for MVP by Smuck.
+- ~~HUD grayscale legibility (AC 5) is covered by a screenshot only, not a test.~~ Done in 5.2: the finger luma test is `test_art_ui.gd::test_lit_finger_is_brighter_in_grayscale`, the wrong-key no-colour rule is `test_grayscale_states.gd`, and the HUD shots are now made by `tools/capture_screens.gd` (repeatable).
+- ~~In-run Zombie Run scenes (`zombie_run_target`, `brain_block`, `villager`, `conga_line`) still use StyleBoxFlat; deferred to 5.2 by Smuck. The 5.0 'no placeholder look' claim covers menus, screens and HUD only.~~ Done in 5.2: tags and the base box are `Sign` (resolved box `SignGrey`), the badge `BadgePumpkin`; `test_no_placeholder_chrome.gd` walks `scenes/levels/zombie_run/`.
+- Coming-soon card `Tint` stays an 85 % alpha overlay; accepted for MVP by Smuck. 5.2 grayscale: pass (G8).
 
 ## Deferred from: dev of story 5-1 (2026-10-06)
 
@@ -463,3 +463,18 @@
 - Default-seam tests mutate the live `AudioManager` autoload (possible state leak between tests).
 - Failed `buy_item` path in the Closet plays no sound.
 - `_is_busy`/`_play_player` test seams: the real `playing` guard is untested against real playback (Dummy driver limitation).
+
+## Deferred from: dev of story 5-2 (2026-10-06)
+
+- NFR7 "32 px" is read as the font size (Gate A); the ink of a lowercase letter is ~20 px. If playtests (5.4) show kids squinting, the next clean size is 40 or 48 px with a new HUD sketch (sign rects in `test_hud.gd`, the 104 px band budget).
+- FR27's wording in `epics.md` / `game-architecture.md` still quotes the old storage notice; EXPERIENCE.md (the copy contract) has the Gate A words "This browser might forget your brains".
+- The web failure notice is checked on a scratch copy of the 4.7.2 shell with the missing-features path forced; a real failed download (network) shows the same `#status-notice`, so the same CSS applies, but it was not forced in a real exported build. A Godot template upgrade must re-check that the shell still fills `#status-notice` with text nodes (the CSS hides them with `font-size: 0`).
+- Report card labels and a few buttons are title case ("Keys Typed", "Play Again", "Quit to Menu") against DESIGN's sentence-case rule; kept as spec verbatim (Gate A). The copy test bans all-caps words only.
+- Post-MVP copy (Locked / New! cards, the word and text prompts, Pitchfork Panic endings) must be added to `test_plain_words.gd` `APPROVED_COPY` and EXPERIENCE.md when it ships.
+- Windows: an OS-level driver dialog (no OpenGL 3.3) from Godot itself is technical text we can't change.
+
+## Deferred from: code review of story-5-2 (2026-10-06)
+
+- Brittle counts in tests: `test_no_placeholder_chrome` `> 22` scenes, `test_plain_words` `> 80` strings and literal "Need 40 more" / "+10 bonus"; assert specific scenes and derive values from constants.
+- `tools/capture_screens_runner.gd`: no null-image guard under `--headless`, no frame timeout (`frame_post_draw` never fires if minimised), no cleanup on the size-mismatch early exit. Dev-only, export-excluded.
+- Plain-words test does not cover `level_card.gd`'s `String(id).capitalize()` fallback or `tooltip_text`; add when such copy ships.

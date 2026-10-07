@@ -81,3 +81,31 @@ func test_active_target_bobs_and_settles_when_deactivated() -> void:
 
 func test_arrow_is_the_sprite_above_the_tag() -> void:
 	ArrowTipAssert.assert_tip(self, _target(), -50.0)
+
+
+## Story 5.2 (AC 5): the tag and the base box are the theme's parchment sign (a 9-slice StyleBoxTexture, not a
+## StyleBoxFlat); the letter keeps its ink, 16 px, centred look.
+func test_tag_and_box_are_the_theme_sign() -> void:
+	var target: ZombieRunTarget = _target()
+	for path: String in ["%Tag", "%Box"]:
+		var panel: Panel = target.get_node(path) as Panel
+		assert_eq(panel.theme_type_variation, &"Sign", "%s uses the Sign variation" % path)
+		assert_true(panel.get_theme_stylebox(&"panel") is StyleBoxTexture, "%s resolves to the 9-slice" % path)
+	var letter: Label = target.get_node("%Letter") as Label
+	assert_eq(letter.get_theme_font_size(&"font_size"), 16)
+	assert_eq(letter.get_theme_color(&"font_color"), Color("#1E1428"), "ink")
+	assert_eq(letter.horizontal_alignment, HORIZONTAL_ALIGNMENT_CENTER)
+	assert_eq(letter.vertical_alignment, VERTICAL_ALIGNMENT_CENTER)
+	assert_eq((target.get_node("%Tag") as Control).size, Vector2(24, 24), "tag size unchanged")
+
+
+## Story 5.2 (AC 5): a resolved base target greys out by switching its box to the grey sign.
+func test_resolved_box_turns_to_the_grey_sign() -> void:
+	var target: ZombieRunTarget = _target()
+	var before: StyleBox = (target.get_node("%Box") as Panel).get_theme_stylebox(&"panel")
+	target.resolve()
+	var box: Panel = target.get_node("%Box") as Panel
+	assert_eq(box.theme_type_variation, &"SignGrey")
+	var after: StyleBox = box.get_theme_stylebox(&"panel")
+	assert_true(after is StyleBoxTexture)
+	assert_ne(after, before, "a visible change")

@@ -165,3 +165,16 @@ func test_villager_without_the_seam_is_silent() -> void:
 	villager.get_sequence_tween().custom_step(HUG_TIME_S + 0.01)
 	assert_false(villager.play_sfx.is_valid())
 	assert_eq(villager.get_state(), Villager.State.POOFED, "poofs fine without a sound")
+
+
+## Story 5.2 (AC 5): the letter tag is the theme's parchment sign 9-slice (no StyleBoxFlat); the letter keeps
+## its ink, 16 px look.
+func test_tag_is_the_theme_sign() -> void:
+	var node: Node = _villager()
+	var tag: Panel = node.get_node("%Tag") as Panel
+	assert_eq(tag.theme_type_variation, &"Sign")
+	assert_true(tag.get_theme_stylebox(&"panel") is StyleBoxTexture, "resolves to the 9-slice")
+	assert_eq(tag.size, Vector2(24, 24), "tag size unchanged")
+	var letter: Label = node.get_node("%Letter") as Label
+	assert_eq(letter.get_theme_font_size(&"font_size"), 16)
+	assert_eq(letter.get_theme_color(&"font_color"), Color("#1E1428"), "ink")

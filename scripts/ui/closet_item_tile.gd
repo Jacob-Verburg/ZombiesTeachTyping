@@ -10,10 +10,12 @@ extends Control
 ## The tile shows what the Closet tells it and never touches PlayerData: Enter or a click on BUY, WEAR or
 ## WEARING emits activated(item_id), and the Closet acts; LOCKED and CANT_AFFORD only wiggle (no sound).
 ## Call setup() before add_child. Every child ignores the mouse, so the tile gets clicks and hover; real
-## mouse motion moves focus here. The focused tile shows a 2 px candy-yellow ring on its own edge.
+## mouse motion moves focus here. The focused tile shows a 2 px candy-yellow ring just outside its ink edge.
 ## Story 5.0 art: the tile frames and tags are theme boxes (9-slices with stepped corners: TileParchment /
 ## TileStone / TileDisabled, TagPumpkin / TagGreen / TagBright, Bare for no tag), the "?" silhouette and the
-## check are sprites, the ring is FocusRingInset and the drop shadow ShadowMd.
+## check are sprites, the ring is FocusRing and the drop shadow ShadowMd.
+## Story 5.2 (grayscale review): the ring moved from FocusRingInset (on the edge) to FocusRing (2 px outside the
+## ink edge): on the edge it vanished against the parchment without colour.
 
 enum State { LOCKED, CANT_AFFORD, BUY, WEAR, WEARING }
 

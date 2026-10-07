@@ -224,7 +224,7 @@ never a `StyleBoxFlat` radius. The `StyleBoxTexture` margins equal the corner re
 `STRETCH`; patterned middles (the wood panel's plank grain, the stone courses) `TILE`. Every box lives once in
 `data/ui_theme.tres` as a theme type variation (`PixelButton`, `WoodPanel`, `StonePanel`, `Sign`, `SignGrey`,
 `Chalkboard`, `Keycap`, `CandySign`, `BrainPill`, `CardFrame`, `HudBand`, `Mirror`, `Ribbon`, `Tile*`, `Tag*`,
-`FocusRing`, `FocusRingInset`, `ShadowMd`, `ShadowLg`, `InkStrip`, `PauseButton`, `Bare`); scenes set
+`BadgePumpkin`, `FocusRing`, `FocusRingInset`, `ShadowMd`, `ShadowLg`, `InkStrip`, `PauseButton`, `Bare`); scenes set
 `theme_type_variation` (*tested*: no `StyleBoxFlat` or `corner_radius` in the UI scenes or the theme).
 
 **Buttons:** the 2 px ink drop is baked into `ui_button.png` / `_focus`; the pressed plank is drawn 2 px lower
@@ -286,6 +286,27 @@ default one restyled by `html/head_include` CSS (night page, pixelated logo, a p
 
 The UI art review scene (`scenes/debug/ui_art_review.tscn`, dev only, run directly) shows every sheet at 1×
 and 3×, the 9-slices at real sizes, every finger lit and the hands in grayscale.
+
+## 8. Readability and grayscale (Story 5.2)
+
+**Floors at 640×360 (NFR7):** every piece of UI text a kid can see is at least 16 px (the theme default);
+the typing target is at least 32 px, where "32 px" is the **font size** (`{typography.target}`; Press Start
+2P ink at 32: caps 28 px, lowercase x-height ~20 px; Gate A); every control a kid can click or focus is at
+least 32 px tall (the pause button's hit area is 32 × 32 with its 24 px art drawn centred by −4 px expand
+margins). *Tested* across every MVP screen: `tests/unit/test_readability.gd`.
+
+**Grayscale (NFR8):** states read by shape, content, motion or brightness, never hue alone. Rec. 709 luma on
+sRGB: ink 0.092 · night 0.135 · wood-dark 0.222 · dusk 0.234 · stamp-red 0.275 · ink-muted 0.289 ·
+zombie-green-dark 0.349 · wood 0.356 · stone 0.426 · pumpkin 0.550 · zombie-green 0.655 · pumpkin-light 0.708 ·
+stone-light 0.724 · parchment-shade 0.746 · disabled-fill 0.779 · candy-yellow 0.819 · zombie-green-bright
+0.867 · parchment 0.908 · chalk 0.944. Close pairs stay apart by content (Buy price vs the word "Wear"). The
+candy focus ring is drawn **outside** an ink edge (`FocusRing`, 2 px out): on the edge it vanishes against
+parchment in grey (the Closet tile moved off `FocusRingInset` in 5.2). *Tested*: `test_grayscale_states.gd`.
+
+**Capture tool:** `"/c/Program Files/Godot/Godot.exe" --path . -s tools/capture_screens.gd` (a real window,
+not `--headless`) writes colour + `-gray` PNGs of every MVP screen to
+`_bmad-output/implementation-artifacts/screenshots/5-2/`; `-- --convert <png>` greys any other shot with the
+same formula.
 
 ## Approval
 

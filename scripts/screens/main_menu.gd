@@ -17,12 +17,13 @@ extends Control
 ## listen to PlayerData themselves, so this script calls nothing for them.
 ## Later: Locked/New card states and the hint sign (6.8), final art and button feel (5.0), menu music
 ## crossfades (5.1).
+## Story 5.2 (Gate A): the storage notice reads "This browser might forget your brains" (plain words, NFR9).
 ## Seams (tests assign them before add_child): navigate, player_data, toggle_fullscreen, is_fullscreen and
 ## the exported level_registry.
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 const LEVEL_CARD_SCENE: PackedScene = preload("res://scenes/ui/level_card.tscn")
-const STORAGE_NOTICE_TEXT: String = "Progress may not be saved in this browser mode"
+const STORAGE_NOTICE_TEXT: String = "This browser might forget your brains"
 
 ## The levels shown as cards (data/levels/level_registry.tres, set in main_menu.tscn).
 @export var level_registry: LevelRegistry

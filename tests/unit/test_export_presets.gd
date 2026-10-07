@@ -46,6 +46,26 @@ func test_web_loading_page_is_restyled_by_the_head_include() -> void:
 	assert_eq(_cfg.get_value(options, "html/custom_html_shell", ""), "", "the default shell, restyled")
 
 
+## Story 5.2 (AC 3, NFR16, Gate A): when the game can't start, the default shell fills #status-notice with the
+## engine's own technical English. The head include hides that text (font-size 0; it stays in the DOM and the
+## shell's console.error) and shows plain words with ::after, parchment + ink, never red, at least 16 px.
+func test_web_failure_notice_shows_plain_words_not_the_engine_text() -> void:
+	var section: String = _load_and_find("Web")
+	assert_ne(section, "")
+	if section == "":
+		return
+	var head: String = _cfg.get_value(section + ".options", "html/head_include", "")
+	assert_string_contains(head, "#status-notice { font-size: 0; line-height: 0; }", "the engine's text is hidden")
+	assert_string_contains(head, "#status-notice::after { content: "
+			+ "'This game needs a newer browser. Try Chrome, Edge or Firefox on a computer.'")
+	assert_string_contains(head, "font-size: max(16px,", "the plain notice is at least 16 px")
+	assert_string_contains(head, "#status-notice { background-color: #F6E7C1; color: #1E1428;", "parchment + ink")
+	var red_word: RegEx = RegEx.create_from_string("(?i)\bred\b")
+	assert_null(red_word.search(head), "no red notice (the word red)")
+	for red: String in ["#B02A25", "#9b3943", "#5b3943"]:
+		assert_false(head.to_lower().contains(red.to_lower()), "no red notice (%s)" % red)
+
+
 func test_windows_preset_exists() -> void:
 	var section: String = _load_and_find("Windows Desktop")
 	assert_ne(section, "", "a preset named Windows Desktop must exist")

@@ -3,8 +3,12 @@ extends GutTest
 ## radius in the UI scenes or the shared theme (stepped corners come from 9-slice StyleBoxTextures); no
 ## code-drawn shapes in the UI scripts or the zombie hands (they draw sprites). Palette ColorRect backdrops
 ## and the night scrim are allowed; the debug keyboard-test screen is exempt (dev only).
+## Story 5.2 (AC 5): the in-run Zombie Run scenes are walked too (letter tags, the base target box, the conga
+## badge use the theme's 9-slice variations).
 
-const SCENE_DIRS: Array[String] = ["res://scenes/ui/", "res://scenes/screens/", "res://scenes/run/"]
+const SCENE_DIRS: Array[String] = [
+	"res://scenes/ui/", "res://scenes/screens/", "res://scenes/run/", "res://scenes/levels/zombie_run/",
+]
 const EXEMPT_SCENES: Array[String] = ["res://scenes/screens/keyboard_test.tscn"]
 const THEME_PATH: String = "res://data/ui_theme.tres"
 const SCRIPT_DIR: String = "res://scripts/ui/"
@@ -31,7 +35,7 @@ func _ui_scenes() -> Array[String]:
 
 
 func test_the_walk_finds_the_ui() -> void:
-	assert_gt(_ui_scenes().size(), 15, "scenes found")
+	assert_gt(_ui_scenes().size(), 22, "scenes found (incl. the 7 Zombie Run scenes)")
 	assert_gt(_files(SCRIPT_DIR, "gd").size(), 5, "scripts found")
 
 

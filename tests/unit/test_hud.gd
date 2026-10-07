@@ -58,7 +58,8 @@ func test_band_layout() -> void:
 	assert_eq(_rect("%Stats"), Rect2(376, 260, 176, 96))
 	assert_eq(_rect("%BrainCounter"), Rect2(556, 264, 80, 28))
 	assert_eq(_rect("%CapsHint"), Rect2(92, 196, 256, 28))
-	assert_eq(_rect("%PauseButton"), Rect2(600, 16, 24, 24))
+	# Story 5.2 (Gate A): the hit area grew to 32 × 32 (the click-target floor); the 24 px art is unchanged.
+	assert_eq(_rect("%PauseButton"), Rect2(592, 16, 32, 32))
 
 
 ## Story 4.3: the pet slot sits on the cushion, its feet inside the cushion rect, and its 32 px frame
@@ -100,6 +101,22 @@ func test_pause_button_margins() -> void:
 	assert_eq(640 - rect.end.x, 16.0, "16 px from the right edge")
 	assert_eq(rect.position.y, 16.0, "16 px from the top")
 	assert_true(rect.end.y <= 256, "inside the playfield")
+
+
+## Story 5.2 (Gate A): the 32 × 32 hit area draws the same 24 px round art, centred (every state's box is
+## inset 4 px), and the pause glyph stays centred on it.
+func test_pause_art_stays_24px_and_centred_in_the_hit_area() -> void:
+	var button: Button = _node("%PauseButton") as Button
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled"]:
+		var box: StyleBoxTexture = button.get_theme_stylebox(state) as StyleBoxTexture
+		assert_not_null(box, "%s is the round art" % state)
+		if box == null:
+			continue
+		assert_eq(box.texture.get_size(), Vector2(24, 24), "%s art is 24 px" % state)
+		for side: Side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+			assert_eq(box.get_expand_margin(side), -4.0, "%s drawn 4 px inside the hit area" % state)
+	var icon: Control = button.get_node("PauseIcon") as Control
+	assert_eq(icon.position + icon.size / 2.0, Vector2(16, 15), "the glyph stays where it was on the art")
 
 
 func test_letter_sign_rect() -> void:

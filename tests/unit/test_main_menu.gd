@@ -367,7 +367,7 @@ func test_notice_shown_when_storage_is_not_persistent() -> void:
 	_menu.call("_show_storage_notice", false)
 	assert_true(_notice().visible)
 	var label: Label = _menu.get_node("%StorageNoticeLabel") as Label
-	assert_eq(label.text, "Progress may not be saved in this browser mode")
+	assert_eq(label.text, "This browser might forget your brains")
 	assert_eq(MainMenuScript.STORAGE_NOTICE_TEXT, label.text)
 	_menu.call("_show_storage_notice", true)
 	assert_false(_notice().visible)

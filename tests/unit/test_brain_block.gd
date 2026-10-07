@@ -160,3 +160,16 @@ func test_brain_pops_out_and_frees_itself() -> void:
 	pop.get_tween().custom_step(BrainPop.RISE_TIME_S)
 	assert_almost_eq(pop.position.y, start_y - BrainPop.RISE_PX, 0.01)
 	assert_true(pop.is_queued_for_deletion(), "self-freeing one-shot")
+
+
+## Story 5.2 (AC 5): the letter tag is the theme's parchment sign 9-slice (no StyleBoxFlat); the letter keeps
+## its ink, 16 px look.
+func test_tag_is_the_theme_sign() -> void:
+	var node: Node = _block()
+	var tag: Panel = node.get_node("%Tag") as Panel
+	assert_eq(tag.theme_type_variation, &"Sign")
+	assert_true(tag.get_theme_stylebox(&"panel") is StyleBoxTexture, "resolves to the 9-slice")
+	assert_eq(tag.size, Vector2(24, 24), "tag size unchanged")
+	var letter: Label = node.get_node("%Letter") as Label
+	assert_eq(letter.get_theme_font_size(&"font_size"), 16)
+	assert_eq(letter.get_theme_color(&"font_color"), Color("#1E1428"), "ink")

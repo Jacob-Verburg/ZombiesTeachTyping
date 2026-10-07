@@ -7,14 +7,16 @@ extends Node2D
 ## This is the base Story 3.2's brain block and 3.3's villager extend: they override
 ## _on_resolved() (brains earned + their own resolved look) and keep the rest.
 ## setup() runs before add_child, so it only stores values; _ready() applies them.
+## Story 5.2: the tag and the box are the theme's parchment `Sign` 9-slice (no StyleBoxFlat); a resolved base
+## target switches its box to `SignGrey`.
 
 ## Bob look (UX values, not GDD numbers): a couple of pixels up and down, a bit under 2 Hz.
 const BOB_PX: float = 2.0
 const BOB_PERIOD_S: float = 0.6
 ## Half the widest part (the tag), for the level's off-screen check.
 const HALF_WIDTH: float = 12.0
-## Placeholder resolved look: stone-light (docs/art-style-sheet.md palette).
-const RESOLVED_FILL: Color = Color("#BDB6C4")
+## The base target's resolved look: the grey sign (data/ui_theme.tres).
+const RESOLVED_VARIATION: StringName = &"SignGrey"
 
 var _letter: String = ""
 var _slot: int = 0
@@ -71,12 +73,7 @@ func resolve() -> int:
 
 ## Override point for 3.2 / 3.3: switch to the resolved look and return the brains earned.
 func _on_resolved() -> int:
-	var base: StyleBoxFlat = %Box.get_theme_stylebox(&"panel") as StyleBoxFlat
-	if base == null:
-		return 0
-	var style: StyleBoxFlat = base.duplicate() as StyleBoxFlat
-	style.bg_color = RESOLVED_FILL
-	%Box.add_theme_stylebox_override(&"panel", style)
+	%Box.theme_type_variation = RESOLVED_VARIATION
 	return 0
 
 

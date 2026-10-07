@@ -71,7 +71,7 @@ Vertical budget: 4 pad + 2 × 24 px lines + 48 px hands + 4 pad = 104 px (DESIGN
 | Brain counter (wood-dark pill, ink border) | 556 | 264 | 80 | 28 | 16 | icon 16 + 4 gap + 3 digits (48) + 6 px pad each side |
 | Start prompt (chalk on an ink strip) | 220 − w/2 | 228 | text + 8 | 24 | 16 | "letter": 25 chars = 400 px → strip 408 (x 16–424); "word"/"text": 23 chars → 376 |
 | Caps Lock hint (candy-yellow sign, ink text) | 92 | 196 | 256 | 28 | 16 | 15 chars = 240 px + 8 px pad each side |
-| Pause button | 600 | 16 | 24 | 24 | 16 | "II", 16 px from the top and right edges |
+| Pause button | 592 | 16 | 32 | 32 | 16 | "II", 16 px from the top and right edges. Story 5.2 (Gate A): the hit area grew from 24 × 24 at (600, 16) to 32 × 32 (the click-target floor); the 24 px round art is unchanged, drawn centred at (596, 20) |
 
 ## Deviations from DESIGN.md / FR14 (all forced by the font)
 

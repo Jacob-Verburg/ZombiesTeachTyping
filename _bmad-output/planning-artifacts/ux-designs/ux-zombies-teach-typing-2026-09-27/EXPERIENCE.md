@@ -68,7 +68,8 @@ Microcopy. Brand voice lives in `DESIGN.md` Brand & Style. Every label uses word
 | Level card — Locked (D12, D14) | Focus-only hint: "Finish Zombie Run to open!" / "Finish Horde Rush to open!" `[ASSUMPTION — copy]`. The card itself shows only the padlock; the hint sign hangs below the card while it has focus, so the copy is no longer squeezed onto the card and can grow if needed. |
 | Level card — unlocked | "New!" `[ASSUMPTION — copy]` |
 | Main menu toggles | "Music" · "Sound" · "Fullscreen" |
-| Storage notice | "Progress may not be saved in this browser mode" |
+| Storage notice | "This browser might forget your brains" (Story 5.2, Gate A; was "Progress may not be saved in this browser mode", too hard for a 6-year-old) |
+| Web page, game can't start | "This game needs a newer browser. Try Chrome, Edge or Firefox on a computer." (Story 5.2, Gate A; replaces the engine's own message, which stays in the console) |
 
 | Do | Don't |
 |---|---|

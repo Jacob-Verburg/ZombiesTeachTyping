@@ -486,3 +486,22 @@ func test_zero_delta_step_plays_idle() -> void:
 	_line.join(LEADER_X - 40.0)
 	_line.step(0.0)
 	assert_eq(_anim(_line.get_followers()[0]), PartyZombie.ANIM_IDLE, "no time passed: nothing is moving")
+
+
+## Story 5.2 (AC 5): the badge is the pumpkin tag 9-slice (BadgePumpkin: the Closet's TagPumpkin texture as a
+## PanelContainer with 3 px content margins, so "×13" moves 1 px from the old 2 px flat box), ink text at 16 px.
+func test_badge_is_the_pumpkin_tag_9slice() -> void:
+	_make(3)
+	var badge: PanelContainer = _badge()
+	assert_eq(badge.theme_type_variation, &"BadgePumpkin")
+	var box: StyleBoxTexture = badge.get_theme_stylebox(&"panel") as StyleBoxTexture
+	assert_not_null(box, "a 9-slice, not a StyleBoxFlat")
+	if box == null:
+		return
+	var tag: StyleBoxTexture = load(THEME_PATH).get_stylebox(&"panel", &"TagPumpkin") as StyleBoxTexture
+	assert_eq(box.texture, tag.texture, "the same pumpkin tag art as the Closet")
+	for side: Side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		assert_eq(box.get_content_margin(side), 3.0, "text within 1 px of the old 2 px margin")
+	var label: Label = _line.get_node("%BadgeLabel") as Label
+	assert_eq(label.get_theme_font_size(&"font_size"), 16)
+	assert_eq(label.get_theme_color(&"font_color"), Color("#1E1428"), "ink on pumpkin")

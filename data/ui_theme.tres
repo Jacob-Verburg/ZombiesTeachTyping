@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=60 format=3]
+[gd_resource type="Theme" load_steps=61 format=3]
 
 [ext_resource type="FontFile" uid="uid://8bcqq4smwdt0" path="res://assets/fonts/press_start_2p.ttf" id="1_font"]
 [ext_resource type="Texture2D" path="res://assets/sprites/ui/common/ui_button.png" id="2_tex"]
@@ -256,6 +256,17 @@ texture_margin_top = 4.0
 texture_margin_right = 4.0
 texture_margin_bottom = 4.0
 
+[sub_resource type="StyleBoxTexture" id="badge_pumpkin"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+texture = ExtResource("24_tex")
+texture_margin_left = 4.0
+texture_margin_top = 4.0
+texture_margin_right = 4.0
+texture_margin_bottom = 4.0
+
 [sub_resource type="StyleBoxTexture" id="tag_green"]
 texture = ExtResource("25_tex")
 texture_margin_left = 4.0
@@ -272,18 +283,32 @@ texture_margin_bottom = 4.0
 
 [sub_resource type="StyleBoxTexture" id="pause_normal"]
 texture = ExtResource("27_tex")
+expand_margin_left = -4.0
+expand_margin_top = -4.0
+expand_margin_right = -4.0
+expand_margin_bottom = -4.0
 
 [sub_resource type="StyleBoxTexture" id="pause_hover"]
 texture = ExtResource("28_tex")
+expand_margin_left = -4.0
+expand_margin_top = -4.0
+expand_margin_right = -4.0
+expand_margin_bottom = -4.0
 
 [sub_resource type="StyleBoxTexture" id="pause_pressed"]
 texture = ExtResource("29_tex")
+expand_margin_left = -4.0
+expand_margin_top = -4.0
+expand_margin_right = -4.0
+expand_margin_bottom = -4.0
 
 [sub_resource type="StyleBoxEmpty" id="empty"]
 
 [resource]
 default_font = ExtResource("1_font")
 default_font_size = 16
+BadgePumpkin/base_type = &"PanelContainer"
+BadgePumpkin/styles/panel = SubResource("badge_pumpkin")
 Bare/base_type = &"Panel"
 Bare/styles/panel = SubResource("empty")
 BrainPill/base_type = &"Panel"

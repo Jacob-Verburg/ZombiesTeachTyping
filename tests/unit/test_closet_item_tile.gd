@@ -249,16 +249,21 @@ func test_other_clicks_and_releases_do_nothing() -> void:
 	assert_eq(_activated, [] as Array[StringName])
 
 
-func test_focus_shows_the_ring_inside_the_tile() -> void:
+## Story 5.2 (Gate B, grayscale): the ring sits OUTSIDE the tile's ink edge (FocusRing, 2 px out), like the
+## level card. On its own edge (FocusRingInset, 4.4) the candy ring (luma 0.819) replaced the ink edge next to
+## the parchment (0.908) and focus all but vanished in grayscale; outside, it is a light rim beyond a dark one.
+func test_focus_shows_the_ring_outside_the_tile_edge() -> void:
 	var tile: ClosetItemTile = _tile(_item())
 	var ring: Panel = _node(tile, "%FocusRing") as Panel
 	assert_false(ring.visible)
 	tile.grab_focus()
 	assert_true(ring.visible)
-	assert_eq(ring.get_global_rect(), tile.get_global_rect(), "on the tile's own edge")
+	assert_eq(ring.get_global_rect(), tile.get_global_rect(), "the panel sits on the tile's rect")
+	assert_eq(ring.theme_type_variation, &"FocusRing")
 	var box: StyleBoxTexture = ring.get_theme_stylebox(&"panel") as StyleBoxTexture
 	assert_eq(box.texture.resource_path, "res://assets/sprites/ui/common/ui_focus_ring.png", "the stepped 2 px ring")
-	assert_eq(box.expand_margin_left, 0.0)
+	for side: Side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		assert_eq(box.get_expand_margin(side), 2.0, "drawn 2 px outside, so the ink edge stays")
 	tile.release_focus()
 	assert_false(ring.visible)
 
