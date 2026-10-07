@@ -57,7 +57,7 @@ jobs:
         run: |
           set -o pipefail
           "$GODOT_BIN" --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit 2>&1 | tee gut.log
-          if grep -E "Parse Error|Failed to load script|SCRIPT ERROR" gut.log; then
+          if grep -E "Parse Error|Compile Error|Failed to load script" gut.log; then
             echo "::error::A test script failed to load (GUT skips it and still exits 0)"
             exit 1
           fi

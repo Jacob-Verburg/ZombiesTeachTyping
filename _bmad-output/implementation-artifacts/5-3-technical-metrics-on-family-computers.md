@@ -1,0 +1,322 @@
+---
+baseline_commit: a173428c44dea16f4af6a6f5877ba44dc9a7c52f
+---
+
+# Story 5.3: Technical Metrics on Family Computers
+
+Status: in-progress
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
+## Story
+
+As Smuck,
+I want proof that the MVP runs smoothly and keeps saves on real family computers,
+so that I can share the link with confidence.
+
+## Acceptance Criteria
+
+1. **Frame rate (NFR1).** **Given** a 2018-era laptop with integrated graphics (or the closest available; its make, CPU, GPU, RAM, screen and refresh rate recorded) in desktop Chrome, Edge and Firefox **When** a full 2:00 Zombie Run with 12+ conga followers is recorded with the browser performance tools on the **release** build from the Pages link **Then** it holds 60 FPS with no frame over 33 ms (NFR1). The measured window is the RUNNING part of the run (first correct key → 0:00); load-time hitches before the first key and at the report card are recorded separately (see Dev Notes "What NFR1 measures"). Results per browser go in `## Metrics Results` (M1).
+2. **Input latency (NFR2).** **Given** the same machine **When** input feedback is checked **Then** a correct key shows the target advance and the effect start on the next rendered frame (≤ 17 ms): the frame probe's keydown → next-frame times are recorded per browser (M2), and the existing same-call tests are cited as the code-level proof.
+3. **Load (NFR3).** **Given** the Pages link **When** first and cached loads are timed at 25 Mbit/s **Then** first load to the title screen is ≤ 10 s and cached load ≤ 3 s, with the compressed transfer size recorded against 40 MB (M3).
+4. **Save integrity (NFR4).** **Given** Chrome and Firefox **When** 10 consecutive reloads and 10 tab closes mid-menu are done after earning brains and buying an item **Then** no data is lost (brains, owned item, equipped item, best WPM), recorded per round (M4).
+5. **Browser keys during a real run.** **Given** a real Zombie Run (not the Keyboard Test screen) in Chrome and Firefox **When** Space, `'`, `/`, Backspace and Tab are pressed during a run and while paused **Then** the page never scrolls and quick-find never opens; **and** in the menu afterwards normal browser keys work again (M5). The same session records what Esc does in browser fullscreen during a run (2.7 deferral).
+6. **Screen and fullscreen.** **Given** the target laptop's 1366×768 screen **When** the game runs windowed (maximised) and in fullscreen **Then** it fills the window (fractional scaling, nearest filtering, no blur), and the 16 px text is readable from a normal seating distance — one note and one screenshot per browser (M6).
+7. **Windows fallback.** **Given** the Windows Desktop export **When** it is run on one Windows PC **Then** it starts, plays a Zombie Run and keeps its save across a restart (M7). (The epic says "NFR8 fallback smoke check"; the fallback is NFR5's — see Dev Notes.)
+8. **Reach (NFR17).** **Given** 3 different family computers **When** someone opens the link **Then** the game loads and plays without help (M8) **And** any failure in M1–M8 becomes a numbered fix item in `## Fix Items for 5.5`. This story measures and records; it does not fix the game.
+9. **Evidence and approval.** Every M-table row is Pass / Fail / Skipped; a Skipped row carries Smuck's reason verbatim. Smuck approves the results (`## Review Approval`, verbatim with the date). The open Firefox and browser items in `deferred-work.md` that this story measures are struck with a pointer. The full GUT suite passes.
+
+## Tasks / Subtasks
+
+- [x] **Task 1: Baseline (AC: 9)**
+  - [x] 1.1 Run the full suite at the starting commit (`a173428`, 5.2 ended at **1319** + its review patches; confirm the count yourself). Hash the real `save.json` (`%APPDATA%/Godot/app_userdata/ZombiesTeachTyping/save.json`) before and after every full run, every local export run and the Windows smoke test (the 4.5 real-save trap; see Task 6).
+  - [x] 1.2 Local release export to `build/web/` (`"/c/Program Files/Godot/Godot.exe" --headless --path . --export-release "Web" build/web/index.html`; check `index.html/.js/.wasm/.pck` exist, like CI). Record each file's raw size and its gzip size (`python -c "import gzip,sys; ..."` at level 6, the Pages-like estimate) and the total. Compare to 1.2's 10,350,910 B transfer (hello world). Expected: the pck grew a lot (two 96 s OGG loops, all sprites); if the gzip total is near 30 MB (architecture's 10 s ≈ 30 MB on the wire), say so at Gate A before any tag.
+  - [x] 1.3 List the debug-only scenes that still ship in release (`scenes/debug/art_review.tscn`, `ui_art_review.tscn`, `hat_fit_check.tscn`, `scenes/screens/keyboard_test.tscn`, `scenes/levels/test_level/`; deferrals 1.5 / 1.9 / 2.4 / 5.0) with their share of the pck (`--export-pack` listing or a byte search). Don't exclude them here; record the size so 5.5 can decide (a fix item only if it matters for M3).
+- [x] **Task 2: Measurement tools (AC: 1, 2, 5)**
+  - [x] 2.1 New `tools/perf/frame_probe.js` (export-excluded with the rest of `tools/`; never added to the head include or any shipped file). A paste-into-console snippet that works the same in Chrome, Edge and Firefox on the **release** Pages build (no game code, no Godot API):
+    - `zts_probe.arm()` — waits for the next keydown of a letter `a`–`z` (the run's first correct key starts RUNNING) and then records every `requestAnimationFrame` interval for `ZTS_PROBE_SECONDS` = 120 s (+0.5 s), then stops by itself and prints the summary. `zts_probe.stop()` ends early.
+    - Frame stats: frame count, mean / p50 / p95 / p99 / max interval (ms), count of intervals > 33.4 ms (the NFR1 fail line) and > 17.5 ms (missed 60 Hz vsync), effective FPS, and the detected refresh interval (median of the first second). On a 120/144 Hz screen report both raw and "frames over 33 ms"; NFR1 is judged on > 33 ms and FPS ≥ 60.
+    - Latency (NFR2): on each keydown (`a`–`z`, not repeat), `evt.timeStamp` → the next rAF callback's timestamp; report count / p50 / p95 / max. Godot's single-threaded web main loop runs inside that rAF callback (it polls the queued key event and draws the frame there), so "next rAF − keydown ≤ one refresh interval" is the next-rendered-frame check. Note in the summary that the visual is presented at the following vsync.
+    - Keys (AC 5): a bubble-phase `keydown` listener (added after the game's capture-phase one) records, for `" "`, `"'"`, `"/"`, `"Backspace"`, `"Tab"` and `"Escape"`: `evt.defaultPrevented`, `window.__zts && window.__zts.capture` (WebPlatform's flag, Story 1.5) and `window.scrollY` / `document.scrollingElement.scrollTop` before and after. `zts_probe.keys()` prints the table.
+    - `zts_probe.result()` returns one JSON object (also `copy()`-able in Chrome/Edge) with the browser `navigator.userAgent`, `devicePixelRatio`, `screen.width/height`, `innerWidth/innerHeight`, the canvas size, and all of the above. The probe observes only; it never calls `preventDefault`, never touches storage, never sends anything (NFR12).
+    - Low overhead: one `performance.now()` push per frame into a preallocated `Float64Array` (120 s × 240 Hz max), no console output while recording.
+    - Focus: sample `document.hasFocus()` every 250 ms; report "frames while unfocused" and leave them out of the NFR1 numbers (a click into DevTools blurs the page and pauses the run, FR11).
+    - `zts_probe.arm({startNow: true})` starts recording at once instead of on the first letter (to catch the load / first-music hitch before the first key; Dev Notes "What NFR1 measures"); its summary is labeled "load window", never mixed into M1's RUNNING row.
+  - [x] 2.2 New `tools/perf/README.md` (short): how to paste the probe (Chrome/Edge: DevTools Console, allow pasting; Firefox: type `allow pasting` first), when to call `arm()`, how to read the summary, and the DevTools steps for each check (Dev Notes "Browser tool steps"). Smuck reads this on the laptop.
+  - [x] 2.3 Try the probe yourself in the built-in browser pane on a local release export (`preview_start {name: "web-debug"}` — `.claude/launch.json` serves `build/web/` on 8060 whatever build is in it, so a release export there is fine). **Keep the pane on screen** — a hidden pane throttles rAF to ~1–2 fps (1.8 / 4.5 deferrals) and gives nonsense. Do one full 2:00 run typing through the pane, take the summary, and record it as the dev-machine reference row in M1 (not the target laptop). Compare against 3.4's debug-build reference: worst frame 22.7 ms. If the pane can't type fast enough, a shorter run labeled as such is fine for the reference.
+  - [x] 2.4 Unit-test nothing in JS (no JS test runner in this project, and none may be installed without asking). Instead, a self-check in the probe: `zts_probe.selftest()` feeds a fixed interval list through the same summary function and prints PASS/FAIL against known numbers (e.g. `[16.7×58, 40, 16.7]` → max 40, over33 = 1). Run it once in the pane; record the output.
+- [x] **Task 3: Gate A — prerequisites and decisions (AC: 1, 3, 8, 9)** — ask with `AskUserQuestion`, one question per decision, recommendation first; record verbatim with the date in `## Review Approval`.
+  - [x] 3.1 **Firefox (Smuck installs it; the agent must not download or install software).** Firefox is still not installed on the dev PC (checked 2026-10-06), and AC 1, 4 and 5 require it. Ask Smuck to install it on the target laptop (and on the dev PC if Smuck wants the deferred 1.2/1.5/1.7 Firefox items closed there too).
+  - [x] 3.2 **The build on the Pages link.** Pages still serves the **v0.0.1 hello world** (Story 1.2; deploys happen only from `v*` tags, ADR-4). AC 1/3/4/8 need the MVP on the Pages link. Recommend: Smuck approves pushing a pre-release tag `v0.9.0` from the tip of `main` after this story's tools commit (CI runs GUT, exports release, deploys). The link becomes public-reachable with the MVP before 5.5's `v1.0.0`; that's acceptable for friends-and-family (no one has the link yet), but it is Smuck's call. **Pushing a tag is outward-facing: do it only after an explicit yes in chat.** Alternatives to offer: (b) measure on a local release export served on the LAN (no Pages, so M3 stays an estimate and M8 needs the laptop on the same network); (c) a separate test repo / Pages site (more setup, not recommended).
+  - [x] 3.3 **The target laptop.** Which machine is "2018-era with integrated graphics (or closest)"? Record make/model, CPU, GPU, RAM, OS, screen resolution and refresh rate, power state (plugged in; Windows power mode "Balanced"), browser versions. Also: which 3 family computers for M8 (they may include the target laptop; NFR17 says "3 different" — recommend the target laptop counts as one).
+  - [x] 3.4 **What NFR1 measures** (Dev Notes): recommend "RUNNING window only; load hitches recorded and judged separately: a hitch over 100 ms that a kid can see (the 5.1 OGG decode ~110–165 ms on the dev PC, likely longer on the laptop) becomes a 5.5 fix item if it shows as a visible freeze on the target laptop".
+  - [x] 3.5 **Who drives which session.** The agent can't use the target laptop. Recommend: the agent prepares everything (build, tag after approval, probe, tables, the runbook below) and Smuck runs Sessions 1–3 and pastes the probe JSON / numbers into chat; the agent fills the tables. Offer: Smuck may instead let the agent drive Smuck's Chrome on the dev PC through Claude in Chrome for the NFR4 rounds (if connected) — it can't close and reopen tabs as realistically, so the real-hand rounds stay the record.
+- [ ] **Task 4: Publish the test build (AC: 1, 3, 8)** — only after a yes at 3.2.
+  - [ ] 4.1 Commit the tools (Task 2) and the story file progress on `main` first, so the tag builds the tested state. CI on `main` must be green before tagging (`gh run list --branch main --limit 1`).
+  - [ ] 4.2 `git tag v0.9.0 && git push origin v0.9.0` (exactly the name Smuck approved). Watch the run once with `gh run watch <id>` (one wait, no polling loop). Record the run URL, artifact size, and the deploy result.
+  - [ ] 4.3 Check the link (`https://jacob-verburg.github.io/ZombiesTeachTyping/`) in the browser pane: title screen shows, console has no errors, F3 does nothing (release build: no overlay, Boundary 7), and the response headers for `index.wasm` / `index.pck` (`curl -sI -H "Accept-Encoding: gzip" <url>/index.wasm`): `content-encoding`, `content-length`, `cache-control`. Record them (1.2 saw `max-age=600`). If `index.pck` is not gzip-encoded by Pages (it's served as `application/octet-stream`, which GitHub Pages may not compress), the wire size is the raw pck: record that, it's the number M3 is judged on.
+- [ ] **Task 5: Runbook and result tables (AC: 1–9)**
+  - [ ] 5.1 Fill `## Smuck's Runbook` below with the concrete steps (already drafted; adjust to what Gate A decided and to the real tag/URL), one short block per session. Plain steps, one check per line, what "pass" looks like. Show it to Smuck before Session 1.
+  - [ ] 5.2 As Smuck reports each session, fill the `## Metrics Results` tables (M1–M8) with the numbers exactly as reported or as printed by the probe (paste the probe's `result()` JSON into `### Probe output` collapsed under each browser). Don't round a failing number into a pass. Anything Smuck reports in words ("felt smooth") is recorded as words, marked "observed", not as a number.
+  - [ ] 5.3 Each Fail → a `## Fix Items for 5.5` row: id (F1…), what failed, on which machine/browser, the measured number, a suspected cause (cite code), a suggested fix, and must-fix-before-publish vs post-MVP (Smuck's call at Gate B). Known candidates to pre-fill **only if they show up**: the OGG first-play decode hitch (5.1 deferral: `PLAYBACK_TYPE_STREAM` on the music players or shorter loops), the debug-only scenes in the pck (Task 1.3), Firefox Ctrl+Shift+E captured by the Network tool (1.8 deferral — matters for 5.4's save export if the playtest uses Firefox), letterbox bars black (1.2/5.0 deferral — cosmetic).
+- [ ] **Task 6: Windows Desktop smoke test (AC: 7)**
+  - [ ] 6.1 Export release: `"/c/Program Files/Godot/Godot.exe" --headless --path . --export-release "Windows Desktop" build/windows/ZombiesTeachTyping.exe`; check the exe and `.pck` exist and record their sizes. Windows templates were installed in 1.2 (`%APPDATA%/Godot/export_templates/4.7.2.stable/windows_release_x86_64.exe`); if missing, stop and ask (no downloads without Smuck).
+  - [ ] 6.2 **Trap — the real save.** The Windows export and the editor/dev runs share `%APPDATA%/Godot/app_userdata/ZombiesTeachTyping/` (no custom user dir in `project.godot`). On the dev PC: copy `save.json`, `save.bak` (and `save.tmp` if present) to the scratchpad first, run the smoke test, then restore them byte-for-byte and re-check the hash. Better: run the smoke test on a different Windows PC (Smuck's call at Gate A; it's "one Windows PC").
+  - [ ] 6.3 Smuck (or the agent, if on the dev PC and Smuck agrees; the agent can launch the exe from Bash but can't type a run for 2:00 — Smuck plays): start the exe → title → menu → one full Zombie Run → note brains on the report card → close the window (the X) → start again → same brains, same equipped hat/pet. Also check: windowed 1280×720 start (`window_size_override`), fullscreen toggle works, no console window, no debug overlay on F3. Record in M7.
+- [ ] **Task 7: Gate B — results review (AC: 8, 9)**
+  - [ ] 7.1 Show Smuck the filled M1–M8 tables, the fix-item list with a must-fix / post-MVP / no-action recommendation per row, and the screenshots under `_bmad-output/implementation-artifacts/screenshots/5-3/`. Ask per fix item (batch up to 4 per `AskUserQuestion`), recommendation first.
+  - [ ] 7.2 Record the verbatim answers with the date in `## Review Approval`. **No status change to review without it.**
+- [ ] **Task 8: Wrap-up (AC: 9)**
+  - [ ] 8.1 `deferred-work.md`: strike with `~~…~~ Done in 5.3: …` (or add "5.3: measured, <result>") each item this story measured: 1.2 Firefox load/1366 checks; 1.5 Firefox per-key table and Firefox Esc-in-fullscreen; 1.7 NFR4 in Firefox; 1.8 "Firefox Ctrl+Shift+E" (record what happened; the fix, if any, is 5.5); 2.7 "Esc in browser fullscreen … whether it also pauses is Story 5.3's check"; 3.4 "target-laptop check is Story 5.3"; 5.1 "OGG first-play hitch … part of 5.3"; 1.6 "`run_history` bounds still open for Epic 5" (bounded: `GameConstants.RUN_HISTORY_CAP = 500`, `PlayerData.record_run`; strike it); 2.10 / 1.8 "real Chrome/Edge F6/F7" (debug-only keys; release has no F-key bindings — note "release: n/a", leave the debug question open or answer it if Smuck tried it). Add "Deferred from: dev of story 5-3" for anything left open.
+  - [ ] 8.2 Full suite twice (import first), real `save.json` hash unchanged. No game code is expected to change in this story; if anything in `scripts/`, `scenes/`, `data/` or `project.godot` changed, it needs its own test and a reason in the Change Log (and is probably a 5.5 item instead).
+  - [ ] 8.3 Dev Agent Record, File List, Change Log; Status → `review`; `sprint-status.yaml` → `review`. Suggested commit: `Story 5.3: technical metrics on family computers`. Screenshots under `screenshots/5-3/` are committed; probe JSON stays inline in this file.
+
+## Smuck's Runbook
+
+_(Draft — the dev agent updates it after Gate A. Every check: what to do, what "pass" looks like. Paste results into chat; the agent fills the tables.)_
+
+**Before you start (target laptop):** plugged in; close other apps and tabs; Windows power mode Balanced; browser zoom 100 %; Chrome, Edge and Firefox up to date; open `tools/perf/README.md` on your phone or the dev PC.
+
+**Session 1 — target laptop, per browser (Chrome, Edge, Firefox):**
+
+1. **Load (M3).** Open DevTools → Network. Turn on "Disable cache" and throttling at 25 Mbit/s (Chrome/Edge: custom profile, Download 25000 kbit/s, Upload 5000, latency 20 ms; Firefox: the closest preset — see Dev Notes). Hard reload the link. Write down: the transferred total at the bottom of the Network panel, and the time until the title screen shows (stopwatch from the reload, or the `Load` time plus the time to the first title frame in the Performance panel). Then turn off "Disable cache", keep throttling, reload: cached time. Pass: first ≤ 10 s, cached ≤ 3 s, transferred ≤ 40 MB.
+2. **Frame rate + latency (M1, M2).** Turn throttling and "Disable cache" off. Close DevTools' Network panel (keep the Console). Paste `frame_probe.js` into the Console and press Enter. Play from the title → menu → Zombie Run. On the "Type the letter to start!" screen, type `zts_probe.arm()` in the Console, press Enter, **click the game** (so it has focus), then type the first letter. Play the full 2:00 with real typing; hug villagers so the conga line passes 12 (the "×N" badge shows). After the report card appears, the Console prints the summary. Type `copy(JSON.stringify(zts_probe.result()))` (Firefox: `JSON.stringify(zts_probe.result())` and copy the output) and paste it into chat. Pass: frames over 33 ms = 0, FPS ≥ 60, latency max ≤ one refresh interval (~16.7 ms at 60 Hz).
+3. **Evidence recording (M1).** One short Performance recording per browser (Chrome/Edge: Performance → record ~20 s mid-run with "Screenshots" on; Firefox: the Firefox Profiler, preset "Graphics", ~20 s). Screenshot the frames track, save it, send it. A full 2:00 profiler recording is not needed (it slows a weak laptop down by itself); the probe is the 2:00 number.
+4. **Keys (M5)** — Chrome and Firefox (Edge too if quick). During a run press each of Space, `'`, `/`, Backspace, Tab a few times. Pause with Esc and press them again. Pass: the page never scrolls, no find bar opens (Firefox: `'` and `/` open quick-find when not blocked), focus never leaves the game. Then Quit to Menu and check normal keys work again in the browser (e.g. `/` in the address bar, Tab moves to the address bar or page). With the probe pasted, `zts_probe.keys()` prints what was blocked; paste it in chat. Then: fullscreen on (the menu toggle or the browser's F11), start a run, press Esc once: note whether it leaves fullscreen, pauses, or both.
+5. **Screen (M6).** Browser maximised: does the game fill the window height (bars only at the sides), are pixels sharp, is the 16 px text (e.g. "Crypt Closet", the HUD stats) readable from where you normally sit? Then fullscreen: same questions. One screenshot each (Windows: Win+Shift+S).
+
+**Session 2 — save integrity (M4), Chrome and Firefox (laptop or dev PC):** in a fresh profile or after clearing the site's data: play one Zombie Run, open the gift, buy and wear an item (Closet). Note brains, item, best WPM. Then **10 reloads** (F5; 3 of them right after a purchase or Wear, under 1 s) and **10 tab closes mid-menu** (on the main menu, Ctrl+W, reopen the link). After each: brains, owned + worn item, best WPM the same? Write one line per round (the agent gives you a table to fill).
+
+**Session 3 — Windows PC (M7):** run `ZombiesTeachTyping.exe` from the folder the agent gives you; title → menu → a full Zombie Run → note brains → close → start again → same brains and same hat?
+
+**Session 4 — 3 family computers (M8):** someone else opens the link (sent the way you'd share it), with no help from you. Note: computer + browser, did it load, did they get into a run, anything that stopped them. A failure is a fix item, not a re-try with help.
+
+## Metrics Results
+
+_(Filled from Smuck's reports and the probe output. Pass / Fail / Skipped (+ Smuck's reason) per row.)_
+
+**Target laptop:** none. Per Smuck's Gate A answer ("Dev PC is closest"), the dev PC stands in: HP OMEN by HP 40L Gaming Desktop GT21-0xxx, AMD Ryzen 7 5700G, NVIDIA GeForce RTX 3070 (discrete, not integrated), 15.6 GB RAM, Windows 11 Home, 1920×1080 at 60 Hz, Windows power plan Balanced, Chrome 154.0.8037.98, Edge 154.0.4258.53. **Deviation:** this is far stronger than the 2018-era integrated-graphics laptop NFR1 names, so a pass here is weak evidence for weaker family computers (see Fix Items). · **Build:** _(tag, commit, CI run URL)_ · **Dates:** dev-PC pane reference 2026-10-06
+
+**M1 — Frame rate, RUNNING window (NFR1)**
+
+| Browser (version) | Frames | Mean ms | p99 ms | Max ms | > 33 ms | FPS | Conga total / drawn | Load hitches (ms, where) | Result |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Dev PC reference (pane, Chromium 152, **local release export**, 2026-10-06) | 7236 | 16.65 | 16.8 | 18.4 | 0 | 60.05 | ×62 at 0:08 (badge showing) / 12 | not armed (see 5.1: 110–165 ms OGG decode) | ref (NFR1 met on dev PC) |
+| Chrome | | | | | | | | | |
+| Edge | | | | | | | | | |
+| Firefox | | | | | | | | | |
+
+**M2 — Input latency (NFR2):** keydown → next frame
+
+| Browser | Keys | p50 ms | p95 ms | Max ms | Refresh ms | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| Chrome | | | | | | |
+| Edge | | | | | | |
+| Firefox | | | | | | |
+
+Code-level proof (same call, no frame wait): `tests/integration/test_run_frame.gd::test_level_reacts_in_the_same_call`, `::test_first_correct_key_updates_hud`, `::test_wrong_key_updates_hud_in_the_same_call`, `tests/unit/test_zombie_run_level.gd::test_correct_key_advances_in_the_same_call`, `::test_brain_block_key_pays_in_the_same_call`, `::test_chaining_never_caps_typing`.
+
+**M3 — Load (NFR3)**
+
+| Browser | Throttle used | Transferred MB | First load s | Cached load s | Result |
+| --- | --- | --- | --- | --- | --- |
+| Chrome | | | | | |
+| Edge | | | | | |
+| Firefox | | | | | |
+
+Local export sizes (Task 1.2, release, 2026-10-06; gzip level 6, the Pages-like estimate):
+
+| File | Raw B | Gzip B |
+| --- | --- | --- |
+| index.wasm | 39,514,754 | 10,114,291 |
+| index.pck | 2,497,016 | 2,212,419 |
+| index.js | 279,815 | 68,740 |
+| index.apple-touch-icon.png | 11,939 | 11,962 |
+| index.audio.worklet.js | 7,298 | 2,204 |
+| index.html | 6,667 | 2,588 |
+| index.icon.png | 5,765 | 5,788 |
+| index.png | 2,984 | 3,007 |
+| index.audio.position.worklet.js | 2,973 | 1,167 |
+| **Total shipped** | **42,329,211** | **12,422,166** |
+
+vs 1.2's hello world 10,350,910 B on the wire: +~2.1 MB, nearly all the pck (the two OGG loops are 1,055,210 + 806,482 B of the 2,448,833 B of pck content). Far below the ~30 MB 10-second budget and the 40 MB check. (Three stale `*.import` files in `build/web/` are local Godot imports, not part of the CI artifact; excluded.)
+
+Debug-only content in the pck (Task 1.3, parsed from the pck directory, format 4, 471 files): 49,962 B in total (scripts/debug/* incl. the debug overlay and frame tracker 35,746; keyboard_test 6,648; test_level 3,160; art_review 2,775; hat_fit_check 1,212; scenes/debug remaps 421). That is 2.0 % of the pck and ~0.4 % of the download: no M3 impact, so no fix item. 5.5 may still drop them for tidiness.
+
+Pages headers (Task 4.3): _(content-encoding, length, cache-control)_
+
+**M4 — Save integrity (NFR4):** one row per round per browser (round, kind: normal / fast after buy / mid-menu close, brains, owned, worn, best WPM, lost?)
+
+| Browser | Round | Kind | Brains | Owned / worn | Best WPM | Lost? |
+| --- | --- | --- | --- | --- | --- | --- |
+
+**M5 — Browser keys in a real run**
+
+| Browser | Key | Run: scroll / find / focus | Paused: scroll / find / focus | `defaultPrevented` | Menu after: normal? | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+
+Esc in fullscreen during a run: _(per browser: leaves fullscreen? pauses? first or second Esc?)_
+
+**M6 — Screen 1366×768**
+
+| Browser | Windowed: fills / sharp / 16 px readable | Fullscreen: fills / sharp / readable | Screenshot | Result |
+| --- | --- | --- | --- | --- |
+
+**M7 — Windows Desktop fallback**
+
+| PC | Starts | Zombie Run plays | Save kept across restart | Notes | Result |
+| --- | --- | --- | --- | --- | --- |
+
+**M8 — Reach (NFR17)**
+
+| # | Computer / OS / browser | Loaded | Played without help | What stopped them | Result |
+| --- | --- | --- | --- | --- | --- |
+| 1 | | | | | |
+| 2 | | | | | |
+| 3 | | | | | |
+
+### Probe output
+
+_(Paste each browser's `zts_probe.result()` JSON here inside a `<details>` block.)_
+
+## Fix Items for 5.5
+
+_(F1… : what failed · machine / browser · number · suspected cause (code ref) · suggested fix · Smuck's call: must-fix-before-publish / post-MVP / no action.)_
+
+## Review Approval
+
+**Gate A (2026-10-06)**, AskUserQuestion answers verbatim:
+
+- 3.2 Pages build: "Yes, tag v0.9.0 (Recommended)"
+- 3.4 NFR1 scope: "Running window only (Recommended)"
+- 3.5 Sessions: "You run, I fill (Recommended)"
+- 6.2 Windows PC for M7: "Dev PC, save backed up"
+- 3.1 Firefox: "Skip Firefox". (No further reason given; AC 1, 4, 5 Firefox rows are Skipped with these words.)
+- 3.3 Target laptop: "Dev PC is closest"
+- 3.3 M8 computers: "One computer is fine, dont need 3"
+- CI blocker (found at Task 4.1: CI red on `main` since Story 3.3): "Narrow the CI grep (Recommended)"
+
+
+## Dev Notes
+
+### What this story is (and isn't)
+
+- **Is:** measurement and evidence. Prepare a release test build on the Pages link (with Smuck's OK), a console frame/latency/key probe, a runbook Smuck can follow on real family computers, the M1–M8 result tables, and a triaged fix list for 5.5. Close the Firefox and target-laptop items that earlier stories deferred to here.
+- **Isn't:** fixing the game (failures → `## Fix Items for 5.5`; 5.5's AC: "the must-fix items from Stories 5.3 and 5.4"); the kid playtest (5.4); publishing `v1.0.0` or the how-to-play note (5.5); new debug features in the game; removing the debug-only scenes from exports (record their size; 5.5 decides); any install or download (Firefox is Smuck's to install; no npm/pip packages).
+- The only new files are dev tools under `tools/perf/` (export-excluded by both presets' `exclude_filter`: `tools/*`) and screenshots. No change under `scripts/`, `scenes/`, `data/`, `assets/`, `project.godot` or `export_presets.cfg` is expected.
+
+### What NFR1 measures (Gate A 3.4)
+
+- NFR1: "a full 2:00 Zombie Run with 12 conga followers drawn, with no frame over 33 ms". The run is 2:00 from the first correct key (FR6: the timer starts there), so the window is RUNNING: first letter → 0:00. The end dance (2.0 s) and the report card are outside it, and so is the level load before the first key.
+- Known hitches outside the window (5.1 deferral, dev PC, Chromium): the first play of each 96 s OGG music loop is one long main-thread task (Godot decodes the whole OGG into a Web Audio buffer): ~110–145 ms at the title unlock, ~165 ms entering the first run. On a 2018 laptop this may be 300–600 ms — a visible freeze while "Type the letter to start!" shows. It does not break NFR1 as written, but it's what a kid sees. Record it (the probe isn't armed yet at that point: read it from the Performance recording of the load, or arm the probe early with `zts_probe.arm({startNow: true})` for one extra capture — add that option) and let Gate B decide.
+- The 3.4 debug overlay "run worst" also counts RUNNING frames only, so the reference numbers line up. The release build has no overlay (Boundary 7: debug code instanced only when `OS.is_debug_build()`), which is why the probe lives in the browser console, not in the game.
+- Measure the **release** build (CI `--export-release`). The 3.4 reference (22.7 ms worst, RTX 3070) was a debug build in the pane; debug GDScript is slower, so release on the same machine should be no worse.
+- 12+ followers: the conga line draws at most 12 and shows "×N" beyond (FR35, `conga_max_drawn`); a normal 2:00 run at ~1 key/s gets 20–90 joins (3.4: conga total 87). If Smuck types slowly, check the badge showed; otherwise the run doesn't meet "12+".
+
+### Why a console probe (and not the game) for frame times
+
+- `requestAnimationFrame` pacing is the browser's frame clock; Godot's web export (single-threaded, `emscripten_set_main_loop`) runs one engine iteration per rAF, so rAF intervals = the game's frame times, including GC and audio decode stalls. It works identically in Chrome, Edge and Firefox, on the release build, with no code shipped to kids (NFR12: no analytics; nothing leaves the page).
+- The AC asks for "the browser performance tools": the probe runs in DevTools' Console, and one short Performance / Firefox Profiler recording per browser is the visual evidence. A 2:00 profiler recording on a weak laptop distorts the result (profiling overhead), so it's not the number.
+- Latency: a key event is queued by the browser, Godot reads it at the start of its next iteration (inside the next rAF callback), the level advances the target in that same call (tests listed under M2), and the frame drawn in that callback shows it; it's presented at the next vsync. So "keydown → next rAF ≤ one refresh interval" plus the same-call tests is the NFR2 proof. If the max is over one interval but frames are fine, check whether the key landed during a long frame (it'll match a > 17 ms frame in M1).
+
+### Browser tool steps (for the README and the runbook)
+
+- **Chrome / Edge (154):** DevTools → Network → throttling dropdown → "Add…" a custom profile "25 Mbit/s": download 25000 kbit/s, upload 5000 kbit/s, latency 20 ms. "Disable cache" for the first load. Performance panel → record, "Screenshots" checked; the Frames track shows long frames in red/yellow. Pasting into the Console asks you to type "allow pasting" once.
+- **Firefox:** Network throttling has presets only (no custom value as far as known — verify on the machine); the closest to 25 Mbit/s is "Wi-Fi" (30 Mbit/s). Use it and note it in M3; the Chrome/Edge 25 Mbit/s numbers are the governing ones. Profiling: the built-in Firefox Profiler (Performance tab → "Graphics" preset). Pasting needs "allow pasting" typed first. `copy()` exists in Firefox's console too, but if it fails, print the JSON and copy by hand.
+- **Throttle realism:** DevTools throttling caps throughput but not the CPU; a first load on the laptop also includes wasm compile time (CPU-bound, much slower on a 2018 CPU than the dev PC). That's what M3 wants to catch: time to the title screen, not just the transfer.
+- **Cached load:** Godot's loader re-requests files; Pages sends `Cache-Control: max-age=600` with a weak ETag (1.2). Within 10 minutes the cached load is from disk cache; after that, 304 revalidations. 1.2 saw the pane re-download `index.wasm` every time (small HTTP cache); real browsers (Chrome ~1.2 s, Edge ~1.3 s cached in 1.2) didn't. Record which happened (the Size column shows "(disk cache)" or a 304).
+
+### Expected weak spots (check, don't assume)
+
+- **Download size (M3):** 1.2's hello world was 10.35 MB on the wire (mostly the 10.2 MB wasm template). The MVP adds the pck (sprites, two 60–120 s OGG loops, WAVs, font). Measure in Task 1.2 before tagging. The architecture says the 10 s budget ≈ 30 MB on the wire at 25 Mbit/s; the 40 MB "check" is secondary (NFR3: "The 10 s load time is the governing rule").
+- **Firefox (never tested in this project):** IndexedDB persistence (NFR4), quick-find on `'` and `/` (the JS key listener ships enabled as a hedge, 1.5), Ctrl+Shift+E taken by the Network tool (1.8), Esc in fullscreen. Firefox's WebGL 2 on an old Intel iGPU may also be slower than Chromium's ANGLE.
+- **Integrated GPUs at fractional scale:** the 640×360 viewport is drawn at 640×360 then scaled (`window/stretch/mode="viewport"`), so fill cost is tiny; the risk is CPU (GDScript `_process` of up to 12 followers + targets + backdrop parallax) and GC, not the GPU.
+- **Background tabs / hidden pane:** throttled rAF reads as ~1–2 FPS; only a visible, focused tab gives real numbers (1.8 deferral). The run auto-pauses on blur (FR11), so clicking into DevTools mid-run **pauses the run** — arm the probe before the first key and don't touch DevTools until the report card.
+- **The probe vs. pause:** if Smuck clicks DevTools by accident, the run pauses (blur) and rAF keeps running — the summary will include paused time. The probe should also record `document.hasFocus()` per frame (cheap: sample once per 250 ms) and report "frames while unfocused" so a paused stretch is visible; exclude unfocused frames from the NFR1 numbers and say so.
+
+### Existing code: what this story touches and must preserve
+
+- **No game code changes.** Read-only references: `scripts/autoloads/web_platform.gd` (`CAPTURED_KEYS = [" ", "'", "/", "Backspace", "Tab"]`, `window.__zts.capture`, the capture-phase listener that skips Ctrl/Meta/Alt combos), `scripts/run/run_frame.gd` (`capture_keys = true` in `_ready()`, false in `_exit_tree()`: on for the whole run including pause and countdown, off on the report card and menu — M5's "menu afterwards"), `scripts/debug/frame_tracker.gd` + `debug_overlay.gd` (debug-only frame tracking; don't reuse in release), `scripts/autoloads/save_service.gd` (atomic write, `visibility_hidden` immediate write; 1.7 measured no loss in Chrome/Edge), `scripts/autoloads/player_data.gd` (`RUN_HISTORY_CAP` 500), `scripts/autoloads/audio_manager.gd` (music players; the OGG hitch).
+- **`.github/workflows/build.yml`:** unchanged. Tags `v*` deploy; `main` builds an artifact only. Existing tags: `v0.0.1`. The tag must point at a commit whose CI on `main` passed.
+- **`export_presets.cfg`:** unchanged; `test_export_presets.gd` pins the head include byte-for-byte.
+- **The probe must never ship:** it lives in `tools/perf/`, which both presets exclude. Don't add it to the head include "just for the test".
+
+### NFR8 in the epic's AC 7
+
+- The epic writes "(NFR8 fallback smoke check)" for the Windows export, but NFR8 is color accessibility. The fallback is NFR5 ("Windows desktop is a fallback with the same save contents"). Use NFR5 in the tables; note the epic typo in the Change Log (don't edit `epics.md` silently — list it in deferred-work for the PM, like 5.2's FR27 wording note).
+
+### Testing notes
+
+- GUT 9.7.1: `"/c/Program Files/Godot/Godot.exe" --headless --path . --import`, then `"/c/Program Files/Godot/Godot.exe" --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit`. Expect 1319+ (5.2 end), all passing, no new tests unless game code changes.
+- Serving locally: `python -m http.server 8060 -d build/web` (1.7) or the `.claude/launch.json` config for `preview_start` (read it; reuse the existing entry, don't add a second server on 8060).
+- Built-in pane: Chromium 152-ish; not one of the three target browsers, so pane numbers are a reference only. It can't throttle the network.
+- `gh` CLI for CI: `gh run list`, `gh run watch` (one wait). Don't schedule or loop polls.
+
+### Previous story intelligence
+
+- **5.2:** gates as `AskUserQuestion`, one question per decision, recommendation first, answers recorded verbatim with the date; checklists as tables with Pass/Fail + note; screenshots under `screenshots/<story>/`; hash the real save around every run; a story-file section replace once cut half the story — match headings line-anchored when filling tables. Suite 1319. Its deferrals: brittle counts, the capture tool's missing guards (dev-only) — not this story's.
+- **5.1:** the OGG first-play decode hitch (named for 5.3); the pane crossfade stretched because the pane ran ~15 fps after a level load — pane timing is not representative.
+- **3.4:** first NFR1 check (debug build, pane, dev PC): worst 22.7 ms, 116 keys, conga 87, badge showing; the overlay's run-worst counts RUNNING frames only.
+- **1.7:** NFR4 procedure (10 reloads incl. 3 fast, 10 tab closes incl. 3 mid-menu and 3 fast) in Chrome + Edge, all pass, no per-round table (deferred: re-run with one). This story's M4 uses real brains + a purchase (the Keyboard Test counter is a debug screen) and records per round.
+- **1.5:** the JS key listener is a hedge for Firefox quick-find; `'` and `/` were never proven on a real keyboard in a real run (2.4 deferral: the pane sends an empty `key` for them).
+- **1.2:** Pages URL `https://jacob-verburg.github.io/ZombiesTeachTyping/`; Pages gzip; `max-age=600`; 10,350,910 B hello world; throttled loads and Firefox skipped by Smuck's decision then — this story is where they're due.
+- **Traps:** the real save (Windows export shares `app_userdata/ZombiesTeachTyping`); hidden-pane throttling; blur pauses the run; LF line endings (`.gitattributes eol=lf`) for the new `.js`/`.md`; never edit `build/` for a commit; outward-facing actions (tag push) only after an explicit yes.
+
+### Git intelligence
+
+- One commit per story (code, tools, story file, sprint status, screenshots). Recent: `a173428 Story 5.2: readability, color and plain-words check …`, `2f3fb43 Story 5.1 …`, `4d3fb6f Story 5.0 …`. This story may need **two** commits: the tools commit before the tag (Task 4.1) and the results commit at the end. Both go on `main`.
+
+### Project Structure Notes
+
+- New: `tools/perf/frame_probe.js`, `tools/perf/README.md`, `_bmad-output/implementation-artifacts/screenshots/5-3/`.
+- Modified: this story file, `sprint-status.yaml`, `deferred-work.md`.
+- No `.uid` files for `.js`/`.md` (Godot only makes them for scripts/resources); if Godot creates a `.import` for anything under `tools/`, don't commit stray imports.
+
+### Project Context Rules
+
+- No `project-context.md`. Binding rules from `_bmad-output/game-architecture.md` and the spines:
+  - Boundary 3: only `WebPlatform` touches browser APIs from GDScript — the probe is outside the game, so it's fine; don't add a GDScript `JavaScriptBridge` call for metrics.
+  - Boundary 7: debug code only in `scenes/debug/`/`scripts/debug/`, instanced only in debug builds; release has no overlay and no cheats.
+  - NFR12: no network, analytics or personal data — the probe sends nothing and the results contain no personal data (record computer models, not people's names; "family computer #2", not whose it is).
+  - ADR-4: Pages deploys only from `v*` tags; publishing is deliberate (Smuck's yes).
+  - NFR9/NFR16: unchanged by this story; any player-visible text problem seen on the laptop is a fix item.
+- Tools: Godot `/c/Program Files/Godot/Godot.exe` (4.7.2), GUT 9.7.1, the Godot MCP server, the built-in browser pane, `gh`, Python (for gzip sizes and the local server). Chrome 154 and Edge 154 are on the dev PC; Firefox is not.
+
+### References
+
+- [Source: _bmad-output/planning-artifacts/epics.md#Story 5.3: Technical Metrics on Family Computers] (ACs); Epic 5 goal; NFR1–NFR5, NFR12, NFR17; FR6, FR11, FR35
+- [Source: _bmad-output/game-architecture.md] Technical Requirements (frame rate, latency, load ≈ 30 MB), Technical Risks (low-end iGPU latency), Web Platform (key swallowing, `capture_keys` lifecycle), Hosting, Build & CI (tag deploys, gzip), Debug Tools ("Browser developer tools (Performance tab) for the web frame-time check in Epic 5"), Architectural Boundaries 3 and 7
+- [Source: _bmad-output/implementation-artifacts/1-2-web-export-ci-and-github-pages-deploy.md] Pages URL, sizes, cache headers, skipped Firefox/throttled checks; `1-5-…` key capture; `1-7-…` NFR4 procedure; `3-4-conga-line.md` NFR1 reference; `5-1-…` OGG hitch; `5-2-…` gate pattern
+- [Source: _bmad-output/implementation-artifacts/deferred-work.md] items under 1.2, 1.5, 1.6, 1.7, 1.8, 2.7, 3.4, 5.1 named in Task 8.1
+- [Source: scripts/autoloads/web_platform.gd, scripts/run/run_frame.gd, scripts/debug/frame_tracker.gd, scripts/debug/debug_overlay.gd, scripts/autoloads/save_service.gd, scripts/autoloads/player_data.gd, scripts/autoloads/audio_manager.gd, .github/workflows/build.yml, export_presets.cfg, project.godot]
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Opus 5.5 (claude-opus-5-5)
+
+### Debug Log References
+
+- Baseline 2026-10-06 at `a173428`: GUT 1319/1319, 41,676 asserts. Real `save.json` sha256 `c34c7559…1761d` before/after every suite and export run.
+- Probe selftest: PASS in Node (`node -e`, no package installed) and in the pane (Chromium 152): all 13 checks.
+- Pane reference run 1 (full 2:00, local release export): frames 7236, mean 16.65, p50 16.7, p95 16.7, p99 16.8, max 18.4 ms, >33 ms 0, >17.5 ms 2, FPS 60.05, refresh 16.6 ms, unfocused 0. 90 keys typed, 7 errors, 32 brains, conga ×62.
+- Run 1's latency (max 20.7 ms) exposed a probe bug: it measured to `performance.now()` inside the probe's rAF callback, which can run after Godot's frame work. Fixed to the story's definition (keydown `timeStamp` → next rAF frame timestamp, clamped at 0). Pane run 2 (41 s, latency check incl. pause/resume): 32 keys, p50 5.5, p95 14.4, max 14.5 ms (≤ 16.7, pass); frames 2472, max 17.2 ms.
+- Pane key check (run 2): Space, Backspace, Tab during the run and while paused: `defaultPrevented` true, `__zts.capture` true, no scroll, focus stayed on `canvas#canvas`; Escape also `defaultPrevented` (by the engine). `/` and `'` produced no keydown in the pane (known 2.4 limitation: the pane sends an empty `key`), so they're unproven here.
+- CI on `main` red since Story 3.3 (run 37323763735 onward): all 1319 tests pass in CI, but the "Run GUT" step's grep matched `SCRIPT ERROR: Assertion failed: Villager state can only move forward`, which is printed by `test_villager.gd`'s deliberate `assert_engine_error` checks. The old pattern matched 3 lines locally; the new `Parse Error|Compile Error|Failed to load script` matches 0, and still matches a temporary broken test (GUT exited 0 with it, which is why the check exists).
+
+### Completion Notes List
+
+- Ultimate context engine analysis completed - comprehensive developer guide created.
+
+### File List
+
+- `tools/perf/frame_probe.js` (new)
+- `tools/perf/README.md` (new)
+- `.github/workflows/build.yml` (modified: GUT log grep narrowed; Smuck's Gate A call)
+- `_bmad-output/implementation-artifacts/5-3-technical-metrics-on-family-computers.md` (this file)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Change Log
+
+- 2026-10-06: Tools commit before the v0.9.0 tag. Added the console frame/latency/key probe and its README under `tools/perf/` (export-excluded). Baseline sizes and debug-content share recorded. Gate A recorded. `.github/workflows/build.yml`: the "Run GUT" grep changed from `Parse Error|Failed to load script|SCRIPT ERROR` to `Parse Error|Compile Error|Failed to load script`. The old pattern failed every `main` build since Story 3.3 on deliberate engine asserts (`test_villager.gd`), which blocked the tag deploy. Out of the story's planned scope, so done on Smuck's explicit call.
