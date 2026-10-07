@@ -85,6 +85,17 @@ func test_both_presets_exclude_dev_folders() -> void:
 			assert_has(excludes, pattern, "%s must exclude %s" % [preset_name, pattern])
 
 
+## Story 6.1 (AC 7): the generated word list ships so Story 6.2 can load it at runtime.
+func test_both_presets_include_content_json() -> void:
+	for preset_name: String in ["Web", "Windows Desktop"]:
+		var section: String = _load_and_find(preset_name)
+		assert_ne(section, "", "a preset named %s must exist" % preset_name)
+		if section == "":
+			continue
+		var includes: Array[String] = _split_filter(_cfg.get_value(section, "include_filter", ""))
+		assert_has(includes, "data/content/*.json", "%s must include data/content/*.json" % preset_name)
+
+
 func _load_and_find(preset_name: String) -> String:
 	if _cfg.load(PRESETS_PATH) != OK:
 		return ""
