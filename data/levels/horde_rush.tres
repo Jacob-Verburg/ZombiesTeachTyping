@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="HordeRushConfig" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/horde_rush_config.gd" id="1_cfg"]
+[ext_resource type="Script" path="res://scripts/resources/horde_size_class.gd" id="2_size"]
+[ext_resource type="JSON" path="res://data/content/words.json" id="3_words"]
+
+[sub_resource type="Resource" id="Resource_small"]
+script = ExtResource("2_size")
+id = &"small"
+max_word_length = 3
+crossing_time_s = 8.0
+hits_to_stop = 1
+arrival_brains = 1
+sprite_scale = 1.0
+
+[sub_resource type="Resource" id="Resource_medium"]
+script = ExtResource("2_size")
+id = &"medium"
+max_word_length = 5
+crossing_time_s = 10.0
+hits_to_stop = 2
+arrival_brains = 2
+sprite_scale = 1.25
+
+[sub_resource type="Resource" id="Resource_brute"]
+script = ExtResource("2_size")
+id = &"brute"
+max_word_length = 0
+crossing_time_s = 13.0
+hits_to_stop = 3
+arrival_brains = 3
+sprite_scale = 1.5
+
+[resource]
+script = ExtResource("1_cfg")
+duration_s = 300.0
+case_sensitive = false
+space_is_input = false
+target_mode = 1
+completion_bonus = 0
+music_id = &""
+word_list = ExtResource("3_words")
+word_min_length = 3
+word_max_length = 5
+lane_count = 5
+size_classes = Array[ExtResource("2_size")]([SubResource("Resource_small"), SubResource("Resource_medium"), SubResource("Resource_brute")])

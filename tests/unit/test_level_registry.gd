@@ -117,11 +117,19 @@ func test_shipped_registry_menu_levels() -> void:
 		assert_not_null(entry, String(id))
 		assert_false(entry.available, "%s is Coming soon" % id)
 		assert_false(entry.debug_only)
-		assert_null(entry.scene, "%s has no scene yet" % id)
 		# Story 5.0: Coming soon cards show their level's picture too (greyed by the card).
 		assert_eq(entry.card_picture.resource_path, "res://assets/sprites/ui/menu/ui_level_card_%s.png" % id)
 		assert_eq(entry.display_name, names[id])
-		assert_null(registry.get_scene(id), "%s has no scene to run" % id)
+	# Story 6.3: Horde Rush has its scene (reachable from the debug jump) but stays Coming soon.
+	var horde_rush: LevelEntry = registry.get_entry(&"horde_rush")
+	assert_not_null(horde_rush.scene, "Horde Rush has its level scene")
+	assert_not_null(registry.get_scene(&"horde_rush"))
+	var root: Node = horde_rush.scene.instantiate()
+	assert_true(root is LevelBase, "Horde Rush's root is a LevelBase")
+	root.free()
+	var pitchfork: LevelEntry = registry.get_entry(&"pitchfork_panic")
+	assert_null(pitchfork.scene, "Pitchfork Panic has no scene yet")
+	assert_null(registry.get_scene(&"pitchfork_panic"), "Pitchfork Panic has no scene to run")
 	var menu_ids: Array[StringName] = []
 	for entry: LevelEntry in registry.menu_entries():
 		menu_ids.append(entry.id)

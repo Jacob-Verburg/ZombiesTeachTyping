@@ -1634,3 +1634,45 @@ func test_word_live_wpm_counts_implied_spaces() -> void:
 	var keys: int = frame.get_session().get_keys_typed()
 	frame._process(10.0)
 	assert_eq(_hud_text(frame, "%WpmValue"), str(StatsCalculator.wpm(keys, 10.0, 3)))
+
+
+# --- Horde Rush (Story 6.3): the real horde_rush level, hidden from the menu ----------------------
+
+const HordeRushScript := preload("res://scripts/levels/horde_rush/horde_rush_level.gd")
+
+
+func test_horde_rush_spawns_a_copy_on_a_completed_word() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"horde_rush", "seed": 7})
+	var level: HordeRushScript = frame.get_level() as HordeRushScript
+	assert_not_null(level, "the horde rush level is running")
+	assert_eq(frame.get_duration(), 300.0)
+	assert_eq(_hud_text(frame, "%StartPromptLabel"), "Type the word to start!")
+	var word: String = frame.get_session().get_current_target()
+	assert_between(word.length(), 3, 5, word)
+	for i: int in word.length() - 1:
+		_send(frame, word[i])
+	assert_false(_input_node(frame).handle_key(_space()), "Space is ignored")
+	assert_eq(frame.get_session().get_errors(), 0)
+	assert_eq(level.get_view_count(), 0)
+	assert_true(_send(frame, word[word.length() - 1]))
+	# No await since the last key: the copy exists in the key's own call.
+	assert_eq(level.get_field().get_marching().size(), 1)
+	assert_eq(level.get_view_count(), 1)
+	assert_eq(level.get_field().get_marching()[0].word, word)
+
+
+func test_horde_rush_end_freezes_and_pays_nothing_yet() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"horde_rush", "seed": 7})
+	var level: HordeRushScript = frame.get_level() as HordeRushScript
+	_type_word(frame)
+	_type_word(frame)
+	frame._process(5.0)
+	assert_true(frame.debug_end_run())
+	assert_true(level.is_frozen())
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	var result: RunResult = _result()
+	assert_eq(result.level_id, &"horde_rush")
+	assert_eq(result.completed_words, 2)
+	assert_eq(result.brains, 0)
+	assert_eq(result.bonus_brains, 0)

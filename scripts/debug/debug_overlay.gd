@@ -15,8 +15,10 @@ extends CanvasLayer
 ## clears it.
 ## Keys are read in _input, not _unhandled_input: the Keyboard Test screen swallows every key in
 ## _unhandled_input. PROCESS_MODE_ALWAYS so it works while the tree is paused (Router fade, run pause).
-## Jump row (Story 4.2; "Test words" Story 6.2): mouse-only "Test level" / "Test words" / "Welcome gift" /
-## "Keyboard test" buttons that replace the placeholder menu's debug buttons. They work only while the main menu is the current screen (a jump out of
+## Jump rows (Story 4.2; "Test words" Story 6.2; "Horde Rush" and the second row Story 6.3): mouse-only level
+## buttons "Test level" / "Test words" / "Horde Rush" on %JumpRow and screen buttons "Welcome gift" /
+## "Keyboard test" on %JumpRow2, replacing the placeholder menu's debug buttons. "Horde Rush" starts the
+## hidden level (still Coming soon on the menu). They work only while the main menu is the current screen (a jump out of
 ## a run would skip RunFrame's quit path) and are disabled elsewhere. FOCUS_NONE: they never take the menu's
 ## keyboard focus. They are the only controls here that take the mouse, and only while the overlay is open.
 ## Closed = no per-frame work (_process off, refresh timer stopped). Nothing is logged per frame.
@@ -76,6 +78,7 @@ func _ready() -> void:
 		current_screen = func() -> Router.Screen: return Router.current_screen
 	%JumpTestLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_level"}))
 	%JumpWordLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_word_level"}))
+	%JumpHordeRushButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"horde_rush"}))
 	%JumpGiftButton.pressed.connect(_jump.bind(Router.Screen.WELCOME_GIFT, {}))
 	%JumpKeyboardTestButton.pressed.connect(_jump.bind(Router.Screen.KEYBOARD_TEST, {}))
 	visible = false
@@ -287,7 +290,8 @@ func _refresh_save() -> void:
 ## The jump buttons work only on the main menu.
 func _refresh_jumps() -> void:
 	var on_menu: bool = _on_main_menu()
-	for button: Button in [%JumpTestLevelButton, %JumpWordLevelButton, %JumpGiftButton, %JumpKeyboardTestButton]:
+	for button: Button in [%JumpTestLevelButton, %JumpWordLevelButton, %JumpHordeRushButton, %JumpGiftButton,
+			%JumpKeyboardTestButton]:
 		button.disabled = not on_menu
 
 

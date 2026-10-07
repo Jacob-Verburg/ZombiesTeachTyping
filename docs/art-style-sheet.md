@@ -193,7 +193,8 @@ The sprites are drawn so that later art can be made by reuse (GDD → Reuse):
   `art-skin-dark` (legend characters `s`/`S`); the recolor swaps them for `zombie-green` and
   `zombie-green-dark` and keeps the clothes. The result is still palette-only.
 - **Horde Rush copies = the player sprite, scaled** for size classes. Note: a 1.5× nearest scale of a
-  32 px sprite gives uneven pixels; Story 6.3 decides between redrawn 48×48 brutes and an integer scale.
+  32 px sprite gives uneven pixels. Decided in Story 6.3: per-class `sprite_scale` in `horde_rush.tres`
+  (small 1.0, medium 1.25, brute 1.5; no integer 2×, it overflows a 44 px lane); slightly uneven pixels accepted.
 - **The mob = 2 base sprites, recolored.**
 - **Hats anchor to a head point.** Story 4.3 set the anchors: one head point per frame of every animation
   (the top-centre of the crown), in `data/anchors/` (`zombie_anchors.tres`, `professor_anchors.tres`),

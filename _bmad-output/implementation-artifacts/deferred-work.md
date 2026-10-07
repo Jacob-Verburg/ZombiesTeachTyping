@@ -103,7 +103,7 @@
 
 - Art gate approved by Smuck (palette, Press Start 2P, zombie idle/walk, villager wave, style sheet). The 8–12 fps rule stands, including 8 fps for 2-frame idles; no slower-idle exception.
 - On `night` and `chalkboard` backgrounds the ink outline (#1E1428) is barely distinct from the backdrop; characters read by their fills. Accepted at the gate. Revisit in Story 3.6 / 8.6 (night levels) if characters get lost against dark scenery.
-- Brute size class: 48×48 is recorded in the style sheet, but "Horde Rush copies = player sprite scaled" gives uneven pixels at 1.5×. Story 6.3 decides between redrawn 48×48 brutes and an integer scale.
+- ~~Brute size class: 48×48 is recorded in the style sheet, but "Horde Rush copies = player sprite scaled" gives uneven pixels at 1.5×. Story 6.3 decides between redrawn 48×48 brutes and an integer scale.~~ Decided in 6.3: per-class `sprite_scale` in `horde_rush.tres` (small 1.0, medium 1.25, brute 1.5 of the 32 px sprite); integer 2× is ruled out (64 px is taller than a 44 px lane); redrawn 48 px brutes are not needed yet since no brute spawns before Epic 7 (band 3–5). The 1.25 medium was checked at 3× (`screenshots/6-3/size-classes-3x.png`): slightly uneven pixels, reads clearly as bigger, kept. Story 6.6 owns the final art and hat fit on scaled classes.
 - `process/fix_alpha_border=true` (Godot default) is on in the sprite `.import` files. It only changes the RGB of fully transparent pixels and is harmless with hard alpha and Nearest; untested.
 - The art review scene (`scenes/debug/art_review.tscn`) ships in release exports (all resources) but nothing routes to it. Remove or exclude it with the Keyboard Test screen before the MVP link if export size matters.
 
