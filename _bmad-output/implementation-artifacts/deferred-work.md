@@ -10,7 +10,7 @@
 ## Deferred from: dev of story-1-2 (2026-10-02)
 
 - Web letterbox bars render **black**, not night `#2B1D3F` (DESIGN.md marks night bars as `[ASSUMPTION]`). Not required by Story 1.2 AC 5. Natural home: Story 5.0 (loading page / boot splash styling); options are the HTML page background in `html/head_include` plus the engine's black-bar color.
-- Firefox checks for Story 1.2 AC 4/5 (load times, 1366×768 screenshot) were skipped because Firefox isn't installed. Stories 1.5 (key capture and quick-find) and 1.7 (reload and tab-close persistence, NFR4) require Firefox: install it before those stories, and re-run the 1.2 Firefox checks then.
+- Firefox checks for Story 1.2 AC 4/5 (load times, 1366×768 screenshot) were skipped because Firefox isn't installed. Stories 1.5 (key capture and quick-find) and 1.7 (reload and tab-close persistence, NFR4) require Firefox: install it before those stories, and re-run the 1.2 Firefox checks then. **5.3 (2026-10-06):** Firefox rows Skipped by Smuck ("Skip Firefox"); still open.
 
 ## Deferred from: dev of story-1-3 (2026-10-02)
 
@@ -43,7 +43,7 @@
 - ~~The temporary Keyboard Test button on the main menu ships in release builds (desktop Download opens Explorer, Fullscreen flips the window). Gate on `OS.is_debug_build()` or remove the screen in 1.8/5.0.~~ Done in 4.2: the button left the menu; the keyboard test is reached from the F3 debug overlay's jump row (debug builds only). The screen itself still exists until 5.0.
 - `test_unlock_is_idempotent` (passes with or without the guard) and the `is_fullscreen` test (expected value computed with the same expression) can't fail. Needs the same playing/mode seam as the 1.4 deferrals.
 - ~~One tab switch fires both `focus_lost` and `visibility_hidden`. Story 2.7's auto-pause must be idempotent (or listen to one signal).~~ Done in Story 2.7: both signals call one handler that pauses only `RUNNING` / `COUNTDOWN`, so a second signal while paused changes nothing.
-- Story 1.5 browser evidence not recorded: Firefox per-key table (quick-find on `'` and `/`, Tab focus, Backspace), Esc-in-fullscreen in Chrome/Edge/Firefox (incl. whether the first Esc reaches the game; UX open question 4), and `is_storage_persistent()` in normal and private windows. The JS key listener ships enabled as a hedge. Reason: Firefox not installed; verify alongside Story 1.7, which needs Firefox anyway. **Story 1.7 (2026-10-03):** Esc-in-fullscreen (Chrome, Edge) and `is_storage_persistent()` in normal/private windows checked by Smuck and reported fine. Still open: the Firefox per-key table and Firefox Esc-in-fullscreen (Firefox still not installed).
+- Story 1.5 browser evidence not recorded: Firefox per-key table (quick-find on `'` and `/`, Tab focus, Backspace), Esc-in-fullscreen in Chrome/Edge/Firefox (incl. whether the first Esc reaches the game; UX open question 4), and `is_storage_persistent()` in normal and private windows. The JS key listener ships enabled as a hedge. Reason: Firefox not installed; verify alongside Story 1.7, which needs Firefox anyway. **Story 1.7 (2026-10-03):** Esc-in-fullscreen (Chrome, Edge) and `is_storage_persistent()` in normal/private windows checked by Smuck and reported fine. Still open: the Firefox per-key table and Firefox Esc-in-fullscreen (Firefox still not installed). **5.3 (2026-10-06):** Firefox rows Skipped by Smuck ("Skip Firefox"); still open.
 
 ## Deferred from: dev of story-1-6 (2026-10-03)
 
@@ -60,11 +60,11 @@
 - A UTF-8 BOM in a hand-edited or imported save fails to parse. Strip it in Story 1.8's import.
 - `SaveService.load_save()` is public and does not assign `_data`. Make it private once nothing else calls it.
 - The close-request hook misses `get_tree().quit()`, mobile pause and focus-out. Revisit with a Quit button or a mobile target.
-- Web: two tabs share one IndexedDB (last writer wins), `run_history` is unbounded, and storage-unavailable (private window, quota) is only logged. Cover in Story 1.7 browser evidence and Epic 5. **Story 1.7:** two-tab and private-window checks done by Smuck, reported fine (no surprises). `run_history` bounds and quota handling still open for Epic 5.
+- Web: two tabs share one IndexedDB (last writer wins), `run_history` is unbounded, and storage-unavailable (private window, quota) is only logged. Cover in Story 1.7 browser evidence and Epic 5. **Story 1.7:** two-tab and private-window checks done by Smuck, reported fine (no surprises). ~~`run_history` bounds~~ (done: `GameConstants.RUN_HISTORY_CAP`, `PlayerData.record_run` keeps the newest; struck in 5.3) and quota handling still open for Epic 5.
 
 ## Deferred from: dev of story-1-7 (2026-10-03)
 
-- **AC 2's second browser was Edge, not Firefox** (Smuck's call; Firefox still not installed). Edge runs on Chromium like Chrome, so Firefox's IndexedDB/MEMFS persistence (NFR4) is still unmeasured. Re-run the 10-reload / 10-tab-close check in Firefox when it is installed, together with the 1.2 and 1.5 Firefox checks.
+- **AC 2's second browser was Edge, not Firefox** (Smuck's call; Firefox still not installed). Edge runs on Chromium like Chrome, so Firefox's IndexedDB/MEMFS persistence (NFR4) is still unmeasured. Re-run the 10-reload / 10-tab-close check in Firefox when it is installed, together with the 1.2 and 1.5 Firefox checks. **5.3 (2026-10-06):** Edge re-run on the Pages v0.9.0 build after a real run + purchase: 20/20 rounds no loss ("all 20 rounds good"). Firefox Skipped by Smuck; still open.
 - NFR4 browser results were reported as an overall pass ("all good"), with no per-round counter values. If a later regression needs a baseline, re-run with a per-round table.
 - The storage notice lives on the placeholder main menu. Story 4.2's real menu must keep `%StorageNotice` (bottom-right parchment note, `mouse_filter` ignore, hidden when `WebPlatform.is_storage_persistent()`).
 - The temporary brain counter and "Last save" label on the Keyboard Test screen write to the real save (a dev wallet). Remove them with the screen (see the 1.5 deferral about gating it out of release builds).
@@ -79,9 +79,9 @@
 
 - The debug overlay (top-left, 8 px text) covers the left half of the Keyboard Test heading at 640×360. No corner is free on that screen (the buttons span the full width at the bottom); the overlay is debug-only and ignores the mouse. Revisit if Story 2.10's extra sections make it taller than the run HUD's free corner.
 - F3 during a Router fade was checked once on desktop (Esc then F3 50 ms later, overlay closed correctly). Not measured on web.
-- Release gating was checked in the built-in browser pane (Chromium) with a local `--export-release` build: F3 shows nothing and Ctrl+Shift+E logs `download offered`. The CI-deployed Pages build was not checked.
+- ~~Release gating was checked in the built-in browser pane (Chromium) with a local `--export-release` build: F3 shows nothing and Ctrl+Shift+E logs `download offered`. The CI-deployed Pages build was not checked.~~ Done in 5.3: the CI-deployed Pages v0.9.0 build loads title → menu with no console errors and F3 shows nothing (pane, 2026-10-06). Ctrl+Shift+E wasn't re-tried on Pages.
 - The overlay's numbers in a hidden/background browser tab or the hidden built-in pane read ~2 FPS (requestAnimationFrame throttling); only a visible tab gives real numbers.
-- Firefox binds Ctrl+Shift+E to its Network tool; the chord is unverified there (Firefox still not installed). If playtests use Firefox, pick another chord or add a fallback.
+- Firefox binds Ctrl+Shift+E to its Network tool; the chord is unverified there (Firefox still not installed). If playtests use Firefox, pick another chord or add a fallback. **5.3 (2026-10-06):** Firefox rows Skipped by Smuck ("Skip Firefox"); still open.
 - The Keyboard Test screen and button still ship in release (unchanged; see the 1.5 deferral).
 
 ## Deferred from: code review of story-1-8-debug-overlay-and-save-export (2026-10-03)
@@ -205,7 +205,7 @@
 - ~~Pause panel and countdown are placeholder chrome (flat stone `StyleBoxFlat`, default theme buttons, a 2 px ink shadow label behind the candy-yellow numbers); the toggles show their state in words ("Music: on/off") instead of DESIGN.md's icon + red slash. Stories 4.2 / 5.0.~~ Done in 5.0: stone panel, Sign, PixelButtons and Music / Sound MenuToggles (icon + slash); the countdown keeps the font route (1 px outline verified palette-only).
 - ~~Restoring the saved Music / Sound settings on launch is Story 4.2's AC. Until then a muted setting is saved and shown on the pause panel, but the buses start unmuted after a reload.~~ Done in 4.2: AudioManager applies the saved settings in `_ready()` and follows `settings_changed`.
 - Windows-fallback auto-pause (desktop window focus) stays deferred (G5); only the web `focus_lost` / `visibility_hidden` signals pause.
-- Esc in browser fullscreen leaves fullscreen first (browser rule); whether it also pauses is Story 5.3's check.
+- Esc in browser fullscreen leaves fullscreen first (browser rule); whether it also pauses is Story 5.3's check. **5.3 (2026-10-06):** not tested (M5/M6 marked pass by Smuck without a run); still open.
 - Decisions in 2.7 (Smuck can overrule): Esc during the countdown is ignored; focus loss while waiting for the first key does not pause (Esc and the pause button do); the Caps Lock hint and streak reset on resume.
 - `RunFrame` unpauses the tree only when leaving `COUNTDOWN` (into `RUNNING` or `WAITING_FIRST_KEY`), not on every entry into `RUNNING`, so the first correct key never touches the tree's pause state.
 - `PausePanel.close()` calls `gui_release_focus()` explicitly; Godot already drops a control's focus when it is hidden, so that call is a second line of defence no test can tell apart (mutation (e) survived).
@@ -251,7 +251,7 @@
 
 ## Deferred from: dev of story-2-10 (2026-10-04)
 
-- Browser F-keys: in the in-app browser pane (embedded Chromium, no address bar) F2/F6/F7 reached the game and did nothing else. Real Chrome and Edge (F6 = focus address bar, F7 = caret-browsing prompt) are still unchecked; if either steals a key during a run, add it to `WebPlatform.CAPTURED_KEYS` (+ `test_web_platform.gd`). Keep the bindings as they are.
+- Browser F-keys: in the in-app browser pane (embedded Chromium, no address bar) F2/F6/F7 reached the game and did nothing else. Real Chrome and Edge (F6 = focus address bar, F7 = caret-browsing prompt) are still unchecked; if either steals a key during a run, add it to `WebPlatform.CAPTURED_KEYS` (+ `test_web_platform.gd`). Keep the bindings as they are. **5.3:** release build: n/a (no F-key bindings in release); the debug-build question stays open.
 - The open overlay (bottom ≈ 192 px on the run screen) covers the right part of `test_level`'s big letter at the top of the playfield. The HUD target box stays clear. Moving the overlay or shrinking the run section is only worth it if real levels (Epic 3) put content top-left.
 - ~~`level_base.gd` raises two `UNUSED_SIGNAL` warnings (`end_requested`, `brains_earned_changed`: declared in the base, emitted only by subclasses) in desktop debug runs. They were already there at baseline whenever a run loaded; the overlay's `run_frame.gd` preload now loads the script at startup, so they print at launch instead. Fix: `@warning_ignore("unused_signal")` on both declarations.~~ Done in 3.1.
 - Desktop debug key checks (F2/F6/F7 in the desktop window) weren't driven by hand: the Godot MCP can't send keys. Same code as the web debug build, which was checked end to end.
@@ -309,7 +309,7 @@
 - A join beyond the 12 cap only ticks the "×N" badge (no extra walk-in); a small pop on the badge is a 5.0 polish candidate.
 - Extreme speed: a newcomer joins where its villager poofed, which can be well behind the tail (or at the left edge when the villager was kept off screen by the freeing guard), and walks in from there; the badge rides the last drawn follower, so it can lag the tail briefly. Normal speeds (the 2:00 web run, ~1 key/s average with 10-key bursts) kept the line and the badge on screen.
 - The chase clamp (`minf(new_x, maxf(x, leader_x - SPACING_PX))`) is redundant with the lerp (weight is in [0, 1) and every slot is behind `leader_x - SPACING_PX`), so removing it alone fails no test; kept as a cheap guard.
-- Perf (NFR1 first check): worst frame 22.7 ms over a full 2:00 web debug Zombie Run (seed 3282930552, 116 keys, conga total 87, badge showing) in the Claude desktop browser pane (Chromium 152) on the dev machine (RTX 3070, 16 threads). The target-laptop check is Story 5.3.
+- Perf (NFR1 first check): worst frame 22.7 ms over a full 2:00 web debug Zombie Run (seed 3282930552, 116 keys, conga total 87, badge showing) in the Claude desktop browser pane (Chromium 152) on the dev machine (RTX 3070, 16 threads). The target-laptop check is Story 5.3. **5.3 (2026-10-06):** no 2018-era laptop available ("Dev PC is closest"). Release build on the dev PC: pane worst 18.4 ms; Edge on the Pages build worst 17.0 ms, 0 frames > 33 ms, 60.05 FPS, conga over 100 (at DPR 2 emulation). Weak hardware still unmeasured (see "dev of story 5-3").
 
 ## Deferred from: code review of story-3-4-conga-line (2026-10-05)
 
@@ -451,7 +451,7 @@
 ## Deferred from: dev of story 5-1 (2026-10-06)
 
 - Not in FR50, so not added in 5.1 (post-MVP or Smuck's call): stamp thump, brain counter tick / ×N pop, conga join, gift and tutorial-arrow sounds, dance music, the Closet tick-down.
-- Web: the first play of each 96 s music loop costs one long main-thread task (Godot decodes the whole OGG into a Web Audio sample): ~110–145 ms at the title unlock, ~165 ms entering the first run; later plays are free. Shorter loops or `PLAYBACK_TYPE_STREAM` on the music players would avoid it (stream playback risks crackle on the single-threaded web build). Part of 5.3 (technical metrics) if it shows on family computers.
+- Web: the first play of each 96 s music loop costs one long main-thread task (Godot decodes the whole OGG into a Web Audio sample): ~110–145 ms at the title unlock, ~165 ms entering the first run; later plays are free. Shorter loops or `PLAYBACK_TYPE_STREAM` on the music players would avoid it (stream playback risks crackle on the single-threaded web build). Part of 5.3 (technical metrics) if it shows on family computers. **5.3 (2026-10-06):** not captured on a family computer (the load-window probe step wasn't run); still open, and only the dev PC was available.
 - In the browser pane the 0.5 s crossfade stretched to ~1.6 s at the run start (the pane ran ~15 fps with smoothed delta right after the level load); judged by ear in real Chrome in the Mix Checklist (M7).
 
 ## Deferred from: code review of story-5-1-mvp-audio-pass-and-mix (2026-10-06)
@@ -478,3 +478,11 @@
 - Brittle counts in tests: `test_no_placeholder_chrome` `> 22` scenes, `test_plain_words` `> 80` strings and literal "Need 40 more" / "+10 bonus"; assert specific scenes and derive values from constants.
 - `tools/capture_screens_runner.gd`: no null-image guard under `--headless`, no frame timeout (`frame_post_draw` never fires if minimised), no cleanup on the size-mismatch early exit. Dev-only, export-excluded.
 - Plain-words test does not cover `level_card.gd`'s `String(id).capitalize()` fallback or `tooltip_text`; add when such copy ships.
+
+## Deferred from: dev of story 5-3 (2026-10-06)
+
+- **NFR1/NFR2 on weak hardware is unmeasured.** No 2018-era integrated-graphics laptop was available; the dev PC (Ryzen 7 5700G, RTX 3070) stood in. Re-run the probe (`tools/perf/frame_probe.js`) on the weakest family computer when one is at hand, e.g. during the 5.4 playtest.
+- **Declared, not measured** (Smuck's calls, recorded as such in 5.3): M3 load times at 25 Mbit/s (wire size measured: ≈ 12.55 MB), M5 browser keys in a real run (`'` and `/` on a real keyboard still never proven), M6 1366×768 / fullscreen readability, M8 reach on another family computer. Chrome was skipped for every session ("lets skip chrome and continue").
+- M7 Windows exe: the quit run's brains were written to the save (59 → 68), but the exe wasn't relaunched afterwards to show it reloads them. Smuck recorded it as passing.
+- `epics.md` Story 5.3 AC 7 says "(NFR8 fallback smoke check)"; the Windows fallback is NFR5 (NFR8 is colour accessibility). For the PM; not edited.
+- CI: GitHub warns `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19; check the Godot install step still works after that date.
