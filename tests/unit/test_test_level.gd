@@ -113,3 +113,69 @@ func test_source_has_its_own_rng() -> void:
 		assert_eq(a.current(), b.current(), "letter %d" % i)
 		a.advance()
 		b.advance()
+
+
+# --- word mode (Story 6.2) ------------------------------------------------------
+
+const WordLevelScene: PackedScene = preload("res://scenes/levels/test_level/test_word_level.tscn")
+
+
+func _word_level() -> LevelBase:
+	var level: LevelBase = WordLevelScene.instantiate() as LevelBase
+	add_child_autofree(level)
+	return level
+
+
+func test_word_config() -> void:
+	var config: LevelConfig = _word_level().get_level_config()
+	assert_eq(config.target_mode, LevelConfig.TargetMode.WORD)
+	assert_eq(config.duration_s, 120.0)
+	assert_false(config.space_is_input)
+	assert_eq(config.word_min_length, 3)
+	assert_eq(config.word_max_length, 5)
+	assert_not_null(config.word_list)
+	assert_eq(config.word_list.resource_path, "res://data/content/words.json")
+
+
+func test_word_mode_builds_a_word_source() -> void:
+	var level: LevelBase = _word_level()
+	var source: TargetSource = level.create_target_source(_rng(3))
+	assert_true(source is WordSource)
+	assert_between(source.current().length(), 3, 5)
+	assert_eq(_letter(level), source.current())
+
+
+func test_word_mode_same_seed_same_words() -> void:
+	var a: TargetSource = _word_level().create_target_source(_rng(9))
+	var b: TargetSource = _word_level().create_target_source(_rng(9))
+	assert_eq(a.peek(20), b.peek(20))
+
+
+func test_word_mode_too_small_band_returns_null() -> void:
+	var level: LevelBase = _word_level()
+	var config: LevelConfig = level.get_level_config().duplicate() as LevelConfig
+	config.word_min_length = 7
+	config.word_max_length = 7
+	level.config = config
+	var json: JSON = JSON.new()
+	json.parse('{"words": [{"word": "pumpkin"}]}')
+	config.word_list = json
+	assert_null(level.create_target_source(_rng(1)))
+	assert_push_error("[ERROR][level]")
+
+
+func test_word_mode_brain_per_completed_word() -> void:
+	var level: LevelBase = _word_level()
+	var source: TargetSource = level.create_target_source(_rng(5))
+	watch_signals(level)
+	var word: String = source.current()
+	for i: int in word.length() - 1:
+		level.on_char_accepted(word[i], i)
+	assert_signal_emit_count(level, "brains_earned_changed", 0, "no per-key brains in word mode")
+	source.advance()
+	level.on_char_accepted(word[word.length() - 1], word.length() - 1)
+	level.on_target_completed(word)
+	assert_signal_emit_count(level, "brains_earned_changed", 1)
+	assert_signal_emitted_with_parameters(level, "brains_earned_changed", [1])
+	assert_eq(level.get_brains_earned(), 1)
+	assert_eq(_letter(level), source.current())

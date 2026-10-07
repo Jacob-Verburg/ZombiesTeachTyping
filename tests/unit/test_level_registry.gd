@@ -107,7 +107,7 @@ func test_shipped_registry_menu_levels() -> void:
 	var ids: Array[StringName] = []
 	for entry: LevelEntry in registry.entries:
 		ids.append(entry.id)
-	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic", &"test_level"] as Array[StringName])
+	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic", &"test_level", &"test_word_level"] as Array[StringName])
 	var zombie_run: LevelEntry = registry.get_entry(&"zombie_run")
 	assert_true(zombie_run.available)
 	assert_eq(zombie_run.card_picture.resource_path, "res://assets/sprites/ui/menu/ui_level_card_zombie_run.png")

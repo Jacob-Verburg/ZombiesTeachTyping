@@ -1522,3 +1522,115 @@ func test_default_music_seams_drive_the_audio_manager() -> void:
 	remove_child(frame)
 	frame.free()
 	assert_false(AudioManager.is_music_ducked(), "freed: un-ducked")
+
+
+# --- word mode (Story 6.2): the real test_word_level --------------------------------
+
+func _start_words() -> RunFrameScript:
+	return _start({"level_id": &"test_word_level", "seed": 42})
+
+
+## Types the current word letter by letter; returns it.
+func _type_word(frame: RunFrameScript) -> String:
+	var word: String = frame.get_session().get_current_target()
+	for c: String in word:
+		assert_true(_send(frame, c), "'%s' of '%s' handled" % [c, word])
+	return word
+
+
+func _space() -> InputEventKey:
+	var event: InputEventKey = InputEventKey.new()
+	event.pressed = true
+	event.keycode = KEY_SPACE
+	event.unicode = 32
+	return event
+
+
+func test_word_level_starts_with_a_word() -> void:
+	var frame: RunFrameScript = _start_words()
+	var word: String = frame.get_session().get_current_target()
+	assert_between(word.length(), 3, 5, "a 3-5 letter word: '%s'" % word)
+	assert_eq(_hud_text(frame, "%TargetLabel"), word)
+	assert_eq(_hud_text(frame, "%StartPromptLabel"), "Type the word to start!")
+	assert_eq(_letter(frame), word)
+
+
+func test_word_mid_word_letter_turns_green_in_the_same_call() -> void:
+	var frame: RunFrameScript = _start_words()
+	var word: String = frame.get_session().get_current_target()
+	assert_true(_send(frame, word[0]))
+	assert_eq(frame.get_session().get_cursor(), 1)
+	assert_eq(_hud_text(frame, "%TargetLabel"), word, "still the same word")
+	assert_eq(_hud_text(frame, "%TypedLabel"), word.left(1), "the first letter is green before handle_key returned")
+	assert_true((_hud(frame).get_node("%NextUnderline") as Control).visible)
+
+
+func test_word_completes_on_its_last_letter() -> void:
+	var frame: RunFrameScript = _start_words()
+	var first: String = frame.get_session().get_current_target()
+	var next: String = frame.get_session().get_upcoming(1)[0]
+	for i: int in first.length() - 1:
+		_send(frame, first[i])
+	assert_eq(frame.get_level().get_brains_earned(), 0)
+	assert_true(_send(frame, first[first.length() - 1]))
+	# All of this before handle_key returned.
+	assert_eq(_hud_text(frame, "%TargetLabel"), next, "the next word, same call")
+	assert_false((_hud(frame).get_node("%TypedLabel") as Control).visible, "0 typed")
+	assert_eq(frame.get_session().get_cursor(), 0)
+	assert_eq(frame.get_level().get_brains_earned(), 1, "on_target_completed ran")
+	assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), "1")
+	assert_eq(frame.get_session().get_implied_spaces(), 1)
+	assert_eq(_letter(frame), next)
+	assert_ne(next, first, "never the same word twice in a row")
+
+
+func test_word_space_is_not_judged() -> void:
+	var frame: RunFrameScript = _start_words()
+	var word: String = frame.get_session().get_current_target()
+	_send(frame, word[0])
+	assert_false(_input_node(frame).handle_key(_space()), "Space is ignored")
+	assert_eq(frame.get_session().get_errors(), 0)
+	assert_eq(frame.get_session().get_cursor(), 1)
+	assert_eq(frame.get_session().get_keys_typed(), 1)
+	_hud(frame).call("_process", 0.05)
+	assert_eq(_hud(frame).call("get_target_offset_x"), 0.0, "no shake")
+
+
+func test_word_wrong_letter_mid_word_shakes_and_counts() -> void:
+	var frame: RunFrameScript = _start_words()
+	var word: String = frame.get_session().get_current_target()
+	_send(frame, word[0])
+	_send(frame, "q" if word[1] != "q" else "z")
+	assert_eq(frame.get_session().get_errors(), 1)
+	assert_eq(frame.get_session().get_cursor(), 1, "the cursor stays")
+	assert_eq(_hud_text(frame, "%ErrorsValue"), "1")
+	_hud(frame).call("_process", 0.05)
+	assert_ne(_hud(frame).call("get_target_offset_x"), 0.0, "the word shakes")
+
+
+func test_word_run_result_counts_implied_spaces() -> void:
+	var frame: RunFrameScript = _start_words()
+	var words: int = 4
+	for i: int in words:
+		_type_word(frame)
+	var keys: int = frame.get_session().get_keys_typed()
+	frame._process(30.0)
+	assert_true(frame.debug_end_run())
+	var duration: float = frame.get_elapsed()
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	var result: RunResult = _result()
+	assert_eq(result.level_id, &"test_word_level")
+	assert_eq(result.completed_words, words)
+	assert_eq(result.keys_typed, keys)
+	assert_eq(result.wpm, StatsCalculator.wpm(keys, duration, words))
+	assert_eq(result.brains, words)
+
+
+func test_word_live_wpm_counts_implied_spaces() -> void:
+	var frame: RunFrameScript = _start_words()
+	for i: int in 3:
+		_type_word(frame)
+	var keys: int = frame.get_session().get_keys_typed()
+	frame._process(10.0)
+	assert_eq(_hud_text(frame, "%WpmValue"), str(StatsCalculator.wpm(keys, 10.0, 3)))

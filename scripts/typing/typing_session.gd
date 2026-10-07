@@ -4,9 +4,9 @@ extends RefCounted
 ## current target, advances or rejects, and keeps per-key stats. Pure logic: no nodes, no
 ## autoloads, no clock, nothing asynchronous. RunFrame (Story 2.4) owns the instance and calls judge() only
 ## while waiting for the first key or running.
-##
-## target_completed is deliberately not declared: it only means something for word and paragraph
-## targets, so Epic 6 adds it together with WordSource.
+## Word and paragraph targets (Story 6.2): the target is the whole word; the session keeps a cursor on
+## its next letter, judges that letter, and completes the target on its last letter (no Space). In
+## WORD mode each completed word counts as one implied space for WPM (FR7). Letter mode is unchanged.
 
 ## Result of one judgment.
 enum Verdict { CORRECT, WRONG }
@@ -17,7 +17,11 @@ signal run_started
 signal char_accepted(expected: String, index: int)
 ## Emitted for each wrong key; the target does not advance.
 signal char_rejected(expected: String, typed: String)
-## Emitted after a correct key, once the next target is current.
+## Word and paragraph modes only: emitted on a target's last correct letter, after char_accepted and
+## before target_changed, with the completed target.
+signal target_completed(target: String)
+## Emitted once the next target is current: after every correct key in letter mode, only when a target
+## is completed in word and paragraph modes.
 signal target_changed(next: String)
 
 var _source: TargetSource
@@ -26,11 +30,15 @@ var _keys_typed: int = 0
 var _errors: int = 0
 var _started: bool = false
 var _accepted_index: int = 0
+## Letters of the current target already typed; the next one to judge is current()[_cursor].
+var _cursor: int = 0
+## Completed words in WORD mode (FR7: each counts as a typed Space for WPM).
+var _implied_spaces: int = 0
 ## expected char -> [attempts, errors, {typed char: count}]
 var _per_key: Dictionary = {}
 
 
-## `config` is stored for later stories (implied spaces in word mode); nothing reads it yet.
+## `config` picks the target mode (null = letter mode).
 func _init(source: TargetSource, config: LevelConfig = null) -> void:
 	assert(source != null, "TypingSession needs a TargetSource")
 	if source == null:
@@ -43,9 +51,12 @@ func _init(source: TargetSource, config: LevelConfig = null) -> void:
 func judge(c: String) -> Verdict:
 	if _source == null:
 		return Verdict.WRONG
-	var expected: String = _source.current()
-	if expected == "":
+	var target: String = _source.current()
+	if target == "":
 		return Verdict.WRONG
+	if _cursor >= target.length():
+		_cursor = 0
+	var expected: String = target[_cursor]
 	if not _per_key.has(expected):
 		_per_key[expected] = [0, 0, {}]
 	var entry: Array = _per_key[expected]
@@ -57,9 +68,20 @@ func judge(c: String) -> Verdict:
 		if not _started:
 			_started = true
 			run_started.emit()
-		_source.advance()
-		char_accepted.emit(expected, index)
-		target_changed.emit(_source.current())
+		if _cursor + 1 < target.length():
+			# Mid-word: the target did not change, so no target_changed.
+			_cursor += 1
+			char_accepted.emit(expected, index)
+		else:
+			# Last letter (every letter in letter mode): advance first, so handlers see the next target.
+			_cursor = 0
+			_source.advance()
+			char_accepted.emit(expected, index)
+			if _word_like():
+				if _config.target_mode == LevelConfig.TargetMode.WORD:
+					_implied_spaces += 1
+				target_completed.emit(target)
+			target_changed.emit(_source.current())
 		# Guard first: Log.debug would format its argument even when DEBUG is off.
 		if Log.verbose_typing:
 			Log.debug(&"typing", "accepted expected='%s' index=%d" % [expected, index])
@@ -94,6 +116,16 @@ func get_per_key() -> Dictionary:
 	return _per_key.duplicate(true)
 
 
+## Letters of the current target already typed (always 0 in letter mode).
+func get_cursor() -> int:
+	return _cursor
+
+
+## Words completed in WORD mode; each counts as one Space for WPM (FR7). 0 in other modes.
+func get_implied_spaces() -> int:
+	return _implied_spaces
+
+
 ## The target the player must type now, or "" when there is none (null or empty source).
 func get_current_target() -> String:
 	return _source.current() if _source != null else ""
@@ -105,3 +137,9 @@ func get_upcoming(n: int) -> Array[String]:
 		var none: Array[String] = []
 		return none
 	return _source.peek(n)
+
+
+## Word and paragraph targets complete; letters never do (paragraph Spaces are typed keys, so only
+## WORD mode counts implied spaces).
+func _word_like() -> bool:
+	return _config != null and _config.target_mode != LevelConfig.TargetMode.LETTER

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LevelRegistry" load_steps=11 format=3]
+[gd_resource type="Resource" script_class="LevelRegistry" load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/level_registry.gd" id="1_registry"]
 [ext_resource type="Script" path="res://scripts/resources/level_entry.gd" id="2_entry"]
@@ -7,6 +7,7 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_level_card_zombie_run.png" id="5_card_zombie_run"]
 [ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_level_card_horde_rush.png" id="6_card_horde_rush"]
 [ext_resource type="Texture2D" path="res://assets/sprites/ui/menu/ui_level_card_pitchfork_panic.png" id="7_card_pitchfork_panic"]
+[ext_resource type="PackedScene" path="res://scenes/levels/test_level/test_word_level.tscn" id="8_test_word_level"]
 
 [sub_resource type="Resource" id="Resource_zombie_run"]
 script = ExtResource("2_entry")
@@ -40,6 +41,13 @@ display_name = "Test level"
 scene = ExtResource("3_test_level")
 debug_only = true
 
+[sub_resource type="Resource" id="Resource_test_word_level"]
+script = ExtResource("2_entry")
+id = &"test_word_level"
+display_name = "Test words"
+scene = ExtResource("8_test_word_level")
+debug_only = true
+
 [resource]
 script = ExtResource("1_registry")
-entries = Array[ExtResource("2_entry")]([SubResource("Resource_zombie_run"), SubResource("Resource_horde_rush"), SubResource("Resource_pitchfork_panic"), SubResource("Resource_test_level")])
+entries = Array[ExtResource("2_entry")]([SubResource("Resource_zombie_run"), SubResource("Resource_horde_rush"), SubResource("Resource_pitchfork_panic"), SubResource("Resource_test_level"), SubResource("Resource_test_word_level")])

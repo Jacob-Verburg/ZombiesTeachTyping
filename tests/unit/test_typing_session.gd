@@ -222,3 +222,141 @@ func test_verbose_typing_changes_nothing_but_the_log() -> void:
 	assert_eq(verbose, quiet)
 	assert_eq(verbose[1], 3)
 	assert_eq(verbose[2], 2)
+
+
+## Story 6.2: word mode. The session judges the word's next letter (the cursor) and completes the word
+## on its last letter, with no Space.
+func _config(mode: LevelConfig.TargetMode) -> LevelConfig:
+	var config: LevelConfig = LevelConfig.new()
+	config.target_mode = mode
+	return config
+
+
+func _word_session(mode: LevelConfig.TargetMode = LevelConfig.TargetMode.WORD,
+		items: Array[String] = ["dad", "cat"]) -> TypingSession:
+	var session: TypingSession = TypingSession.new(StubSource.new(items), _config(mode))
+	session.run_started.connect(func() -> void: _log.append("run_started"))
+	session.char_accepted.connect(func(e: String, i: int) -> void: _log.append("accepted:%s:%d" % [e, i]))
+	session.char_rejected.connect(func(e: String, t: String) -> void: _log.append("rejected:%s:%s" % [e, t]))
+	session.target_completed.connect(func(t: String) -> void: _log.append("completed:%s" % t))
+	session.target_changed.connect(func(n: String) -> void: _log.append("target:%s" % n))
+	return session
+
+
+func test_word_cursor_moves_through_the_word() -> void:
+	var session: TypingSession = _word_session()
+	assert_eq(session.get_cursor(), 0)
+	assert_eq(session.judge("d"), TypingSession.Verdict.CORRECT)
+	assert_eq(session.get_cursor(), 1)
+	assert_eq(session.judge("a"), TypingSession.Verdict.CORRECT)
+	assert_eq(session.get_cursor(), 2)
+	assert_eq(session.get_current_target(), "dad", "the whole word stays the target mid-word")
+
+
+func test_word_letters_are_accepted_with_run_wide_indexes() -> void:
+	var session: TypingSession = _word_session()
+	_log = []
+	for c: String in ["d", "a", "d"]:
+		session.judge(c)
+	assert_eq(_log.slice(0, 3), ["run_started", "accepted:d:0", "accepted:a:1"] as Array[String])
+	assert_has(_log, "accepted:d:2")
+
+
+func test_no_target_changed_mid_word() -> void:
+	var session: TypingSession = _word_session()
+	watch_signals(session)
+	session.judge("d")
+	session.judge("a")
+	assert_signal_not_emitted(session, "target_changed")
+	assert_signal_not_emitted(session, "target_completed")
+
+
+func test_wrong_key_mid_word_keeps_the_cursor_and_records_the_letter() -> void:
+	var session: TypingSession = _word_session()
+	session.judge("d")
+	assert_eq(session.judge("s"), TypingSession.Verdict.WRONG)
+	assert_eq(session.get_cursor(), 1)
+	assert_eq(session.get_errors(), 1)
+	assert_has(_log, "rejected:a:s")
+	var per_key: Dictionary = session.get_per_key()
+	assert_eq(per_key["a"], [1, 1, {"s": 1}])
+	assert_false(per_key.has("dad"), "stats are per letter, never per word")
+
+
+func test_last_letter_completes_the_word_without_space() -> void:
+	var session: TypingSession = _word_session()
+	watch_signals(session)
+	for c: String in ["d", "a", "d"]:
+		session.judge(c)
+	assert_signal_emit_count(session, "target_completed", 1)
+	assert_signal_emitted_with_parameters(session, "target_completed", ["dad"])
+	assert_signal_emit_count(session, "target_changed", 1)
+	assert_signal_emitted_with_parameters(session, "target_changed", ["cat"])
+	assert_eq(session.get_cursor(), 0)
+	assert_eq(session.get_current_target(), "cat")
+	assert_eq(session.get_per_key()["d"], [2, 0, {}], "the repeated letter is counted per key")
+
+
+func test_word_completion_signal_order() -> void:
+	var session: TypingSession = _word_session()
+	session.judge("d")
+	session.judge("a")
+	_log = []
+	session.judge("d")
+	assert_eq(_log, ["accepted:d:2", "completed:dad", "target:cat"] as Array[String])
+
+
+func test_implied_spaces_count_completed_words() -> void:
+	var session: TypingSession = _word_session()
+	var seen: Array[int] = []
+	session.target_completed.connect(func(_t: String) -> void: seen.append(session.get_implied_spaces()))
+	assert_eq(session.get_implied_spaces(), 0)
+	for c: String in ["d", "a", "d"]:
+		session.judge(c)
+	assert_eq(seen, [1] as Array[int], "the new count is visible inside the handler")
+	assert_eq(session.get_implied_spaces(), 1)
+	for c: String in ["c", "a", "t"]:
+		session.judge(c)
+	assert_eq(session.get_implied_spaces(), 2)
+
+
+func test_run_started_once_before_the_first_accepted_letter_in_word_mode() -> void:
+	var session: TypingSession = _word_session()
+	watch_signals(session)
+	session.judge("x")
+	for c: String in ["d", "a", "d", "c"]:
+		session.judge(c)
+	assert_signal_emit_count(session, "run_started", 1)
+	assert_eq(_log[0], "rejected:d:x")
+	assert_eq(_log[1], "run_started")
+	assert_eq(_log[2], "accepted:d:0")
+
+
+func test_letter_mode_config_never_completes() -> void:
+	var session: TypingSession = _word_session(LevelConfig.TargetMode.LETTER, ["f", "j", "f"])
+	watch_signals(session)
+	session.judge("f")
+	session.judge("j")
+	assert_signal_not_emitted(session, "target_completed")
+	assert_signal_emit_count(session, "target_changed", 2)
+	assert_eq(session.get_implied_spaces(), 0)
+	assert_eq(session.get_cursor(), 0)
+
+
+func test_null_config_never_completes() -> void:
+	watch_signals(_session)
+	_session.judge("f")
+	_session.judge("j")
+	assert_signal_not_emitted(_session, "target_completed")
+	assert_eq(_session.get_implied_spaces(), 0)
+	assert_eq(_session.get_cursor(), 0)
+
+
+func test_paragraph_mode_completes_but_counts_no_implied_spaces() -> void:
+	var session: TypingSession = _word_session(LevelConfig.TargetMode.PARAGRAPH, ["a b", "cd"])
+	watch_signals(session)
+	for c: String in ["a", " ", "b"]:
+		session.judge(c)
+	assert_signal_emitted_with_parameters(session, "target_completed", ["a b"])
+	assert_eq(session.get_implied_spaces(), 0)
+	assert_eq(session.get_current_target(), "cd")

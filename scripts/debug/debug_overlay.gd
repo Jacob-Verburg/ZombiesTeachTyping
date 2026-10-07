@@ -15,8 +15,8 @@ extends CanvasLayer
 ## clears it.
 ## Keys are read in _input, not _unhandled_input: the Keyboard Test screen swallows every key in
 ## _unhandled_input. PROCESS_MODE_ALWAYS so it works while the tree is paused (Router fade, run pause).
-## Jump row (Story 4.2): mouse-only "Test level" / "Welcome gift" / "Keyboard test" buttons that replace the
-## placeholder menu's debug buttons. They work only while the main menu is the current screen (a jump out of
+## Jump row (Story 4.2; "Test words" Story 6.2): mouse-only "Test level" / "Test words" / "Welcome gift" /
+## "Keyboard test" buttons that replace the placeholder menu's debug buttons. They work only while the main menu is the current screen (a jump out of
 ## a run would skip RunFrame's quit path) and are disabled elsewhere. FOCUS_NONE: they never take the menu's
 ## keyboard focus. They are the only controls here that take the mouse, and only while the overlay is open.
 ## Closed = no per-frame work (_process off, refresh timer stopped). Nothing is logged per frame.
@@ -75,6 +75,7 @@ func _ready() -> void:
 	if not current_screen.is_valid():
 		current_screen = func() -> Router.Screen: return Router.current_screen
 	%JumpTestLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_level"}))
+	%JumpWordLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_word_level"}))
 	%JumpGiftButton.pressed.connect(_jump.bind(Router.Screen.WELCOME_GIFT, {}))
 	%JumpKeyboardTestButton.pressed.connect(_jump.bind(Router.Screen.KEYBOARD_TEST, {}))
 	visible = false
@@ -253,7 +254,7 @@ func _refresh_run() -> void:
 	var keys: int = session.get_keys_typed()
 	%RunLabel.text = "Run %s %s\n%s\nTarget %s\nKeys %d  Errors %d  WPM %d\nSeed %d%s" % [
 		frame.get_level_id(), RunFrameScript.RunState.keys()[frame.get_state()], clock, targets.strip_edges(),
-		keys, session.get_errors(), StatsCalculator.wpm(keys, elapsed), frame.get_seed(),
+		keys, session.get_errors(), StatsCalculator.wpm(keys, elapsed, session.get_implied_spaces()), frame.get_seed(),
 		" (replay)" if frame.is_replay() else ""
 	]
 
@@ -286,7 +287,7 @@ func _refresh_save() -> void:
 ## The jump buttons work only on the main menu.
 func _refresh_jumps() -> void:
 	var on_menu: bool = _on_main_menu()
-	for button: Button in [%JumpTestLevelButton, %JumpGiftButton, %JumpKeyboardTestButton]:
+	for button: Button in [%JumpTestLevelButton, %JumpWordLevelButton, %JumpGiftButton, %JumpKeyboardTestButton]:
 		button.disabled = not on_menu
 
 

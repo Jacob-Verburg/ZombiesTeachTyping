@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="LevelConfig" load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://bp8n8rrsrrttp" path="res://scripts/resources/level_config.gd" id="1_cfg"]
+[ext_resource type="JSON" path="res://data/content/words.json" id="2_words"]
+
+[resource]
+script = ExtResource("1_cfg")
+duration_s = 120.0
+case_sensitive = false
+space_is_input = false
+target_mode = 1
+completion_bonus = 0
+music_id = &""
+word_list = ExtResource("2_words")
+word_min_length = 3
+word_max_length = 5

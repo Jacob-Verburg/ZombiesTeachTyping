@@ -17,6 +17,8 @@ extends Control
 ## the menu loop. It is ducked from PAUSED until the countdown ends (duck_music seam) and un-ducked when the
 ## frame leaves the tree. Clicks (play_sfx seam): the pause panel's buttons and toggles, and Esc / the HUD
 ## pause button when they pause; focus loss pauses silently. The wrong-key tick stays a direct call.
+## Word mode (Story 6.2): the session keeps a cursor in the word; the level hears on_target_completed on a
+## word's last letter, the HUD is refreshed on every accepted letter, and implied spaces feed live/final WPM.
 ## Everything in the typing path is synchronous: nothing in it waits or defers a call.
 ## A level config with duration_s <= 0 means "no timer": the level must end the run with end_requested.
 
@@ -155,7 +157,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	_clock.advance(delta)
 	if _session != null:
-		%Hud.update_clock(_clock.get_elapsed(), _session.get_keys_typed())
+		%Hud.update_clock(_clock.get_elapsed(), _session.get_keys_typed(), _session.get_implied_spaces())
 	match _state:
 		RunState.RUNNING:
 			if _duration > 0.0 and _clock.get_elapsed() >= _duration:
@@ -252,10 +254,10 @@ func _start_level(payload: Dictionary) -> String:
 	_session.run_started.connect(_on_session_run_started)
 	_session.char_accepted.connect(_level.on_char_accepted)
 	_session.char_rejected.connect(_level.on_char_rejected)
+	_session.target_completed.connect(_level.on_target_completed)
 	_level.end_requested.connect(_on_level_end_requested)
 	# HUD after the level, so the level reacts first; all in the same call as the key.
 	%Hud.setup(config, _session.get_current_target())
-	_session.target_changed.connect(%Hud.show_target)
 	_session.char_accepted.connect(_on_session_char_accepted)
 	_session.char_rejected.connect(_on_session_char_rejected)
 	_level.brains_earned_changed.connect(%Hud.set_brains)
@@ -425,7 +427,7 @@ func _record_result() -> void:
 	_result = RunResult.create(
 		_level_id, int(Time.get_unix_time_from_system()), duration, _session.get_keys_typed(),
 		_session.get_errors(), _session.get_per_key(), _level.get_brains_earned(), _completion_bonus,
-		LETTER_POOL_ALL, _end_reason)
+		LETTER_POOL_ALL, _end_reason, _session.get_implied_spaces())
 	Log.info(&"run", "ended level=%s reason=%s wpm=%d bonus=%d" % [
 		_result.level_id, _result.end_reason, _result.wpm, _result.bonus_brains])
 	_new_best = player_data.record_run(_result)
@@ -449,7 +451,10 @@ func _on_session_run_started() -> void:
 	%Hud.hide_start_prompt()
 
 
+## The HUD's only target refresh: every correct letter (a word's progress, or the next target once the
+## source has advanced), in the key's call stack.
 func _on_session_char_accepted(_expected: String, _index: int) -> void:
+	%Hud.show_target(_session.get_current_target(), _session.get_cursor())
 	%Hud.set_counts(_session.get_keys_typed(), _session.get_errors())
 
 

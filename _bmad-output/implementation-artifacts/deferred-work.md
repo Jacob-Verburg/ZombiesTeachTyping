@@ -129,14 +129,14 @@
 
 ## Deferred from: dev of story-2-2 (2026-10-04)
 
-- `TypingSession` does not declare `target_completed` on purpose; Epic 6 adds it together with `WordSource`.
-- `TypingSession`'s `config` argument is stored but unused until Story 6.2 (implied spaces in word mode arrive with `WordSource`; Story 2.3 added `StatsCalculator`'s `completed_words` but nothing counts words yet).
+- ~~`TypingSession` does not declare `target_completed` on purpose; Epic 6 adds it together with `WordSource`.~~ Done in 6.2: `target_completed(target)` fires on a word's (or paragraph's) last letter, between `char_accepted` and `target_changed`; `RunFrame` connects it to `LevelBase.on_target_completed`.
+- ~~`TypingSession`'s `config` argument is stored but unused until Story 6.2 (implied spaces in word mode arrive with `WordSource`; Story 2.3 added `StatsCalculator`'s `completed_words` but nothing counts words yet).~~ Done in 6.2: `config.target_mode` picks letter / word / paragraph judging; WORD mode counts implied spaces, passed to live HUD WPM, the overlay and `RunResult.completed_words`.
 - ~~RNG sharing for Story 2.4/3.1: the level and `LetterBagSource` would share the run's RNG, and the source deals lazily, so a level drawing from the same RNG makes the letter sequence depend on call timing (breaks seed replay, 2.10). Give the source its own RNG seeded from the run RNG (`child.seed = rng.randi()`) at creation, or have the level draw only through the source.~~ Done in Story 2.4: `LevelBase` documents the child-RNG rule and the test level follows it (`test_source_has_its_own_rng`).
 - Contract guards (`LetterBagSource` null rng / pool < 2 / duplicates, `TypingSession` null source) are covered by code review only; calling them in a GUT test would trip the debug `assert`.
 
 ## Deferred from: code review of 2-2-judgment-session-and-letter-bag (2026-10-04)
 
-- `TypingSession.judge()` returns `WRONG` when the source is exhausted/empty, so callers cannot tell "no target" from a typo, and a correct key on the last target emits `target_changed("")` with no end signal. Harmless with the infinite `LetterBagSource`; address with `WordSource`/`ParagraphSource` (Epic 6/8), e.g. a `NO_TARGET` verdict or a `source_exhausted` signal.
+- `TypingSession.judge()` returns `WRONG` when the source is exhausted/empty, so callers cannot tell "no target" from a typo, and a correct key on the last target emits `target_changed("")` with no end signal. Harmless with the infinite `LetterBagSource`; address with `WordSource`/`ParagraphSource` (Epic 6/8), e.g. a `NO_TARGET` verdict or a `source_exhausted` signal. Still open after 6.2: `WordSource` is an infinite bag too, so `ParagraphSource` (8.2) is the first finite source.
 - ~~`TypingSession.judge()` has no re-entrancy guard: a `run_started` handler that calls `judge()` would advance the source twice for one key. Check when `RunFrame` (2.4) connects handlers; add a `_judging` guard if any handler can feed input back.~~ Checked in Story 2.4: no `RunFrame` or level handler calls `judge()`; no guard added.
 
 ## Deferred from: dev of story-2-3 (2026-10-04)
@@ -190,7 +190,7 @@
 ## Deferred from: dev of story-2-6 (2026-10-04)
 
 - ~~The zombie hands are placeholder code-drawn rects (`zombie_hands.gd` `_draw()`, about 58 px wide per hand) until Story 5.0 (2 hand sprites + 10 glow states). Keep the getters (`get_lit_fingers`, `is_lit`, `get_outline_width`, `get_finger_fill`, `has_bump`) as the contract. Smuck approved the placeholder look on 2026-10-04.~~ Done in 5.0: two hand sprites and ten 2-frame glow sheets; every getter kept.
-- Word and paragraph modes must pass the cursor character to the hands, not the whole target: `ZombieHands.show_char()` lights the first character of what it is given (Stories 6.2 / 8.2).
+- ~~Word and paragraph modes must pass the cursor character to the hands, not the whole target: `ZombieHands.show_char()` lights the first character of what it is given (Stories 6.2 / 8.2).~~ Done in 6.2: `Hud.show_target(target, typed)` passes `target.substr(typed, 1)`, for every mode.
 - Unmapped keys: `` ` ~ [ ] { } \ | `` (outside the GDD table). Add them to `tools/gen_finger_map.gd` if Epic 8 paragraphs ever use them; until then they log `[WARN][hands]` and light nothing.
 - Non-US keyboard layouts still show US QWERTY fingers (GDD A1, accepted).
 - Architecture data flow says `ZombieHands` listens to `TypingSession.target_changed`; it is the HUD that forwards the target instead (`Hud.show_target`, also used by `setup`), same timing, no sibling wiring.

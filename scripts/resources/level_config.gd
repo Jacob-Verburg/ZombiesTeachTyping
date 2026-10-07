@@ -20,3 +20,9 @@ enum TargetMode { LETTER, WORD, PARAGRAPH }
 ## The music loop the run asks AudioManager for when it starts (Story 5.1: Zombie Run &"mus_zombie_run").
 ## Empty = leave the music as it is (the test level).
 @export var music_id: StringName = &""
+## The tagged word list (res://data/content/words.json, Story 6.1) word levels draw from; null = no words.
+@export var word_list: JSON
+## Shortest word the level uses, inclusive. Epic 7 replaces the fixed band with the tier band.
+@export var word_min_length: int = 0
+## Longest word the level uses, inclusive. Epic 7 replaces the fixed band with the tier band.
+@export var word_max_length: int = 0

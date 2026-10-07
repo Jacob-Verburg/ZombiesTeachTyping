@@ -138,3 +138,27 @@ func test_wrong_key_shake_changes_position_only() -> void:
 		hud._process(GameConstants.WRONG_KEY_SHAKE_S / 8.0)
 	assert_true(moved, "the glyph moved")
 	assert_eq(label.position.x, rest_x, "and settled back")
+
+
+## Story 6.2 (NFR8): in word mode the typed letters (zombie-green-dark) read apart from the untyped ones
+## (ink) by brightness, and the next letter carries a shape cue, the underline, not colour alone.
+func test_word_progress_reads_without_hue() -> void:
+	var hud: Control = HudScene.instantiate() as Control
+	hud.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child_autofree(hud)
+	var config: LevelConfig = LevelConfig.new()
+	config.duration_s = 120.0
+	config.target_mode = LevelConfig.TargetMode.WORD
+	hud.call("setup", config, "dad")
+	hud.call("show_target", "dad", 1)
+	var typed: Color = (hud.get_node("%TypedLabel") as Label).get_theme_color(&"font_color")
+	var untyped: Color = (hud.get_node("%TargetLabel") as Label).get_theme_color(&"font_color")
+	assert_almost_eq(_luma(typed), 0.349, 0.002, "typed is zombie-green-dark")
+	assert_almost_eq(_luma(untyped), 0.092, 0.002, "untyped is ink")
+	assert_true(_luma(typed) - _luma(untyped) > 0.2, "typed vs untyped differ in luma")
+	assert_true((hud.get_node("%NextUnderline") as Control).visible, "the next letter is underlined")
+
+
+## Rec. 709 on sRGB, as test_art_ui.gd::_luma.
+func _luma(c: Color) -> float:
+	return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b

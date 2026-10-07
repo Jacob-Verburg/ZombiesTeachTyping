@@ -15,6 +15,7 @@ extends Node2D
 ##     -> TypingSession built -> TypingInput configured
 ##   first correct key: on_run_started() -> on_char_accepted(expected, 0)
 ##   each correct key: on_char_accepted(expected, index)
+##   a word's (or paragraph's) last correct letter: on_char_accepted(expected, index) -> on_target_completed(target)
 ##   each wrong key: on_char_rejected(expected, typed) (also before the first correct key; never starts the run)
 ##   end: clock reaches duration_s (RunFrame) or end_requested(reason) -> on_run_ending(reason) -> RunFrame reads
 ##     get_brains_earned(), builds and records the RunResult -> outro wait -> report card
@@ -49,8 +50,9 @@ func on_run_started() -> void:
 	pass
 
 
-## Called by RunFrame for each correct key, in the same call as the key event. The source has
-## already advanced, so its current() is the next target. `index` is 0-based.
+## Called by RunFrame for each correct key, in the same call as the key event. On the last letter of a
+## target the source has already advanced, so its current() is the next target; mid-word current() is
+## still the same word. `index` is 0-based and counts every accepted key of the run.
 func on_char_accepted(_expected: String, _index: int) -> void:
 	pass
 
@@ -60,7 +62,8 @@ func on_char_rejected(_expected: String, _typed: String) -> void:
 	pass
 
 
-## Word and paragraph targets only. Not called until Epic 6 adds TypingSession.target_completed.
+## Word and paragraph targets only: called by RunFrame on a target's last correct letter, right after
+## on_char_accepted, with the completed target (the source has already advanced).
 func on_target_completed(_target: String) -> void:
 	pass
 

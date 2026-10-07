@@ -1,9 +1,10 @@
 class_name LetterBagSource
 extends TargetSource
-## Deals single letters in "bags": every letter of the pool once per bag, never the same letter
-## twice in a row (also across bag boundaries). Uses only the injected RandomNumberGenerator, so
-## the same seed and pool always give the same sequence. The pool is a list of single-character
-## strings supplied by the caller (at least 2, no duplicates).
+## Deals targets in "bags": every entry of the pool once per bag, never the same entry twice in a
+## row (also across bag boundaries). Uses only the injected RandomNumberGenerator, so the same seed
+## and pool always give the same sequence. The pool is a list of unique strings supplied by the
+## caller (at least 2): single letters for Zombie Run, whole words through WordSource (Story 6.2).
+## Nothing in the logic depends on the entries being one character long.
 
 var _rng: RandomNumberGenerator
 var _pool: Array[String] = []

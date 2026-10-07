@@ -506,8 +506,8 @@ func test_run_worst_survives_the_run_and_shows() -> void:
 
 func _jump_buttons(sut: OverlayScript) -> Array[Control]:
 	return [
-		sut.get_node("%JumpTestLevelButton") as Control, sut.get_node("%JumpGiftButton") as Control,
-		sut.get_node("%JumpKeyboardTestButton") as Control,
+		sut.get_node("%JumpTestLevelButton") as Control, sut.get_node("%JumpWordLevelButton") as Control,
+		sut.get_node("%JumpGiftButton") as Control, sut.get_node("%JumpKeyboardTestButton") as Control,
 	]
 
 
@@ -519,7 +519,7 @@ func test_jump_buttons_exist_and_never_take_focus() -> void:
 		assert_not_null(button)
 		assert_eq(button.focus_mode, Control.FOCUS_NONE, str(button.name))
 		texts.append(button.text)
-	assert_eq(texts, ["Test level", "Welcome gift", "Keyboard test"] as Array[String])
+	assert_eq(texts, ["Test level", "Test words", "Welcome gift", "Keyboard test"] as Array[String])
 
 
 func test_jump_buttons_navigate_from_the_main_menu() -> void:
@@ -530,6 +530,7 @@ func test_jump_buttons_navigate_from_the_main_menu() -> void:
 		(control as Button).pressed.emit()
 	assert_eq(_jumps, [
 		[Router.Screen.RUN, {"level_id": &"test_level"}],
+		[Router.Screen.RUN, {"level_id": &"test_word_level"}],
 		[Router.Screen.WELCOME_GIFT, {}],
 		[Router.Screen.KEYBOARD_TEST, {}],
 	])

@@ -412,3 +412,117 @@ func test_hands_do_not_shake() -> void:
 	_hud.shake_target()
 	_hud._process(0.05)
 	assert_eq(_rect("%ZombieHands"), before)
+
+
+# --- word mode (Story 6.2) ------------------------------------------------------
+
+func _word_setup(first: String = "dad") -> void:
+	_hud.setup(_config(LevelConfig.TargetMode.WORD), first)
+
+
+func _glyph_width(text: String) -> float:
+	var font: Font = (_hud.get_node("%TargetLabel") as Label).get_theme_font("font")
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, HudScript.LINE_FONT_SIZE).x
+
+
+func _typed() -> Label:
+	return _hud.get_node("%TypedLabel") as Label
+
+
+func _underline() -> ColorRect:
+	return _hud.get_node("%NextUnderline") as ColorRect
+
+
+func test_word_typed_letters_and_underline() -> void:
+	_word_setup()
+	_hud.show_target("dad", 1)
+	assert_eq(_text("%TargetLabel"), "dad", "the target label keeps the whole word")
+	assert_true(_typed().visible)
+	assert_eq(_typed().text, "d")
+	assert_eq(_typed().position, Vector2.ZERO)
+	assert_true(_underline().visible)
+	assert_eq(_underline().position.x, _glyph_width("d"), "under the second letter")
+	assert_eq(_underline().size, Vector2(_glyph_width("a"), HudScript.UNDERLINE_PX))
+	assert_eq(_underline().size.y, 2.0)
+	assert_eq(_underline().position.y, HudScript.LINE_FONT_SIZE + HudScript.UNDERLINE_GAP)
+
+
+func test_word_typed_colours_and_size() -> void:
+	_word_setup()
+	_hud.show_target("dad", 1)
+	assert_eq(_typed().get_theme_color(&"font_color"), Color("#2E6B26"), "zombie-green-dark")
+	assert_eq(_font_size(_typed()), 32)
+	var ink: Color = (_hud.get_node("%TargetLabel") as Label).get_theme_color(&"font_color")
+	assert_eq(_underline().color, ink, "the bar is ink")
+
+
+func test_word_fully_typed_hides_the_underline() -> void:
+	_word_setup()
+	_hud.show_target("dad", 3)
+	assert_eq(_typed().text, "dad")
+	assert_true(_typed().visible)
+	assert_false(_underline().visible)
+
+
+func test_word_nothing_typed_underlines_the_first_letter() -> void:
+	_word_setup()
+	assert_false(_typed().visible, "setup shows the first word with 0 typed")
+	assert_true(_underline().visible)
+	assert_eq(_underline().position.x, 0.0)
+	_hud.show_target("cat", 0)
+	assert_false(_typed().visible)
+	assert_eq(_typed().text, "")
+	assert_eq(_underline().position.x, 0.0)
+
+
+func test_word_typed_count_is_clamped() -> void:
+	_word_setup()
+	_hud.show_target("dad", 9)
+	assert_eq(_typed().text, "dad")
+	assert_false(_underline().visible)
+	_hud.show_target("dad", -4)
+	assert_false(_typed().visible)
+	assert_eq(_underline().position.x, 0.0)
+
+
+func test_word_hands_light_the_next_letter() -> void:
+	_word_setup()
+	assert_eq(_hands_lit(), [Vector2i(FingerMap.Hand.LEFT, FingerMap.Finger.MIDDLE)] as Array[Vector2i], "d")
+	_hud.show_target("dad", 1)
+	assert_eq(_hands_lit(), [Vector2i(FingerMap.Hand.LEFT, FingerMap.Finger.PINKY)] as Array[Vector2i], "a, not d")
+
+
+func test_letter_mode_never_shows_word_progress() -> void:
+	_letter_setup()
+	assert_false(_typed().visible)
+	assert_false(_underline().visible)
+	_hud.show_target("k", 1)
+	assert_false(_typed().visible)
+	assert_false(_underline().visible)
+
+
+func test_paragraph_mode_never_shows_word_progress() -> void:
+	_hud.setup(_config(LevelConfig.TargetMode.PARAGRAPH), "the cat sat")
+	_hud.show_target("the cat sat", 2)
+	assert_false(_typed().visible)
+	assert_false(_underline().visible)
+
+
+func test_word_shake_moves_the_overlay_with_the_word() -> void:
+	_word_setup()
+	_hud.show_target("dad", 1)
+	var typed_before: Vector2 = _typed().global_position
+	var bar_before: Vector2 = _underline().global_position
+	_hud.shake_target()
+	_hud._process(0.05)
+	var offset: float = _hud.get_target_offset_x()
+	assert_ne(offset, 0.0)
+	assert_eq(_typed().global_position, typed_before + Vector2(offset, 0.0))
+	assert_eq(_underline().global_position, bar_before + Vector2(offset, 0.0))
+
+
+func test_word_live_wpm_counts_implied_spaces() -> void:
+	_word_setup()
+	_hud.update_clock(10.0, 50, 10)
+	assert_eq(_text("%WpmValue"), str(StatsCalculator.wpm(50, 10.0, 10)))
+	assert_ne(_text("%WpmValue"), str(StatsCalculator.wpm(50, 10.0)), "the spaces change the number")
