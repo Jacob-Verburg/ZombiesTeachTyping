@@ -55,6 +55,7 @@ func judge(c: String) -> Verdict:
 	if target == "":
 		return Verdict.WRONG
 	if _cursor >= target.length():
+		Log.warn(&"typing", "TypingSession: cursor %d past target \"%s\"; reset to 0" % [_cursor, target])
 		_cursor = 0
 	var expected: String = target[_cursor]
 	if not _per_key.has(expected):

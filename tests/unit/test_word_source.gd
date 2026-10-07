@@ -114,9 +114,9 @@ func test_pool_without_words_array_is_empty() -> void:
 	assert_push_error_count(2)
 
 
-func test_pool_keeps_the_valid_words_before_a_bad_entry() -> void:
+func test_pool_skips_a_non_dictionary_entry_and_keeps_the_rest() -> void:
 	var json: JSON = _json('{"words": [{"word": "dad"}, "cat", {"word": "sky"}]}')
-	assert_eq(WordSource.pool_from_json(json, 3, 5), ["dad"] as Array[String])
+	assert_eq(WordSource.pool_from_json(json, 3, 5), ["dad", "sky"] as Array[String])
 	assert_push_error("[ERROR][typing]")
 
 

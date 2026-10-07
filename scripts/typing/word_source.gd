@@ -30,8 +30,8 @@ static func pool_from_json(json: JSON, min_len: int, max_len: int) -> Array[Stri
 		return pool
 	for entry: Variant in words as Array:
 		if not entry is Dictionary:
-			Log.error(&"typing", "WordSource: word list entry is not a Dictionary; stopped at %d words" % pool.size())
-			return pool
+			Log.error(&"typing", "WordSource: word list entry is not a Dictionary; skipped")
+			continue
 		var word: Variant = (entry as Dictionary).get("word")
 		if not word is String:
 			continue

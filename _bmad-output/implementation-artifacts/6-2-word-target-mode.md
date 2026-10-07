@@ -4,7 +4,7 @@ baseline_commit: 183ebd21028dc078e4429b6138040dc00c3547c7
 
 # Story 6.2: Word Target Mode
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -170,6 +170,12 @@ so that I can see my progress through the word.
 - [Source: _bmad-output/implementation-artifacts/deferred-work.md] Story 2.2 notes (target_completed, exhausted source), 2.5 (word sign), 2.6 (hands cursor character)
 - [Source: _bmad-output/implementation-artifacts/6-1-word-tagging-tool-and-starter-word-list.md] Forward notes, review defers
 - [Source: scripts/typing/typing_session.gd], [scripts/typing/letter_bag_source.gd], [scripts/run/run_frame.gd:244-262], [scripts/run/hud.gd:100-104,131-143,168-205], [scripts/run/zombie_hands.gd:71-79], [scripts/levels/test_level/test_level.gd], [scripts/debug/debug_overlay.gd:77,249-256,289], [tests/unit/test_level_registry.gd:110]
+
+### Review Findings
+
+- [x] [Review][Decision] Underline sits directly under descenders (UNDERLINE_GAP 0) — RESOLVED: accepted gap 0 as shipped (dismissed) — Task 5.4 says the bar should be "clear of descenders of g j p q y", but the 40 px sign leaves 3 rows under a descender, so a 2 px bar cannot clear both descenders and the sign's dark edge. Options: (1) accept gap 0 as shipped; (2) gap 1, which fuses the bar with the sign edge; (3) enlarge the sign, which breaks "preserve all sign rects". Flagged by the Acceptance Auditor and by the dev's own completion notes. [scripts/run/hud.gd]
+- [x] [Review][Patch] `pool_from_json` truncates the whole pool at the first non-Dictionary entry but skips other bad entries — use `continue` with a logged error, and log the non-String `word` skip too [scripts/typing/word_source.gd:32-37]
+- [x] [Review][Patch] `judge` silently resets `_cursor` to 0 when `_cursor >= target.length()`, hiding a source/session desync — add a `Log.warn` [scripts/typing/typing_session.gd:57-58]
 
 ## Dev Agent Record
 
