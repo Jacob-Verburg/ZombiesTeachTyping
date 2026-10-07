@@ -4,7 +4,7 @@ baseline_commit: 90bebbd98d13b994caf82712b187f05f4c0b1e30
 
 # Story 6.1: Word Tagging Tool and Starter Word List
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -59,9 +59,23 @@ so that Horde Rush has words now and the full curriculum can reuse the same tool
   - [x] 6.2 Apply removals, re-run the tool (exit 0, band ≥150), re-run the tests.
   - [x] 6.3 Fill in **Word List Review** below: date, Smuck's answer verbatim, removed words, final counts.
 - [x] **Task 7: Full suite and wrap-up**
-  - [x] 7.1 `"/c/Program Files/Godot/Godot.exe" --headless --path . --import`, then the GUT command (Testing notes). Baseline is **1323** passing (after Story 5.5); record the new total. Grep the output for `Parse Error|Compile Error|Failed to load script` like CI does.
+  - [x] 7.1 `"/c/Program Files/Godot/Godot.exe" --headless --path . --import`, then the GUT command (Testing notes). Baseline is **1326** passing (after Story 5.5); record the new total. Grep the output for `Parse Error|Compile Error|Failed to load script` like CI does.
   - [x] 7.2 Commit the generated `.uid` files for the new scripts (as for every other script).
   - [x] 7.3 Add Story 6.2 hand-offs to `deferred-work.md` only if you find something new (the known ones are listed under *Forward notes* below; don't duplicate them).
+
+### Review Findings
+
+- [x] [Review][Patch] UTF-8 BOM and mid-line `` mishandled: a leading U+FEFF is rejected as "non-letter" (or hides the `#` header), and `replace("", "")` merges `icecream` into `icecream`. Strip a leading BOM and use `trim_suffix("")` [scripts/typing/word_tagger.gd:90]
+- [x] [Review][Patch] Word-list tests pass vacuously when `words.json` fails to load (`_doc = {}`, `_words = []`); assert non-empty `_words` in `before_each` or the loop tests [tests/unit/test_word_list.gd:165]
+- [x] [Review][Patch] Fresh-tag tests reuse `WordTagger`, so a wrong row table is reproduced in both; add a few golden entries (`dad`, `quiz`, ...) or check `rows` against the independent table in `test_word_tagger.gd` [tests/unit/test_word_list.gd:200]
+- [x] [Review][Patch] Missing and empty source file give the same error; check `FileAccess.file_exists` first [tools/tag_words.gd:393]
+- [x] [Review][Patch] Band minimums (150 / 3-5) are duplicated in the tool and the test; move them to `WordTagger` [tools/tag_words.gd:370, tests/unit/test_word_list.gd:149]
+- [x] [Review][Patch] `_rows()` helper in `test_output_is_sorted_alphabetically` is used to build a word list; use a literal or rename [tests/unit/test_word_tagger.gd]
+- [x] [Review][Patch] Story file says baseline 1323 in Task 7.1 and Testing notes; the Dev Agent Record measured 1326. Fix the notes [this file:62,124]
+- [x] [Review][Defer] Banned-word test is exact-match only [tests/unit/test_word_list.gd:154] — deferred, pre-existing design (documented backstop)
+- [x] [Review][Defer] `--in`/`--out` not validated (empty `--out=`, relative paths) [tools/tag_words.gd:380] — deferred, dev-only tool
+- [x] [Review][Defer] Band check (>=150 in 3-5) will exit 1 on a legitimately different master list in Story 7.4 [tools/tag_words.gd:370] — deferred, spec-consistent for 6.1
+- [x] [Review][Defer] Verify `words.json` loads from a real web export (`include_filter` glob, `load()` vs `FileAccess`) when the runtime loader lands [export_presets.cfg:9,45] — deferred, no loader exists yet
 
 ## Word List Review
 
@@ -121,7 +135,7 @@ Worked examples for the tests: `dad` home · `flag` home · `the` home+top · `c
 
 - Commands: `"/c/Program Files/Godot/Godot.exe" --headless --path . --import`, then `"/c/Program Files/Godot/Godot.exe" --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit`. GUT skips a script that fails to parse and still exits 0, so grep the log for `Parse Error|Compile Error|Failed to load script` (CI does).
 - Run `--import` after adding `words.json` and the new scripts so `class_name WordTagger` is registered before GUT runs.
-- Baseline 1323 passing (Story 5.5). These tests don't touch the save; no real-save risk.
+- Baseline 1326 passing (Story 5.5). These tests don't touch the save; no real-save risk.
 - To check rejections and exit codes by hand: run the tool with `-- --in=res://<scratch list> --out=res://<scratch json>` on a small bad list and check `echo $?`; delete the scratch files afterwards (don't commit them). The unit tests cover the rules; this is a smoke check of the I/O.
 
 ### Forward notes (for 6.2+, don't implement here)

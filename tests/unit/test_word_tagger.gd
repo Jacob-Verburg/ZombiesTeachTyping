@@ -106,12 +106,19 @@ func test_whitespace_and_carriage_returns_are_stripped() -> void:
 	assert_eq(words[1]["word"], "dog")
 
 
+func test_bom_and_crlf_are_stripped_without_merging_words() -> void:
+	var result: Dictionary = WordTagger.tag_lines(PackedStringArray(["\ufeff# header\r", "dad\r", "ice\rcream"]))
+	assert_eq((result["words"] as Array).size(), 1)
+	assert_eq((result["rejected"] as Array).size(), 1)
+	assert_eq(result["rejected"][0]["text"], "ice\rcream")
+
+
 func test_output_is_sorted_alphabetically() -> void:
 	var words: Array = WordTagger.tag_lines(PackedStringArray(["zoo", "apple", "mud", "bee"]))["words"]
 	var order: Array[String] = []
 	for entry: Dictionary in words:
 		order.append(entry["word"])
-	assert_eq(order, _rows(["apple", "bee", "mud", "zoo"]))
+	assert_eq(order, ["apple", "bee", "mud", "zoo"] as Array[String])
 
 
 func test_count_in_band() -> void:

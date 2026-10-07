@@ -515,3 +515,10 @@
 - Fullscreen press "click once" has no test seam (the live `AudioManager`); covered by code only. Toggle-once is tested.
 - A `root.size_changed` during the 60-frame settle window after a Fullscreen press re-reads the mode at once and could show the old state for a frame until the window switches; not seen in any re-check.
 - Still open from 5.x (not promoted at Gate A): NFR1/NFR2 on weak hardware, the first-music OGG-decode hitch, Firefox Ctrl+Shift+E, the `ubuntu-latest` → Ubuntu 26 switch on 2026-10-19.
+
+## Deferred from: code review of story-6.1 (2026-10-07)
+
+- Banned-word test is exact-match only (`hit` caught, `hits` not); a documented backstop, not a filter.
+- `tools/tag_words.gd` does not validate `--in`/`--out` (empty `--out=`, relative paths).
+- The starter-band check (>=150 words of length 3-5) runs on any `--in` list; Story 7.4's master list may need it relaxed or parameterised.
+- When the runtime loader for `words.json` lands, verify in a real web export that it loads (`include_filter="data/content/*.json"`, `load()` vs `FileAccess`).

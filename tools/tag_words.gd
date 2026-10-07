@@ -8,10 +8,6 @@ extends SceneTree
 
 const DEFAULT_IN: String = "res://tools/word_lists/starter_words.txt"
 const DEFAULT_OUT: String = "res://data/content/words.json"
-## FR59 / Story 6.1: before Epic 7 the game uses 3-5 letter words; the starter list needs 150 of them.
-const STARTER_BAND_MIN_LEN: int = 3
-const STARTER_BAND_MAX_LEN: int = 5
-const STARTER_BAND_MIN_COUNT: int = 150
 
 var _ok: bool = true
 
@@ -32,9 +28,12 @@ func _init() -> void:
 
 
 func _run(in_path: String, out_path: String) -> void:
+	if not FileAccess.file_exists(in_path):
+		_fail("can't find %s" % in_path)
+		return
 	var text: String = FileAccess.get_file_as_string(in_path)
 	if text == "":
-		_fail("can't read %s (%s) or it is empty" % [in_path, error_string(FileAccess.get_open_error())])
+		_fail("%s is empty" % in_path)
 		return
 	var result: Dictionary = WordTagger.tag_lines(text.split("\n"))
 	var words: Array = result["words"]
@@ -43,12 +42,12 @@ func _run(in_path: String, out_path: String) -> void:
 		_fail("line %d \"%s\": %s" % [entry["line"], entry["text"], entry["reason"]])
 	_print_summary(words, rejected.size())
 
-	var band: int = WordTagger.count_in_band(words, STARTER_BAND_MIN_LEN, STARTER_BAND_MAX_LEN)
-	print("%d-%d letter band: %d (minimum %d)" % [STARTER_BAND_MIN_LEN, STARTER_BAND_MAX_LEN, band,
-			STARTER_BAND_MIN_COUNT])
-	if band < STARTER_BAND_MIN_COUNT:
-		_fail("only %d words in the %d-%d letter band (need %d)" % [band, STARTER_BAND_MIN_LEN,
-				STARTER_BAND_MAX_LEN, STARTER_BAND_MIN_COUNT])
+	var band: int = WordTagger.count_in_band(words, WordTagger.STARTER_BAND_MIN_LEN, WordTagger.STARTER_BAND_MAX_LEN)
+	print("%d-%d letter band: %d (minimum %d)" % [WordTagger.STARTER_BAND_MIN_LEN,
+			WordTagger.STARTER_BAND_MAX_LEN, band, WordTagger.STARTER_BAND_MIN_COUNT])
+	if band < WordTagger.STARTER_BAND_MIN_COUNT:
+		_fail("only %d words in the %d-%d letter band (need %d)" % [band, WordTagger.STARTER_BAND_MIN_LEN,
+				WordTagger.STARTER_BAND_MAX_LEN, WordTagger.STARTER_BAND_MIN_COUNT])
 
 	var dir_err: Error = DirAccess.make_dir_recursive_absolute(out_path.get_base_dir())
 	if dir_err != OK:

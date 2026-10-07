@@ -7,9 +7,13 @@ const WORDS_PATH: String = "res://data/content/words.json"
 const SOURCE_PATH: String = "res://tools/word_lists/starter_words.txt"
 ## FR59 / Story 6.1 AC 3.
 const MIN_WORDS: int = 200
-const MIN_BAND_WORDS: int = 150
-const BAND_MIN_LEN: int = 3
-const BAND_MAX_LEN: int = 5
+## Independent golden entries (word -> rows), not derived from WordTagger.
+const GOLDEN: Dictionary = {
+	"dad": ["home"],
+	"quiz": ["top", "bottom"],
+	"cat": ["home", "top", "bottom"],
+	"the": ["home", "top"],
+}
 ## Backstop only: the Story 6.1 exclusion examples (scary, violent, rude, branded).
 const BANNED: Array[String] = [
 	"dead", "kill", "die", "bone", "grave", "skull", "blood", "bite", "ghost", "monster",
@@ -26,6 +30,7 @@ func before_each() -> void:
 	var res: JSON = load(WORDS_PATH) as JSON
 	_doc = res.data if res != null and res.data is Dictionary else {}
 	_words = _doc.get("words", [])
+	assert_gt(_words.size(), 0, "words.json loaded with at least one word")
 
 
 func _word_strings() -> Array[String]:
@@ -42,7 +47,7 @@ func test_loads_as_json_resource_with_schema_1() -> void:
 
 func test_enough_words_and_enough_in_the_starter_band() -> void:
 	assert_gte(_words.size(), MIN_WORDS)
-	assert_gte(WordTagger.count_in_band(_words, BAND_MIN_LEN, BAND_MAX_LEN), MIN_BAND_WORDS)
+	assert_gte(WordTagger.count_in_band(_words, WordTagger.STARTER_BAND_MIN_LEN, WordTagger.STARTER_BAND_MAX_LEN), WordTagger.STARTER_BAND_MIN_COUNT)
 
 
 func test_no_duplicates_and_sorted() -> void:
@@ -65,6 +70,21 @@ func test_every_entry_matches_a_fresh_tag() -> void:
 		rows.assign(entry["rows"])
 		assert_eq(rows, WordTagger.rows_for(w), "rows for '%s'" % w)
 		assert_eq(int(entry["length"]), w.length(), "length for '%s'" % w)
+
+
+func test_golden_entries_match_the_gdd_row_table() -> void:
+	var by_word: Dictionary = {}
+	for entry: Dictionary in _words:
+		by_word[entry["word"]] = entry
+	for w: String in GOLDEN:
+		assert_true(by_word.has(w), "'%s' is in the list" % w)
+		if not by_word.has(w):
+			continue
+		var rows: Array[String] = []
+		rows.assign(by_word[w]["rows"])
+		var expected: Array[String] = []
+		expected.assign(GOLDEN[w])
+		assert_eq(rows, expected, "rows for '%s'" % w)
 
 
 func test_matches_the_tagged_source_list() -> void:

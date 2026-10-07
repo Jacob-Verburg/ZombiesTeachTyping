@@ -14,6 +14,10 @@ const ROW_NAMES: Array[String] = ["home", "top", "bottom"]
 const MIN_LENGTH: int = 2
 ## The HUD word sign fits about 9 letters (deferred-work.md, Story 2.5 note); the tier bands stop at 8.
 const MAX_LENGTH: int = 8
+## FR59 / Story 6.1: before Epic 7 the game uses 3-5 letter words; the starter list needs 150 of them.
+const STARTER_BAND_MIN_LEN: int = 3
+const STARTER_BAND_MAX_LEN: int = 5
+const STARTER_BAND_MIN_COUNT: int = 150
 
 
 ## The rows the word needs, in canonical order, no repeats. Letters outside a-z are ignored.
@@ -59,7 +63,10 @@ static func tag_lines(lines: PackedStringArray) -> Dictionary:
 	var rejected: Array[Dictionary] = []
 	var first_line: Dictionary = {}
 	for i: int in lines.size():
-		var text: String = lines[i].replace("\r", "").strip_edges()
+		var raw: String = lines[i]
+		if i == 0:
+			raw = raw.trim_prefix("\ufeff")  # UTF-8 BOM from Windows editors
+		var text: String = raw.trim_suffix("\r").strip_edges()
 		if text == "" or text.begins_with("#"):
 			continue
 		var reason: String = rejection_reason(text)
