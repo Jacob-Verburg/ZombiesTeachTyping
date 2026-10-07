@@ -9,7 +9,7 @@ extends Control
 ## is the root screen. The payload is consumed and ignored (report card and pause quit pass {}).
 ## Toggles: Music/Sound only call PlayerData.set_setting(); AudioManager follows the setting (Boundary 4).
 ## Fullscreen calls WebPlatform.toggle_fullscreen() inside the input callback (browser gesture rule) and
-## re-reads is_fullscreen() whenever the window size changes (the browser's own Esc exit). Not saved.
+## re-reads is_fullscreen() every frame (the late switch, the browser's own Esc exit; Story 5.5). Not saved.
 ## Kept from Stories 1.7 / 1.8: the FR27 storage notice (a non-interactive corner note shown only when
 ## WebPlatform.is_storage_persistent() is false) and the hidden Ctrl+Shift+E SaveService.offer_export()
 ## chord in every build, with no visible change.
@@ -24,6 +24,9 @@ extends Control
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 const LEVEL_CARD_SCENE: PackedScene = preload("res://scenes/ui/level_card.tscn")
 const STORAGE_NOTICE_TEXT: String = "This browser might forget your brains"
+## After a Fullscreen press, how long the icon keeps the asked-for state while the window has not switched
+## yet (the browser applies the mode later). Past this, the real mode shows again (a refused request).
+const FULLSCREEN_SETTLE_FRAMES: int = 60
 
 ## The levels shown as cards (data/levels/level_registry.tres, set in main_menu.tscn).
 @export var level_registry: LevelRegistry
@@ -41,6 +44,9 @@ var is_transitioning: Callable
 var _cards: Array[LevelCard] = []
 ## Set by the one navigation; nothing navigates after it.
 var _leaving: bool = false
+## Frames left in which a Fullscreen press waits for the window to switch, and the mode it switches from.
+var _fullscreen_settle: int = 0
+var _fullscreen_before: bool = false
 
 
 func _ready() -> void:
@@ -167,8 +173,23 @@ func _show_profile() -> void:
 	%SoundToggle.show_state(player_data.get_setting(&"sound_on"))
 
 
+## Story 5.5 (F1): the window mode changes after toggle_fullscreen returns, and viewport stretch keeps the root
+## at 640 x 360 so size_changed rarely fires; so the mode is re-read every frame while the menu is open.
+func _process(_delta: float) -> void:
+	if _leaving:
+		return
+	if _fullscreen_settle > 0:
+		_fullscreen_settle -= 1
+		if is_fullscreen.call() == _fullscreen_before and _fullscreen_settle > 0:
+			return  # not switched yet: keep the pressed state, no flicker
+		_fullscreen_settle = 0
+	_sync_fullscreen()
+
+
 func _sync_fullscreen() -> void:
-	%FullscreenToggle.show_state(is_fullscreen.call())
+	var on: bool = is_fullscreen.call()
+	if on != %FullscreenToggle.is_on():
+		%FullscreenToggle.show_state(on)
 
 
 func _show_storage_notice(persistent: bool) -> void:
@@ -216,7 +237,9 @@ func _on_sound_flipped(on: bool) -> void:
 
 
 ## Runs inside the input callback: the browser only allows fullscreen from a user gesture.
+## The toggle already shows the asked-for state; _process keeps it until the window switches (or not).
 func _on_fullscreen_flipped(_on: bool) -> void:
+	_fullscreen_before = is_fullscreen.call()
 	toggle_fullscreen.call()
-	_sync_fullscreen()
+	_fullscreen_settle = FULLSCREEN_SETTLE_FRAMES
 	AudioManager.play_sfx(&"sfx_ui_click")
