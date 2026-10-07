@@ -69,7 +69,7 @@ func _ready() -> void:
 	%MusicToggle.flipped.connect(_on_music_flipped)
 	%SoundToggle.flipped.connect(_on_sound_flipped)
 	%FullscreenToggle.flipped.connect(_on_fullscreen_flipped)
-	get_tree().root.size_changed.connect(_sync_fullscreen)
+	get_tree().root.size_changed.connect(_on_window_resized)
 	_sync_fullscreen()
 	%ClosetButton.pressed.connect(_on_closet_button_pressed)
 	_wire_focus()
@@ -186,6 +186,13 @@ func _process(_delta: float) -> void:
 	_sync_fullscreen()
 
 
+## A resize follows the mode too, but not while a press waits for the window or after the menu is left.
+func _on_window_resized() -> void:
+	if _leaving or _fullscreen_settle > 0:
+		return
+	_sync_fullscreen()
+
+
 func _sync_fullscreen() -> void:
 	var on: bool = is_fullscreen.call()
 	if on != %FullscreenToggle.is_on():
@@ -238,7 +245,11 @@ func _on_sound_flipped(on: bool) -> void:
 
 ## Runs inside the input callback: the browser only allows fullscreen from a user gesture.
 ## The toggle already shows the asked-for state; _process keeps it until the window switches (or not).
+## A press while the first one is still settling is ignored: the toggle shows the asked-for state again.
 func _on_fullscreen_flipped(_on: bool) -> void:
+	if _fullscreen_settle > 0:
+		%FullscreenToggle.show_state(not _fullscreen_before)
+		return
 	_fullscreen_before = is_fullscreen.call()
 	toggle_fullscreen.call()
 	_fullscreen_settle = FULLSCREEN_SETTLE_FRAMES

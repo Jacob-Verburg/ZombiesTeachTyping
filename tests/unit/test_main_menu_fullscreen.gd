@@ -116,7 +116,9 @@ func test_icon_returns_to_the_real_state_when_the_request_is_refused() -> void:
 	_make()
 	_press()
 	assert_true(_toggle().is_on(), "optimistic on the press")
-	await wait_process_frames(MainMenuScript.FULLSCREEN_SETTLE_FRAMES + 5)
+	await wait_process_frames(MainMenuScript.FULLSCREEN_SETTLE_FRAMES / 2)
+	assert_true(_toggle().is_on(), "still waiting halfway through the settle window")
+	await wait_process_frames(MainMenuScript.FULLSCREEN_SETTLE_FRAMES / 2 + 5)
 	assert_false(_toggle().is_on(), "the window never switched, so the slash comes back")
 	assert_eq(_toggles, 1, "a refused request is not retried")
 
@@ -139,4 +141,32 @@ func test_leaving_menu_stops_following_the_mode() -> void:
 	_menu.call("_leave", Router.Screen.CRYPT_CLOSET, {})
 	_fullscreen = true
 	await wait_process_frames(2)
+	assert_false(_toggle().is_on(), "nothing moves after the one navigation")
+
+
+func test_second_press_while_settling_is_ignored() -> void:
+	_make()
+	_press()
+	await wait_process_frames(2)
+	_press()
+	assert_true(_toggle().is_on(), "the icon keeps the asked-for state")
+	assert_eq(_toggles, 1, "the second press does not call the toggle")
+	await wait_process_frames(LAND_FRAMES + 2)
+	assert_true(_read_mode(), "the first request landed")
+	assert_true(_toggle().is_on(), "the icon matches the real mode")
+
+
+func test_resize_during_settle_does_not_show_the_stale_mode() -> void:
+	_make()
+	_press()
+	await wait_process_frames(2)
+	_menu.call("_on_window_resized")
+	assert_true(_toggle().is_on(), "a resize mid-settle keeps the asked-for state")
+
+
+func test_resize_after_leaving_does_not_move_the_icon() -> void:
+	_make()
+	_menu.call("_leave", Router.Screen.CRYPT_CLOSET, {})
+	_fullscreen = true
+	_menu.call("_on_window_resized")
 	assert_false(_toggle().is_on(), "nothing moves after the one navigation")
