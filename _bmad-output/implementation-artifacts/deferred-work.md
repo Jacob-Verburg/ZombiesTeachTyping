@@ -522,3 +522,9 @@
 - `tools/tag_words.gd` does not validate `--in`/`--out` (empty `--out=`, relative paths).
 - The starter-band check (>=150 words of length 3-5) runs on any `--in` list; Story 7.4's master list may need it relaxed or parameterised.
 - When the runtime loader for `words.json` lands, verify in a real web export that it loads (`include_filter="data/content/*.json"`, `load()` vs `FileAccess`).
+
+## Deferred from: code review of story-6.3 (2026-10-07)
+
+- A huge frame `delta` (background tab, window drag) arrives every in-flight copy in one `HordeField.advance`; harmless in 6.3 but in 6.5 it would pay a burst of brains. Cap or substep the delta in 6.5.
+- A debug jump into `horde_rush` that ends writes a real `run_history` entry with `level_id = horde_rush`; the 6.8 backfill would count it as a timer run. Already acknowledged in the 6.3 Dev Notes.
+- `horde_rush_level.tscn` hard-codes five lane `ColorRect`s while `lane_count` is config-driven; revisit if the lane count ever changes.

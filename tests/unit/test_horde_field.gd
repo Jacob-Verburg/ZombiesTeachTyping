@@ -151,3 +151,21 @@ func test_independent_of_the_global_rng() -> void:
 	var first: Array[int] = _lanes(5, 50)
 	seed(999)
 	assert_eq(_lanes(5, 50), first, "only the injected RNG decides the lanes")
+	randomize() # leave the global RNG unseeded for later tests
+
+
+func test_spawn_without_lanes_returns_null() -> void:
+	var config: HordeRushConfig = _config()
+	config.lane_count = 0
+	var field: HordeField = HordeField.new(config, RandomNumberGenerator.new())
+	assert_null(field.spawn("cat"))
+	assert_push_error("horde field has no lanes")
+	assert_eq(field.get_spawned_count(), 0)
+
+
+func test_progress_is_one_as_soon_as_a_copy_has_arrived() -> void:
+	var field: HordeField = _field()
+	var marcher: HordeMarcher = field.spawn("cat")
+	marcher.elapsed_s = 8.0 - HordeMarcher.ARRIVE_EPSILON_S / 2.0
+	assert_true(marcher.has_arrived())
+	assert_eq(marcher.progress(), 1.0, "has_arrived() and progress() agree")

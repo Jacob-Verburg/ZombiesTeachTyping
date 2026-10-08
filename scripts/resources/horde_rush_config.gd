@@ -4,6 +4,9 @@ extends LevelConfig
 ## is a LevelConfig, so RunFrame, TypingInput and the HUD read it unchanged. Real values live in
 ## data/levels/horde_rush.tres; the defaults here are neutral.
 
+## The shortest crossing time validate() accepts, well above HordeMarcher.ARRIVE_EPSILON_S.
+const MIN_CROSSING_TIME_S: float = 0.01
+
 ## How many lanes the field has (top lane = 0).
 @export var lane_count: int = 0
 ## The size classes, shortest band first; the last one has max_word_length 0 (no upper bound).
@@ -35,12 +38,16 @@ func validate() -> String:
 	if size_classes.is_empty():
 		return "size_classes needs at least 1 class"
 	var last_max: int = 0
+	var seen_ids: Array[StringName] = []
 	for i: int in size_classes.size():
 		var size_class: HordeSizeClass = size_classes[i]
 		if size_class == null:
 			return "size class %d is missing" % i
-		if not (size_class.crossing_time_s > 0.0 and is_finite(size_class.crossing_time_s)):
-			return "size class %d: crossing_time_s must be above 0" % i
+		if seen_ids.has(size_class.id):
+			return "size class %d: id '%s' is used twice" % [i, size_class.id]
+		seen_ids.append(size_class.id)
+		if not (size_class.crossing_time_s >= MIN_CROSSING_TIME_S and is_finite(size_class.crossing_time_s)):
+			return "size class %d: crossing_time_s must be at least %s" % [i, MIN_CROSSING_TIME_S]
 		if size_class.hits_to_stop < 1:
 			return "size class %d: hits_to_stop must be at least 1" % i
 		if size_class.arrival_brains < 0:

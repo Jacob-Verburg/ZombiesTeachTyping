@@ -65,6 +65,15 @@ func test_layout_values_fit_above_the_hud() -> void:
 	assert_true(LevelScript.ARRIVE_X < LevelScript.HOUSE_FRONT_X)
 
 
+func test_every_scale_spawns_on_screen_and_arrives_at_the_house_front() -> void:
+	_make()
+	for sprite_scale: float in [1.0, 1.25, 1.5]:
+		var half_width: float = LevelScript.SPRITE_HALF_WIDTH_PX * sprite_scale
+		assert_eq(_level.march_x(0.0, sprite_scale) - half_width, 0.0, "left edge at 0 for %s" % sprite_scale)
+		assert_eq(_level.march_x(1.0, sprite_scale) + half_width, LevelScript.HOUSE_FRONT_X,
+			"right edge on the wall for %s" % sprite_scale)
+
+
 func test_a_completed_word_spawns_one_copy_in_the_same_call() -> void:
 	_make()
 	var counts: Array[int] = []
@@ -95,6 +104,9 @@ func test_small_copy_is_placed_at_the_left_edge_of_its_lane() -> void:
 	assert_not_null(view)
 	assert_eq(view.position, Vector2(LevelScript.SPAWN_X, _level.lane_feet_y(marcher.lane)))
 	assert_eq(view.scale, Vector2.ONE * 1.0)
+	_level.on_target_completed("tiger")
+	var medium: HordeMarcher = _level.get_field().get_marching()[1]
+	assert_eq(_level.get_view(medium.id).position.x, LevelScript.SPRITE_HALF_WIDTH_PX * 1.25, "whole sprite on screen")
 	assert_eq(view.get_parent(), _level.get_node("%Zombies"))
 	assert_not_null(view.get_node_or_null("%HatSlot"), "the copy wears the equipped hat")
 	assert_eq(view.get_node("%HatSlot").get_parent(), view.get_node("Body"))
@@ -117,7 +129,7 @@ func test_the_march_moves_the_sprite_from_logic() -> void:
 	var y: float = view.position.y
 	for seconds: float in [0.5, 2.0, 3.0]:
 		_steps(seconds)
-		assert_almost_eq(view.position.x, _level.march_x(marcher.progress()), 1e-4)
+		assert_almost_eq(view.position.x, _level.march_x(marcher.progress(), 1.25), 1e-4)
 		assert_eq(view.position.y, y, "stays in its lane")
 	assert_almost_eq(marcher.progress(), 5.5 / 10.0, 1e-3)
 	# The sprite is never read back: moving it by hand does not change the logic.
@@ -125,7 +137,7 @@ func test_the_march_moves_the_sprite_from_logic() -> void:
 	var before: float = marcher.elapsed_s
 	_level._process(STEP)
 	assert_almost_eq(marcher.elapsed_s, before + STEP, 1e-6)
-	assert_almost_eq(view.position.x, _level.march_x(marcher.progress()), 1e-4)
+	assert_almost_eq(view.position.x, _level.march_x(marcher.progress(), 1.25), 1e-4)
 
 
 func test_arrival_frees_the_copy() -> void:
@@ -161,6 +173,52 @@ func test_run_ending_freezes_the_march() -> void:
 		assert_eq(_level.get_view(marching[i].id).position.x, xs[i], "sprite frozen")
 	assert_eq(_level.get_view_count(), 2, "no arrivals after the end")
 	assert_eq(_level.get_field().get_arrived_count(), 0)
+
+
+func test_spawn_after_run_ending_is_ignored() -> void:
+	_make()
+	_level.on_run_ending(&"timer")
+	_level.on_target_completed("cat")
+	assert_eq(_level.get_view_count(), 0)
+	assert_eq(_level.get_field().get_spawned_count(), 0)
+
+
+func test_the_march_stops_while_the_tree_is_paused() -> void:
+	_make()
+	_level.process_mode = Node.PROCESS_MODE_INHERIT
+	_level.on_target_completed("cat")
+	var marcher: HordeMarcher = _level.get_field().get_marching()[0]
+	get_tree().paused = true
+	await wait_process_frames(5)
+	var paused_at: float = marcher.elapsed_s
+	get_tree().paused = false
+	assert_eq(paused_at, 0.0, "paused: nothing marched")
+	await wait_process_frames(5)
+	assert_gt(marcher.elapsed_s, 0.0, "unpaused: it marches again")
+
+
+func test_create_target_source_again_starts_a_clean_run() -> void:
+	_make()
+	_level.on_target_completed("cat")
+	var old_view: PlayerZombie = _level.get_view(0)
+	_level.on_run_ending(&"timer")
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 3
+	assert_not_null(_level.create_target_source(rng))
+	assert_false(_level.is_frozen())
+	assert_eq(_level.get_view_count(), 0)
+	await wait_process_frames(1)
+	assert_false(is_instance_valid(old_view), "the old sprite is freed")
+	_level.on_target_completed("cat")
+	assert_eq(_level.get_view_count(), 1)
+	assert_eq(_level.get_field().get_spawned_count(), 1)
+
+
+func test_lanes_that_do_not_fit_fail_safely() -> void:
+	_make(1, func(c: HordeRushConfig) -> void: c.lane_count = 7)
+	assert_null(_source)
+	assert_push_error("do not fit above the HUD")
+	assert_push_error("do not fit above the HUD")
 
 
 func test_no_brains_yet() -> void:
@@ -227,3 +285,4 @@ func test_never_uses_the_global_rng() -> void:
 	var first: Array = _replay(5, 15)
 	seed(999)
 	assert_eq(_replay(5, 15), first)
+	randomize() # leave the global RNG unseeded for later tests

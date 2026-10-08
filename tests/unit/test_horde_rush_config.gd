@@ -91,28 +91,31 @@ func test_in_test_config_is_valid() -> void:
 
 
 func test_validate_catches_each_bad_case() -> void:
-	var cases: Dictionary[String, Callable] = {
-		"no classes": func(c: HordeRushConfig) -> void: c.size_classes = [],
-		"null class": func(c: HordeRushConfig) -> void: c.size_classes[1] = null,
-		"zero crossing": func(c: HordeRushConfig) -> void: c.size_classes[0].crossing_time_s = 0.0,
-		"inf crossing": func(c: HordeRushConfig) -> void: c.size_classes[0].crossing_time_s = INF,
-		"zero hits": func(c: HordeRushConfig) -> void: c.size_classes[1].hits_to_stop = 0,
-		"negative brains": func(c: HordeRushConfig) -> void: c.size_classes[1].arrival_brains = -1,
-		"zero scale": func(c: HordeRushConfig) -> void: c.size_classes[2].sprite_scale = 0.0,
-		"non-ascending max": func(c: HordeRushConfig) -> void: c.size_classes[1].max_word_length = 3,
-		"0 max not last": func(c: HordeRushConfig) -> void: c.size_classes[1].max_word_length = 0,
-		"last has a max": func(c: HordeRushConfig) -> void: c.size_classes[2].max_word_length = 9,
-		"lane_count 0": func(c: HordeRushConfig) -> void: c.lane_count = 0,
-		"letter mode": func(c: HordeRushConfig) -> void: c.target_mode = LevelConfig.TargetMode.LETTER,
-		"null word list": func(c: HordeRushConfig) -> void: c.word_list = null,
-		"min > max": func(c: HordeRushConfig) -> void: c.word_min_length = 6,
-		"min 0": func(c: HordeRushConfig) -> void: c.word_min_length = 0,
-		"duration 0": func(c: HordeRushConfig) -> void: c.duration_s = 0.0,
+	# label -> [tweak, expected message substring]: each case must fail for its own reason.
+	var cases: Dictionary[String, Array] = {
+		"no classes": [func(c: HordeRushConfig) -> void: c.size_classes = [], "at least 1 class"],
+		"null class": [func(c: HordeRushConfig) -> void: c.size_classes[1] = null, "size class 1 is missing"],
+		"zero crossing": [func(c: HordeRushConfig) -> void: c.size_classes[0].crossing_time_s = 0.0, "crossing_time_s"],
+		"tiny crossing": [func(c: HordeRushConfig) -> void: c.size_classes[0].crossing_time_s = 1e-4, "crossing_time_s"],
+		"inf crossing": [func(c: HordeRushConfig) -> void: c.size_classes[0].crossing_time_s = INF, "crossing_time_s"],
+		"zero hits": [func(c: HordeRushConfig) -> void: c.size_classes[1].hits_to_stop = 0, "hits_to_stop"],
+		"negative brains": [func(c: HordeRushConfig) -> void: c.size_classes[1].arrival_brains = -1, "arrival_brains"],
+		"zero scale": [func(c: HordeRushConfig) -> void: c.size_classes[2].sprite_scale = 0.0, "sprite_scale"],
+		"duplicate id": [func(c: HordeRushConfig) -> void: c.size_classes[1].id = &"small", "used twice"],
+		"non-ascending max": [func(c: HordeRushConfig) -> void: c.size_classes[1].max_word_length = 3, "ascending"],
+		"0 max not last": [func(c: HordeRushConfig) -> void: c.size_classes[1].max_word_length = 0, "only the last"],
+		"last has a max": [func(c: HordeRushConfig) -> void: c.size_classes[2].max_word_length = 9, "last size class"],
+		"lane_count 0": [func(c: HordeRushConfig) -> void: c.lane_count = 0, "lane_count"],
+		"letter mode": [func(c: HordeRushConfig) -> void: c.target_mode = LevelConfig.TargetMode.LETTER, "WORD"],
+		"null word list": [func(c: HordeRushConfig) -> void: c.word_list = null, "word_list"],
+		"min > max": [func(c: HordeRushConfig) -> void: c.word_min_length = 6, "word band"],
+		"min 0": [func(c: HordeRushConfig) -> void: c.word_min_length = 0, "word band"],
+		"duration 0": [func(c: HordeRushConfig) -> void: c.duration_s = 0.0, "duration_s"],
 	}
 	for label: String in cases:
 		var config: HordeRushConfig = _valid()
-		cases[label].call(config)
-		assert_ne(config.validate(), "", label)
+		cases[label][0].call(config)
+		assert_string_contains(config.validate(), cases[label][1], label)
 
 
 func test_a_single_unbounded_class_is_valid() -> void:

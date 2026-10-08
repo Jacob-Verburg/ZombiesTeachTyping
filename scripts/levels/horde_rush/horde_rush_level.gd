@@ -31,11 +31,14 @@ const LANE_HEIGHT_PX: float = 44.0
 const LANE_FEET_INSET_PX: float = 6.0
 ## The 104 px HUD band starts here; the lanes must end above it.
 const FIELD_BOTTOM_Y: float = 256.0
-## Feet x where a copy enters; a small copy is fully on screen in the frame it spawns (NFR2).
-const SPAWN_X: float = 16.0
+## Half the player zombie sprite's width at scale 1 (32 px, origin at the feet centre).
+const SPRITE_HALF_WIDTH_PX: float = 16.0
 const HOUSE_FRONT_X: float = 548.0
-## Feet x where a copy touches the house front.
-const ARRIVE_X: float = HOUSE_FRONT_X - 16.0
+## Feet x where a small (scale 1) copy enters, fully on screen in the frame it spawns (NFR2); a larger
+## copy's half-width grows with its scale, see spawn_x().
+const SPAWN_X: float = SPRITE_HALF_WIDTH_PX
+## Feet x where a small copy touches the house front, see arrive_x().
+const ARRIVE_X: float = HOUSE_FRONT_X - SPRITE_HALF_WIDTH_PX
 
 var _cfg: HordeRushConfig
 var _source: WordSource
@@ -54,8 +57,12 @@ func _ready() -> void:
 		assert(false, "HordeRushLevel needs a HordeRushConfig")
 		Log.error(&"level", "horde rush level has no HordeRushConfig")
 		return
-	if _cfg.lane_count * LANE_HEIGHT_PX > FIELD_BOTTOM_Y - FIELD_TOP_Y:
+	if not _lanes_fit():
 		Log.error(&"level", "horde rush: %d lanes do not fit above the HUD" % _cfg.lane_count)
+
+
+func _lanes_fit() -> bool:
+	return _cfg.lane_count * LANE_HEIGHT_PX <= FIELD_BOTTOM_Y - FIELD_TOP_Y
 
 
 ## Feet y of a copy in `lane` (0 = top).
@@ -63,9 +70,19 @@ func lane_feet_y(lane: int) -> float:
 	return FIELD_TOP_Y + LANE_HEIGHT_PX * (lane + 1) - LANE_FEET_INSET_PX
 
 
-## Feet x of a copy at `progress` (0..1) across the field.
-func march_x(progress: float) -> float:
-	return lerpf(SPAWN_X, ARRIVE_X, progress)
+## Feet x where a copy of draw scale `sprite_scale` enters: its whole sprite is on screen.
+func spawn_x(sprite_scale: float = 1.0) -> float:
+	return SPRITE_HALF_WIDTH_PX * sprite_scale
+
+
+## Feet x where a copy of draw scale `sprite_scale` touches the house front (never past it).
+func arrive_x(sprite_scale: float = 1.0) -> float:
+	return HOUSE_FRONT_X - SPRITE_HALF_WIDTH_PX * sprite_scale
+
+
+## Feet x of a copy of draw scale `sprite_scale` at `progress` (0..1) across the field.
+func march_x(progress: float, sprite_scale: float = 1.0) -> float:
+	return lerpf(spawn_x(sprite_scale), arrive_x(sprite_scale), progress)
 
 
 ## Words first, lanes second (see the class doc). An invalid config or a band with fewer than 2 words
@@ -77,6 +94,10 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 	if problem != "":
 		Log.error(&"level", "horde rush config invalid: %s" % problem)
 		return null
+	if not _lanes_fit():
+		Log.error(&"level", "horde rush: %d lanes do not fit above the HUD" % _cfg.lane_count)
+		return null
+	_reset()
 	var word_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	word_rng.seed = rng.randi()
 	var lane_rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -91,6 +112,15 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 	return _source
 
 
+## A fresh run on this node: drop every old sprite and un-freeze.
+func _reset() -> void:
+	for view: PlayerZombie in _views.values():
+		if is_instance_valid(view):
+			view.queue_free()
+	_views.clear()
+	_frozen = false
+
+
 ## Logic first (the marcher), then its sprite, all in the key's call: no await, no tween.
 func on_target_completed(target: String) -> void:
 	if _field == null or _frozen:
@@ -99,8 +129,13 @@ func on_target_completed(target: String) -> void:
 	if marcher == null:
 		return
 	var view: PlayerZombie = PLAYER_ZOMBIE_SCENE.instantiate() as PlayerZombie
-	view.position = Vector2(SPAWN_X, lane_feet_y(marcher.lane))
-	view.scale = Vector2.ONE * marcher.size_class.sprite_scale
+	if view == null:
+		# The marcher still marches and arrives (logic leads); only its sprite is missing.
+		Log.error(&"level", "horde rush: player_zombie.tscn root is not a PlayerZombie")
+		return
+	var sprite_scale: float = marcher.size_class.sprite_scale
+	view.position = Vector2(spawn_x(sprite_scale), lane_feet_y(marcher.lane))
+	view.scale = Vector2.ONE * sprite_scale
 	_zombies.add_child(view)
 	view.play_walk()
 	_views[marcher.id] = view
@@ -145,7 +180,7 @@ func _process(delta: float) -> void:
 		var view: PlayerZombie = _views.get(marcher.id) as PlayerZombie
 		if view == null:
 			continue
-		view.position.x = march_x(marcher.progress())
+		view.position.x = march_x(marcher.progress(), marcher.size_class.sprite_scale)
 		view.play_walk()
 
 

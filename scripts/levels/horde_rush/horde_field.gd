@@ -8,10 +8,6 @@ extends RefCounted
 ## Lanes: exactly one lane_rng.randi_range() per spawn and nothing else draws from lane_rng, so a seed
 ## always replays the same lanes in the same order.
 
-## Float sums of 60 Hz deltas land a hair under the crossing time; this lets a copy arrive on the frame
-## it should (seconds, not a GDD number).
-const ARRIVE_EPSILON_S: float = 1e-4
-
 var _config: HordeRushConfig
 var _lane_rng: RandomNumberGenerator
 ## Marching copies, spawn order.
@@ -26,8 +22,11 @@ func _init(config: HordeRushConfig, lane_rng: RandomNumberGenerator) -> void:
 
 
 ## Adds a copy for a completed word: its class from the word's length, its lane from the lane RNG.
-## Null (and nothing drawn) when the config has no class for that length.
+## Null (and nothing drawn) when the config has no class for that length or no lane.
 func spawn(word: String) -> HordeMarcher:
+	if _config.lane_count < 1:
+		Log.error(&"level", "horde field has no lanes")
+		return null
 	var size_class: HordeSizeClass = _config.size_class_for(word.length())
 	if size_class == null:
 		Log.error(&"level", "horde field has no size class for a %d-letter word" % word.length())

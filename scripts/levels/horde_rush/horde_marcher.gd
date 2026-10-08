@@ -4,6 +4,10 @@ extends RefCounted
 ## draws a sprite from progress() and never reads the sprite back. No nodes, no pixels: only seconds.
 ## Story 6.4 adds the stopped state (hits_left reaching 0); Story 6.5 reads size_class.arrival_brains.
 
+## Float sums of 60 Hz deltas land a hair under the crossing time; this lets a copy arrive on the frame
+## it should (seconds, not a GDD number).
+const ARRIVE_EPSILON_S: float = 1e-4
+
 ## Unique per run, in spawn order from 0.
 var id: int = 0
 ## The completed word that spawned it.
@@ -27,9 +31,11 @@ func _init(p_id: int, p_word: String, p_lane: int, p_size_class: HordeSizeClass)
 
 ## How far across the field it is, 0 (left edge) .. 1 (at the house).
 func progress() -> float:
+	if has_arrived():
+		return 1.0
 	return clampf(elapsed_s / size_class.crossing_time_s, 0.0, 1.0)
 
 
-## True once it has marched its class's crossing time (within HordeField.ARRIVE_EPSILON_S).
+## True once it has marched its class's crossing time (within ARRIVE_EPSILON_S).
 func has_arrived() -> bool:
-	return elapsed_s >= size_class.crossing_time_s - HordeField.ARRIVE_EPSILON_S
+	return elapsed_s >= size_class.crossing_time_s - ARRIVE_EPSILON_S

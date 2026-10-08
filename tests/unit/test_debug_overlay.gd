@@ -507,7 +507,8 @@ func test_run_worst_survives_the_run_and_shows() -> void:
 func _jump_buttons(sut: OverlayScript) -> Array[Control]:
 	return [
 		sut.get_node("%JumpTestLevelButton") as Control, sut.get_node("%JumpWordLevelButton") as Control,
-		sut.get_node("%JumpHordeRushButton") as Control, sut.get_node("%JumpGiftButton") as Control, sut.get_node("%JumpKeyboardTestButton") as Control,
+		sut.get_node("%JumpHordeRushButton") as Control, sut.get_node("%JumpGiftButton") as Control,
+		sut.get_node("%JumpKeyboardTestButton") as Control,
 	]
 
 
