@@ -4,7 +4,7 @@ baseline_commit: 48071fd7685945c08c283342f15f82a5801e90af
 
 # Story 6.5: Arrivals, Brains and Run End
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -198,6 +198,14 @@ Claude Opus 5.5 (claude-opus-5-5)
 - `_bmad-output/implementation-artifacts/deferred-work.md` (modified)
 - `_bmad-output/implementation-artifacts/6-5-arrivals-brains-and-run-end.md` (this file)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified)
+
+### Review Findings
+
+- [x] [Review][Patch] `on_run_ending` dances views without `is_instance_valid`, so a view freed externally crashes the outro; `_on_shuffle_done` and `_reset` shuffle bookkeeping also assume the view is alive [scripts/levels/horde_rush/horde_rush_level.gd:271]
+- [x] [Review][Patch] `_shuffle_in` tweens from the stale `view.position.x` of the previous frame (up to ~30 px off after a capped 0.5 s frame), while the pop sits at `arrive_x`; start the shuffle from `arrive_x` [scripts/levels/horde_rush/horde_rush_level.gd:493]
+- [x] [Review][Defer] Frame cap drops hitch time from the field while RunClock keeps counting, so arrivals depend on hitches [scripts/levels/horde_rush/horde_rush_level.gd:350] — deferred, spec-mandated by AC5; revisit in 6.7 economy parity
+- [x] [Review][Defer] Integration test relies on magic `HORDE_ARRIVAL_SEED = 7` and real RNG for "some copies got past" [tests/integration/test_run_frame.gd] — deferred, brittle but works today; revisit when 6.7 retunes the defender
+- [x] [Review][Defer] Simultaneous pops in the same lane stack at the identical point and overlap [scripts/levels/horde_rush/horde_rush_level.gd:520] — deferred, cosmetic; fix with jitter if playtest shows it
 
 ## Change Log
 

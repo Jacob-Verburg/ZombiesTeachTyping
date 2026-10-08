@@ -540,3 +540,9 @@
 
 - Projectile views and tomatoes freeze mid-air after `on_run_ending` (`_frozen` stops `_process`) and stay on screen until `_reset`; the 6.5 outro must clear them.
   - Resolved in 6.5: `on_run_ending` frees every projectile view and clears `_projectile_views` (the outro).
+
+## Deferred from: code review of story-6-5-arrivals-brains-and-run-end (2026-10-07)
+
+- Frame cap (`MAX_FRAME_S`) drops hitch time from the field while RunClock keeps counting, so arrival counts depend on frame hitches. Spec-mandated by AC5; revisit in 6.7 economy parity.
+- Horde integration test relies on `HORDE_ARRIVAL_SEED = 7` and the real RNG for "some copies got past"; brittle if the defender tuning or RNG draw order changes.
+- Pops from consecutive arrivals in the same lane stack at the identical point; add jitter if playtest shows overlap.

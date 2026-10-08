@@ -270,6 +270,8 @@ func on_run_ending(_reason: StringName) -> float:
 		if flash != null:
 			flash.kill()
 		var view: PlayerZombie = _views[id]
+		if not is_instance_valid(view):
+			continue
 		view.modulate = Color.WHITE
 		view.dance(_cfg.outro_time_s)
 	_flash_tweens.clear()
@@ -482,6 +484,8 @@ func _on_marcher_arrived(marcher: HordeMarcher) -> void:
 		flash.kill()
 	_spawn_pop(marcher, gained)
 	if view != null:
+		# The sprite was last placed a frame ago; the copy has reached the house, so it steps in from there.
+		view.position.x = arrive_x(marcher.size_class.sprite_scale)
 		_shuffle_in(view)
 
 
@@ -499,7 +503,8 @@ func _shuffle_in(view: PlayerZombie) -> void:
 
 func _on_shuffle_done(view: PlayerZombie) -> void:
 	_shuffle_tweens.erase(view)
-	view.queue_free()
+	if is_instance_valid(view):
+		view.queue_free()
 
 
 ## The "+N" pop above the arrived copy's head at the house front; none when it paid nothing.
