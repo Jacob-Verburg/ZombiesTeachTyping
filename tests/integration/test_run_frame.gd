@@ -1676,3 +1676,39 @@ func test_horde_rush_end_freezes_and_pays_nothing_yet() -> void:
 	assert_eq(result.completed_words, 2)
 	assert_eq(result.brains, 0)
 	assert_eq(result.bonus_brains, 0)
+
+
+func test_horde_rush_defender_paces_after_the_first_key_and_stops_on_pause() -> void:
+	var frame: RunFrameScript = _make({"level_id": &"horde_rush", "seed": 7}, null, _fake_player_data())
+	# This test lets the real tree pause, so the level's own _process proves the freeze.
+	frame.pause_tree = func(paused: bool) -> void:
+		_paused.append(paused)
+		get_tree().paused = paused
+	add_child_autofree(frame)
+	var level: HordeRushScript = frame.get_level() as HordeRushScript
+	level.process_mode = Node.PROCESS_MODE_PAUSABLE
+	await wait_process_frames(3)
+	assert_eq(level.get_defender().position(), 0.0, "still before the first key")
+	_type_word(frame)
+	assert_true(level.is_defender_running())
+	await wait_process_frames(5)
+	var moved: float = level.get_defender().position()
+	assert_gt(moved, 0.0, "pacing after the first key")
+	frame._unhandled_input(_esc())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.PAUSED)
+	assert_true(get_tree().paused)
+	var paused_at: float = level.get_defender().position()
+	await wait_process_frames(5)
+	assert_eq(level.get_defender().position(), paused_at, "paused: it stands still")
+	_resume(frame)
+	_run_countdown(frame)
+	assert_false(get_tree().paused, "the countdown unpaused the tree")
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	await wait_process_frames(3)
+	assert_gt(level.get_defender().position(), paused_at, "paces again")
+	assert_true(frame.debug_end_run())
+	assert_false(level.is_defender_running())
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_result().brains, 0)
+	get_tree().paused = false

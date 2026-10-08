@@ -2,6 +2,8 @@ extends GutTest
 ## HordeField / HordeMarcher (Story 6.3): class by word length, ids, progress, exact arrival timing (also
 ## from 60 Hz steps), independent arrivals in spawn order, bad deltas, the copy getter, and lanes (in
 ## range, all used, seeded, never the global RNG). The config is built in-test with round numbers.
+## Story 6.4: hit() and the stopped state, the spawned = marching + arrived + stopped invariant, and
+## front_most_in_lane() (highest progress, ties to the lower id, at_or_past).
 
 const LANES: int = 5
 
@@ -169,3 +171,142 @@ func test_progress_is_one_as_soon_as_a_copy_has_arrived() -> void:
 	marcher.elapsed_s = 8.0 - HordeMarcher.ARRIVE_EPSILON_S / 2.0
 	assert_true(marcher.has_arrived())
 	assert_eq(marcher.progress(), 1.0, "has_arrived() and progress() agree")
+
+
+func _assert_counts_add_up(field: HordeField) -> void:
+	assert_eq(field.get_spawned_count(),
+		field.get_marching().size() + field.get_arrived_count() + field.get_stopped_count(),
+		"spawned == marching + arrived + stopped")
+
+
+func test_hit_decrements_and_a_small_stops_on_one() -> void:
+	var field: HordeField = _field()
+	var small: HordeMarcher = field.spawn("cat")
+	assert_false(small.is_stopped())
+	assert_true(field.hit(small), "1 hit stops a small")
+	assert_eq(small.hits_left, 0)
+	assert_true(small.is_stopped())
+	assert_eq(field.get_marching().size(), 0)
+	assert_eq(field.get_stopped_count(), 1)
+	_assert_counts_add_up(field)
+
+
+func test_a_medium_needs_two_hits() -> void:
+	var field: HordeField = _field()
+	var medium: HordeMarcher = field.spawn("frog")
+	assert_false(field.hit(medium), "first hit does not stop it")
+	assert_eq(medium.hits_left, 1)
+	assert_false(medium.is_stopped())
+	assert_eq(field.get_marching(), [medium] as Array[HordeMarcher])
+	assert_eq(field.get_stopped_count(), 0)
+	assert_true(field.hit(medium), "second hit stops it")
+	assert_eq(field.get_stopped_count(), 1)
+	assert_eq(field.get_marching().size(), 0)
+
+
+func test_a_stopped_copy_never_marches_or_arrives() -> void:
+	var field: HordeField = _field()
+	var small: HordeMarcher = field.spawn("cat")
+	field.advance(3.0)
+	field.hit(small)
+	var elapsed: float = small.elapsed_s
+	for i: int in 10:
+		assert_eq(field.advance(5.0).size(), 0)
+	assert_eq(small.elapsed_s, elapsed, "never advanced again")
+	assert_false(small.has_arrived())
+	assert_eq(field.get_arrived_count(), 0)
+
+
+func test_hitting_a_copy_not_in_the_field_changes_nothing() -> void:
+	var field: HordeField = _field()
+	var arrived: HordeMarcher = field.spawn("cat")
+	field.advance(8.0)
+	assert_eq(field.get_arrived_count(), 1)
+	assert_false(field.hit(arrived), "arrived")
+	assert_eq(arrived.hits_left, 1)
+	var stopped: HordeMarcher = field.spawn("cat")
+	assert_true(field.hit(stopped))
+	assert_false(field.hit(stopped), "already stopped")
+	assert_eq(stopped.hits_left, 0)
+	var other: HordeMarcher = _field(3).spawn("frog")
+	assert_false(field.hit(other), "from another field")
+	assert_eq(other.hits_left, 2)
+	assert_false(field.hit(null), "null")
+	assert_eq(field.get_stopped_count(), 1)
+	assert_eq(field.get_arrived_count(), 1)
+	_assert_counts_add_up(field)
+
+
+func test_counts_add_up_after_a_mixed_sequence() -> void:
+	var field: HordeField = _field()
+	var a: HordeMarcher = field.spawn("cat")
+	var b: HordeMarcher = field.spawn("frog")
+	field.spawn("rabbit")
+	field.advance(2.0)
+	field.hit(b)
+	_assert_counts_add_up(field)
+	field.hit(a)
+	field.spawn("dog")
+	_assert_counts_add_up(field)
+	field.advance(8.0)
+	_assert_counts_add_up(field)
+	field.hit(b)
+	field.advance(20.0)
+	_assert_counts_add_up(field)
+	assert_eq(field.get_spawned_count(), 4)
+	assert_eq(field.get_stopped_count(), 1, "b had arrived before its second hit")
+	assert_eq(field.get_arrived_count(), 3)
+
+
+## A field whose copies are all in the lane the test says (lane draws come from the RNG, so the
+## test sets marcher.lane by hand: the field reads lanes only from the marchers).
+func _in_lane(field: HordeField, word: String, lane: int) -> HordeMarcher:
+	var marcher: HordeMarcher = field.spawn(word)
+	marcher.lane = lane
+	return marcher
+
+
+func test_front_most_in_lane_picks_the_highest_progress() -> void:
+	var field: HordeField = _field()
+	var back: HordeMarcher = _in_lane(field, "frog", 2)
+	field.advance(1.0)
+	var front: HordeMarcher = _in_lane(field, "cat", 2)
+	_in_lane(field, "dog", 3).elapsed_s = 7.0
+	# back: 1/10 = 0.1; front: 0 -> after 1 s: back 0.2, front 0.125.
+	field.advance(1.0)
+	assert_eq(field.front_most_in_lane(2), back)
+	field.advance(4.0)
+	# back 0.6, front 5/8 = 0.625: the small has overtaken.
+	assert_eq(field.front_most_in_lane(2), front)
+	assert_null(field.front_most_in_lane(0), "empty lane")
+	assert_null(field.front_most_in_lane(9), "no such lane")
+
+
+func test_front_most_ties_go_to_the_lower_id() -> void:
+	var field: HordeField = _field()
+	var first: HordeMarcher = _in_lane(field, "cat", 1)
+	var second: HordeMarcher = _in_lane(field, "dog", 1)
+	field.advance(2.0)
+	assert_eq(first.progress(), second.progress())
+	assert_eq(field.front_most_in_lane(1), first)
+
+
+func test_front_most_respects_at_or_past() -> void:
+	var field: HordeField = _field()
+	var back: HordeMarcher = _in_lane(field, "cat", 0)
+	var front: HordeMarcher = _in_lane(field, "dog", 0)
+	back.elapsed_s = 2.0 # 0.25
+	front.elapsed_s = 4.0 # 0.5
+	assert_eq(field.front_most_in_lane(0, 0.25), front)
+	assert_eq(field.front_most_in_lane(0, 0.5), front, "at counts")
+	assert_null(field.front_most_in_lane(0, 0.51), "nobody that far")
+	assert_eq(field.front_most_in_lane(0, -INF), front)
+
+
+func test_front_most_skips_stopped_copies() -> void:
+	var field: HordeField = _field()
+	var back: HordeMarcher = _in_lane(field, "cat", 4)
+	var front: HordeMarcher = _in_lane(field, "dog", 4)
+	front.elapsed_s = 3.0
+	field.hit(front)
+	assert_eq(field.front_most_in_lane(4), back)

@@ -1,6 +1,7 @@
 extends GutTest
 ## HordeRushConfig (Story 6.3): the shipped numbers in horde_rush.tres, size_class_for() band edges and
 ## validate() on bad configs. Bad configs are built in-test; the shipped resource is never edited.
+## Story 6.4: the defender, projectile, flash and melt numbers and their validate() checks.
 
 const CONFIG_PATH: String = "res://data/levels/horde_rush.tres"
 
@@ -19,6 +20,11 @@ func _valid() -> HordeRushConfig:
 	config.word_max_length = 5
 	config.lane_count = 3
 	config.size_classes = [_size(&"small", 3, 8.0, 1), _size(&"medium", 5, 10.0, 2), _size(&"brute", 0, 13.0, 3)]
+	config.defender_lane_time_s = 0.6
+	config.defender_throw_cooldown_s = 0.8
+	config.projectile_cross_time_s = 1.0
+	config.hit_flash_s = 0.15
+	config.melt_s = 0.6
 	return config
 
 
@@ -111,6 +117,19 @@ func test_validate_catches_each_bad_case() -> void:
 		"min > max": [func(c: HordeRushConfig) -> void: c.word_min_length = 6, "word band"],
 		"min 0": [func(c: HordeRushConfig) -> void: c.word_min_length = 0, "word band"],
 		"duration 0": [func(c: HordeRushConfig) -> void: c.duration_s = 0.0, "duration_s"],
+		"lane time 0": [func(c: HordeRushConfig) -> void: c.defender_lane_time_s = 0.0, "defender_lane_time_s"],
+		"lane time < 0": [func(c: HordeRushConfig) -> void: c.defender_lane_time_s = -1.0, "defender_lane_time_s"],
+		"lane time inf": [func(c: HordeRushConfig) -> void: c.defender_lane_time_s = INF, "defender_lane_time_s"],
+		"cooldown 0": [func(c: HordeRushConfig) -> void: c.defender_throw_cooldown_s = 0.0, "defender_throw_cooldown_s"],
+		"cooldown < 0": [func(c: HordeRushConfig) -> void: c.defender_throw_cooldown_s = -0.5, "defender_throw_cooldown_s"],
+		"cooldown inf": [func(c: HordeRushConfig) -> void: c.defender_throw_cooldown_s = INF, "defender_throw_cooldown_s"],
+		"cross 0": [func(c: HordeRushConfig) -> void: c.projectile_cross_time_s = 0.0, "projectile_cross_time_s"],
+		"cross < 0": [func(c: HordeRushConfig) -> void: c.projectile_cross_time_s = -1.0, "projectile_cross_time_s"],
+		"cross inf": [func(c: HordeRushConfig) -> void: c.projectile_cross_time_s = INF, "projectile_cross_time_s"],
+		"flash < 0": [func(c: HordeRushConfig) -> void: c.hit_flash_s = -0.1, "hit_flash_s"],
+		"flash inf": [func(c: HordeRushConfig) -> void: c.hit_flash_s = INF, "hit_flash_s"],
+		"melt < 0": [func(c: HordeRushConfig) -> void: c.melt_s = -0.1, "melt_s"],
+		"melt nan": [func(c: HordeRushConfig) -> void: c.melt_s = NAN, "melt_s"],
 	}
 	for label: String in cases:
 		var config: HordeRushConfig = _valid()
@@ -124,3 +143,28 @@ func test_a_single_unbounded_class_is_valid() -> void:
 	assert_eq(config.validate(), "")
 	assert_eq(config.size_class_for(1).id, &"only")
 	assert_eq(config.size_class_for(40).id, &"only")
+
+
+func test_shipped_defender_numbers() -> void:
+	var config: HordeRushConfig = _shipped()
+	assert_eq(config.defender_lane_time_s, 0.6)
+	assert_eq(config.defender_throw_cooldown_s, 0.8)
+	assert_eq(config.projectile_cross_time_s, 1.0)
+	assert_eq(config.hit_flash_s, 0.15)
+	assert_eq(config.melt_s, 0.6)
+
+
+func test_new_config_defaults_are_neutral() -> void:
+	var config: HordeRushConfig = HordeRushConfig.new()
+	assert_eq(config.defender_lane_time_s, 0.0)
+	assert_eq(config.defender_throw_cooldown_s, 0.0)
+	assert_eq(config.projectile_cross_time_s, 0.0)
+	assert_eq(config.hit_flash_s, 0.0)
+	assert_eq(config.melt_s, 0.0)
+
+
+func test_no_flash_and_an_instant_melt_are_valid() -> void:
+	var config: HordeRushConfig = _valid()
+	config.hit_flash_s = 0.0
+	config.melt_s = 0.0
+	assert_eq(config.validate(), "")

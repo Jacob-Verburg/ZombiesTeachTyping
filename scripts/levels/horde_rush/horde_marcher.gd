@@ -2,7 +2,8 @@ class_name HordeMarcher
 extends RefCounted
 ## One Horde Rush zombie copy's logical state (Story 6.3). HordeField owns and advances it; the level
 ## draws a sprite from progress() and never reads the sprite back. No nodes, no pixels: only seconds.
-## Story 6.4 adds the stopped state (hits_left reaching 0); Story 6.5 reads size_class.arrival_brains.
+## Stopped (Story 6.4): hits_left reached 0; HordeField drops it and never advances its elapsed_s again,
+## so a stopped copy can never arrive. Story 6.5 reads size_class.arrival_brains.
 
 ## Float sums of 60 Hz deltas land a hair under the crossing time; this lets a copy arrive on the frame
 ## it should (seconds, not a GDD number).
@@ -17,7 +18,7 @@ var lane: int = 0
 var size_class: HordeSizeClass
 ## Seconds marched so far.
 var elapsed_s: float = 0.0
-## Hits still needed to stop it (size_class.hits_to_stop at spawn; Story 6.4 decrements).
+## Hits still needed to stop it (size_class.hits_to_stop at spawn; HordeField.hit() decrements).
 var hits_left: int = 0
 
 
@@ -39,3 +40,8 @@ func progress() -> float:
 ## True once it has marched its class's crossing time (within ARRIVE_EPSILON_S).
 func has_arrived() -> bool:
 	return elapsed_s >= size_class.crossing_time_s - ARRIVE_EPSILON_S
+
+
+## True once the defender's projectiles have used up its hits (it melts and earns nothing).
+func is_stopped() -> bool:
+	return hits_left <= 0

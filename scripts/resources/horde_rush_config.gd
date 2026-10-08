@@ -2,7 +2,7 @@ class_name HordeRushConfig
 extends LevelConfig
 ## Horde Rush's own tuning numbers (Story 6.3), on top of the shared LevelConfig fields. A HordeRushConfig
 ## is a LevelConfig, so RunFrame, TypingInput and the HUD read it unchanged. Real values live in
-## data/levels/horde_rush.tres; the defaults here are neutral.
+## data/levels/horde_rush.tres; the defaults here are neutral. Story 6.4 adds the defender numbers.
 
 ## The shortest crossing time validate() accepts, well above HordeMarcher.ARRIVE_EPSILON_S.
 const MIN_CROSSING_TIME_S: float = 0.01
@@ -11,6 +11,16 @@ const MIN_CROSSING_TIME_S: float = 0.01
 @export var lane_count: int = 0
 ## The size classes, shortest band first; the last one has max_word_length 0 (no upper bound).
 @export var size_classes: Array[HordeSizeClass] = []
+## FR56: seconds the defender takes to pace from one lane to the next.
+@export var defender_lane_time_s: float = 0.0
+## FR56: seconds between two throws.
+@export var defender_throw_cooldown_s: float = 0.0
+## FR56: seconds a projectile takes to fly the whole field (house line to left edge).
+@export var projectile_cross_time_s: float = 0.0
+## FR56: seconds a hit copy flashes (0 = no flash).
+@export var hit_flash_s: float = 0.0
+## FR56: seconds a stopped copy takes to melt into the ground (0 = gone at once).
+@export var melt_s: float = 0.0
 
 
 ## The first class whose band holds `word_length`; null only when there are no classes.
@@ -64,4 +74,14 @@ func validate() -> String:
 			return "size class %d: max_word_length must be ascending" % i
 		else:
 			last_max = size_class.max_word_length
+	if not (defender_lane_time_s >= MIN_CROSSING_TIME_S and is_finite(defender_lane_time_s)):
+		return "defender_lane_time_s must be at least %s" % MIN_CROSSING_TIME_S
+	if not (defender_throw_cooldown_s >= MIN_CROSSING_TIME_S and is_finite(defender_throw_cooldown_s)):
+		return "defender_throw_cooldown_s must be at least %s" % MIN_CROSSING_TIME_S
+	if not (projectile_cross_time_s >= MIN_CROSSING_TIME_S and is_finite(projectile_cross_time_s)):
+		return "projectile_cross_time_s must be at least %s" % MIN_CROSSING_TIME_S
+	if not (hit_flash_s >= 0.0 and is_finite(hit_flash_s)):
+		return "hit_flash_s must not be negative"
+	if not (melt_s >= 0.0 and is_finite(melt_s)):
+		return "melt_s must not be negative"
 	return ""

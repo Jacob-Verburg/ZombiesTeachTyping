@@ -528,3 +528,8 @@
 - A huge frame `delta` (background tab, window drag) arrives every in-flight copy in one `HordeField.advance`; harmless in 6.3 but in 6.5 it would pay a burst of brains. Cap or substep the delta in 6.5.
 - A debug jump into `horde_rush` that ends writes a real `run_history` entry with `level_id = horde_rush`; the 6.8 backfill would count it as a timer run. Already acknowledged in the 6.3 Dev Notes.
 - `horde_rush_level.tscn` hard-codes five lane `ColorRect`s while `lane_count` is config-driven; revisit if the lane count ever changes.
+
+## Deferred from: dev of story-6.4 (2026-10-07)
+
+- Feel input for 6.7 (not tuned here): a headless minute on the shipped GDD starting numbers (0.6 / 0.8 / 1.0, no overkill avoidance, 10 seeds, the rest of the copies allowed to finish) lets through about 1% of copies at 10 WPM, 6% at 20, 11% at 25-30 and 20% at 40 WPM, far below the 40%/70% targets. The defender as specified is strong; 6.7 owns the numbers (or a weaker-defender config flag).
+- Cross-ref the 6.3 huge-delta item above: 6.4's `_process` now splits a long frame into equal steps of at most 1/30 s, so a hitch no longer skips throws or contacts, but the total is still uncapped (a 10 s hitch = 300 logic steps in one frame and still marches copies home). The 6.5 cap fixes both the brain burst and the step count.
