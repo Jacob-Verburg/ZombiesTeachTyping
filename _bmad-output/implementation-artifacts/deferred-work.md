@@ -555,3 +555,11 @@
 - Sound ids are per house + defender pair: `sfx_tomato_throw` / `sfx_tomato_hit` belong to the Farmhouse; Epic 10's Castle + Knight and Beach Hut + Lifeguard need their own throw/hit ids (and the level a per-pair id lookup). `sfx_zombie_spawn` and `sfx_melt` are pair-independent.
 - Accepted at Gate 2: on a non-final hit the splat's first (squish) frame merges into the copy's orange flash; the flash carries the hit. Revisit only if playtests show kids missing hits.
 - The field art bakes 5 lanes (see the 6.3 item above): Epic 10's pairs each need a `field.png` / house layer with a doorway per lane.
+
+## Deferred from: code review of story-6-6-farmhouse-farmer-and-march-music (2026-10-08)
+
+- Farmer `_throwing` is cleared only by `animation_finished`; no fallback if the signal is lost (animation swapped or stopped externally).
+- Several throws in one frame restart the throw animation and stack `sfx_tomato_throw` (no `min_interval_s`); revisit with the 6.7 cooldown tuning.
+- Lane geometry (`FARM_FIELD_TOP_Y`, `LANE_HEIGHT`, `HOUSE_X` 548) is duplicated across the art generator, `test_art_backdrop.gd` and the level script with no cross-check; revisit with Epic 10 pairs.
+- `test_art_backdrop.gd` doorway check looks at the first 4 columns and treats "not a wall colour" as an opening; fragile to palette changes.
+- `PlayerZombie._play` returns silently when an animation is missing (no `Log.warn`, unlike `HordeFarmer`).

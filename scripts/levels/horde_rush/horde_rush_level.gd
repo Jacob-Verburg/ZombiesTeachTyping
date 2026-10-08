@@ -242,6 +242,8 @@ func _reset() -> void:
 			tomato.queue_free()
 	_projectile_views.clear()
 	_defender_running = false
+	if _farmer != null:
+		_farmer.play_idle()
 	_frozen = false
 	_brains = 0
 

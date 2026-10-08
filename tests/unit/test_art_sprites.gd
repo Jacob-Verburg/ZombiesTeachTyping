@@ -92,6 +92,9 @@ const WOOD_DARK: String = "5a3218"
 const STAMP_RED: String = "b02a25"
 const ZOMBIE_GREEN_BRIGHT: String = "b8f27c"
 const BAT_PURPLE: String = "7a4bb3"
+## The Farmer legend in tools/gen_horde_rush_art.gd: ink, both skins, parchment-shade, wood-light, wood-dark,
+## chalk, stone, ink-muted.
+const FARMER_COLOURS: Array[String] = [INK, ART_SKIN_LIGHT, ART_SKIN_DARK, "d9bc84", "c08447", WOOD_DARK, CHALK, STONE, "4e4757"]
 ## Orthogonal neighbours (up, down, left, right).
 const NEIGHBOURS: Array[Vector2i] = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]
 
@@ -527,6 +530,10 @@ func test_farmer_skin_is_human() -> void:
 		assert_true(colors.has(ART_SKIN_LIGHT), "farmer %s has art-skin-light" % anim)
 		for hex: String in [ZOMBIE_GREEN, ZOMBIE_GREEN_BRIGHT, ZOMBIE_GREEN_DARK, BAT_PURPLE]:
 			assert_false(colors.has(hex), "farmer %s uses %s" % [anim, hex])
+		# Skin is only art-skin-light / art-skin-dark: nothing outside the farmer legend (so no zombie or
+		# alternate skin ramp) may appear.
+		for hex: String in colors:
+			assert_true(FARMER_COLOURS.has(hex), "farmer %s has off-legend colour %s" % [anim, hex])
 
 
 func test_horde_rush_sheets_never_use_stamp_red_or_candy_yellow() -> void:

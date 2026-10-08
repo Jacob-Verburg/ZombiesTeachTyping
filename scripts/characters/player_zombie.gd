@@ -303,7 +303,7 @@ func _is_walk_pair(anim: StringName) -> bool:
 
 ## Starts a one-shot (or the dance) from its first frame, if the SpriteFrames has it.
 func _play_action(anim: StringName) -> void:
-	if not _has_animation(anim):
+	if _melting or not _has_animation(anim):
 		return
 	_body.stop()
 	_body.play(anim)

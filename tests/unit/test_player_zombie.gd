@@ -639,6 +639,9 @@ func test_melt_cuts_hop_hug_and_dance() -> void:
 	assert_eq(body.animation, PlayerZombie.ANIM_MELT)
 	zombie.hop(0.4, 12.0)
 	zombie.play_walk()
+	zombie.hug(0.4)
+	zombie.dance(0.4)
+	assert_eq(body.animation, PlayerZombie.ANIM_MELT, "still melting")
 	assert_true(zombie.is_melting())
 
 

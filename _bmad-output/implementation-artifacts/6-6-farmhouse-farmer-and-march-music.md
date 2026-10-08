@@ -4,7 +4,7 @@ baseline_commit: 44eb3f0814d6f134b3d6cb0020c61b817bc990c4
 
 # Story 6.6: Farmhouse, Farmer and March Music
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -89,6 +89,18 @@ so that it feels like a new place to play.
   - [x] 10.2 `grep` for global `randi(`/`randf(` in `scripts/levels/horde_rush/` and `tools/gen_horde_rush_art.gd` stays clean (the art tool uses no RNG; the audio tool uses only its seeded RNGs).
   - [x] 10.3 `deferred-work.md`: mark resolved (append "Resolved in 6.6: …", don't delete history) the 6.3 brute/hat-fit note (~line 106, "Story 6.6 owns the final art and hat fit on scaled classes") and the "hard-codes five lane ColorRects" item (~531: lanes are now one baked 5-lane image; note that a lane-count change now needs new field art). Add "Deferred from: dev of story-6.6" with what is left (at least: per-pair sound ids for Epic 10's Castle/Beach Hut; anything accepted at a gate).
   - [x] 10.4 Commit the generated `.uid` / `.import` files. No tag push. Horde Rush stays `available = false` (6.7 flips it). Dev Agent Record, File List, Change Log; Status → `review`; `sprint-status.yaml` → `review`.
+
+### Review Findings
+
+- [x] [Review][Decision] Tomato appears at the wind-up hand, not the release hand — the tomato spawns in the same step as `play_throw()`, so the Farmer is on throw frame 0 (`FARMER_ARM_BACK`, hand at x≈527-530, near the tomato start x≈532), then the tomato flies left across his torso. Spec (Task 2.3) says it starts at the release hand (arm forward). Options: (a) delay the tomato spawn until the release frame; (b) move the tomato start x to the release hand; (c) accept as is. [horde_rush_level.gd, tools/gen_horde_rush_art.gd] — resolved: accepted as is (Smuck, 2026-10-08)
+- [x] [Review][Patch] `hop()`, `hug()` and `dance()` can replace the melt animation: only `_play()` checks `_melting`, `_play_action()` does not; `test_melt_cuts_hop_hug_and_dance` only asserts `is_melting()`, not that the animation stays `melt` [scripts/characters/player_zombie.gd:139,191,234]
+- [x] [Review][Patch] Level `_reset()` does not reset the Farmer (`_throwing` / `_wanted` survive into the next run until `_update_views` runs); call `_farmer.play_idle()` in `_reset()` [scripts/levels/horde_rush/horde_rush_level.gd:~215-240]
+- [x] [Review][Patch] `test_farmer_skin_is_human` does not assert the skin tones are limited to `art-skin-light` / `art-skin-dark` (Task 3.1) [tests/unit/test_art_sprites.gd]
+- [x] [Review][Defer] Farmer `_throwing` is cleared only by `animation_finished`, with no fallback if the signal is lost — deferred, unlikely in practice
+- [x] [Review][Defer] Several throws in one frame restart the throw animation and stack `sfx_tomato_throw` (the cue has no `min_interval_s`) — deferred to 6.7 cooldown tuning
+- [x] [Review][Defer] Lane geometry (`FARM_FIELD_TOP_Y`, `LANE_HEIGHT`, `HOUSE_X` 548) is duplicated across the generator, the backdrop test and the level script with no cross-check [tools/gen_horde_rush_art.gd, tests/unit/test_art_backdrop.gd] — deferred, revisit with Epic 10 pairs
+- [x] [Review][Defer] Backdrop doorway test is fragile: it checks the first 4 columns and treats "not a wall colour" as an opening [tests/unit/test_art_backdrop.gd] — deferred
+- [x] [Review][Defer] `PlayerZombie._play` returns silently when an animation is missing (no `Log.warn`, unlike the Farmer) [scripts/characters/player_zombie.gd:~921] — deferred
 
 ## Dev Notes
 
