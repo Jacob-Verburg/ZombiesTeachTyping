@@ -54,7 +54,7 @@ func test_shipped_config_loads_and_is_valid() -> void:
 	assert_eq(config.word_max_length, 5)
 	assert_eq(config.completion_bonus, 25, "FR57: the +25 completion bonus")
 	assert_eq(config.outro_time_s, 2.0)
-	assert_eq(config.music_id, &"", "march music is Story 6.6")
+	assert_eq(config.music_id, &"mus_horde_rush", "the march (Story 6.6)")
 	assert_eq(config.word_list.resource_path, "res://data/content/words.json")
 
 

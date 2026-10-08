@@ -8,6 +8,10 @@ extends SceneTree
 ##   uv run --with soundfile tools/encode_ogg.py <dir>/mus_menu.wav assets/audio/music/mus_menu.ogg
 ## Every RNG has a fixed seed, so reruns are byte-identical. Every SFX/voice file is normalized to
 ## FILE_PEAK, starts at its first sound (no leading silence) and starts and ends at exactly zero.
+## Story 6.6 adds the Horde Rush sounds (sfx_zombie_spawn, sfx_tomato_throw, sfx_tomato_hit, sfx_melt) and
+## the march loop mus_horde_rush, rendered by its own path (_render_march) so the MVP loops never change.
+## Encode only the new loop:
+##   uv run --with soundfile tools/encode_ogg.py <dir>/mus_horde_rush.wav assets/audio/music/mus_horde_rush.ogg
 
 const MIX_RATE: int = 44100
 ## About -3 dBFS: the files carry the sound, the library's volume_db does the mixing.
@@ -102,6 +106,11 @@ func _init() -> void:
 		_save_sfx(_brainsss(1), VOICE_DIR + "vo_brainsss_02.wav"),
 		_save_music(_menu_music(), music_dir.path_join("mus_menu.wav")),
 		_save_music(_zombie_run_music(), music_dir.path_join("mus_zombie_run.wav")),
+		_save_sfx(_zombie_spawn(), SFX_DIR + "sfx_zombie_spawn.wav"),
+		_save_sfx(_tomato_throw(), SFX_DIR + "sfx_tomato_throw.wav"),
+		_save_sfx(_tomato_hit(), SFX_DIR + "sfx_tomato_hit.wav"),
+		_save_sfx(_melt(), SFX_DIR + "sfx_melt.wav"),
+		_save_music(_horde_rush_music(), music_dir.path_join("mus_horde_rush.wav")),
 	]
 	# Non-zero exit on any failure, so a bad path or cwd doesn't look like success.
 	quit(0 if errors.all(func(err: Error) -> bool: return err == OK) else 1)
@@ -206,6 +215,79 @@ func _report_chime() -> PackedFloat32Array:
 	var out: PackedFloat32Array = _zeros(_n(0.9))
 	_mix(out, 0, _scaled(_bell(_midi(79), 0.75, 5.5), 0.8))
 	_mix(out, _n(0.13), _bell(_midi(84), 0.77, 4.5))
+	return out
+
+
+## About 150 ms (Story 6.6): a copy pops onto the field, a cartoony "bwip" rising 320 -> 760 Hz over a
+## soft puff. Short, so a fast burst of words stays a row of little pops.
+func _zombie_spawn() -> PackedFloat32Array:
+	var count: int = _n(0.15)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(5104)
+	var puff: Biquad = Biquad.new()
+	puff.set_lowpass(1500.0, 0.8, MIX_RATE)
+	var phase: float = 0.0
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		phase += lerpf(320.0, 760.0, sqrt(u)) / MIX_RATE
+		var tone: float = (sin(TAU * phase) + 0.3 * sin(TAU * 2.0 * phase)) * minf(1.0, t / 0.004) * pow(1.0 - u, 1.5)
+		var noise: float = puff.process(rng.randf_range(-1.0, 1.0)) * exp(-t * 40.0) * 0.8
+		out[i] = tone + noise
+	return out
+
+
+## About 200 ms (Story 6.6): the Farmer's throw, an airy "fwip": band-passed noise sweeping 600 -> 2400 Hz.
+func _tomato_throw() -> PackedFloat32Array:
+	var count: int = _n(0.2)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(5105)
+	var band: Biquad = Biquad.new()
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		band.set_bandpass(lerpf(600.0, 2400.0, u), 1.4, MIX_RATE)
+		var envelope: float = minf(1.0, t / 0.02) * pow(1.0 - u, 1.2)
+		out[i] = band.process(rng.randf_range(-1.0, 1.0)) * envelope
+	return out
+
+
+## About 220 ms (Story 6.6): a tomato lands, a wet "splut": a low-pass noise burst closing 2.5 kHz -> 400 Hz
+## over a plop falling 380 -> 120 Hz. Clearly different from the throw's airy sweep.
+func _tomato_hit() -> PackedFloat32Array:
+	var count: int = _n(0.22)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(5106)
+	var filter: Biquad = Biquad.new()
+	var phase: float = 0.0
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		filter.set_lowpass(lerpf(2500.0, 400.0, sqrt(u)), 1.2, MIX_RATE)
+		var splut: float = filter.process(rng.randf_range(-1.0, 1.0)) * exp(-t * 22.0) * 1.8
+		phase += lerpf(120.0, 380.0, exp(-t * 25.0)) / MIX_RATE
+		var plop: float = sin(TAU * phase) * exp(-t * 14.0) * minf(1.0, t / 0.003) * 0.7
+		out[i] = (splut + plop) * (1.0 - u)
+	return out
+
+
+## About 0.65 s (Story 6.6): a copy melts, a goofy slide-whistle "wheeoo" down 720 -> 170 Hz with a wobble,
+## over a bubbly low gurgle. Silly, never a scream or anything gross.
+func _melt() -> PackedFloat32Array:
+	var count: int = _n(0.65)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(5107)
+	var gurgle: Biquad = Biquad.new()
+	gurgle.set_lowpass(600.0, 2.0, MIX_RATE)
+	var phase: float = 0.0
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		var freq: float = lerpf(720.0, 170.0, pow(u, 0.8)) * (1.0 + 0.04 * sin(TAU * 9.0 * t))
+		phase += freq / MIX_RATE
+		var whistle: float = sin(TAU * phase) * minf(1.0, t / 0.005) * pow(1.0 - u, 0.8)
+		var bubbles: float = gurgle.process(rng.randf_range(-1.0, 1.0)) * (0.5 + 0.5 * sin(TAU * 14.0 * t)) * u * 2.5
+		out[i] = (whistle * 0.8 + bubbles) * minf(1.0, (1.0 - u) * 6.0)
 	return out
 
 
@@ -369,6 +451,158 @@ func _zombie_run_music() -> PackedFloat32Array:
 	var tune_b: Array = _make_tune(5502, section_b, [69, 72, 74, 76, 79, 81], true)
 	var form: Array[int] = [0, 0, 1, 0, 1]
 	return _render_song(100.0, form, [section_a, section_b], [tune_a, tune_b], true)
+
+
+## The Horde Rush loop (Story 6.6): a goofy "rising pressure" march, D minor with a bright F major
+## middle, 128 bpm, 48 bars = 90 s. Tuba oom-pah and off-beat stabs, a kazoo tune, and a snare that
+## thickens every pass; the tune climbs an octave on the last passes and a snare roll leads back to the
+## top. Its own render path (_render_march), so _render_song and the MVP loops never change.
+func _horde_rush_music() -> PackedFloat32Array:
+	var section_a: Array[String] = ["Dm", "A", "Dm", "A", "Dm", "Gm", "A", "Dm"]
+	var section_b: Array[String] = ["F", "C", "F", "C", "Bb", "F", "C", "A"]
+	var tune_a: Array = _march_tune(5701, section_a)
+	var tune_b: Array = _march_tune(5702, section_b)
+	var form: Array[int] = [0, 0, 1, 0, 1, 0]
+	return _render_march(128.0, form, [section_a, section_b], [tune_a, tune_b])
+
+
+## MIDI notes of a march chord (root position, around middle C).
+func _march_chord(chord_name: String) -> Array[int]:
+	match chord_name:
+		"A":
+			return [57, 61, 64]
+		"Gm":
+			return [55, 58, 62]
+		"F":
+			return [53, 57, 60]
+		"C":
+			return [60, 64, 67]
+		"Bb":
+			return [58, 62, 65]
+		_:
+			return [62, 65, 69] # Dm
+
+
+## An 8-bar march tune: per bar a list of [eighth, midi, length in eighths], chord tones only (an
+## arpeggio-ish, bouncy line an octave above the chords), short notes. The last bar holds the root.
+func _march_tune(seed_value: int, chords: Array[String]) -> Array:
+	var rng: RandomNumberGenerator = _rng(seed_value)
+	var rhythms: Array = [[0, 2, 4, 6], [0, 3, 4, 6], [0, 2, 3, 4, 6], [0, 4, 6], [0, 1, 2, 4]]
+	var tune: Array = []
+	var last: int = 74
+	for bar: int in chords.size():
+		var notes: Array = []
+		var tones: Array[int] = _march_chord(chords[bar])
+		if bar == chords.size() - 1:
+			notes.append([0, tones[0] + 12, 4])
+			tune.append(notes)
+			continue
+		var rhythm: Array = rhythms[rng.randi_range(0, rhythms.size() - 1)]
+		for k: int in rhythm.size():
+			var eighth: int = rhythm[k]
+			var next_eighth: int = rhythm[k + 1] if k + 1 < rhythm.size() else 8
+			# A chord tone near the last note, an octave up, kept inside 69..84.
+			var choice: int = tones[rng.randi_range(0, tones.size() - 1)] + 12
+			if absi(choice + 12 - last) < absi(choice - last) and choice + 12 <= 84:
+				choice += 12
+			last = clampi(choice, 69, 84)
+			notes.append([eighth, last, mini(next_eighth - eighth, 2)])
+		tune.append(notes)
+	return tune
+
+
+## Renders the march into one buffer, wrapped at the end like _render_song (a seamless loop). Each pass
+## of 8 bars raises the pressure: the snare fills in, then hats, then the tune jumps an octave; the last
+## bar ends in a rising snare roll into bar 1.
+func _render_march(bpm: float, form: Array[int], sections: Array, tunes: Array) -> PackedFloat32Array:
+	var eighth_s: float = 30.0 / bpm
+	var bar_s: float = eighth_s * 8.0
+	var bars: int = form.size() * 8
+	var out: PackedFloat32Array = _zeros(_n(bar_s * bars))
+	var rng: RandomNumberGenerator = _rng(5700)
+	var bar_index: int = 0
+	for pass_index: int in form.size():
+		var chords: Array[String] = sections[form[pass_index]]
+		var tune: Array = tunes[form[pass_index]]
+		for bar: int in 8:
+			var bar_start: float = bar_index * bar_s
+			var tones: Array[int] = _march_chord(chords[bar])
+			var root: int = tones[0] - 24
+			# Tuba: oom on beats 1 and 3, root then fifth.
+			_mix_wrapped(out, _n(bar_start), _scaled(_tuba(_midi(root), 0.32), 0.85))
+			_mix_wrapped(out, _n(bar_start + 4 * eighth_s), _scaled(_tuba(_midi(root + 7), 0.32), 0.75))
+			# Pah: short chord stabs on beats 2 and 4.
+			for eighth: int in [2, 6]:
+				for tone: int in tones:
+					_mix_wrapped(out, _n(bar_start + eighth * eighth_s), _scaled(_marimba(_midi(tone), 0.18), 0.14))
+			# Drums: kick on 1 and 3, snare on 2 and 4; from pass 2 snare grace notes, from pass 3 hats.
+			for eighth: int in 8:
+				var at: int = _n(bar_start + eighth * eighth_s)
+				if eighth == 0 or eighth == 4:
+					_mix_wrapped(out, at, _scaled(_kick(), 0.6))
+				if eighth == 2 or eighth == 6:
+					_mix_wrapped(out, at, _scaled(_snare(rng), 0.32))
+				elif pass_index >= 1 and (eighth == 3 or eighth == 7):
+					_mix_wrapped(out, at, _scaled(_snare(rng), 0.1))
+				if pass_index >= 2 and eighth % 2 == 1:
+					_mix_wrapped(out, at, _scaled(_hat(rng), 0.07))
+			# The last bar of the loop: a crescendo snare roll in sixteenths back into bar 1.
+			if bar_index == bars - 1:
+				for k: int in 16:
+					_mix_wrapped(out, _n(bar_start + k * eighth_s * 0.5), _scaled(_snare(rng), 0.06 + 0.02 * k))
+			# Tune: the kazoo, an octave higher on the last two passes.
+			var lift: int = 12 if pass_index >= form.size() - 2 else 0
+			for note: Array in tune[bar]:
+				var length_s: float = note[2] * eighth_s
+				_mix_wrapped(out, _n(bar_start + note[0] * eighth_s),
+						_scaled(_kazoo(_midi(note[1] + lift - 12), length_s), 0.34))
+			bar_index += 1
+	return out
+
+
+## A tuba-ish note: sine with 2nd and 3rd harmonics, a soft 10 ms attack and a short release.
+func _tuba(freq: float, seconds: float) -> PackedFloat32Array:
+	var count: int = _n(seconds)
+	var out: PackedFloat32Array = _zeros(count)
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		var tone: float = sin(TAU * freq * t) + 0.5 * sin(TAU * freq * 2.0 * t) + 0.2 * sin(TAU * freq * 3.0 * t)
+		out[i] = tone * minf(1.0, t / 0.01) * minf(1.0, (1.0 - u) * 5.0) * exp(-t * 3.0)
+	return out
+
+
+## A kazoo-ish lead: a band-limited saw with a wobbly vibrato through a buzzy band-pass.
+func _kazoo(freq: float, seconds: float) -> PackedFloat32Array:
+	var count: int = _n(seconds)
+	var out: PackedFloat32Array = _zeros(count)
+	var buzz: Biquad = Biquad.new()
+	buzz.set_bandpass(1200.0, 0.8, MIX_RATE)
+	var phase: float = 0.0
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		var f: float = freq * (1.0 + 0.012 * sin(TAU * 6.0 * t))
+		var dt: float = f / MIX_RATE
+		phase = fposmod(phase + dt, 1.0)
+		var saw: float = 2.0 * phase - 1.0 - _poly_blep(phase, dt)
+		out[i] = buzz.process(saw) * minf(1.0, t / 0.012) * minf(1.0, (1.0 - u) * 6.0)
+	return out
+
+
+## A snare: band-passed noise with a short 190 Hz body, 110 ms.
+func _snare(rng: RandomNumberGenerator) -> PackedFloat32Array:
+	var count: int = _n(0.11)
+	var out: PackedFloat32Array = _zeros(count)
+	var band: Biquad = Biquad.new()
+	band.set_bandpass(2200.0, 0.9, MIX_RATE)
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		var noise: float = band.process(rng.randf_range(-1.0, 1.0)) * exp(-t * 30.0)
+		var body: float = sin(TAU * 190.0 * t) * exp(-t * 45.0) * 0.5
+		out[i] = (noise + body) * minf(1.0, t / 0.002) * (1.0 - u)
+	return out
 
 
 ## MIDI notes of a chord name (root position, around middle C).

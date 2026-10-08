@@ -1,5 +1,5 @@
 # generated: 2026-09-27 12:21
-# last_updated: 2026-10-07
+# last_updated: 2026-10-08
 # project: zombies-teach-typing
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-09-27 12:21
-last_updated: 2026-10-07
+last_updated: 2026-10-08
 project: zombies-teach-typing
 project_key: NOKEY
 tracking_system: file-system
@@ -100,7 +100,7 @@ development_status:
   6-3-horde-rush-field-spawning-and-size-classes: done
   6-4-pacing-defender-projectiles-and-melting: done
   6-5-arrivals-brains-and-run-end: done
-  6-6-farmhouse-farmer-and-march-music: backlog
+  6-6-farmhouse-farmer-and-march-music: review
   6-7-horde-rush-tuning-and-stress-check: backlog
   6-8-level-unlocks: backlog
   epic-6-retrospective: optional

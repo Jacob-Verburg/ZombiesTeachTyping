@@ -10,6 +10,10 @@ extends GutTest
 ## Story 6.5: arrival brains per class, brains_earned_changed, the "Brainsss" seam (a recorder set before
 ## add_child, so no test calls the live AudioManager), the shuffle-in and "+N" pop one-shots, the hitch
 ## cap and the outro (dance, tomatoes cleared, outro_time_s returned).
+## Story 6.6: the art and sounds: the Farmer's idle/walk/throw from logic, the tomato's fly sprite, a splat
+## per hit, the flash frames (set_flashing) and the melt frames (melt()) instead of a tint and a squash
+## (the squash stays as the stripped-frames fallback), the hat fit on scaled copies, and the play_sfx seam
+## (a recorder set before add_child, like the voice).
 
 const LevelScene: PackedScene = preload("res://scenes/levels/horde_rush/horde_rush_level.tscn")
 const LevelScript := preload("res://scripts/levels/horde_rush/horde_rush_level.gd")
@@ -19,6 +23,7 @@ var _level: LevelScript
 var _source: TargetSource
 var _session: TypingSession
 var _voices: Array[StringName] = []
+var _sfx: Array[StringName] = []
 
 
 ## `tweak` (optional) changes a deep duplicate of the shipped config before the level is added.
@@ -31,6 +36,8 @@ func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> LevelScript:
 		_level.config = config
 	_voices = []
 	_level.request_voice = func(id: StringName) -> void: _voices.append(id)
+	_sfx = []
+	_level.play_sfx = func(id: StringName) -> void: _sfx.append(id)
 	add_child_autofree(_level)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = rng_seed
@@ -338,7 +345,7 @@ func test_an_arrival_drops_a_running_flash() -> void:
 	assert_eq(_level.get_brains_earned(), 2)
 	assert_null(_level.get_flash_tween(medium.id), "no stale entry")
 	assert_false(flash.is_valid(), "killed")
-	assert_eq(view.modulate, Color.WHITE)
+	assert_false(view.is_flashing(), "it goes in the door unflashed")
 
 
 func test_no_arrival_pays_after_the_end() -> void:
@@ -497,17 +504,22 @@ func test_a_non_final_hit_flashes_and_the_copy_keeps_marching() -> void:
 	_level.on_run_started()
 	_until_landed(1)
 	assert_eq(medium.hits_left, 1)
-	assert_eq(view.modulate, LevelScript.HIT_FLASH_MODULATE, "hard flash, no fade")
+	var body: AnimatedSprite2D = view.get_node("Body") as AnimatedSprite2D
+	assert_true(view.is_flashing(), "the flash frames, no tint")
+	assert_eq(body.animation, PlayerZombie.ANIM_FLASH)
+	assert_eq(view.modulate, Color.WHITE, "never a runtime tint")
 	assert_eq(_level.get_view(medium.id), view, "still marching")
 	var progress: float = medium.progress()
 	_steps(0.1)
 	assert_gt(medium.progress(), progress)
+	assert_eq(body.animation, PlayerZombie.ANIM_FLASH, "the level's play_walk keeps the flash")
 	var tween: Tween = _level.get_flash_tween(medium.id)
 	assert_not_null(tween)
 	tween.custom_step(0.1)
-	assert_eq(view.modulate, LevelScript.HIT_FLASH_MODULATE, "still flashing before hit_flash_s")
+	assert_true(view.is_flashing(), "still flashing before hit_flash_s")
 	tween.custom_step(0.06)
-	assert_eq(view.modulate, Color.WHITE, "back to normal after 0.15 s")
+	assert_false(view.is_flashing(), "back to normal after 0.15 s")
+	assert_eq(body.animation, PlayerZombie.ANIM_WALK)
 
 
 func test_a_new_hit_restarts_the_flash() -> void:
@@ -531,17 +543,24 @@ func test_a_final_hit_melts_then_frees_the_copy() -> void:
 	assert_null(_level.get_view(small.id), "out of the march at once")
 	assert_eq(_level.get_view_count(), 0)
 	assert_eq(_level.get_melting_count(), 1)
-	assert_eq(view.modulate, Color.WHITE, "no flash on the final hit")
+	assert_false(view.is_flashing(), "no flash on the final hit")
+	var body: AnimatedSprite2D = view.get_node("Body") as AnimatedSprite2D
+	assert_true(view.is_melting())
+	assert_eq(body.animation, PlayerZombie.ANIM_MELT, "the melt frames")
+	assert_eq(body.frame, 0)
 	var x: float = view.position.x
 	_steps(1.0)
 	assert_eq(view.position.x, x, "a melting copy never moves on")
+	assert_eq(body.animation, PlayerZombie.ANIM_MELT, "the march's play_walk never cuts the melt")
 	var tween: Tween = _level.get_melt_tween(view)
 	assert_not_null(tween)
+	assert_eq(tween, view.get_melt_tween(), "the level frees the copy at the end of the copy's own melt")
 	tween.custom_step(0.3)
-	assert_almost_eq(view.scale.y, 0.5, 0.01, "halfway into the ground")
-	assert_gt(view.scale.x, 1.0, "spreading into a puddle")
+	assert_eq(body.frame, 3, "half of melt_s: half of the 6 frames")
+	assert_eq(view.scale, Vector2.ONE, "the sheet melts; no squash on top of the class scale")
 	assert_eq(_level.get_melting_count(), 1)
 	tween.custom_step(0.31)
+	assert_eq(body.frame, 5, "holds the last frame")
 	assert_eq(_level.get_melting_count(), 0, "done after melt_s")
 	assert_eq(_level.get_brains_earned(), 0, "a stopped copy earns nothing")
 	await wait_process_frames(1)
@@ -565,7 +584,7 @@ func test_no_flash_when_hit_flash_is_zero() -> void:
 	_level.on_run_started()
 	_until_landed(1)
 	assert_eq(medium.hits_left, 1)
-	assert_eq(_level.get_view(medium.id).modulate, Color.WHITE)
+	assert_false(_level.get_view(medium.id).is_flashing())
 
 
 func test_a_stopped_copy_without_a_sprite_is_fine() -> void:
@@ -625,7 +644,8 @@ func test_run_ending_clears_a_running_flash() -> void:
 	_level.on_run_ending(&"timer")
 	assert_false(flash.is_valid())
 	assert_null(_level.get_flash_tween(medium.id))
-	assert_eq(_level.get_view(medium.id).modulate, Color.WHITE)
+	assert_false(_level.get_view(medium.id).is_flashing())
+	assert_true(_level.get_view(medium.id).is_dancing())
 
 
 func test_create_target_source_again_clears_the_defender_state() -> void:
@@ -752,3 +772,315 @@ func test_the_defender_stops_while_the_tree_is_paused() -> void:
 	assert_eq(paused_at, 0.0, "paused: the defender stands still")
 	await wait_process_frames(5)
 	assert_gt(_level.get_defender().position(), 0.0, "unpaused: it paces again")
+
+
+# --- art and sounds (Story 6.6) ------------------------------------------------------------------
+
+func _farmer() -> HordeFarmer:
+	return _level.get_defender_view() as HordeFarmer
+
+
+func _splats() -> Array[HordeTomatoSplat]:
+	var found: Array[HordeTomatoSplat] = []
+	for child: Node in _level.get_node("%Effects").get_children():
+		if child is HordeTomatoSplat and not child.is_queued_for_deletion():
+			found.append(child as HordeTomatoSplat)
+	return found
+
+
+func test_the_field_is_the_farmhouse_art() -> void:
+	_make()
+	var field: Node = _level.get_node("%Field")
+	var art: Sprite2D = field.get_node("FieldArt") as Sprite2D
+	var house: Sprite2D = field.get_node("Farmhouse") as Sprite2D
+	assert_not_null(art)
+	assert_not_null(house)
+	assert_eq(art.texture.resource_path, "res://assets/sprites/backdrops/farmhouse/field.png")
+	assert_eq(house.texture.resource_path, "res://assets/sprites/backdrops/farmhouse/farmhouse.png")
+	assert_false(art.centered)
+	assert_false(house.centered)
+	assert_eq(art.position, Vector2.ZERO)
+	assert_eq(house.position, Vector2(LevelScript.HOUSE_FRONT_X, 0.0))
+	assert_lt(field.get_index(), _level.get_node("%Zombies").get_index(), "behind every copy")
+
+
+func test_the_defender_view_is_the_farmer() -> void:
+	_make()
+	var farmer: HordeFarmer = _farmer()
+	assert_not_null(farmer, "%Defender is a HordeFarmer")
+	assert_eq(farmer.get_parent(), _level.get_node("%Zombies"))
+	assert_true(farmer.is_unique_name_in_owner())
+
+
+func test_the_farmer_animates_from_logic() -> void:
+	_make()
+	var farmer: HordeFarmer = _farmer()
+	var body: AnimatedSprite2D = farmer.get_body()
+	_copy_in_lane("rabbit", 0)
+	_steps(0.5)
+	assert_eq(body.animation, HordeFarmer.ANIM_IDLE, "idle before the first key")
+	_level.on_run_started()
+	_level._process(STEP)
+	assert_eq(_level.get_defender().get_thrown_count(), 1)
+	assert_eq(body.animation, HordeFarmer.ANIM_THROW, "a throw on the step that throws")
+	assert_eq(body.frame, 0)
+	assert_true(farmer.is_throwing())
+	_steps(0.1)
+	assert_eq(body.animation, HordeFarmer.ANIM_THROW, "the pacing walk waits for the throw")
+	body.animation_finished.emit()
+	assert_eq(body.animation, HordeFarmer.ANIM_WALK, "then walks while pacing")
+	_level._process(STEP)
+	assert_eq(body.animation, HordeFarmer.ANIM_WALK)
+	_level.on_run_ending(&"timer")
+	assert_eq(body.animation, HordeFarmer.ANIM_IDLE, "idle after the end")
+
+
+func test_a_run_ending_mid_throw_settles_on_idle() -> void:
+	_make()
+	var body: AnimatedSprite2D = _farmer().get_body()
+	_copy_in_lane("rabbit", 0)
+	_level.on_run_started()
+	_level._process(STEP)
+	assert_eq(body.animation, HordeFarmer.ANIM_THROW)
+	_level.on_run_ending(&"timer")
+	assert_eq(body.animation, HordeFarmer.ANIM_THROW, "the throw finishes")
+	body.animation_finished.emit()
+	assert_eq(body.animation, HordeFarmer.ANIM_IDLE, "then idle, with nothing calling him")
+
+
+func test_a_non_farmer_defender_still_moves() -> void:
+	_level = LevelScene.instantiate() as LevelScript
+	_level.process_mode = Node.PROCESS_MODE_DISABLED
+	var old: Node = _level.get_node("%Defender")
+	var plain: Node2D = Node2D.new()
+	plain.name = "Defender"
+	old.replace_by(plain)
+	plain.owner = _level
+	plain.unique_name_in_owner = true
+	old.free()
+	_level.request_voice = func(_id: StringName) -> void: pass
+	_level.play_sfx = func(_id: StringName) -> void: pass
+	add_child_autofree(_level)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 42
+	_level.create_target_source(rng)
+	_level.on_run_started()
+	for i: int in 36:
+		_level._process(STEP)
+	assert_eq(_level.get_defender_view(), plain)
+	assert_almost_eq(plain.position.y, _level.lane_feet_y(1), 0.1, "positioned from logic, no animation")
+
+
+func test_a_tomato_is_the_fly_sprite() -> void:
+	_make()
+	_copy_in_lane("rabbit", 0)
+	_level.on_run_started()
+	_level._process(STEP)
+	var tomato: Node2D = _level.get_projectile_view(0)
+	assert_not_null(tomato)
+	var sprite: AnimatedSprite2D = tomato.get_node("%Sprite") as AnimatedSprite2D
+	assert_not_null(sprite)
+	assert_true(sprite.centered, "the origin is the tomato's centre")
+	assert_eq(sprite.sprite_frames.get_frame_count(&"fly"), 2)
+	assert_between(sprite.sprite_frames.get_animation_speed(&"fly"), 8.0, 12.0)
+	assert_eq(sprite.autoplay, "fly")
+	for child: Node in tomato.get_children():
+		assert_false(child is ColorRect, "no placeholder left")
+
+
+func test_a_hit_spawns_one_splat_at_the_landing_point() -> void:
+	_make()
+	var medium: HordeMarcher = _copy_in_lane("frog", 0)
+	var view: PlayerZombie = _level.get_view(medium.id)
+	_level.on_run_started()
+	_until_landed(1)
+	var splats: Array[HordeTomatoSplat] = _splats()
+	assert_eq(splats.size(), 1)
+	var splat: HordeTomatoSplat = splats[0]
+	assert_eq(splat.position.y, _level.lane_feet_y(0) - LevelScript.TOMATO_RISE_PX, "at the tomato's height")
+	assert_almost_eq(splat.position.x, view.position.x, LevelScript.SPRITE_HALF_WIDTH_PX * 1.25 + 1.0,
+			"on the copy it hit")
+
+
+func test_a_final_hit_also_splats() -> void:
+	_make()
+	_copy_in_lane("cat", 0)
+	_level.on_run_started()
+	_until_landed(1)
+	assert_eq(_level.get_field().get_stopped_count(), 1)
+	assert_eq(_splats().size(), 1)
+
+
+func test_a_miss_spawns_no_splat() -> void:
+	_make()
+	var copy: HordeMarcher = _copy_in_lane("rabbit", 0)
+	_level.on_run_started()
+	_level._process(STEP)
+	assert_eq(_level.get_defender().get_thrown_count(), 1)
+	copy.lane = 1
+	_until_landed(1)
+	assert_eq(_level.get_defender().get_miss_count(), 1)
+	assert_eq(_splats().size(), 0)
+
+
+func test_a_splat_frees_itself_after_its_tween() -> void:
+	_make()
+	_copy_in_lane("frog", 0)
+	_level.on_run_started()
+	_until_landed(1)
+	var splat: HordeTomatoSplat = _splats()[0]
+	var tween: Tween = splat.get_tween()
+	assert_not_null(tween)
+	tween.custom_step(1.0 / HordeTomatoSplat.FPS + 0.001)
+	assert_eq(splat.get_frame(), 1)
+	tween.custom_step(float(HordeTomatoSplat.FRAMES) / HordeTomatoSplat.FPS)
+	assert_eq(splat.get_frame(), HordeTomatoSplat.FRAMES - 1)
+	await wait_process_frames(1)
+	assert_false(is_instance_valid(splat), "freed after its frames")
+
+
+func test_without_melt_frames_the_copy_squashes_instead() -> void:
+	_make()
+	var small: HordeMarcher = _copy_in_lane("cat", 0)
+	var view: PlayerZombie = _level.get_view(small.id)
+	var body: AnimatedSprite2D = view.get_node("Body") as AnimatedSprite2D
+	var frames: SpriteFrames = body.sprite_frames.duplicate() as SpriteFrames
+	frames.remove_animation(PlayerZombie.ANIM_MELT)
+	frames.remove_animation(PlayerZombie.ANIM_FLASH)
+	body.sprite_frames = frames
+	_level.on_run_started()
+	_until_landed(1)
+	assert_true(small.is_stopped())
+	assert_false(view.is_melting())
+	var tween: Tween = _level.get_melt_tween(view)
+	assert_not_null(tween, "the fallback squash")
+	tween.custom_step(0.3)
+	assert_almost_eq(view.scale.y, 0.5, 0.01, "halfway into the ground")
+	assert_gt(view.scale.x, 1.0, "spreading into a puddle")
+	tween.custom_step(0.31)
+	assert_eq(_level.get_melting_count(), 0)
+
+
+func test_without_flash_frames_a_hit_is_harmless() -> void:
+	_make()
+	var medium: HordeMarcher = _copy_in_lane("frog", 0)
+	var view: PlayerZombie = _level.get_view(medium.id)
+	var body: AnimatedSprite2D = view.get_node("Body") as AnimatedSprite2D
+	var frames: SpriteFrames = body.sprite_frames.duplicate() as SpriteFrames
+	frames.remove_animation(PlayerZombie.ANIM_FLASH)
+	body.sprite_frames = frames
+	_level.on_run_started()
+	_until_landed(1)
+	assert_eq(medium.hits_left, 1)
+	assert_false(view.is_flashing())
+	assert_eq(body.animation, PlayerZombie.ANIM_WALK)
+
+
+func test_one_spawn_sound_per_spawned_copy() -> void:
+	_make()
+	for word: String in ["cat", "frog", "rabbit"]:
+		_level.on_target_completed(word)
+	assert_eq(_sfx, [LevelScript.SFX_SPAWN, LevelScript.SFX_SPAWN, LevelScript.SFX_SPAWN] as Array[StringName])
+	_type_word()
+	assert_eq(_sfx.size(), 4, "a typed word too, in the key's call")
+
+
+func test_throw_and_hit_sounds() -> void:
+	_make()
+	_copy_in_lane("frog", 0)
+	_sfx.clear()
+	_level.on_run_started()
+	_until_landed(1)
+	assert_eq(_sfx[0], LevelScript.SFX_THROW, "the throw first")
+	assert_eq(_sfx.back(), LevelScript.SFX_HIT, "then the hit, in the landing step")
+	assert_eq(_sfx.count(LevelScript.SFX_HIT), 1)
+	assert_false(_sfx.has(LevelScript.SFX_MELT))
+	assert_eq(_sfx.count(LevelScript.SFX_THROW), _level.get_defender().get_thrown_count())
+
+
+func test_a_final_hit_melts_with_no_hit_sound() -> void:
+	_make()
+	_copy_in_lane("cat", 0)
+	_sfx.clear()
+	_level.on_run_started()
+	_until_landed(1)
+	assert_eq(_sfx.back(), LevelScript.SFX_MELT)
+	assert_eq(_sfx.count(LevelScript.SFX_MELT), 1)
+	assert_false(_sfx.has(LevelScript.SFX_HIT), "no hit sound on top of the melt")
+
+
+func test_a_miss_is_silent() -> void:
+	_make()
+	var copy: HordeMarcher = _copy_in_lane("rabbit", 0)
+	_level.on_run_started()
+	_level._process(STEP)
+	copy.lane = 1
+	_sfx.clear()
+	_until_landed(1)
+	assert_eq(_level.get_defender().get_miss_count(), 1)
+	assert_false(_sfx.has(LevelScript.SFX_HIT))
+	assert_false(_sfx.has(LevelScript.SFX_MELT))
+
+
+func test_one_throw_sound_per_throw_over_a_while() -> void:
+	_make()
+	_copy_in_lane("rabbit", 0)
+	_copy_in_lane("rabbit", 2)
+	_sfx.clear()
+	_level.on_run_started()
+	_steps(4.0)
+	assert_gt(_level.get_defender().get_thrown_count(), 2)
+	assert_eq(_sfx.count(LevelScript.SFX_THROW), _level.get_defender().get_thrown_count())
+	assert_eq(_sfx.count(LevelScript.SFX_HIT) + _sfx.count(LevelScript.SFX_MELT),
+			_level.get_defender().get_hit_count())
+
+
+func test_no_sound_after_the_run_ends() -> void:
+	_make()
+	_copy_in_lane("rabbit", 0)
+	_level.on_run_started()
+	_steps(0.2)
+	_level.on_run_ending(&"timer")
+	_sfx.clear()
+	_steps(3.0)
+	_level.on_target_completed("cat")
+	assert_eq(_sfx.size(), 0)
+
+
+func test_the_live_seam_is_audio_manager() -> void:
+	_level = LevelScene.instantiate() as LevelScript
+	_level.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child_autofree(_level)
+	assert_true(_level.play_sfx.is_valid())
+	assert_eq(_level.play_sfx.get_method(), &"play_sfx")
+	assert_eq(_level.play_sfx.get_object(), AudioManager)
+
+
+## AC 6: on the medium and brute classes, through every frame of walk, flash, melt, idle and dance, the hat
+## slot's seat is the body's per-frame head point under the copy's (scaled) transform.
+func test_the_hat_sits_on_scaled_copies_in_every_frame() -> void:
+	_make()
+	var anchors: SpriteAnchors = load("res://data/anchors/zombie_anchors.tres") as SpriteAnchors
+	var hat: CosmeticItem = load("res://data/cosmetics/hat_pumpkin.tres") as CosmeticItem
+	for word: String in ["frog", "rabbit"]:
+		_level.on_target_completed(word)
+		var marching: Array[HordeMarcher] = _level.get_field().get_marching()
+		var marcher: HordeMarcher = marching[marching.size() - 1]
+		var view: PlayerZombie = _level.get_view(marcher.id)
+		var expected_scale: float = 1.25 if word == "frog" else 1.5
+		assert_eq(view.scale, Vector2.ONE * expected_scale, word)
+		var body: AnimatedSprite2D = view.get_node("Body") as AnimatedSprite2D
+		var slot: HatSlot = view.get_node("%HatSlot") as HatSlot
+		slot.follow_equipped = false
+		slot.show_item(hat)
+		assert_true(slot.is_showing(), "wearing the Pumpkin hat")
+		for anim: StringName in [&"walk", &"flash", &"melt", &"idle", &"dance"]:
+			assert_true(body.sprite_frames.has_animation(anim), String(anim))
+			for frame: int in body.sprite_frames.get_frame_count(anim):
+				body.animation = anim
+				body.frame = frame
+				assert_true(anchors.has_head(anim, frame), "%s %d anchored" % [anim, frame])
+				var seat: Vector2 = body.global_transform * anchors.get_head(anim, frame)
+				assert_almost_eq(slot.global_position.x, seat.x, 0.01, "%s %s %d x" % [word, anim, frame])
+				assert_almost_eq(slot.global_position.y, seat.y, 0.01, "%s %s %d y" % [word, anim, frame])
+				assert_almost_eq(slot.global_scale.x, expected_scale, 0.001, "the hat scales with the copy")

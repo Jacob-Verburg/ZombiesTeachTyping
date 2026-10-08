@@ -1,8 +1,10 @@
 extends GutTest
 ## Prototype sprite sheets (Story 1.9, NFR13), the Professor Zombie (Story 2.9), the party-hat zombie
 ## (Story 3.3), the Story 3.6 Zombie Run set (hop, hug, dance, poof, party walk, brain block, brain
-## pop, down-arrow) and the Story 4.3 cosmetics (Pumpkin hat overlay, Cute ghost idle): size, hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty
-## distinct frames on one ground line, and pixel-crisp import settings.
+## pop, down-arrow), the Story 4.3 cosmetics (Pumpkin hat overlay, Cute ghost idle) and the Story 6.6
+## Horde Rush set (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat): size,
+## hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty distinct frames on one ground
+## line, and pixel-crisp import settings.
 ## Read from the committed PNG bytes (Image.load_from_file), so import state doesn't matter.
 ## Frame size per sheet: characters (and the poof) 32x32, props 16x16 (style sheet section 3).
 
@@ -11,6 +13,19 @@ const FRAME: int = 32
 const PROP_FRAME: int = 16
 const ZOMBIE_DIR: String = "res://assets/sprites/characters/zombie/"
 const PROPS_DIR: String = "res://assets/sprites/props/"
+const FARMER_DIR: String = "res://assets/sprites/characters/farmer/"
+const WALK_PATH: String = ZOMBIE_DIR + "zombie_walk.png"
+const FLASH_PATH: String = ZOMBIE_DIR + "zombie_flash.png"
+const MELT_PATH: String = ZOMBIE_DIR + "zombie_melt.png"
+const TOMATO_FLY_PATH: String = PROPS_DIR + "tomato_fly.png"
+const TOMATO_SPLAT_PATH: String = PROPS_DIR + "tomato_splat.png"
+## Story 6.6 sheets: never stamp red (the flash and the tomato are pumpkin, DESIGN.md D16).
+const HORDE_RUSH_SHEETS: Array[String] = [
+	FLASH_PATH, MELT_PATH, FARMER_DIR + "farmer_idle.png", FARMER_DIR + "farmer_walk.png",
+	FARMER_DIR + "farmer_throw.png", TOMATO_FLY_PATH, TOMATO_SPLAT_PATH,
+]
+## The tomato in flight is small next to a 32 px copy.
+const TOMATO_MAX_WIDTH: int = 8
 ## Character sheet path -> frame count (FRAME x FRAME frames).
 const SHEETS: Dictionary[String, int] = {
 	"res://assets/sprites/characters/zombie/zombie_idle.png": 2,
@@ -24,12 +39,19 @@ const SHEETS: Dictionary[String, int] = {
 	"res://assets/sprites/characters/villager/villager_poof.png": 4,
 	"res://assets/sprites/characters/party_zombie/party_zombie_walk.png": 4,
 	PET_GHOST_PATH: 4,
+	FLASH_PATH: 4,
+	MELT_PATH: 6,
+	FARMER_DIR + "farmer_idle.png": 2,
+	FARMER_DIR + "farmer_walk.png": 4,
+	FARMER_DIR + "farmer_throw.png": 3,
 }
 ## Prop sheet path -> frame count (PROP_FRAME x PROP_FRAME frames).
 const PROP_SHEETS: Dictionary[String, int] = {
 	PROPS_DIR + "brain_block_idle.png": 2,
 	PROPS_DIR + "brain_block_bonk.png": 3,
 	PROPS_DIR + "brain_pop.png": 2,
+	TOMATO_FLY_PATH: 2,
+	TOMATO_SPLAT_PATH: 3,
 }
 const HAT_PUMPKIN_PATH: String = "res://assets/sprites/cosmetics/hats/hat_pumpkin.png"
 const PET_GHOST_PATH: String = "res://assets/sprites/cosmetics/pets/pet_cute_ghost_idle.png"
@@ -68,6 +90,8 @@ const PUMPKIN: String = "f07a1c"
 const PUMPKIN_LIGHT: String = "ffa94a"
 const WOOD_DARK: String = "5a3218"
 const STAMP_RED: String = "b02a25"
+const ZOMBIE_GREEN_BRIGHT: String = "b8f27c"
+const BAT_PURPLE: String = "7a4bb3"
 ## Orthogonal neighbours (up, down, left, right).
 const NEIGHBOURS: Array[Vector2i] = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]
 
@@ -278,7 +302,8 @@ func test_characters_stand_on_row_30() -> void:
 
 ## The professor is the player zombie in a gown, so his sheet uses the zombie greens. Overlays: ink only.
 ## Pets (Story 4.3): the Cute ghost is chalk with an ink outline.
-## The poof is a white dust cloud; the props are cartoon brain pink (the bonk ends grey).
+## The poof is a white dust cloud; the props are cartoon brain pink (the bonk ends grey), the tomato
+## props pumpkin. The flash is the zombie recoloured to pumpkin (test_flash_is_a_recoloured_walk).
 func test_right_color_ramps_used() -> void:
 	var sheets: Dictionary[String, Image] = _valid_sheets(true)
 	assert_eq(sheets.size(), SHEETS.size() + PROP_SHEETS.size() + OVERLAYS.size())
@@ -292,6 +317,11 @@ func test_right_color_ramps_used() -> void:
 			assert_true(colors.has(STONE_LIGHT), "poof has no stone-light shade")
 		elif path.contains("/cosmetics/pets/"):
 			assert_true(colors.has(CHALK), "%s has no chalk" % _name(path))
+		elif path == TOMATO_FLY_PATH or path == TOMATO_SPLAT_PATH:
+			assert_true(colors.has(PUMPKIN), "%s has no pumpkin" % _name(path))
+			assert_true(colors.has(PUMPKIN_LIGHT), "%s has no pumpkin-light" % _name(path))
+		elif path == FLASH_PATH:
+			assert_true(colors.has(PUMPKIN), "flash has no pumpkin")
 		elif PROP_SHEETS.has(path):
 			assert_true(colors.has(BRAIN_PINK), "%s has no art-brain-pink" % _name(path))
 			assert_true(colors.has(BRAIN_SHADE), "%s has no art-brain-shade" % _name(path))
@@ -447,3 +477,73 @@ func test_ghost_is_pet_sized() -> void:
 	for frame: int in SHEETS[PET_GHOST_PATH]:
 		var used: Rect2i = image.get_region(Rect2i(frame * FRAME, 0, FRAME, FRAME)).get_used_rect()
 		assert_between(used.size.y, 16, 20, "ghost frame %d height" % frame)
+
+
+## Story 6.6: the flash is the walk with a legend swap only: the same alpha mask and the same ink pixels
+## in every frame (so the same anchors), and no zombie green or bat-purple left.
+func test_flash_is_a_recoloured_walk() -> void:
+	var walk: Image = _load(WALK_PATH)
+	var flash: Image = _load(FLASH_PATH)
+	assert_not_null(walk)
+	assert_not_null(flash)
+	if walk == null or flash == null or walk.get_size() != flash.get_size():
+		fail_test("walk and flash sheets missing or different sizes")
+		return
+	var bad: Array[String] = []
+	for y: int in walk.get_height():
+		for x: int in walk.get_width():
+			var w: Color = walk.get_pixel(x, y)
+			var f: Color = flash.get_pixel(x, y)
+			if (w.a8 == 255) != (f.a8 == 255):
+				bad.append("(%d,%d) mask" % [x, y])
+			elif w.a8 == 255 and (w.to_html(false) == INK) != (f.to_html(false) == INK):
+				bad.append("(%d,%d) ink" % [x, y])
+	assert_eq(bad.size(), 0, ", ".join(bad.slice(0, 10)))
+	var colors: Dictionary[String, bool] = _colors(flash)
+	for hex: String in [ZOMBIE_GREEN, ZOMBIE_GREEN_BRIGHT, ZOMBIE_GREEN_DARK, BAT_PURPLE]:
+		assert_false(colors.has(hex), "flash still uses %s" % hex)
+
+
+## The melt is green goo: the zombie greens with ink, never anything else in its last (held) frame.
+func test_melt_ends_on_a_green_puddle() -> void:
+	var image: Image = _load(MELT_PATH)
+	assert_not_null(image)
+	if image == null or image.get_width() != 6 * FRAME:
+		return
+	var last: Dictionary[String, bool] = _colors(image.get_region(Rect2i(5 * FRAME, 0, FRAME, FRAME)))
+	for hex: String in last:
+		assert_true(hex in [INK, ZOMBIE_GREEN, ZOMBIE_GREEN_BRIGHT, ZOMBIE_GREEN_DARK, CHALK],
+				"melt puddle uses %s" % hex)
+
+
+## The Farmer is a human: his skin is only art-skin-light/-dark (no zombie green on him at all).
+func test_farmer_skin_is_human() -> void:
+	for anim: String in ["idle", "walk", "throw"]:
+		var image: Image = _load(FARMER_DIR + "farmer_%s.png" % anim)
+		assert_not_null(image, "farmer %s missing" % anim)
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		assert_true(colors.has(ART_SKIN_LIGHT), "farmer %s has art-skin-light" % anim)
+		for hex: String in [ZOMBIE_GREEN, ZOMBIE_GREEN_BRIGHT, ZOMBIE_GREEN_DARK, BAT_PURPLE]:
+			assert_false(colors.has(hex), "farmer %s uses %s" % [anim, hex])
+
+
+func test_horde_rush_sheets_never_use_stamp_red_or_candy_yellow() -> void:
+	for path: String in HORDE_RUSH_SHEETS:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		assert_false(colors.has(STAMP_RED), "%s: no stamp-red" % _name(path))
+		assert_false(colors.has(CANDY_YELLOW), "%s: no candy-yellow" % _name(path))
+
+
+func test_tomato_is_small() -> void:
+	var image: Image = _load(TOMATO_FLY_PATH)
+	assert_not_null(image)
+	if image == null:
+		return
+	for frame: int in PROP_SHEETS[TOMATO_FLY_PATH]:
+		assert_between(_opaque_width(image, frame, PROP_FRAME), 1, TOMATO_MAX_WIDTH, "tomato frame %d width" % frame)

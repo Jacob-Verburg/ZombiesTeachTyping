@@ -5,9 +5,15 @@ extends GutTest
 ## and the night scrim are allowed; the debug keyboard-test screen is exempt (dev only).
 ## Story 5.2 (AC 5): the in-run Zombie Run scenes are walked too (letter tags, the base target box, the conga
 ## badge use the theme's 9-slice variations).
+## Story 6.6: the Horde Rush scenes are walked too, and its level and tomato have no ColorRect left (the field,
+## the house and the tomato are sprites).
 
 const SCENE_DIRS: Array[String] = [
 	"res://scenes/ui/", "res://scenes/screens/", "res://scenes/run/", "res://scenes/levels/zombie_run/",
+	"res://scenes/levels/horde_rush/",
+]
+const HORDE_RUSH_ART_SCENES: Array[String] = [
+	"res://scenes/levels/horde_rush/horde_rush_level.tscn", "res://scenes/levels/horde_rush/tomato.tscn",
 ]
 const EXEMPT_SCENES: Array[String] = ["res://scenes/screens/keyboard_test.tscn"]
 const THEME_PATH: String = "res://data/ui_theme.tres"
@@ -35,7 +41,7 @@ func _ui_scenes() -> Array[String]:
 
 
 func test_the_walk_finds_the_ui() -> void:
-	assert_gt(_ui_scenes().size(), 22, "scenes found (incl. the 7 Zombie Run scenes)")
+	assert_gt(_ui_scenes().size(), 27, "scenes found (incl. the 7 Zombie Run and 5 Horde Rush scenes)")
 	assert_gt(_files(SCRIPT_DIR, "gd").size(), 5, "scripts found")
 
 
@@ -55,3 +61,10 @@ func test_no_code_drawn_shapes_in_ui_scripts() -> void:
 		var text: String = FileAccess.get_file_as_string(path)
 		for call: String in FORBIDDEN_DRAW_CALLS:
 			assert_false(text.contains(call + "("), "%s calls %s" % [path, call])
+
+
+func test_horde_rush_has_no_placeholder_rects() -> void:
+	for path: String in HORDE_RUSH_ART_SCENES:
+		var text: String = FileAccess.get_file_as_string(path)
+		assert_ne(text, "", "%s found" % path)
+		assert_false(text.contains("ColorRect"), "%s still has a ColorRect" % path)

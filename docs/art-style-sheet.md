@@ -17,7 +17,9 @@ Stories that make final art and wait for that approval:
 - **Epic 4:** Story 4.3 (hats and pets shown everywhere) and the Crypt Closet art.
 - **Epic 5:** done in Story 5.0 (MVP UI art pass: panels, buttons, signs, level cards, logo, hands, loading page and
   boot splash; see section 7).
-- Later epics (6, 8, 9, 10) reuse these rules for their characters, hats, pets and backdrops.
+- **Epic 6:** done in Story 6.6 (Horde Rush: the Farmhouse field and house, the Farmer, the tomato and
+  its splat, the zombie's flash and melt; see section 3).
+- Later epics (8, 9, 10) reuse these rules for their characters, hats, pets and backdrops.
 
 Before its final-art story, any story may use **placeholder art**: plain shapes in palette colors.
 
@@ -116,6 +118,13 @@ animations and are exempt from the frame count only; every pixel rule applies to
 | `down_arrow.png` (3.6) | overlay | 16×16 | – | the active target's arrow; the bob is code |
 | pet `cute_ghost` `idle` (4.3) | 4 | 32×32 | 8 | loop (the float: a 1 px body bob and a wavy tail) |
 | `hat_pumpkin.png` (4.3) | overlay | 32×32 | – | seat on row 30 at x 16 |
+| zombie `flash` (6.6) | 4 | 32×32 | 10 | loop, swapped with `walk` at the same frame (the walk recoloured to pumpkin) |
+| zombie `melt` (6.6) | 6 | 32×32 | tween over `melt_s` (10 at 0.6 s) | once, holds the last (a small puddle) |
+| farmer `idle` (6.6) | 2 | 32×32 | 8 | loop |
+| farmer `walk` (6.6) | 4 | 32×32 | 10 | loop (he paces up and down the lanes, facing left) |
+| farmer `throw` (6.6) | 3 | 32×32 | 12 | once: wind-up, release, follow-through |
+| `tomato_fly` (6.6) | 2 | 16×16 | 10 | loop while it flies (at most 8 px wide) |
+| `tomato_splat` (6.6) | 3 | 16×16 | 12 | once (frames stepped by the splat's tween), then freed |
 
 **Hats** (Story 4.3) are 32×32 one-frame overlays whose **seat** (the bottom-centre of the brim) is pixel
 (16, 30): the lowest opaque row is row 30 and the opaque columns are centred on column 16 (*tested*). Row
@@ -143,6 +152,17 @@ path) and `ground_strip.png` (640×64, built from the tiles). Backdrop layers an
 (y 96–166) free of `parchment`, `chalk` and `candy-yellow`, and are authored with wraparound so the 640 px
 seam never shows.
 
+**Farmhouse backdrop** (Story 6.6, Horde Rush; `assets/sprites/backdrops/farmhouse/`, one folder per
+house + defender pair): `field.png` (640×256 at (0, 0): the sky band y 0–36 and five 44 px lanes of
+soil with crop strips between them) and `farmhouse.png` (92×256 at (548, 0): the house wall with one
+doorway per lane whose bottom row is that lane's soles row, the roof and chimney under the pause button).
+They are **static and never tiled**, so there is no seam rule. Like every backdrop they are **exempt
+from the outline rule only**: hard alpha, palette colours, never `candy-yellow` or `stamp-red`, and **no
+`zombie-green` or `zombie-green-bright` where copies walk** (the lanes, x 0–547, y 36–255, and the
+house's first 8 px), so a copy never camouflages (*tested* in `test_art_backdrop.gd`). The soil is
+`parchment-shade` with `wood-light` furrows (not wood: the zombie's trousers are wood, so they would sink
+into wood soil).
+
 **Import settings:** Lossless compression (`compress/mode=0`), no mipmaps (*tested*). Filtering is the
 project default, Nearest; do not set a per-file filter.
 
@@ -154,7 +174,8 @@ screen for legibility.
 
 **How sprites are made:** code-authored pixel art. Each frame is an ASCII map in
 `tools/gen_art_prototypes.gd` (the prototypes), `tools/gen_zombie_run_art.gd` (Story 3.6, which reads
-the palette, legends and approved maps from the first) or `tools/gen_cosmetics_art.gd` (Story 4.3), one character per pixel, a legend from
+the palette, legends and approved maps from the first), `tools/gen_cosmetics_art.gd` (Story 4.3) or
+`tools/gen_horde_rush_art.gd` (Story 6.6), one character per pixel, a legend from
 character to palette **name**, written to PNG by running the tool headless and then `--import`. The
 backdrop is drawn by the same tool from shapes at fixed positions (no randomness). Never hand-edit a
 PNG. Commit the PNGs and `.import` files.
@@ -195,6 +216,11 @@ The sprites are drawn so that later art can be made by reuse (GDD → Reuse):
 - **Horde Rush copies = the player sprite, scaled** for size classes. Note: a 1.5× nearest scale of a
   32 px sprite gives uneven pixels. Decided in Story 6.3: per-class `sprite_scale` in `horde_rush.tres`
   (small 1.0, medium 1.25, brute 1.5; no integer 2×, it overflows a 44 px lane); slightly uneven pixels accepted.
+  The copy's root is scaled, so Body and the hat scale together: the hat follows the anchors plus
+  `sprite_scale` (checked in Story 6.6 on every frame of walk, flash, melt, idle and dance, at 1.25 and 1.5).
+- **The zombie's flash = the walk recoloured** (Story 6.6): a legend swap only (skin and shirt to the
+  pumpkin ramp), the same alpha mask and ink (*tested*), so its anchors equal the walk's. A hit never
+  tints at runtime (a tint makes off-palette pixels).
 - **The mob = 2 base sprites, recolored.**
 - **Hats anchor to a head point.** Story 4.3 set the anchors: one head point per frame of every animation
   (the top-centre of the crown), in `data/anchors/` (`zombie_anchors.tres`, `professor_anchors.tres`),

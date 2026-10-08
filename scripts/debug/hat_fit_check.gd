@@ -3,7 +3,8 @@ extends Control
 ## Hat & pet fit check (Story 4.3, the cosmetics gate). Dev/Smuck only (Boundary 7): never routed to,
 ## never instanced by the Router, no menu button. Run it directly:
 ##   "/c/Program Files/Godot/Godot.exe" --path . res://scenes/debug/hat_fit_check.tscn
-## Shows the chosen hat on every frame of every player-zombie animation (idle, walk, hop, hug, dance) and
+## Shows the chosen hat on every frame of every player-zombie animation (idle, walk, hop, hug, dance, and
+## Story 6.6's flash and melt) and
 ## on both Professor Zombie frames (the real professor scene, so the mortarboard stacks on the hat), each
 ## at 1x and 3x on a stopped sprite, PAGE_SIZE cells per page. Below: the chosen pet's idle on a HUD-size
 ## parchment cushion at 1x, and at 3x beside it. Every slot here has follow_equipped = false and shows only
@@ -22,7 +23,7 @@ const HAT_SLOT_SCENE: PackedScene = preload("res://scenes/cosmetics/hat_slot.tsc
 const PET_SLOT_SCENE: PackedScene = preload("res://scenes/cosmetics/pet_slot.tscn")
 const ZOMBIE_ANCHORS: SpriteAnchors = preload("res://data/anchors/zombie_anchors.tres")
 ## The player zombie's animations in show order.
-const ZOMBIE_ANIMATIONS: Array[StringName] = [&"idle", &"walk", &"hop", &"hug", &"dance"]
+const ZOMBIE_ANIMATIONS: Array[StringName] = [&"idle", &"walk", &"hop", &"hug", &"dance", &"flash", &"melt"]
 const PROFESSOR_ANIMATION: StringName = &"point"
 const FRAME: int = 32
 const DETAIL_SCALE: int = 3

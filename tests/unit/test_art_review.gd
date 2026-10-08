@@ -48,7 +48,8 @@ func test_scene_builds_animations_within_limits() -> void:
 	var sut: ArtReviewScript = _make()
 	var animations: Dictionary[String, SpriteFrames] = sut.get_animations()
 	assert_eq_deep(animations.keys(), ["idle", "walk", "wave", "party_idle", "hop", "hug", "dance", "poof",
-			"party_walk", "block_idle", "block_bonk", "brain_pop"])
+			"party_walk", "block_idle", "block_bonk", "brain_pop", "flash", "melt", "farmer_idle", "farmer_walk",
+			"farmer_throw", "tomato_fly", "tomato_splat"])
 	for spec: Dictionary in ArtReviewScript.ANIMATIONS:
 		var first: AtlasTexture = animations[spec["name"]].get_frame_texture(spec["name"], 0) as AtlasTexture
 		assert_not_null(first.atlas, "%s sheet texture loaded" % spec["name"])
@@ -114,12 +115,16 @@ func test_story_3_6_animation_speeds() -> void:
 
 func test_pages_cycle_and_wrap() -> void:
 	var sut: ArtReviewScript = _make()
-	assert_eq(sut.page_count(), 3)
+	assert_eq(sut.page_count(), 5)
 	assert_eq(sut.page_index(), 0)
 	assert_eq_deep(sut.page_animations(), ["idle", "walk", "wave", "party_idle"])
 	sut._next_page()
 	assert_eq_deep(sut.page_animations(), ["hop", "hug", "dance", "poof"])
 	sut._next_page()
 	assert_eq_deep(sut.page_animations(), ["party_walk", "block_idle", "block_bonk", "brain_pop"])
+	sut._next_page()
+	assert_eq_deep(sut.page_animations(), ["flash", "melt", "farmer_idle", "farmer_walk"])
+	sut._next_page()
+	assert_eq_deep(sut.page_animations(), ["farmer_throw", "tomato_fly", "tomato_splat"])
 	sut._next_page()
 	assert_eq(sut.page_index(), 0, "wraps")

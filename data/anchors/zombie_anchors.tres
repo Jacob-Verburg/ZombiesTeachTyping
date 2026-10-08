@@ -6,8 +6,10 @@
 script = ExtResource("1_748w2")
 head = Dictionary[StringName, PackedVector2Array]({
 &"dance": PackedVector2Array(16, 1, 16, 1, 16, 1, 16, 2),
+&"flash": PackedVector2Array(16, 2, 16, 1, 16, 2, 16, 1),
 &"hop": PackedVector2Array(16, 3, 16, 1, 16, 2),
 &"hug": PackedVector2Array(16, 1, 17, 1, 16, 2),
 &"idle": PackedVector2Array(16, 1, 16, 2),
+&"melt": PackedVector2Array(16, 3, 16, 9, 16, 13, 16, 17, 15, 24, 15, 26),
 &"walk": PackedVector2Array(16, 2, 16, 1, 16, 2, 16, 1)
 })

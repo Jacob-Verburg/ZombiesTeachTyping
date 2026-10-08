@@ -1763,3 +1763,16 @@ func test_horde_rush_defender_paces_after_the_first_key_and_stops_on_pause() -> 
 	frame._process(2.01)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_result().brains, level.get_brains_earned())
+
+
+## Story 6.6: horde_rush.tres names the march, so RunFrame asks for it once at the start and the loop plays
+## on through the outro.
+func test_horde_rush_asks_for_the_march_once_at_start() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"horde_rush", "seed": 7})
+	assert_eq(_music, [&"mus_horde_rush"] as Array[StringName])
+	_type_word(frame)
+	frame._process(5.0)
+	assert_true(frame.debug_end_run())
+	frame._process(2.01)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_music, [&"mus_horde_rush"] as Array[StringName], "the march plays on through the outro")

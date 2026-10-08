@@ -17,6 +17,11 @@
 [ext_resource type="AudioStream" uid="uid://bkjjnjucmnm45" path="res://assets/audio/sfx/sfx_chalk_scratch.wav" id="15_chalk"]
 [ext_resource type="AudioStream" uid="uid://ck2i3lca74oy8" path="res://assets/audio/sfx/sfx_report_chime.wav" id="16_chime"]
 [ext_resource type="AudioStream" uid="uid://dcw1ecaj7veyw" path="res://assets/audio/music/mus_zombie_run.ogg" id="17_run_music"]
+[ext_resource type="AudioStream" uid="uid://cb1ybfu6dbm0u" path="res://assets/audio/music/mus_horde_rush.ogg" id="18_horde_music"]
+[ext_resource type="AudioStream" uid="uid://bvtoqeg10up6q" path="res://assets/audio/sfx/sfx_zombie_spawn.wav" id="19_spawn"]
+[ext_resource type="AudioStream" uid="uid://bng52tf3lxw74" path="res://assets/audio/sfx/sfx_tomato_throw.wav" id="20_throw"]
+[ext_resource type="AudioStream" uid="uid://c5cwtf47vxj67" path="res://assets/audio/sfx/sfx_tomato_hit.wav" id="21_hit"]
+[ext_resource type="AudioStream" uid="uid://baoals7mpsij4" path="res://assets/audio/sfx/sfx_melt.wav" id="22_melt"]
 
 [sub_resource type="Resource" id="Resource_click"]
 script = ExtResource("2_cue")
@@ -106,9 +111,42 @@ id = &"mus_zombie_run"
 stream = ExtResource("17_run_music")
 volume_db = -16.0
 
+[sub_resource type="Resource" id="Resource_horde_music"]
+script = ExtResource("2_cue")
+id = &"mus_horde_rush"
+stream = ExtResource("18_horde_music")
+volume_db = -16.0
+
+[sub_resource type="Resource" id="Resource_spawn"]
+script = ExtResource("2_cue")
+id = &"sfx_zombie_spawn"
+stream = ExtResource("19_spawn")
+volume_db = -10.0
+min_interval_s = 0.08
+
+[sub_resource type="Resource" id="Resource_throw"]
+script = ExtResource("2_cue")
+id = &"sfx_tomato_throw"
+stream = ExtResource("20_throw")
+volume_db = -11.0
+
+[sub_resource type="Resource" id="Resource_hit"]
+script = ExtResource("2_cue")
+id = &"sfx_tomato_hit"
+stream = ExtResource("21_hit")
+volume_db = -9.0
+min_interval_s = 0.06
+
+[sub_resource type="Resource" id="Resource_melt"]
+script = ExtResource("2_cue")
+id = &"sfx_melt"
+stream = ExtResource("22_melt")
+volume_db = -8.0
+min_interval_s = 0.08
+
 [resource]
 script = ExtResource("1_lib")
-cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04"), SubResource("Resource_purchase"), SubResource("Resource_bonk"), SubResource("Resource_poof"), SubResource("Resource_chalk"), SubResource("Resource_chime"), SubResource("Resource_run_music")])
+cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04"), SubResource("Resource_purchase"), SubResource("Resource_bonk"), SubResource("Resource_poof"), SubResource("Resource_chalk"), SubResource("Resource_chime"), SubResource("Resource_run_music"), SubResource("Resource_horde_music"), SubResource("Resource_spawn"), SubResource("Resource_throw"), SubResource("Resource_hit"), SubResource("Resource_melt")])
 voice_min_gap_s = 8.0
 groan_ids = Array[StringName]([&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04"])
 groan_min_interval_s = 3.0

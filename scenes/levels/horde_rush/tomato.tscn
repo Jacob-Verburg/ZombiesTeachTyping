@@ -1,19 +1,33 @@
-[gd_scene format=3]
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Texture2D" uid="uid://clpsqryjwwih3" path="res://assets/sprites/props/tomato_fly.png" id="1_fly"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fly_0"]
+atlas = ExtResource("1_fly")
+region = Rect2(0, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fly_1"]
+atlas = ExtResource("1_fly")
+region = Rect2(16, 0, 16, 16)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_tomato"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fly_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fly_1")
+}],
+"loop": true,
+"name": &"fly",
+"speed": 10.0
+}]
 
 [node name="Tomato" type="Node2D"]
 
-[node name="Edge" type="ColorRect" parent="."]
-offset_left = -3.0
-offset_top = -3.0
-offset_right = 3.0
-offset_bottom = 3.0
-mouse_filter = 2
-color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-
-[node name="Fill" type="ColorRect" parent="."]
-offset_left = -2.0
-offset_top = -2.0
-offset_right = 2.0
-offset_bottom = 2.0
-mouse_filter = 2
-color = Color(0.9411765, 0.47843137, 0.10980392, 1)
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+unique_name_in_owner = true
+sprite_frames = SubResource("SpriteFrames_tomato")
+animation = &"fly"
+autoplay = "fly"

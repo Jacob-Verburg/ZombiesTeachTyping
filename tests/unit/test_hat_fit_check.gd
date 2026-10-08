@@ -1,6 +1,6 @@
 extends GutTest
-## The hat & pet fit check (Story 4.3, debug-only): instantiates headless, builds 18 hat cells (16 zombie
-## frames + 2 professor frames) at 1x and 3x on stopped sprites, cycles hats, pets and backgrounds with
+## The hat & pet fit check (Story 4.3, debug-only): instantiates headless, builds 28 hat cells (26 zombie
+## frames: idle 2 + walk 4 + hop 3 + hug 3 + dance 4 + flash 4 + melt 6, + 2 professor frames) at 1x and 3x on stopped sprites, cycles hats, pets and backgrounds with
 ## the shipped catalogue and an empty one, stacks the professor's mortarboard on the hat, and wears for
 ## real through an injected PlayerData on a temp save (never the live one).
 
@@ -8,7 +8,7 @@ const FitCheckScene: PackedScene = preload("res://scenes/debug/hat_fit_check.tsc
 const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
 const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
 const TEST_DIR: String = "user://test_hat_fit_check/"
-const CELLS_PER_SCALE: int = 18
+const CELLS_PER_SCALE: int = 28
 
 var _player: PlayerDataScript
 
@@ -45,7 +45,7 @@ func _make(catalogue: Catalogue = null) -> HatFitCheck:
 	return check
 
 
-func test_builds_18_cells_at_both_scales() -> void:
+func test_builds_28_cells_at_both_scales() -> void:
 	var check: HatFitCheck = _make()
 	var cells: Array[AnimatedSprite2D] = check.get_cells()
 	assert_eq(cells.size(), CELLS_PER_SCALE * 2)
@@ -54,12 +54,12 @@ func test_builds_18_cells_at_both_scales() -> void:
 		assert_false(sprite.is_playing(), "stopped")
 		var key: String = "%s %d" % [sprite.animation, sprite.frame]
 		seen[key] = seen.get(key, 0) + 1
-	assert_eq(seen.size(), CELLS_PER_SCALE, "18 distinct (animation, frame) pairs")
+	assert_eq(seen.size(), CELLS_PER_SCALE, "28 distinct (animation, frame) pairs")
 	for key: String in seen:
 		assert_eq(seen[key], 2, "%s at 1x and 3x" % key)
-	for key: String in ["idle 1", "walk 3", "hop 2", "hug 2", "dance 3", "point 0", "point 1"]:
+	for key: String in ["idle 1", "walk 3", "hop 2", "hug 2", "dance 3", "flash 3", "melt 5", "point 0", "point 1"]:
 		assert_true(seen.has(key), key)
-	assert_eq(check.page_count(), 4, "5 cells a page")
+	assert_eq(check.page_count(), 6, "5 cells a page")
 
 
 func test_every_hat_slot_follows_its_frame_and_ignores_player_data() -> void:

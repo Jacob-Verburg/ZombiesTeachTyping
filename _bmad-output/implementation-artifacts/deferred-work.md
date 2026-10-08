@@ -104,6 +104,7 @@
 - Art gate approved by Smuck (palette, Press Start 2P, zombie idle/walk, villager wave, style sheet). The 8–12 fps rule stands, including 8 fps for 2-frame idles; no slower-idle exception.
 - On `night` and `chalkboard` backgrounds the ink outline (#1E1428) is barely distinct from the backdrop; characters read by their fills. Accepted at the gate. Revisit in Story 3.6 / 8.6 (night levels) if characters get lost against dark scenery.
 - ~~Brute size class: 48×48 is recorded in the style sheet, but "Horde Rush copies = player sprite scaled" gives uneven pixels at 1.5×. Story 6.3 decides between redrawn 48×48 brutes and an integer scale.~~ Decided in 6.3: per-class `sprite_scale` in `horde_rush.tres` (small 1.0, medium 1.25, brute 1.5 of the 32 px sprite); integer 2× is ruled out (64 px is taller than a 44 px lane); redrawn 48 px brutes are not needed yet since no brute spawns before Epic 7 (band 3–5). The 1.25 medium was checked at 3× (`screenshots/6-3/size-classes-3x.png`): slightly uneven pixels, reads clearly as bigger, kept. Story 6.6 owns the final art and hat fit on scaled classes.
+  - Resolved in 6.6: the scaled classes keep the player sprite (no redraw); a test checks that on 1.25 and 1.5 copies the hat slot's seat is the body's per-frame head point under the copy's transform through every frame of walk, flash, melt, idle and dance, and `screenshots/6-6/gate2-hat-medium-3x.png` / `gate2-hat-brute-3x.png` show the Pumpkin hat on the crown (Gate 2 approved).
 - `process/fix_alpha_border=true` (Godot default) is on in the sprite `.import` files. It only changes the RGB of fully transparent pixels and is harmless with hard alpha and Nearest; untested.
 - The art review scene (`scenes/debug/art_review.tscn`) ships in release exports (all resources) but nothing routes to it. Remove or exclude it with the Keyboard Test screen before the MVP link if export size matters.
 
@@ -529,6 +530,7 @@
   - Resolved in 6.5: `HordeRushLevel.MAX_FRAME_S` (0.5 s) caps each frame before substepping, so no brain burst.
 - A debug jump into `horde_rush` that ends writes a real `run_history` entry with `level_id = horde_rush`; the 6.8 backfill would count it as a timer run. Already acknowledged in the 6.3 Dev Notes.
 - `horde_rush_level.tscn` hard-codes five lane `ColorRect`s while `lane_count` is config-driven; revisit if the lane count ever changes.
+  - Resolved in 6.6: the lane `ColorRect`s are gone; the lanes are one baked 5-lane image (`assets/sprites/backdrops/farmhouse/field.png`) and the farmhouse has a doorway per lane, so a `lane_count` change now needs new field and farmhouse art (`tools/gen_horde_rush_art.gd`).
 
 ## Deferred from: dev of story-6.4 (2026-10-07)
 
@@ -546,3 +548,10 @@
 - Frame cap (`MAX_FRAME_S`) drops hitch time from the field while RunClock keeps counting, so arrival counts depend on frame hitches. Spec-mandated by AC5; revisit in 6.7 economy parity.
 - Horde integration test relies on `HORDE_ARRIVAL_SEED = 7` and the real RNG for "some copies got past"; brittle if the defender tuning or RNG draw order changes.
 - Pops from consecutive arrivals in the same lane stack at the identical point; add jitter if playtest shows overlap.
+
+## Deferred from: dev of story-6.6 (2026-10-08)
+
+- **Smuck's tuning request for 6.7 (Audio gate, 2026-10-08), verbatim:** "I do want to slow down the defending person move speed by half, a child will not type fast enough to get any points at this speed." Halving the pace is `defender_lane_time_s` 0.6 → 1.2 s in `horde_rush.tres`; Smuck chose to tune it in 6.7 together with the throw cooldown and crossing times (6.6 keeps the shipped numbers). The 6.4 feel note above (1% of copies through at 10 WPM) agrees.
+- Sound ids are per house + defender pair: `sfx_tomato_throw` / `sfx_tomato_hit` belong to the Farmhouse; Epic 10's Castle + Knight and Beach Hut + Lifeguard need their own throw/hit ids (and the level a per-pair id lookup). `sfx_zombie_spawn` and `sfx_melt` are pair-independent.
+- Accepted at Gate 2: on a non-final hit the splat's first (squish) frame merges into the copy's orange flash; the flash carries the hit. Revisit only if playtests show kids missing hits.
+- The field art bakes 5 lanes (see the 6.3 item above): Epic 10's pairs each need a `field.png` / house layer with a doorway per lane.

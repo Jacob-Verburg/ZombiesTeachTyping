@@ -5,6 +5,8 @@ extends GutTest
 ## Dance (Story 3.5): a code bounce on Body.position.y; it cuts the hop and the hug. Without dance frames
 ## (a stripped SpriteFrames) it plays idle and flips per beat; with the Story 3.6 frames the sheet sways.
 ## Story 3.6: hop/hug/dance play their frames, and play_walk()/play_idle() never clobber them.
+## Story 6.6: the flash swaps walk <-> flash at the same frame; the melt steps its frames with a tween and
+## holds the last; stripped frames make both harmless.
 
 const PlayerZombieScene: PackedScene = preload("res://scenes/characters/player_zombie.tscn")
 
@@ -513,3 +515,146 @@ func test_dance_without_sprite_frames_does_not_crash() -> void:
 	assert_true(zombie.is_dancing())
 	zombie.get_dance_tween().custom_step(DANCE_S + 1.0)
 	assert_false(zombie.is_dancing())
+
+
+# --- flash and melt (Story 6.6) ------------------------------------------------------------------
+
+## A zombie whose SpriteFrames lacks `removed`.
+func _stripped_zombie(removed: Array[StringName]) -> PlayerZombie:
+	var zombie: PlayerZombie = PlayerZombieScene.instantiate() as PlayerZombie
+	var body: AnimatedSprite2D = zombie.get_node("Body") as AnimatedSprite2D
+	var frames: SpriteFrames = body.sprite_frames.duplicate() as SpriteFrames
+	for anim: StringName in removed:
+		frames.remove_animation(anim)
+	body.sprite_frames = frames
+	add_child_autofree(zombie)
+	return zombie
+
+
+func test_flash_and_melt_animations() -> void:
+	var frames: SpriteFrames = _body(_zombie()).sprite_frames
+	assert_eq(frames.get_frame_count(PlayerZombie.ANIM_FLASH), 4)
+	assert_eq(frames.get_animation_speed(PlayerZombie.ANIM_FLASH), frames.get_animation_speed(PlayerZombie.ANIM_WALK))
+	assert_true(frames.get_animation_loop(PlayerZombie.ANIM_FLASH))
+	assert_eq(frames.get_frame_count(PlayerZombie.ANIM_MELT), 6)
+	assert_false(frames.get_animation_loop(PlayerZombie.ANIM_MELT), "melts once and holds")
+
+
+func test_flashing_swaps_the_walk_at_the_same_frame() -> void:
+	var zombie: PlayerZombie = _zombie()
+	var body: AnimatedSprite2D = _body(zombie)
+	zombie.play_walk()
+	body.set_frame_and_progress(2, 0.4)
+	zombie.set_flashing(true)
+	assert_true(zombie.is_flashing())
+	assert_eq(body.animation, PlayerZombie.ANIM_FLASH, "swapped at once")
+	assert_eq(body.frame, 2, "same frame")
+	assert_almost_eq(body.frame_progress, 0.4, 0.001, "same progress: the legs never jump")
+	zombie.play_walk()
+	assert_eq(body.animation, PlayerZombie.ANIM_FLASH, "play_walk keeps the flash")
+	assert_eq(body.frame, 2)
+	body.frame = 3
+	zombie.set_flashing(false)
+	assert_false(zombie.is_flashing())
+	assert_eq(body.animation, PlayerZombie.ANIM_WALK)
+	assert_eq(body.frame, 3, "back to the walk at the same frame")
+
+
+func test_flashing_from_idle_waits_for_the_walk() -> void:
+	var zombie: PlayerZombie = _zombie()
+	var body: AnimatedSprite2D = _body(zombie)
+	zombie.play_idle()
+	zombie.set_flashing(true)
+	assert_eq(body.animation, PlayerZombie.ANIM_IDLE, "idle is unaffected")
+	zombie.play_idle()
+	assert_eq(body.animation, PlayerZombie.ANIM_IDLE)
+	zombie.play_walk()
+	assert_eq(body.animation, PlayerZombie.ANIM_FLASH)
+
+
+func test_flashing_never_overrides_a_hop_hug_or_dance() -> void:
+	var zombie: PlayerZombie = _still_zombie()
+	var body: AnimatedSprite2D = _body(zombie)
+	zombie.hop(0.4, 12.0)
+	zombie.set_flashing(true)
+	zombie.play_walk()
+	assert_eq(body.animation, PlayerZombie.ANIM_HOP)
+	zombie.stop_hop()
+	zombie.hug(0.4)
+	zombie.play_walk()
+	assert_eq(body.animation, PlayerZombie.ANIM_HUG)
+	zombie.stop_hug()
+	zombie.dance(1.0)
+	zombie.play_walk()
+	assert_eq(body.animation, PlayerZombie.ANIM_DANCE)
+
+
+func test_flashing_without_flash_frames_is_a_no_op() -> void:
+	var zombie: PlayerZombie = _stripped_zombie([PlayerZombie.ANIM_FLASH])
+	zombie.play_walk()
+	zombie.set_flashing(true)
+	assert_false(zombie.is_flashing())
+	zombie.play_walk()
+	assert_eq(_body(zombie).animation, PlayerZombie.ANIM_WALK)
+
+
+func test_melt_steps_its_frames_and_holds_the_last() -> void:
+	var zombie: PlayerZombie = _still_zombie()
+	var body: AnimatedSprite2D = _body(zombie)
+	zombie.play_walk()
+	zombie.set_flashing(true)
+	var tween: Tween = zombie.melt(0.6)
+	assert_not_null(tween)
+	assert_eq(tween, zombie.get_melt_tween())
+	assert_true(zombie.is_melting())
+	assert_false(zombie.is_flashing(), "the melt cuts the flash")
+	assert_eq(body.animation, PlayerZombie.ANIM_MELT)
+	assert_eq(body.frame, 0)
+	assert_false(body.is_playing(), "the tween steps the frames, not the sprite")
+	tween.custom_step(0.1 + 0.001)
+	assert_eq(body.frame, 1, "frame i at i * duration / frames")
+	tween.custom_step(0.25)
+	assert_eq(body.frame, 3)
+	zombie.play_walk()
+	zombie.play_idle()
+	assert_eq(body.animation, PlayerZombie.ANIM_MELT, "play_*() during a melt changes nothing")
+	tween.custom_step(0.3)
+	assert_eq(body.frame, 5, "the last frame at the duration")
+	assert_false(tween.is_running())
+	zombie.play_walk()
+	assert_eq(body.animation, PlayerZombie.ANIM_MELT, "a melted copy stays melted")
+	assert_eq(body.frame, 5)
+
+
+func test_melt_cuts_hop_hug_and_dance() -> void:
+	var zombie: PlayerZombie = _still_zombie()
+	var body: AnimatedSprite2D = _body(zombie)
+	var rest: Vector2 = body.position
+	zombie.dance(1.0)
+	zombie.get_dance_tween().custom_step(0.1)
+	zombie.melt(0.6)
+	assert_false(zombie.is_dancing())
+	assert_eq(body.position, rest, "back at rest")
+	assert_false(body.flip_h)
+	assert_eq(body.animation, PlayerZombie.ANIM_MELT)
+	zombie.hop(0.4, 12.0)
+	zombie.play_walk()
+	assert_true(zombie.is_melting())
+
+
+func test_melt_moves_the_hat_slot_to_the_melt_anchors() -> void:
+	var zombie: PlayerZombie = _still_zombie()
+	var slot: Node2D = zombie.get_node("%HatSlot") as Node2D
+	var anchors: SpriteAnchors = load("res://data/anchors/zombie_anchors.tres") as SpriteAnchors
+	var tween: Tween = zombie.melt(0.6)
+	assert_eq(slot.position, anchors.get_head(PlayerZombie.ANIM_MELT, 0))
+	tween.custom_step(0.61)
+	assert_eq(slot.position, anchors.get_head(PlayerZombie.ANIM_MELT, 5), "the hat rides down onto the puddle")
+
+
+func test_melt_without_melt_frames_returns_null() -> void:
+	var zombie: PlayerZombie = _stripped_zombie([PlayerZombie.ANIM_MELT])
+	zombie.play_walk()
+	assert_null(zombie.melt(0.6))
+	assert_false(zombie.is_melting())
+	assert_eq(_body(zombie).animation, PlayerZombie.ANIM_WALK, "left as it was")

@@ -1,12 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/horde_rush/horde_rush_level.gd" id="1_script"]
 [ext_resource type="Resource" path="res://data/levels/horde_rush.tres" id="2_config"]
-[ext_resource type="Texture2D" uid="uid://do5uyod3aor0i" path="res://assets/sprites/characters/villager/villager_wave.png" id="3_villager"]
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_defender"]
-atlas = ExtResource("3_villager")
-region = Rect2(0, 0, 32, 32)
+[ext_resource type="Texture2D" uid="uid://djor1ecd6fger" path="res://assets/sprites/backdrops/farmhouse/field.png" id="3_field"]
+[ext_resource type="Texture2D" uid="uid://7gpqbgi2rqk0" path="res://assets/sprites/backdrops/farmhouse/farmhouse.png" id="4_farmhouse"]
+[ext_resource type="PackedScene" path="res://scenes/levels/horde_rush/farmer.tscn" id="5_farmer"]
 
 [node name="HordeRushLevel" type="Node2D"]
 script = ExtResource("1_script")
@@ -15,89 +13,22 @@ config = ExtResource("2_config")
 [node name="Field" type="Node2D" parent="."]
 unique_name_in_owner = true
 
-[node name="Sky" type="ColorRect" parent="Field"]
-offset_right = 640.0
-offset_bottom = 36.0
-mouse_filter = 2
-color = Color(0.49411765, 0.78431374, 0.8901961, 1)
+[node name="FieldArt" type="Sprite2D" parent="Field"]
+texture = ExtResource("3_field")
+centered = false
 
-[node name="Lane0" type="ColorRect" parent="Field"]
-offset_top = 36.0
-offset_right = 640.0
-offset_bottom = 80.0
-mouse_filter = 2
-color = Color(0.30588236, 0.6039216, 0.20392157, 1)
-
-[node name="Lane1" type="ColorRect" parent="Field"]
-offset_top = 80.0
-offset_right = 640.0
-offset_bottom = 124.0
-mouse_filter = 2
-color = Color(0.18039216, 0.41960785, 0.14901961, 1)
-
-[node name="Lane2" type="ColorRect" parent="Field"]
-offset_top = 124.0
-offset_right = 640.0
-offset_bottom = 168.0
-mouse_filter = 2
-color = Color(0.30588236, 0.6039216, 0.20392157, 1)
-
-[node name="Lane3" type="ColorRect" parent="Field"]
-offset_top = 168.0
-offset_right = 640.0
-offset_bottom = 212.0
-mouse_filter = 2
-color = Color(0.18039216, 0.41960785, 0.14901961, 1)
-
-[node name="Lane4" type="ColorRect" parent="Field"]
-offset_top = 212.0
-offset_right = 640.0
-offset_bottom = 256.0
-mouse_filter = 2
-color = Color(0.30588236, 0.6039216, 0.20392157, 1)
-
-[node name="HouseEdge" type="ColorRect" parent="Field"]
-offset_left = 546.0
-offset_top = 14.0
-offset_right = 640.0
-offset_bottom = 256.0
-mouse_filter = 2
-color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-
-[node name="HouseWall" type="ColorRect" parent="Field"]
-offset_left = 548.0
-offset_top = 16.0
-offset_right = 640.0
-offset_bottom = 256.0
-mouse_filter = 2
-color = Color(0.5411765, 0.32156864, 0.15686275, 1)
-
-[node name="HouseDoorEdge" type="ColorRect" parent="Field"]
-offset_left = 556.0
-offset_top = 215.0
-offset_right = 582.0
-offset_bottom = 256.0
-mouse_filter = 2
-color = Color(0.11764706, 0.078431375, 0.15686275, 1)
-
-[node name="HouseDoor" type="ColorRect" parent="Field"]
-offset_left = 557.0
-offset_top = 216.0
-offset_right = 581.0
-offset_bottom = 256.0
-mouse_filter = 2
-color = Color(0.3529412, 0.19607843, 0.09411765, 1)
+[node name="Farmhouse" type="Sprite2D" parent="Field"]
+position = Vector2(548, 0)
+texture = ExtResource("4_farmhouse")
+centered = false
 
 [node name="Zombies" type="Node2D" parent="."]
 unique_name_in_owner = true
 y_sort_enabled = true
 
-[node name="Defender" type="Sprite2D" parent="Zombies"]
+[node name="Defender" parent="Zombies" instance=ExtResource("5_farmer")]
 unique_name_in_owner = true
 position = Vector2(520, 74)
-texture = SubResource("AtlasTexture_defender")
-centered = false
-offset = Vector2(-16, -31)
 
 [node name="Projectiles" type="Node2D" parent="."]
 unique_name_in_owner = true

@@ -7,7 +7,8 @@ extends Control
 ## Nearest filter: the 32-color palette strip, each animation at 1x and 3x (PAGE_SIZE per page), a type
 ## specimen in the project font at 16/24/32 px, and a footer with the window scale and background.
 ## Story 3.6 adds the Zombie Run set (hop, hug, dance, poof, party walk, brain block, bonk, brain pop);
-## props are 16x16 frames (an animation's "size", default FRAME).
+## props are 16x16 frames (an animation's "size", default FRAME). Story 6.6 adds the Horde Rush set
+## (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat).
 ## B cycles the plain background (palette colors only), N the animation page, Esc quits. F3/F5/F8/F9 are left alone (the
 ## debug overlay, added by the Router in debug runs, owns them).
 
@@ -30,6 +31,13 @@ const POOF_FPS: float = 12.0
 const BLOCK_IDLE_FPS: float = 8.0
 const BONK_FPS: float = 12.0
 const POP_FPS: float = 8.0
+## Story 6.6: the flash swaps with the walk at the walk's rate; the melt is tween-stepped over melt_s in
+## the game (10 fps at 0.6 s), the throw and the splat play once at 12 fps, the tomato spins at 10 fps.
+const FLASH_FPS: float = WALK_FPS
+const MELT_FPS: float = 10.0
+const FARMER_THROW_FPS: float = 12.0
+const TOMATO_FPS: float = 10.0
+const SPLAT_FPS: float = 12.0
 const ANIMATIONS: Array[Dictionary] = [
 	{"name": "idle", "path": "res://assets/sprites/characters/zombie/zombie_idle.png", "frames": 2, "fps": IDLE_FPS},
 	{"name": "walk", "path": "res://assets/sprites/characters/zombie/zombie_walk.png", "frames": 4, "fps": WALK_FPS},
@@ -43,6 +51,13 @@ const ANIMATIONS: Array[Dictionary] = [
 	{"name": "block_idle", "path": "res://assets/sprites/props/brain_block_idle.png", "frames": 2, "fps": BLOCK_IDLE_FPS, "size": PROP_FRAME},
 	{"name": "block_bonk", "path": "res://assets/sprites/props/brain_block_bonk.png", "frames": 3, "fps": BONK_FPS, "size": PROP_FRAME},
 	{"name": "brain_pop", "path": "res://assets/sprites/props/brain_pop.png", "frames": 2, "fps": POP_FPS, "size": PROP_FRAME},
+	{"name": "flash", "path": "res://assets/sprites/characters/zombie/zombie_flash.png", "frames": 4, "fps": FLASH_FPS},
+	{"name": "melt", "path": "res://assets/sprites/characters/zombie/zombie_melt.png", "frames": 6, "fps": MELT_FPS},
+	{"name": "farmer_idle", "path": "res://assets/sprites/characters/farmer/farmer_idle.png", "frames": 2, "fps": IDLE_FPS},
+	{"name": "farmer_walk", "path": "res://assets/sprites/characters/farmer/farmer_walk.png", "frames": 4, "fps": WALK_FPS},
+	{"name": "farmer_throw", "path": "res://assets/sprites/characters/farmer/farmer_throw.png", "frames": 3, "fps": FARMER_THROW_FPS},
+	{"name": "tomato_fly", "path": "res://assets/sprites/props/tomato_fly.png", "frames": 2, "fps": TOMATO_FPS, "size": PROP_FRAME},
+	{"name": "tomato_splat", "path": "res://assets/sprites/props/tomato_splat.png", "frames": 3, "fps": SPLAT_FPS, "size": PROP_FRAME},
 ]
 ## Animations shown at once (one row of columns); N shows the next page.
 const PAGE_SIZE: int = 4

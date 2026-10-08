@@ -2,7 +2,8 @@ extends GutTest
 ## AudioLibrary lookup, and the shipped library instance. Story 5.1: the final MVP list (FR49, FR50), the
 ## music loops (OGG, looping, 60-120 s), every SFX/voice source file (16-bit PCM mono WAV, peak <= -1 dBFS,
 ## no leading silence, starting and ending at zero), the mix order (music under every effect but the
-## wrong-key tick, the tick the quietest effect), the crossfade and the pause duck.
+## wrong-key tick, the tick the quietest effect), the crossfade and the pause duck. Story 6.6 adds the Horde
+## Rush sounds and march to the same lists, so every rule covers them.
 
 const LIBRARY_PATH: String = "res://data/audio/audio_library.tres"
 
@@ -123,9 +124,10 @@ func test_groan_defaults_are_neutral() -> void:
 
 const SFX_IDS: Array[StringName] = [&"sfx_ui_click", &"sfx_wrong_key", &"sfx_brain_bonk", &"sfx_hug_poof",
 		&"sfx_purchase", &"sfx_chalk_scratch", &"sfx_report_chime",
-		&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04"]
+		&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04",
+		&"sfx_zombie_spawn", &"sfx_tomato_throw", &"sfx_tomato_hit", &"sfx_melt"]
 const VOICE_IDS: Array[StringName] = [&"vo_brainsss"]
-const MUSIC_IDS: Array[StringName] = [&"mus_menu", &"mus_zombie_run"]
+const MUSIC_IDS: Array[StringName] = [&"mus_menu", &"mus_zombie_run", &"mus_horde_rush"]
 ## -1 dBFS as a 16-bit sample value.
 const PEAK_LIMIT: int = 29204
 ## "Silence" for the leading-silence check: about -60 dBFS.
@@ -255,7 +257,7 @@ func test_wrong_key_tick_is_the_quietest_effect() -> void:
 
 func test_burst_cues_are_throttled() -> void:
 	var library: AudioLibrary = _library()
-	for id: StringName in [&"sfx_brain_bonk", &"sfx_hug_poof"]:
+	for id: StringName in [&"sfx_brain_bonk", &"sfx_hug_poof", &"sfx_zombie_spawn", &"sfx_tomato_hit", &"sfx_melt"]:
 		var cue: AudioCue = library.get_cue(id)
 		assert_gt(cue.min_interval_s, 0.0, "%s can't stack in a burst" % id)
 		assert_lt(cue.min_interval_s, 0.1, "%s still plays once per report row / fast key" % id)

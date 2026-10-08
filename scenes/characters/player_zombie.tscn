@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=38 format=3]
 
 [ext_resource type="Script" path="res://scripts/characters/player_zombie.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://brjnih7a64hb6" path="res://assets/sprites/characters/zombie/zombie_idle.png" id="2_idle"]
@@ -8,6 +8,8 @@
 [ext_resource type="Texture2D" uid="uid://bdu3aabah2j5e" path="res://assets/sprites/characters/zombie/zombie_dance.png" id="6_dance"]
 [ext_resource type="PackedScene" path="res://scenes/cosmetics/hat_slot.tscn" id="7_hat_slot"]
 [ext_resource type="Resource" path="res://data/anchors/zombie_anchors.tres" id="8_anchors"]
+[ext_resource type="Texture2D" uid="uid://fqigvxc3f7vv" path="res://assets/sprites/characters/zombie/zombie_flash.png" id="9_flash"]
+[ext_resource type="Texture2D" uid="uid://clwrrcp4qhmha" path="res://assets/sprites/characters/zombie/zombie_melt.png" id="10_melt"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_idle_0"]
 atlas = ExtResource("2_idle")
@@ -72,6 +74,46 @@ region = Rect2(64, 0, 32, 32)
 [sub_resource type="AtlasTexture" id="AtlasTexture_dance_3"]
 atlas = ExtResource("6_dance")
 region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_flash_0"]
+atlas = ExtResource("9_flash")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_flash_1"]
+atlas = ExtResource("9_flash")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_flash_2"]
+atlas = ExtResource("9_flash")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_flash_3"]
+atlas = ExtResource("9_flash")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_melt_0"]
+atlas = ExtResource("10_melt")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_melt_1"]
+atlas = ExtResource("10_melt")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_melt_2"]
+atlas = ExtResource("10_melt")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_melt_3"]
+atlas = ExtResource("10_melt")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_melt_4"]
+atlas = ExtResource("10_melt")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_melt_5"]
+atlas = ExtResource("10_melt")
+region = Rect2(160, 0, 32, 32)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_zombie"]
 animations = [{
@@ -147,6 +189,46 @@ animations = [{
 "loop": true,
 "name": &"dance",
 "speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_flash_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_flash_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_flash_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_flash_3")
+}],
+"loop": true,
+"name": &"flash",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_melt_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_melt_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_melt_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_melt_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_melt_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_melt_5")
+}],
+"loop": false,
+"name": &"melt",
+"speed": 10.0
 }]
 
 [node name="PlayerZombie" type="Node2D"]

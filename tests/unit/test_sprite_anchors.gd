@@ -19,6 +19,8 @@ const SHEETS: Dictionary[String, Dictionary] = {
 		&"hop": ZOMBIE_DIR + "zombie_hop.png",
 		&"hug": ZOMBIE_DIR + "zombie_hug.png",
 		&"dance": ZOMBIE_DIR + "zombie_dance.png",
+		&"flash": ZOMBIE_DIR + "zombie_flash.png",
+		&"melt": ZOMBIE_DIR + "zombie_melt.png",
 	},
 	PROFESSOR_ANCHORS_PATH: {
 		&"point": PROFESSOR_DIR + "professor_point.png",

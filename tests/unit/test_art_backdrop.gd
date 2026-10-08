@@ -4,6 +4,9 @@ extends GutTest
 ## colours, the 640 px seam (a cheap heuristic: a clipped feature fails it, a wrapped one passes), the
 ## ground strip built from the tiles, and pixel-crisp import settings. Backdrop layers and ground tiles are
 ## exempt from the ink-outline rule only. Read from the committed PNG bytes (Image.load_from_file).
+## Story 6.6 adds the Farmhouse layers (Horde Rush): static, never tiled (so no seam test), the same
+## palette/alpha/colour rules, no zombie green in the lanes (a copy must never camouflage) and a doorway
+## per lane on the farmhouse's field edge.
 
 const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const DIR: String = "res://assets/sprites/backdrops/sunny_village_green/"
@@ -24,6 +27,25 @@ const CHALK: String = "f4f1e4"
 ## The Halloween dressing (DESIGN.md): a pumpkin on a fence post and bat-purple bunting.
 const PUMPKIN: String = "f07a1c"
 const BAT_PURPLE: String = "7a4bb3"
+## Farmhouse (Story 6.6): field.png at (0, 0), farmhouse.png at (HOUSE_FRONT_X, 0); horde_rush_level.gd layout.
+const FARM_DIR: String = "res://assets/sprites/backdrops/farmhouse/"
+const FARM_FILES: Dictionary[String, Vector2i] = {
+	"field.png": Vector2i(640, 256),
+	"farmhouse.png": Vector2i(92, 256),
+}
+const FARM_FIELD_TOP_Y: int = 36
+const FARM_LANE_HEIGHT: int = 44
+const FARM_FEET_INSET: int = 6
+const FARM_LANE_COUNT: int = 5
+const HOUSE_FRONT_X: int = 548
+const ZOMBIE_GREEN: String = "6cc24a"
+const ZOMBIE_GREEN_BRIGHT: String = "b8f27c"
+## The farmhouse wall: plank fill, plank seams and the ink corner. Anything else at the field edge is a
+## doorway (the dark opening and its floor).
+const WALL_COLOURS: Array[String] = ["c08447", "8a5228", "1e1428"]
+## The doorway's column band at the farmhouse's field edge, and its shortest opening.
+const DOOR_COLUMNS: int = 4
+const DOOR_MIN_H: int = 24
 
 var _palette: Dictionary[String, bool] = {}
 
@@ -210,6 +232,132 @@ func test_import_settings_lossless_no_mipmaps() -> void:
 	for file: String in _all_files():
 		var config: ConfigFile = ConfigFile.new()
 		var err: Error = config.load(DIR + file + ".import")
+		assert_eq(err, OK, "%s.import missing" % file)
+		if err != OK:
+			continue
+		assert_eq(config.get_value("params", "compress/mode", -1), 0, "%s compress/mode" % file)
+		assert_eq(config.get_value("params", "mipmaps/generate", true), false, "%s mipmaps" % file)
+
+
+# --- Farmhouse (Story 6.6) ---
+
+func _load_farm(file: String) -> Image:
+	var path: String = FARM_DIR + file
+	if not FileAccess.file_exists(path):
+		return null
+	return Image.load_from_file(ProjectSettings.globalize_path(path))
+
+
+## Colours of the opaque pixels in the rect.
+func _rect_colors(image: Image, rect: Rect2i) -> Dictionary[String, bool]:
+	var found: Dictionary[String, bool] = {}
+	for y: int in range(rect.position.y, rect.end.y):
+		for x: int in range(rect.position.x, rect.end.x):
+			if image.get_pixel(x, y).a8 == 255:
+				found[image.get_pixel(x, y).to_html(false)] = true
+	return found
+
+
+func _feet_y(lane: int) -> int:
+	return FARM_FIELD_TOP_Y + FARM_LANE_HEIGHT * (lane + 1) - FARM_FEET_INSET
+
+
+func test_farmhouse_layers_exist_at_their_size() -> void:
+	for file: String in FARM_FILES:
+		var image: Image = _load_farm(file)
+		assert_not_null(image, "%s missing" % file)
+		if image != null:
+			assert_eq(image.get_size(), FARM_FILES[file], "%s size" % file)
+
+
+func test_farmhouse_hard_alpha_and_palette_only() -> void:
+	for file: String in FARM_FILES:
+		var image: Image = _load_farm(file)
+		if image == null:
+			fail_test("%s missing" % file)
+			continue
+		var bad: Array[String] = []
+		for y: int in image.get_height():
+			for x: int in image.get_width():
+				var color: Color = image.get_pixel(x, y)
+				if color.a8 != 0 and color.a8 != 255:
+					bad.append("(%d,%d) alpha %d" % [x, y, color.a8])
+				elif color.a8 == 255 and not _palette.has(color.to_html(false)):
+					bad.append("(%d,%d) rgb %s off palette" % [x, y, color.to_html(false)])
+		assert_eq(bad.size(), 0, "%s: %s" % [file, ", ".join(bad.slice(0, 10))])
+
+
+func test_farmhouse_no_candy_yellow_or_stamp_red() -> void:
+	for file: String in FARM_FILES:
+		var image: Image = _load_farm(file)
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		assert_false(colors.has(CANDY_YELLOW), "%s uses candy-yellow" % file)
+		assert_false(colors.has(STAMP_RED), "%s uses stamp-red" % file)
+
+
+## Where copies walk (the lanes left of the house, and the house's first 8 px below the sky band) there
+## is no zombie-green or zombie-green-bright, so a copy never camouflages.
+func test_no_zombie_green_where_copies_walk() -> void:
+	var field: Image = _load_farm("field.png")
+	var house: Image = _load_farm("farmhouse.png")
+	if field == null or house == null:
+		fail_test("farmhouse layers missing")
+		return
+	var lanes: Dictionary[String, bool] = _rect_colors(field,
+			Rect2i(0, FARM_FIELD_TOP_Y, HOUSE_FRONT_X, field.get_height() - FARM_FIELD_TOP_Y))
+	var front: Dictionary[String, bool] = _rect_colors(house,
+			Rect2i(0, FARM_FIELD_TOP_Y, 8, house.get_height() - FARM_FIELD_TOP_Y))
+	for hex: String in [ZOMBIE_GREEN, ZOMBIE_GREEN_BRIGHT]:
+		assert_false(lanes.has(hex), "field lanes use %s" % hex)
+		assert_false(front.has(hex), "farmhouse front uses %s" % hex)
+
+
+## The field is fully opaque (it is the whole backdrop behind the lanes and the sky).
+func test_field_is_opaque() -> void:
+	var field: Image = _load_farm("field.png")
+	if field == null:
+		fail_test("field.png missing")
+		return
+	assert_eq(field.detect_alpha(), Image.ALPHA_NONE, "field.png has no transparent pixels")
+
+
+## A doorway per lane: in every one of the farmhouse's first DOOR_COLUMNS columns, the run of non-wall
+## pixels (anything but the plank fill, the seams and the ink edge) that ends on the lane's soles row
+## (feet line - 1) is at least DOOR_MIN_H tall, and the feet-line row itself is not part of it (the step).
+## So an arriving copy's soles meet the bottom of its own lane's opening.
+func test_a_doorway_per_lane_on_the_feet_line() -> void:
+	var house: Image = _load_farm("farmhouse.png")
+	if house == null:
+		fail_test("farmhouse.png missing")
+		return
+	for lane: int in FARM_LANE_COUNT:
+		var bottom: int = _feet_y(lane) - 1
+		for x: int in DOOR_COLUMNS:
+			assert_false(_is_opening(house, x, bottom + 1),
+					"lane %d column %d: the opening runs past the feet line" % [lane, x])
+			var run: int = 0
+			while bottom - run >= 0 and _is_opening(house, x, bottom - run):
+				run += 1
+			assert_true(run >= DOOR_MIN_H, "lane %d column %d: opening %d px tall, want >= %d" % [
+					lane, x, run, DOOR_MIN_H])
+
+
+## An opening pixel is opaque and not a wall colour.
+func _is_opening(image: Image, x: int, y: int) -> bool:
+	var color: Color = image.get_pixel(x, y)
+	return color.a8 == 255 and not _is_wall(image, x, y)
+
+
+func _is_wall(image: Image, x: int, y: int) -> bool:
+	return image.get_pixel(x, y).to_html(false) in WALL_COLOURS
+
+
+func test_farmhouse_import_settings_lossless_no_mipmaps() -> void:
+	for file: String in FARM_FILES:
+		var config: ConfigFile = ConfigFile.new()
+		var err: Error = config.load(FARM_DIR + file + ".import")
 		assert_eq(err, OK, "%s.import missing" % file)
 		if err != OK:
 			continue

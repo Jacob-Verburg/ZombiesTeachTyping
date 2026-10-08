@@ -21,12 +21,21 @@ extends Node2D
 ## do nothing (the level calls play_walk() every frame). The one-shots are not looping and hold their
 ## last frame; the first play_*() after the tween ends takes over again. stop_hop() and stop_hug() never
 ## change the animation.
+## Flash (Story 6.6, Horde Rush hits): set_flashing(true) makes the walk show the flash frames (the walk
+## recoloured, the same silhouette), swapped at the same frame index and progress so the march never
+## stutters; set_flashing(false) swaps back. play_idle() and the one-shots are unaffected. A no-op without
+## a flash animation (a stripped SpriteFrames).
+## Melt (Story 6.6, a Horde Rush copy's final hit): melt() cuts the hop, hug, dance and flash and steps the
+## melt frames with a node-bound tween across the given time, holding the last (a small puddle). Once
+## melting, the copy stays melted: every play_*() does nothing. Returns null without a melt animation.
 
 const ANIM_IDLE: StringName = &"idle"
 const ANIM_WALK: StringName = &"walk"
 const ANIM_DANCE: StringName = &"dance"
 const ANIM_HOP: StringName = &"hop"
 const ANIM_HUG: StringName = &"hug"
+const ANIM_FLASH: StringName = &"flash"
+const ANIM_MELT: StringName = &"melt"
 ## Character sprite size (art standard, NFR13); the level derives the hop height from it.
 const SIZE_PX: float = 32.0
 ## Hug lean (look value, not a GDD number): how far Body leans forward at the middle of the hug.
@@ -44,6 +53,11 @@ var _hug_tween: Tween
 var _dance_tween: Tween
 ## True while a dance without dance frames flips Body on the beat.
 var _dance_flips: bool = false
+## True while a hit flash shows (the walk plays the flash frames).
+var _flashing: bool = false
+## Set by melt(), never cleared: a melted copy does not get up again.
+var _melting: bool = false
+var _melt_tween: Tween
 
 @onready var _body: AnimatedSprite2D = $Body
 
@@ -61,8 +75,63 @@ func play_idle() -> void:
 	_play(ANIM_IDLE)
 
 
+## The walk, or its flash frames while flashing.
 func play_walk() -> void:
-	_play(ANIM_WALK)
+	_play(ANIM_FLASH if _flashing else ANIM_WALK)
+
+
+## Turns the hit flash on or off. While the walk (or the flash) is showing it swaps at once, keeping the
+## frame; otherwise the next play_walk() picks it up. A no-op without a flash animation.
+func set_flashing(on: bool) -> void:
+	if on == _flashing or not _has_animation(ANIM_FLASH):
+		return
+	_flashing = on
+	if _body.animation == ANIM_WALK or _body.animation == ANIM_FLASH:
+		play_walk()
+
+
+func is_flashing() -> bool:
+	return _flashing
+
+
+## Melts over `duration_s`: cuts the hop, the hug, the dance and the flash, shows the melt's first frame
+## and returns the node-bound tween that steps frame i at i * duration_s / frames and holds the last.
+## The caller may append to the tween (the level frees the copy at its end). Null without a melt
+## animation, and the copy is left as it was.
+func melt(duration_s: float) -> Tween:
+	if not _has_animation(ANIM_MELT):
+		return null
+	stop_hop()
+	stop_hug()
+	_kill_dance()
+	_reset_dance()
+	_flashing = false
+	_melting = true
+	if _melt_tween != null and _melt_tween.is_valid():
+		_melt_tween.kill()
+	_body.stop()
+	_body.animation = ANIM_MELT
+	_body.frame = 0
+	_melt_tween = create_tween()
+	_melt_tween.tween_method(_set_melt_t, 0.0, float(_body.sprite_frames.get_frame_count(ANIM_MELT)),
+			maxf(duration_s, 0.0))
+	return _melt_tween
+
+
+func is_melting() -> bool:
+	return _melting
+
+
+## The current melt tween (null before melt()). For tests.
+func get_melt_tween() -> Tween:
+	return _melt_tween
+
+
+## `t` counts frames; the last frame is held.
+func _set_melt_t(t: float) -> void:
+	var frame: int = mini(floori(t), _body.sprite_frames.get_frame_count(ANIM_MELT) - 1)
+	if _body.animation == ANIM_MELT and _body.frame != frame:
+		_body.frame = frame
 
 
 ## Starts a hop of `height_px` over `duration_s`, cutting any running hop. Fire-and-forget: the tween is
@@ -212,14 +281,24 @@ func _kill_dance() -> void:
 
 
 ## Restarts only when the animation changes, so calling it every frame keeps the loop smooth. Does
-## nothing while a hop, hug or dance owns the animation.
+## nothing while a hop, hug or dance owns the animation, or once melting. Walk <-> flash keeps the frame
+## and its progress, so the legs never jump.
 func _play(anim: StringName) -> void:
-	if _body.sprite_frames == null:
+	if _body.sprite_frames == null or not _body.sprite_frames.has_animation(anim):
 		return
-	if is_hopping() or is_hugging() or is_dancing():
+	if _melting or is_hopping() or is_hugging() or is_dancing():
 		return
 	if _body.animation != anim or not _body.is_playing():
+		var swap: bool = _is_walk_pair(_body.animation) and _is_walk_pair(anim)
+		var frame: int = _body.frame
+		var progress: float = _body.frame_progress
 		_body.play(anim)
+		if swap:
+			_body.set_frame_and_progress(frame, progress)
+
+
+func _is_walk_pair(anim: StringName) -> bool:
+	return anim == ANIM_WALK or anim == ANIM_FLASH
 
 
 ## Starts a one-shot (or the dance) from its first frame, if the SpriteFrames has it.
