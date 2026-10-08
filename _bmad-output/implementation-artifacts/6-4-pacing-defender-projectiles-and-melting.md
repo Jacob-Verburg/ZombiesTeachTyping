@@ -4,7 +4,7 @@ baseline_commit: ac148325bc19e389b98154f37f50714e1e293ba0
 
 # Story 6.4: Pacing Defender, Projectiles and Melting
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -218,3 +218,10 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code dev-story workflow.
 
 - 2026-10-07: Story created (ready-for-dev). Ultimate context engine analysis completed - comprehensive developer guide created.
 - 2026-10-07: Implemented the pacing defender, projectiles, hit flash and melt (pure `HordeDefender`/`HordeProjectile`, field hit API, config numbers, level wiring with substeps, placeholder views), 51 new tests (1490 passing), screenshots, feel note for 6.7. Status → review.
+
+### Review Findings
+
+- [x] [Review][Patch] Stale `_flash_tweens` entry when a flashing copy arrives at the house; erase it in `_on_marcher_arrived` [scripts/levels/horde_rush/horde_rush_level.gd:398]
+- [x] [Review][Patch] `_reset` iterates `_melt_tweens` with a typed `PlayerZombie` loop variable; a view freed externally would abort the reset. Iterate untyped and check `is_instance_valid` [scripts/levels/horde_rush/horde_rush_level.gd:169]
+- [x] [Review][Patch] Integration test resets `get_tree().paused = false` only at the end, so a failed assertion leaves the tree paused for later tests; move cleanup to `after_each` [tests/integration/test_run_frame.gd:1714]
+- [x] [Review][Defer] Projectile views and tomatoes freeze mid-air after `on_run_ending` until `_reset`; 6.5's outro must clear them [scripts/levels/horde_rush/horde_rush_level.gd] — deferred, belongs to story 6.5

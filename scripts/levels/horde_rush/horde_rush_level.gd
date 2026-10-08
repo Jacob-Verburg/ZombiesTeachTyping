@@ -166,10 +166,10 @@ func _reset() -> void:
 	for tween: Tween in _flash_tweens.values():
 		tween.kill()
 	_flash_tweens.clear()
-	for view: PlayerZombie in _melt_tweens:
+	for view: Variant in _melt_tweens:
 		_melt_tweens[view].kill()
 		if is_instance_valid(view):
-			view.queue_free()
+			(view as PlayerZombie).queue_free()
 	_melt_tweens.clear()
 	for tomato: Node2D in _projectile_views.values():
 		if is_instance_valid(tomato):
@@ -398,5 +398,6 @@ func _on_melt_done(view: PlayerZombie) -> void:
 func _on_marcher_arrived(marcher: HordeMarcher) -> void:
 	var view: PlayerZombie = _views.get(marcher.id) as PlayerZombie
 	_views.erase(marcher.id)
+	_flash_tweens.erase(marcher.id)
 	if view != null:
 		view.queue_free()

@@ -533,3 +533,7 @@
 
 - Feel input for 6.7 (not tuned here): a headless minute on the shipped GDD starting numbers (0.6 / 0.8 / 1.0, no overkill avoidance, 10 seeds, the rest of the copies allowed to finish) lets through about 1% of copies at 10 WPM, 6% at 20, 11% at 25-30 and 20% at 40 WPM, far below the 40%/70% targets. The defender as specified is strong; 6.7 owns the numbers (or a weaker-defender config flag).
 - Cross-ref the 6.3 huge-delta item above: 6.4's `_process` now splits a long frame into equal steps of at most 1/30 s, so a hitch no longer skips throws or contacts, but the total is still uncapped (a 10 s hitch = 300 logic steps in one frame and still marches copies home). The 6.5 cap fixes both the brain burst and the step count.
+
+## Deferred from: code review of story-6.4 (2026-10-07)
+
+- Projectile views and tomatoes freeze mid-air after `on_run_ending` (`_frozen` stops `_process`) and stay on screen until `_reset`; the 6.5 outro must clear them.

@@ -32,6 +32,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	get_tree().paused = false
 	Router.take_payload()
 	_restore_audio()
 	assert_false(AudioManager.is_ambience_on(), "a run frame left ambience on")
@@ -1711,4 +1712,3 @@ func test_horde_rush_defender_paces_after_the_first_key_and_stops_on_pause() -> 
 	frame._process(1.0)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_result().brains, 0)
-	get_tree().paused = false
