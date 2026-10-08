@@ -1,8 +1,8 @@
 class_name StatsCalculator
 ## The report card's formulas (FR7) in one place: Accuracy, WPM (with implied spaces) and Lesson Time (m:ss).
-## Pure and static: no nodes, no autoloads, no clock. The live HUD WPM (Story 2.5), RunResult and the
-## tier rolling average (Epic 7) all call it. Every result rounds down: a kid sees 100 % only with
-## zero errors, and WPM never overstates.
+## Pure and static: no nodes, no autoloads, no clock. The live HUD WPM (Story 2.5) and RunResult call it;
+## the tier rolling average (TierCalculator) averages the stored record wpm instead. Every result rounds
+## down: a kid sees 100 % only with zero errors, and WPM never overstates.
 
 ## Characters per word in the standard WPM definition (a formula constant, not a balance number).
 const CHARS_PER_WORD: int = 5

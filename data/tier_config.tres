@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TierConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/tier_config.gd" id="1_tier"]
+
+[resource]
+script = ExtResource("1_tier")
+tier_floors = Array[float]([0.0, 8.0, 15.0, 22.0, 30.0])
+drop_margin_wpm = 2.0
+window_runs = 5
+level_wpm_scale = Dictionary[StringName, float]({})
+ignored_levels = Array[StringName]([&"test_level", &"test_word_level"])

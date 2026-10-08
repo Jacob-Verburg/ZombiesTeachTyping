@@ -19,6 +19,11 @@ from datetime import datetime
 DASH = "—"
 TOP_KEYS = 5
 ACCURACY_TARGET = 85  # GDD Pillar 2: median accuracy >= 85 %.
+# Mirrors TierCalculator (Story 7.1): which runs count, which levels never do, and the window size.
+# Keep in step with GameConstants.END_REASON_* and data/tier_config.tres.
+COMPLETED_END_REASONS = ("timer", "caught", "escaped")
+TIER_IGNORED_LEVELS = ("test_level", "test_word_level")
+TIER_WINDOW_RUNS = 5
 
 
 class Summary:
@@ -120,6 +125,23 @@ def merge_per_key(runs: list[dict], s: Summary) -> list[dict]:
     return rows[:TOP_KEYS]
 
 
+def per_level_wpm(rows: list[dict]) -> dict:
+    """Per-level WPM of completed runs (Story 7.1 weighting review), plus the newest-5 rolling average the
+    game's TierCalculator would compute: all levels together, no weighting, debug levels left out."""
+    counted = [r for r in rows if r["end_reason"] in COMPLETED_END_REASONS
+            and r["wpm"] is not None and r["wpm"] >= 0]
+    levels: dict[str, list] = {}
+    for r in counted:
+        levels.setdefault(r["level_id"] or DASH, []).append(r["wpm"])
+    window = [r["wpm"] for r in counted if r["level_id"] not in TIER_IGNORED_LEVELS][-TIER_WINDOW_RUNS:]
+    return {
+        "levels": {level: {"runs": len(wpms), "mean_wpm": as_num(round(statistics.mean(wpms), 1)),
+                "median_wpm": as_num(round(statistics.median(wpms), 1))} for level, wpms in levels.items()},
+        "rolling_avg_wpm": as_num(round(statistics.mean(window), 2)) if window else None,
+        "rolling_runs": len(window),
+    }
+
+
 def summarize(data, s: Summary) -> dict:
     if not isinstance(data, dict):
         s.warn("save is not a JSON object")
@@ -203,6 +225,7 @@ def summarize(data, s: Summary) -> dict:
             "settings": {k: flag(settings, k) for k in ("music_on", "sound_on")},
         },
         "top_missed_keys": merge_per_key(runs, s),
+        "per_level": per_level_wpm(rows),
         "warnings": s.warnings,
     }
 
@@ -260,6 +283,15 @@ def print_text(result: dict, path: str) -> None:
     for k in result["top_missed_keys"]:
         print(f"  {k['key']!r}: {k['errors']} of {k['attempts']} wrong ({show(k['error_pct'], ' %')}),"
                 f" most often typed {show(k['most_common_wrong'] and repr(k['most_common_wrong']))}")
+    print()
+    pl = result["per_level"]
+    print("Per-level WPM (completed runs):")
+    if not pl["levels"]:
+        print("  none")
+    for level, v in pl["levels"].items():
+        print(f"  {level}: {v['runs']} runs · mean {show(v['mean_wpm'])} · median {show(v['median_wpm'])}")
+    print(f"Rolling average (newest {TIER_WINDOW_RUNS}, all levels, no weighting):"
+            f" {show(pl['rolling_avg_wpm'])} ({pl['rolling_runs']} runs)")
     for w in result["warnings"]:
         print(f"warning: {w}", file=sys.stderr)
 
@@ -305,6 +337,25 @@ def selftest() -> int:
             {"profiles": {"p1": {"run_history": [{"wpm": "fast"}]}}}, Summary())["warnings"]), True),
         ("negative duration shows a dash", mmss(-5), DASH),
         ("malformed per_key warned", any("per_key['x']" in w for w in r["warnings"]), True),
+        ("per-level runs", r["per_level"]["levels"]["zombie_run"]["runs"], 2),
+        ("per-level mean", r["per_level"]["levels"]["zombie_run"]["mean_wpm"], 7.5),
+        ("per-level median", r["per_level"]["levels"]["zombie_run"]["median_wpm"], 7.5),
+        ("rolling average", (r["per_level"]["rolling_avg_wpm"], r["per_level"]["rolling_runs"]), (7.5, 2)),
+    ]
+    # Per-level split, newest-5 window, quit / debug-level / junk runs left out (TierCalculator's rules).
+    hist = [{"level_id": "zombie_run", "wpm": w, "end_reason": "timer"} for w in (40, 10, 12)]
+    hist += [{"level_id": "horde_rush", "wpm": w, "end_reason": "timer"} for w in (14, 20, 17)]
+    hist += [{"level_id": "zombie_run", "wpm": 90, "end_reason": "quit"},
+            {"level_id": "test_level", "wpm": 90, "end_reason": "timer"},
+            {"level_id": "zombie_run", "wpm": "fast", "end_reason": "timer"}]
+    pl = summarize({"profiles": {"p1": {"run_history": hist}}}, Summary())["per_level"]
+    checks += [
+        ("per-level zombie_run", pl["levels"]["zombie_run"], {"runs": 3, "mean_wpm": 20.7, "median_wpm": 12}),
+        ("per-level horde_rush", pl["levels"]["horde_rush"], {"runs": 3, "mean_wpm": 17, "median_wpm": 17}),
+        ("debug level listed but not in the rolling window", pl["levels"]["test_level"]["runs"], 1),
+        ("rolling average newest 5", (pl["rolling_avg_wpm"], pl["rolling_runs"]), (14.6, 5)),
+        ("no completed runs", summarize({}, Summary())["per_level"],
+            {"levels": {}, "rolling_avg_wpm": None, "rolling_runs": 0}),
     ]
     # Broken saves must summarize and print, not crash.
     nasty = {"profiles": {"p1": {"brains": float("inf"), "run_history": [

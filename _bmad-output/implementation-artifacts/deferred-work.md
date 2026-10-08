@@ -150,7 +150,7 @@
 
 ## Deferred from: code review of story-2-3-stats-calculator-and-run-result (2026-10-04)
 
-- Run record `duration_s` is floored to whole seconds while `wpm` is computed from the unrounded duration, so recomputing WPM from a saved record (Epic 7 tier rolling average) can differ by 1 from the stored value. Use the stored `wpm`, or store a finer duration, when Epic 7 lands.
+- ~~Run record `duration_s` is floored to whole seconds while `wpm` is computed from the unrounded duration, so recomputing WPM from a saved record (Epic 7 tier rolling average) can differ by 1 from the stored value. Use the stored `wpm`, or store a finer duration, when Epic 7 lands.~~ Done in 7.1: TierCalculator averages the stored wpm.
 
 ## Deferred from: dev of story-2-4 (2026-10-04)
 
@@ -586,3 +586,14 @@
 - `LevelRegistry.validate()` is only called from tests, never at runtime; a malformed `unlocked_by` in a future registry edit would leave a card Locked forever. Shipped registry is test-checked.
 - Level-card moment tests use real-time `wait_seconds` with ~0.05 s slack (flake risk on slow runners), and nothing automates the Router-fade-pauses-the-moment behavior.
 - `debug_set_all_unlocked(false)` (Relock all) wipes unlocks with no confirm; verify the debug overlay is stripped from release exports.
+
+## Deferred from: dev of story-7-1 (2026-10-08)
+
+- Per-level WPM weighting (Gate A, Smuck 2026-10-08: option (b) no weighting now): `level_wpm_scale` ships empty. The dev save held 1 Zombie Run run (18 WPM) and no Horde Rush runs. Revisit with `tools/playtest/summarize_save.py` (Per-level WPM block) once a real kid save with >= 3 runs on each level exists; Pitchfork Panic gets its own review in 8.7.
+- `summarize_save.py` mirrors TierCalculator's completed end reasons, ignored levels and window (`COMPLETED_END_REASONS`, `TIER_IGNORED_LEVELS`, `TIER_WINDOW_RUNS`) by hand; nothing checks them against `data/tier_config.tres`. Dev tool only.
+
+## Deferred from: code review of story-7-1-tier-calculator-with-hysteresis (2026-10-08)
+
+- `TierCalculator` never calls `TierConfig.validate()`; a hand-edited or neutral config (window_runs 0, empty or unsorted floors, NaN/negative scale) silently returns NO_AVERAGE or tier 1. Validate (and log) at the load site in Story 7.2.
+- Records with `StringName` `level_id` / `end_reason` are treated as not-ignored / not-completed. `RunResult.to_record()` writes Strings, so only hand-built records are affected.
+- `TierConfig.floor_of` returns 0.0 for an out-of-range tier; safe today because `next_tier` range-guards `current`.

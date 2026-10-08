@@ -105,8 +105,8 @@ development_status:
   6-8-level-unlocks: done
   epic-6-retrospective: optional
 
-  epic-7: backlog
-  7-1-tier-calculator-with-hysteresis: backlog
+  epic-7: in-progress
+  7-1-tier-calculator-with-hysteresis: done
   7-2-placement-run-and-hidden-tier: backlog
   7-3-master-word-list: backlog
   7-4-tier-word-pools-and-validation: backlog
