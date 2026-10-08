@@ -12,32 +12,44 @@ extends LevelBase
 ## spawns the logical marcher first and then its sprite, in the key's own call. _process() advances the
 ## field and sets each sprite's x from progress(); a sprite's position is never read back for gameplay.
 ## The tree pause (PAUSED, COUNTDOWN) stops _process, so nothing marches; after on_run_ending() the march
-## is frozen where it is and no copy arrives.
+## is frozen where it is and no copy arrives (so nothing pays after the end).
 ##
 ## Randomness (LevelBase rule: children of the run RNG): words first (the WordSource's child RNG, so a
 ## seed keeps its words), lanes second (HordeField's child RNG, one draw per spawn). The run RNG itself is
-## unused for now and reserved; Story 6.5 takes it or a third child, so the lanes never shift.
+## unused (6.5's Brainsss has no roll; AudioManager's voice gap throttles it).
 ##
 ## Defender (Story 6.4, FR56): HordeDefender (pure, no RNG at all) paces the lanes in front of the house
 ## and throws projectiles that hit, flash and stop copies. It runs only from on_run_started() until
 ## on_run_ending(); the tree pause freezes it with everything else. Step order, every logic step:
 ## field.advance(dt) first (arrivals, so a copy that reaches the house in a step is safe), then
 ## defender.advance(dt, field) (projectiles land in throw order, then pacing and the cooldown, then at
-## most one throw). _process() splits a long frame into equal steps of at most MAX_STEP_S, so a hitch
-## never skips a throw or a contact, then updates every view once. A hit copy flashes for hit_flash_s; a
+## most one throw). _process() caps a frame at MAX_FRAME_S (a longer hitch is dropped, so it can never pay
+## a burst of brains or run hundreds of steps) and splits it into equal steps of at most MAX_STEP_S, so a
+## hitch never skips a throw or a contact, then updates every view once. A hit copy flashes for hit_flash_s; a
 ## stopped copy leaves the march at once and squashes into the ground over melt_s (a self-freeing
 ## one-shot that never gates input), earning nothing.
 ## Placeholders, palette only: the defender is the villager sprite, a tomato is two ColorRects (ink edge,
 ## pumpkin fill: stamp red is reserved, DESIGN.md D16), the flash is a hard modulate tint and the melt is
 ## a squash at the feet.
 ##
-## Still to come: arrival brains, the shuffle-in and "Brainsss" in place of _on_marcher_arrived, the +25
-## bonus and the outro (6.5); Farmhouse art, the Farmer, the tomato, flash and melt art, the march music
-## and the throw/hit/melt sounds (6.6).
+## Arrivals (Story 6.5, FR57): a copy HordeField returns as arrived pays its class's arrival_brains to the
+## run total in the same logic step, before any visual; a paying arrival emits brains_earned_changed (the
+## HUD counter, through RunFrame) and every arrival asks for "Brainsss" through request_voice (no roll:
+## AudioManager's voice gap is the throttle). Then the visuals chase: the copy's sprite leaves the march,
+## shuffles into the house (a self-freeing one-shot) and a "+N" brain pop rises from the house front.
+## The outro: on_run_ending() freezes everything, clears the tomatoes in the air and makes every marching
+## copy dance for outro_time_s, which RunFrame waits before the report card. The +25 completion bonus is
+## horde_rush.tres's completion_bonus, which RunFrame adds (never on quit).
+## Placeholders, palette only: the shuffle is a slide and an edge-on squash, the pop is the shared brain.
+##
+## Still to come: Farmhouse art, the Farmer, the tomato, flash/melt/arrival art, the march music and the
+## spawn/throw/hit/melt sounds (6.6); tuning, economy parity and the stress check (6.7); unlocks (6.8).
 
 const PLAYER_ZOMBIE_SCENE: PackedScene = preload("res://scenes/characters/player_zombie.tscn")
 ## Placeholder tomato (Story 6.6 draws the real one).
 const TOMATO_SCENE: PackedScene = preload("res://scenes/levels/horde_rush/tomato.tscn")
+## Placeholder "+N" brain pop over the house front (Story 6.6 may replace it).
+const ARRIVAL_POP_SCENE: PackedScene = preload("res://scenes/levels/horde_rush/arrival_pop.tscn")
 
 ## Layout values (UX, mock key-run-hud frame B, not GDD tuning numbers), in playfield px.
 const FIELD_TOP_Y: float = 36.0
@@ -65,6 +77,20 @@ const HIT_FLASH_MODULATE: Color = Color(1.0, 0.45, 0.4)
 const MELT_SPREAD: float = 1.3
 ## Robustness, not a GDD number: the longest logic step; a longer frame is split into equal steps.
 const MAX_STEP_S: float = 1.0 / 30.0
+## Robustness, not a GDD number: a hitch longer than this is dropped: the field falls a little behind
+## RunClock, invisible, and no burst of brains. 0.5 s is exactly 15 steps.
+const MAX_FRAME_S: float = 0.5
+## Look values (not GDD numbers; Story 6.6 may replace them): an arriving copy slides this far into the
+## door while it squashes edge-on, over this long.
+const SHUFFLE_S: float = 0.3
+const SHUFFLE_PX: float = 8.0
+## Layout: the highest a pop may start (its origin is the brain's bottom), so a big copy's pop in lane 0
+## stays on screen after it rises (16 px brain + HordeArrivalPop.RISE_PX).
+const POP_MIN_Y: float = 32.0
+
+## Test seam: how the level asks for a voice line. _ready() points it at AudioManager.play_voice unless
+## a test assigned a recorder before add_child.
+var request_voice: Callable
 
 var _cfg: HordeRushConfig
 var _source: WordSource
@@ -82,13 +108,20 @@ var _projectile_views: Dictionary[int, Node2D] = {}
 var _flash_tweens: Dictionary[int, Tween] = {}
 ## Stopped copies still melting, with their melt tween.
 var _melt_tweens: Dictionary[PlayerZombie, Tween] = {}
+## Arrived copies still shuffling into the house, with their shuffle tween.
+var _shuffle_tweens: Dictionary[PlayerZombie, Tween] = {}
+## The logical run total of arrival brains (FR57).
+var _brains: int = 0
 
 @onready var _zombies: Node2D = %Zombies
 @onready var _projectiles: Node2D = %Projectiles
 @onready var _defender_view: Node2D = %Defender
+@onready var _effects: Node2D = %Effects
 
 
 func _ready() -> void:
+	if not request_voice.is_valid():
+		request_voice = AudioManager.play_voice
 	_cfg = config as HordeRushConfig
 	if _cfg == null:
 		assert(false, "HordeRushLevel needs a HordeRushConfig")
@@ -157,7 +190,8 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 	return _source
 
 
-## A fresh run on this node: drop every old sprite, tomato and melt, stop the defender and un-freeze.
+## A fresh run on this node: drop every old sprite, tomato, melt, shuffle and pop, stop the defender,
+## zero the brains and un-freeze.
 func _reset() -> void:
 	for view: PlayerZombie in _views.values():
 		if is_instance_valid(view):
@@ -171,12 +205,21 @@ func _reset() -> void:
 		if is_instance_valid(view):
 			(view as PlayerZombie).queue_free()
 	_melt_tweens.clear()
+	for view: Variant in _shuffle_tweens:
+		_shuffle_tweens[view].kill()
+		if is_instance_valid(view):
+			(view as PlayerZombie).queue_free()
+	_shuffle_tweens.clear()
+	if _effects != null:
+		for effect: Node in _effects.get_children():
+			effect.queue_free()
 	for tomato: Node2D in _projectile_views.values():
 		if is_instance_valid(tomato):
 			tomato.queue_free()
 	_projectile_views.clear()
 	_defender_running = false
 	_frozen = false
+	_brains = 0
 
 
 ## The first correct key: the defender starts pacing.
@@ -206,19 +249,36 @@ func on_target_completed(target: String) -> void:
 	_views[marcher.id] = view
 
 
-## Freezes the march, the defender and every tomato in the air where they are (nothing lands after the
-## end); running flashes and melts may finish, they are visual one-shots. The outro is Story 6.5.
+## The outro (FR57): freezes the march and the defender where they are (nothing lands or arrives after the
+## end), removes the tomatoes in the air (a frozen tomato looks broken) and makes every marching copy dance
+## in place; running melts and shuffles may finish, they are visual one-shots. Returns outro_time_s, the
+## seconds RunFrame waits before the report card; a second call changes nothing.
 func on_run_ending(_reason: StringName) -> float:
+	if _cfg == null:
+		return 0.0
+	if _frozen:
+		return _cfg.outro_time_s
 	_frozen = true
 	_defender_running = false
-	for view: PlayerZombie in _views.values():
-		view.play_idle()
-	return 0.0
+	# The defender's logical projectiles stay as they are: nothing advances them any more.
+	for tomato: Node2D in _projectile_views.values():
+		if is_instance_valid(tomato):
+			tomato.queue_free()
+	_projectile_views.clear()
+	for id: int in _views:
+		var flash: Tween = _flash_tweens.get(id) as Tween
+		if flash != null:
+			flash.kill()
+		var view: PlayerZombie = _views[id]
+		view.modulate = Color.WHITE
+		view.dance(_cfg.outro_time_s)
+	_flash_tweens.clear()
+	return _cfg.outro_time_s
 
 
-## Arrival brains are Story 6.5.
+## The arrival brains of this run so far (FR57); stopped copies add nothing.
 func get_brains_earned() -> int:
-	return 0
+	return _brains
 
 
 func get_field() -> HordeField:
@@ -273,11 +333,21 @@ func get_melt_tween(view: PlayerZombie) -> Tween:
 	return _melt_tweens.get(view) as Tween
 
 
+func get_shuffling_count() -> int:
+	return _shuffle_tweens.size()
+
+
+## The shuffle tween of an arrived copy's sprite (for tests); null when it is not shuffling in.
+func get_shuffle_tween(view: PlayerZombie) -> Tween:
+	return _shuffle_tweens.get(view) as Tween
+
+
 func _process(delta: float) -> void:
 	if _field == null or _frozen:
 		return
 	if not (delta > 0.0 and is_finite(delta)):
 		return
+	delta = minf(delta, MAX_FRAME_S)
 	# Equal steps of at most MAX_STEP_S; the slack keeps a 0.5 s frame at 15 steps, not 16.
 	var steps: int = maxi(1, ceili(delta / MAX_STEP_S - 1e-6))
 	var dt: float = delta / steps
@@ -393,11 +463,55 @@ func _on_melt_done(view: PlayerZombie) -> void:
 	view.queue_free()
 
 
-## A copy reached the house: Story 6.3 just frees its sprite. Story 6.5 replaces this with the shuffle-in,
-## "Brainsss" and the arrival brains.
+## A copy reached the house (called only from _logic_step). Logic first: its class's brains go to the run
+## total and the HUD hears of it; every arrival asks for "Brainsss". Then the visuals chase: the sprite
+## leaves the march and shuffles in, and a "+N" pop rises. A copy without a sprite still pays.
 func _on_marcher_arrived(marcher: HordeMarcher) -> void:
+	var gained: int = marcher.size_class.arrival_brains
+	if gained > 0:
+		_brains += gained
+		brains_earned_changed.emit(_brains)
+	Log.debug(&"level", "horde rush: copy %d arrived, +%d brains" % [marcher.id, gained])
+	if request_voice.is_valid():
+		request_voice.call(&"vo_brainsss")
 	var view: PlayerZombie = _views.get(marcher.id) as PlayerZombie
 	_views.erase(marcher.id)
+	var flash: Tween = _flash_tweens.get(marcher.id) as Tween
 	_flash_tweens.erase(marcher.id)
+	if flash != null:
+		flash.kill()
+	_spawn_pop(marcher, gained)
 	if view != null:
-		view.queue_free()
+		_shuffle_in(view)
+
+
+## The copy steps through the door: it slides SHUFFLE_PX right while squashing edge-on, then is freed. No
+## fade (pixel-art rule); it never gates input or logic.
+func _shuffle_in(view: PlayerZombie) -> void:
+	view.modulate = Color.WHITE
+	view.play_walk()
+	var tween: Tween = view.create_tween().set_parallel()
+	tween.tween_property(view, "position:x", view.position.x + SHUFFLE_PX, SHUFFLE_S)
+	tween.tween_property(view, "scale:x", 0.0, SHUFFLE_S)
+	tween.chain().tween_callback(_on_shuffle_done.bind(view))
+	_shuffle_tweens[view] = tween
+
+
+func _on_shuffle_done(view: PlayerZombie) -> void:
+	_shuffle_tweens.erase(view)
+	view.queue_free()
+
+
+## The "+N" pop above the arrived copy's head at the house front; none when it paid nothing.
+func _spawn_pop(marcher: HordeMarcher, gained: int) -> void:
+	if gained <= 0 or _effects == null:
+		return
+	var pop: HordeArrivalPop = ARRIVAL_POP_SCENE.instantiate() as HordeArrivalPop
+	if pop == null:
+		Log.error(&"level", "horde rush: arrival_pop.tscn root is not a HordeArrivalPop")
+		return
+	var sprite_scale: float = marcher.size_class.sprite_scale
+	pop.setup(gained)
+	var head_y: float = lane_feet_y(marcher.lane) - PlayerZombie.SIZE_PX * sprite_scale
+	pop.position = Vector2(arrive_x(sprite_scale), maxf(head_y, POP_MIN_Y))
+	_effects.add_child(pop)

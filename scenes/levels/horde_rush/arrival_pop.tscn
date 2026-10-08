@@ -1,0 +1,50 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/horde_rush/arrival_pop.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://bcnrwylcyvggs" path="res://assets/sprites/props/brain_pop.png" id="2_pop"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pop_0"]
+atlas = ExtResource("2_pop")
+region = Rect2(0, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pop_1"]
+atlas = ExtResource("2_pop")
+region = Rect2(16, 0, 16, 16)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_pop"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pop_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pop_1")
+}],
+"loop": true,
+"name": &"brain_pop",
+"speed": 8.0
+}]
+
+[node name="ArrivalPop" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(-8, -15)
+sprite_frames = SubResource("SpriteFrames_pop")
+animation = &"brain_pop"
+autoplay = "brain_pop"
+centered = false
+
+[node name="Amount" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = -44.0
+offset_top = -19.0
+offset_right = -9.0
+offset_bottom = 1.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+theme_override_font_sizes/font_size = 16
+text = "+1"
+horizontal_alignment = 2
+vertical_alignment = 1

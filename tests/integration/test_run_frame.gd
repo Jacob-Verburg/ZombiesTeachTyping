@@ -1640,6 +1640,8 @@ func test_word_live_wpm_counts_implied_spaces() -> void:
 # --- Horde Rush (Story 6.3): the real horde_rush level, hidden from the menu ----------------------
 
 const HordeRushScript := preload("res://scripts/levels/horde_rush/horde_rush_level.gd")
+## A seed whose 8 instant words let some copies past the defender within 12 s (Story 6.5).
+const HORDE_ARRIVAL_SEED: int = 7
 
 
 func test_horde_rush_spawns_a_copy_on_a_completed_word() -> void:
@@ -1662,7 +1664,7 @@ func test_horde_rush_spawns_a_copy_on_a_completed_word() -> void:
 	assert_eq(level.get_field().get_marching()[0].word, word)
 
 
-func test_horde_rush_end_freezes_and_pays_nothing_yet() -> void:
+func test_horde_rush_end_freezes_and_pays_the_bonus() -> void:
 	var frame: RunFrameScript = _start({"level_id": &"horde_rush", "seed": 7})
 	var level: HordeRushScript = frame.get_level() as HordeRushScript
 	_type_word(frame)
@@ -1671,12 +1673,61 @@ func test_horde_rush_end_freezes_and_pays_nothing_yet() -> void:
 	assert_true(frame.debug_end_run())
 	assert_true(level.is_frozen())
 	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING, "the 2 s outro is still dancing")
+	frame._process(1.01)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	var result: RunResult = _result()
 	assert_eq(result.level_id, &"horde_rush")
 	assert_eq(result.completed_words, 2)
-	assert_eq(result.brains, 0)
-	assert_eq(result.bonus_brains, 0)
+	assert_eq(result.brains, 0, "no copy reached the house in 5 s (a small crossing is 8 s)")
+	assert_eq(result.bonus_brains, 25)
+	assert_eq(result.total_brains(), 25)
+
+
+## Types `words` words on a horde_rush run (the first key starts the defender), then marches the level
+## for `seconds` of logic. The frame is disabled, so the level's own _process is driven by hand.
+func _horde_arrivals(frame: RunFrameScript, words: int, seconds: float) -> HordeRushScript:
+	var level: HordeRushScript = frame.get_level() as HordeRushScript
+	level.request_voice = func(_id: StringName) -> void: pass
+	for i: int in words:
+		_type_word(frame)
+	for i: int in roundi(seconds * 30.0):
+		level._process(1.0 / 30.0)
+	return level
+
+
+func test_horde_rush_arrivals_reach_the_hud_and_the_result() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"horde_rush", "seed": HORDE_ARRIVAL_SEED})
+	var level: HordeRushScript = frame.get_level() as HordeRushScript
+	watch_signals(level)
+	_horde_arrivals(frame, 8, 12.0)
+	var earned: int = level.get_brains_earned()
+	assert_gt(earned, 0, "some copies got past the defender on this seed")
+	var emits: int = get_signal_emit_count(level, "brains_earned_changed")
+	assert_gt(emits, 0)
+	assert_eq(get_signal_parameters(level, "brains_earned_changed", emits - 1), [earned])
+	assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), str(earned), "the HUD counter follows")
+	assert_true(frame.debug_end_run())
+	frame._process(2.01)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	var result: RunResult = _result()
+	assert_eq(result.brains, earned)
+	assert_eq(result.bonus_brains, 25)
+
+
+func test_horde_rush_quit_keeps_the_arrival_brains_without_a_bonus() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var before: int = data.get_brains()
+	var frame: RunFrameScript = _make({"level_id": &"horde_rush", "seed": HORDE_ARRIVAL_SEED}, null, data)
+	add_child_autofree(frame)
+	var level: HordeRushScript = _horde_arrivals(frame, 8, 12.0)
+	var earned: int = level.get_brains_earned()
+	assert_gt(earned, 0)
+	frame._unhandled_input(_esc())
+	_panel(frame).emit_signal("quit_chosen")
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+	assert_eq(data.get_brains(), before + earned, "arrival brains kept, no bonus (FR13)")
+	assert_eq(data.save_service.get_active_profile()["run_history"].size(), 0, "a quit records nothing")
 
 
 func test_horde_rush_defender_paces_after_the_first_key_and_stops_on_pause() -> void:
@@ -1709,6 +1760,6 @@ func test_horde_rush_defender_paces_after_the_first_key_and_stops_on_pause() -> 
 	assert_gt(level.get_defender().position(), paused_at, "paces again")
 	assert_true(frame.debug_end_run())
 	assert_false(level.is_defender_running())
-	frame._process(1.0)
+	frame._process(2.01)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
-	assert_eq(_result().brains, 0)
+	assert_eq(_result().brains, level.get_brains_earned())

@@ -2,6 +2,7 @@ extends GutTest
 ## HordeRushConfig (Story 6.3): the shipped numbers in horde_rush.tres, size_class_for() band edges and
 ## validate() on bad configs. Bad configs are built in-test; the shipped resource is never edited.
 ## Story 6.4: the defender, projectile, flash and melt numbers and their validate() checks.
+## Story 6.5: the +25 completion bonus and the outro length (validate() rejects 0).
 
 const CONFIG_PATH: String = "res://data/levels/horde_rush.tres"
 
@@ -25,6 +26,7 @@ func _valid() -> HordeRushConfig:
 	config.projectile_cross_time_s = 1.0
 	config.hit_flash_s = 0.15
 	config.melt_s = 0.6
+	config.outro_time_s = 2.0
 	return config
 
 
@@ -50,7 +52,8 @@ func test_shipped_config_loads_and_is_valid() -> void:
 	assert_false(config.case_sensitive)
 	assert_eq(config.word_min_length, 3)
 	assert_eq(config.word_max_length, 5)
-	assert_eq(config.completion_bonus, 0, "Story 6.5 sets the +25")
+	assert_eq(config.completion_bonus, 25, "FR57: the +25 completion bonus")
+	assert_eq(config.outro_time_s, 2.0)
 	assert_eq(config.music_id, &"", "march music is Story 6.6")
 	assert_eq(config.word_list.resource_path, "res://data/content/words.json")
 
@@ -130,6 +133,10 @@ func test_validate_catches_each_bad_case() -> void:
 		"flash inf": [func(c: HordeRushConfig) -> void: c.hit_flash_s = INF, "hit_flash_s"],
 		"melt < 0": [func(c: HordeRushConfig) -> void: c.melt_s = -0.1, "melt_s"],
 		"melt nan": [func(c: HordeRushConfig) -> void: c.melt_s = NAN, "melt_s"],
+		"outro 0": [func(c: HordeRushConfig) -> void: c.outro_time_s = 0.0, "outro_time_s"],
+		"outro < 0": [func(c: HordeRushConfig) -> void: c.outro_time_s = -1.0, "outro_time_s"],
+		"outro inf": [func(c: HordeRushConfig) -> void: c.outro_time_s = INF, "outro_time_s"],
+		"outro nan": [func(c: HordeRushConfig) -> void: c.outro_time_s = NAN, "outro_time_s"],
 	}
 	for label: String in cases:
 		var config: HordeRushConfig = _valid()
@@ -161,6 +168,7 @@ func test_new_config_defaults_are_neutral() -> void:
 	assert_eq(config.projectile_cross_time_s, 0.0)
 	assert_eq(config.hit_flash_s, 0.0)
 	assert_eq(config.melt_s, 0.0)
+	assert_eq(config.outro_time_s, 0.0)
 
 
 func test_no_flash_and_an_instant_melt_are_valid() -> void:

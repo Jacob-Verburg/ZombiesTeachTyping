@@ -7,6 +7,9 @@ extends GutTest
 ## Story 6.4: the defender (idle until on_run_started), projectile views, the hit flash, the melt, the
 ## freeze at the end, the reset on re-create, and substepping. Node-bound tweens only move with
 ## custom_step here (the level is disabled).
+## Story 6.5: arrival brains per class, brains_earned_changed, the "Brainsss" seam (a recorder set before
+## add_child, so no test calls the live AudioManager), the shuffle-in and "+N" pop one-shots, the hitch
+## cap and the outro (dance, tomatoes cleared, outro_time_s returned).
 
 const LevelScene: PackedScene = preload("res://scenes/levels/horde_rush/horde_rush_level.tscn")
 const LevelScript := preload("res://scripts/levels/horde_rush/horde_rush_level.gd")
@@ -15,6 +18,7 @@ const STEP: float = 1.0 / 60.0
 var _level: LevelScript
 var _source: TargetSource
 var _session: TypingSession
+var _voices: Array[StringName] = []
 
 
 ## `tweak` (optional) changes a deep duplicate of the shipped config before the level is added.
@@ -25,6 +29,8 @@ func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> LevelScript:
 		var config: HordeRushConfig = (_level.config as HordeRushConfig).duplicate(true) as HordeRushConfig
 		tweak.call(config)
 		_level.config = config
+	_voices = []
+	_level.request_voice = func(id: StringName) -> void: _voices.append(id)
 	add_child_autofree(_level)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = rng_seed
@@ -153,8 +159,26 @@ func test_arrival_frees_the_copy() -> void:
 	assert_eq(_level.get_view_count(), 0)
 	assert_null(_level.get_view(0))
 	assert_eq(_level.get_field().get_arrived_count(), 1)
+	assert_eq(_level.get_shuffling_count(), 1, "it shuffles in")
+	var tween: Tween = _level.get_shuffle_tween(view)
+	assert_not_null(tween)
+	assert_eq(view.modulate, Color.WHITE)
+	var x: float = view.position.x
+	tween.custom_step(LevelScript.SHUFFLE_S / 2.0)
+	assert_almost_eq(view.position.x, x + LevelScript.SHUFFLE_PX / 2.0, 0.01, "steps into the door")
+	assert_almost_eq(view.scale.x, 0.5, 0.01, "edge-on")
+	assert_eq(_level.get_shuffling_count(), 1)
+	tween.custom_step(LevelScript.SHUFFLE_S / 2.0 + 0.01)
+	assert_eq(_level.get_shuffling_count(), 0, "done after SHUFFLE_S")
+	var effects: Node = _level.get_node("%Effects")
+	assert_eq(effects.get_child_count(), 1, "a brain pop")
+	var pop: HordeArrivalPop = effects.get_child(0) as HordeArrivalPop
+	assert_not_null(pop)
+	assert_eq(pop.get_amount_text(), "+1")
+	pop.get_tween().custom_step(HordeArrivalPop.RISE_TIME_S + 0.01)
 	await wait_process_frames(1)
 	assert_false(is_instance_valid(view), "freed")
+	assert_false(is_instance_valid(pop), "the pop frees itself")
 
 
 func test_run_ending_freezes_the_march() -> void:
@@ -168,7 +192,7 @@ func test_run_ending_freezes_the_march() -> void:
 	for marcher: HordeMarcher in marching:
 		progress.append(marcher.progress())
 		xs.append(_level.get_view(marcher.id).position.x)
-	assert_eq(_level.on_run_ending(&"timer"), 0.0)
+	assert_eq(_level.on_run_ending(&"timer"), 2.0)
 	assert_true(_level.is_frozen())
 	_steps(20.0)
 	for i: int in marching.size():
@@ -224,12 +248,113 @@ func test_lanes_that_do_not_fit_fail_safely() -> void:
 	assert_push_error("do not fit above the HUD")
 
 
-func test_no_brains_yet() -> void:
+# --- arrivals (Story 6.5) -----------------------------------------------------------------------
+
+func test_each_class_pays_its_arrival_brains() -> void:
+	_make()
+	watch_signals(_level)
+	_level.on_target_completed("cat")
+	_level.on_target_completed("frog")
+	_level.on_target_completed("rabbit") # brutes never spawn from the 3-5 band, but the class exists
+	_steps(8.0)
+	assert_eq(_level.get_brains_earned(), 1, "small: 1")
+	_steps(2.0)
+	assert_eq(_level.get_brains_earned(), 3, "medium: 2")
+	_steps(3.0)
+	assert_eq(_level.get_brains_earned(), 6, "brute: 3")
+	assert_signal_emit_count(_level, "brains_earned_changed", 3)
+	var totals: Array[int] = [1, 3, 6]
+	for i: int in 3:
+		assert_eq(get_signal_parameters(_level, "brains_earned_changed", i), [totals[i]], "total %d" % i)
+	assert_eq(_voices, [&"vo_brainsss", &"vo_brainsss", &"vo_brainsss"] as Array[StringName], "every arrival")
+
+
+func test_brains_are_paid_in_the_arrival_step_before_any_visual() -> void:
 	_make()
 	_level.on_target_completed("cat")
-	_steps(9.0)
+	var seen: Array = []
+	_level.brains_earned_changed.connect(func(total: int) -> void:
+		seen.append([total, _level.get_view_count(), _level.get_shuffling_count()]))
+	_steps(8.0)
+	assert_eq(seen, [[1, 1, 0]], "emitted while the sprite is still in the march")
+
+
+func test_a_free_arrival_emits_nothing_and_has_no_pop() -> void:
+	var tweak: Callable = func(c: HordeRushConfig) -> void:
+		# A fresh class and array, so the shipped resource is never touched.
+		var classes: Array[HordeSizeClass] = c.size_classes.duplicate()
+		classes[0] = classes[0].duplicate() as HordeSizeClass
+		classes[0].arrival_brains = 0
+		c.size_classes = classes
+	_make(42, tweak)
+	watch_signals(_level)
+	_level.on_target_completed("cat")
+	_steps(8.0)
 	assert_eq(_level.get_brains_earned(), 0)
-	assert_eq(_level.config.completion_bonus, 0)
+	assert_signal_not_emitted(_level, "brains_earned_changed")
+	assert_eq(_voices, [&"vo_brainsss"] as Array[StringName], "the voice is still asked")
+	assert_eq(_level.get_shuffling_count(), 1, "it still shuffles in")
+	assert_eq(_level.get_node("%Effects").get_child_count(), 0, "no pop")
+
+
+func test_pop_shows_the_brains_paid_above_the_house_front() -> void:
+	_make()
+	_copy_in_lane("frog", 2)
+	_steps(10.0)
+	var pop: HordeArrivalPop = _level.get_node("%Effects").get_child(0) as HordeArrivalPop
+	assert_eq(pop.get_amount_text(), "+2")
+	assert_eq(pop.position, Vector2(_level.arrive_x(1.25), _level.lane_feet_y(2) - PlayerZombie.SIZE_PX * 1.25))
+	assert_true(pop.position.x < 600.0, "clear of the pause button")
+
+
+func test_a_lane_0_pop_stays_on_screen() -> void:
+	_make()
+	_copy_in_lane("rabbit", 0)
+	_steps(13.0)
+	var pop: HordeArrivalPop = _level.get_node("%Effects").get_child(0) as HordeArrivalPop
+	assert_eq(pop.position.y, LevelScript.POP_MIN_Y)
+	assert_true(pop.position.y - 16.0 - HordeArrivalPop.RISE_PX >= 0.0, "the brain stays on screen after the rise")
+
+
+func test_a_copy_without_a_sprite_still_pays() -> void:
+	_make()
+	var small: HordeMarcher = _copy_in_lane("cat", 0)
+	_level.get_view(small.id).free()
+	(_level.get("_views") as Dictionary).erase(small.id)
+	_steps(8.0)
+	assert_eq(_level.get_brains_earned(), 1)
+	assert_eq(_level.get_shuffling_count(), 0)
+	assert_eq(_voices.size(), 1)
+
+
+func test_an_arrival_drops_a_running_flash() -> void:
+	_make()
+	var medium: HordeMarcher = _copy_in_lane("frog", 0)
+	var view: PlayerZombie = _level.get_view(medium.id)
+	medium.elapsed_s = 10.0 - 0.05
+	_level.call("_flash", medium)
+	var flash: Tween = _level.get_flash_tween(medium.id)
+	_level._process(0.1)
+	assert_eq(_level.get_brains_earned(), 2)
+	assert_null(_level.get_flash_tween(medium.id), "no stale entry")
+	assert_false(flash.is_valid(), "killed")
+	assert_eq(view.modulate, Color.WHITE)
+
+
+func test_no_arrival_pays_after_the_end() -> void:
+	_make()
+	_level.on_target_completed("cat")
+	_steps(7.9)
+	_level.on_run_ending(&"timer")
+	_steps(5.0)
+	assert_eq(_level.get_brains_earned(), 0)
+	assert_eq(_voices.size(), 0)
+
+
+func test_the_shipped_config_ends_with_a_bonus_and_an_outro() -> void:
+	_make()
+	assert_eq(_level.config.completion_bonus, 25)
+	assert_eq((_level.config as HordeRushConfig).outro_time_s, 2.0)
 
 
 ## Words and lanes for `count` completed words under run seed `rng_seed`.
@@ -454,23 +579,53 @@ func test_a_stopped_copy_without_a_sprite_is_fine() -> void:
 	assert_eq(_level.get_melting_count(), 0)
 
 
-func test_run_ending_freezes_the_defender_and_projectiles() -> void:
+func test_run_ending_freezes_the_defender_and_clears_the_tomatoes() -> void:
 	_make()
-	_copy_in_lane("rabbit", 0)
+	var brute: HordeMarcher = _copy_in_lane("rabbit", 0)
 	_level.on_run_started()
 	_steps(0.3)
 	var position: float = _level.get_defender().position()
 	var tomato: Node2D = _level.get_projectile_view(0)
-	var tomato_at: Vector2 = tomato.position
 	var defender_at: Vector2 = _level.get_defender_view().position
-	assert_eq(_level.on_run_ending(&"timer"), 0.0)
+	var progress: float = brute.progress()
+	assert_eq(_level.on_run_ending(&"timer"), 2.0, "outro_time_s")
 	assert_false(_level.is_defender_running())
+	assert_eq(_level.get_projectile_view_count(), 0, "no tomato left in the air")
+	var view: PlayerZombie = _level.get_view(brute.id)
+	assert_true(view.is_dancing(), "the copy dances in place")
 	_steps(2.0)
 	assert_eq(_level.get_defender().position(), position)
 	assert_eq(_level.get_defender_view().position, defender_at)
-	assert_eq(tomato.position, tomato_at, "frozen in the air")
-	assert_eq(_level.get_projectile_view_count(), 1, "nothing lands after the end")
-	assert_eq(_level.get_defender().get_hit_count(), 0)
+	assert_eq(_level.get_defender().get_hit_count(), 0, "nothing lands after the end")
+	assert_eq(brute.progress(), progress)
+	assert_eq(_level.get_brains_earned(), 0)
+	await wait_process_frames(1)
+	assert_false(is_instance_valid(tomato), "freed")
+
+
+func test_a_second_run_ending_changes_nothing() -> void:
+	_make()
+	var small: HordeMarcher = _copy_in_lane("cat", 0)
+	_level.on_run_started()
+	_steps(0.1)
+	assert_eq(_level.on_run_ending(&"timer"), 2.0)
+	var dance: Tween = _level.get_view(small.id).get_dance_tween()
+	assert_eq(_level.on_run_ending(&"quit"), 2.0)
+	assert_eq(_level.get_view(small.id).get_dance_tween(), dance, "the dance is not restarted")
+	assert_true(_level.is_frozen())
+
+
+func test_run_ending_clears_a_running_flash() -> void:
+	_make()
+	var medium: HordeMarcher = _copy_in_lane("frog", 0)
+	_level.on_run_started()
+	_until_landed(1)
+	var flash: Tween = _level.get_flash_tween(medium.id)
+	assert_not_null(flash)
+	_level.on_run_ending(&"timer")
+	assert_false(flash.is_valid())
+	assert_null(_level.get_flash_tween(medium.id))
+	assert_eq(_level.get_view(medium.id).modulate, Color.WHITE)
 
 
 func test_create_target_source_again_clears_the_defender_state() -> void:
@@ -489,6 +644,7 @@ func test_create_target_source_again_clears_the_defender_state() -> void:
 	assert_not_null(_level.create_target_source(rng))
 	assert_eq(_level.get_projectile_view_count(), 0)
 	assert_eq(_level.get_melting_count(), 0)
+	assert_eq(_level.get_brains_earned(), 0)
 	assert_false(_level.is_defender_running())
 	assert_eq(_level.get_defender().position(), 0.0)
 	assert_eq(_level.get_defender().get_thrown_count(), 0)
@@ -500,7 +656,7 @@ func test_create_target_source_again_clears_the_defender_state() -> void:
 	assert_false(is_instance_valid(tomato), "old views are freed")
 
 
-func test_no_brains_when_copies_are_stopped() -> void:
+func test_a_stopped_copy_earns_nothing() -> void:
 	_make()
 	_copy_in_lane("cat", 0)
 	_level.on_run_started()
@@ -535,9 +691,44 @@ func test_a_long_frame_is_split_into_substeps() -> void:
 
 func test_a_hitch_never_skips_a_throw() -> void:
 	var smooth: Array = _logic_after(STEP, 240)
-	var hitchy: Array = _logic_after(2.0, 2)
+	var hitchy: Array = _logic_after(0.5, 8)
 	assert_eq(hitchy[1], smooth[1], "same throws")
 	assert_eq(hitchy[2], smooth[2], "same hits")
+
+
+func test_a_frame_longer_than_the_cap_runs_only_the_cap() -> void:
+	var capped: Array = _logic_after(10.0, 1)
+	var half: Array = _logic_after(LevelScript.MAX_FRAME_S, 1)
+	assert_eq(capped.size(), half.size())
+	for i: int in capped.size():
+		assert_almost_eq(float(capped[i]), float(half[i]), 1e-6, "state %d" % i)
+
+
+func test_a_hitch_pays_no_burst_of_brains() -> void:
+	_make()
+	for word: String in ["cat", "cat", "cat"]:
+		_level.on_target_completed(word)
+	_level._process(30.0)
+	assert_eq(_level.get_brains_earned(), 0, "only 0.5 s of march ran")
+	assert_almost_eq(_level.get_field().get_marching()[0].elapsed_s, LevelScript.MAX_FRAME_S, 1e-6)
+
+
+func test_create_target_source_again_clears_the_arrivals() -> void:
+	_make()
+	_level.on_target_completed("cat")
+	_level.on_target_completed("cat")
+	_steps(8.0)
+	assert_eq(_level.get_brains_earned(), 2)
+	assert_eq(_level.get_shuffling_count(), 2)
+	var effects: Node = _level.get_node("%Effects")
+	assert_eq(effects.get_child_count(), 2)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 3
+	assert_not_null(_level.create_target_source(rng))
+	assert_eq(_level.get_brains_earned(), 0)
+	assert_eq(_level.get_shuffling_count(), 0)
+	await wait_process_frames(1)
+	assert_eq(effects.get_child_count(), 0, "old pops are freed")
 
 
 func test_bad_deltas_do_nothing() -> void:

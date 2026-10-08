@@ -2,7 +2,8 @@ class_name HordeRushConfig
 extends LevelConfig
 ## Horde Rush's own tuning numbers (Story 6.3), on top of the shared LevelConfig fields. A HordeRushConfig
 ## is a LevelConfig, so RunFrame, TypingInput and the HUD read it unchanged. Real values live in
-## data/levels/horde_rush.tres; the defaults here are neutral. Story 6.4 adds the defender numbers.
+## data/levels/horde_rush.tres; the defaults here are neutral. Story 6.4 adds the defender numbers;
+## Story 6.5 adds the run-end outro length.
 
 ## The shortest crossing time validate() accepts, well above HordeMarcher.ARRIVE_EPSILON_S.
 const MIN_CROSSING_TIME_S: float = 0.01
@@ -21,6 +22,8 @@ const MIN_CROSSING_TIME_S: float = 0.01
 @export var hit_flash_s: float = 0.0
 ## FR56: seconds a stopped copy takes to melt into the ground (0 = gone at once).
 @export var melt_s: float = 0.0
+## FR57: seconds the run-end dance lasts before the report card.
+@export var outro_time_s: float = 0.0
 
 
 ## The first class whose band holds `word_length`; null only when there are no classes.
@@ -84,4 +87,7 @@ func validate() -> String:
 		return "hit_flash_s must not be negative"
 	if not (melt_s >= 0.0 and is_finite(melt_s)):
 		return "melt_s must not be negative"
+	# Zero is rejected (like ZombieRunConfig.dance_time_s), so the end never jumps straight to the card.
+	if not (outro_time_s > 0.0 and is_finite(outro_time_s)):
+		return "outro_time_s must be above 0"
 	return ""
