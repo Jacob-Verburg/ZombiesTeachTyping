@@ -150,3 +150,24 @@ func test_menu_card_routes_to_a_zombie_run() -> void:
 	assert_eq(run.call("get_level_id"), &"zombie_run")
 	assert_not_null(run.call("get_session"), "the run built a typing session")
 	assert_eq(_nav, [], "the run started instead of bouncing back to the menu")
+
+
+## Story 6.7: the Horde Rush card is available and its payload starts the horde_rush level in a real
+## RunFrame.
+func test_menu_card_routes_to_a_horde_rush() -> void:
+	var packed: PackedScene = load(Router.SCREEN_PATHS[Router.Screen.MAIN_MENU]) as PackedScene
+	var menu: Control = packed.instantiate() as Control
+	menu.process_mode = Node.PROCESS_MODE_DISABLED
+	menu.set("navigate", _record)
+	add_child_autofree(menu)
+	var cards: Array[LevelCard] = menu.call("get_cards")
+	assert_eq(cards[1].get_level_id(), &"horde_rush")
+	assert_eq(cards[1].get_state(), LevelCard.State.AVAILABLE)
+	cards[1]._activate()
+	assert_eq(_nav, [[Router.Screen.RUN, {"level_id": &"horde_rush"}]])
+	Router._store_payload(_nav[0][1])
+	_nav = []
+	var run: Control = _instance(Router.Screen.RUN)
+	assert_eq(run.call("get_level_id"), &"horde_rush")
+	assert_not_null(run.call("get_session"), "the run built a typing session")
+	assert_eq(_nav, [], "the run started instead of bouncing back to the menu")

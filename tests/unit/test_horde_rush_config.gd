@@ -2,7 +2,8 @@ extends GutTest
 ## HordeRushConfig (Story 6.3): the shipped numbers in horde_rush.tres, size_class_for() band edges and
 ## validate() on bad configs. Bad configs are built in-test; the shipped resource is never edited.
 ## Story 6.4: the defender, projectile, flash and melt numbers and their validate() checks.
-## Story 6.5: the +25 completion bonus and the outro length (validate() rejects 0).
+## Story 6.5: the completion bonus and the outro length (validate() rejects 0). Story 6.7 retuned the
+## defender numbers and the bonus (the story's Tuning Results).
 
 const CONFIG_PATH: String = "res://data/levels/horde_rush.tres"
 
@@ -45,14 +46,16 @@ func test_shipped_config_loads_and_is_valid() -> void:
 	var config: HordeRushConfig = _shipped()
 	assert_not_null(config, "horde_rush.tres is a HordeRushConfig")
 	assert_eq(config.validate(), "")
-	assert_eq(config.duration_s, 300.0)
+	# Shortened 5:00 -> 3:00 in Story 6.7 after Smuck's playtest (P4: "5 minutes felt too long").
+	assert_eq(config.duration_s, 180.0)
 	assert_eq(config.lane_count, 5)
 	assert_eq(config.target_mode, LevelConfig.TargetMode.WORD)
 	assert_false(config.space_is_input)
 	assert_false(config.case_sensitive)
 	assert_eq(config.word_min_length, 3)
 	assert_eq(config.word_max_length, 5)
-	assert_eq(config.completion_bonus, 25, "FR57: the +25 completion bonus")
+	# Tuned in Story 6.7 (25 -> 30 with the 3:00 run: 10 brains/min, economy parity NFR15; see the story's Tuning Results).
+	assert_eq(config.completion_bonus, 30, "FR57: the completion bonus")
 	assert_eq(config.outro_time_s, 2.0)
 	assert_eq(config.music_id, &"mus_horde_rush", "the march (Story 6.6)")
 	assert_eq(config.word_list.resource_path, "res://data/content/words.json")
@@ -154,9 +157,10 @@ func test_a_single_unbounded_class_is_valid() -> void:
 
 func test_shipped_defender_numbers() -> void:
 	var config: HordeRushConfig = _shipped()
-	assert_eq(config.defender_lane_time_s, 0.6)
-	assert_eq(config.defender_throw_cooldown_s, 0.8)
-	assert_eq(config.projectile_cross_time_s, 1.0)
+	# Tuned in Story 6.7 (was 0.6 / 0.8 / 1.0; see the story's Tuning Results and Tuning gate).
+	assert_eq(config.defender_lane_time_s, 1.5)
+	assert_eq(config.defender_throw_cooldown_s, 2.4)
+	assert_eq(config.projectile_cross_time_s, 1.2)
 	assert_eq(config.hit_flash_s, 0.15)
 	assert_eq(config.melt_s, 0.6)
 

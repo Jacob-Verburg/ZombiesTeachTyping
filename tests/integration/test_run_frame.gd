@@ -1648,7 +1648,7 @@ func test_horde_rush_spawns_a_copy_on_a_completed_word() -> void:
 	var frame: RunFrameScript = _start({"level_id": &"horde_rush", "seed": 7})
 	var level: HordeRushScript = frame.get_level() as HordeRushScript
 	assert_not_null(level, "the horde rush level is running")
-	assert_eq(frame.get_duration(), 300.0)
+	assert_eq(frame.get_duration(), 180.0, "3:00 since Story 6.7")
 	assert_eq(_hud_text(frame, "%StartPromptLabel"), "Type the word to start!")
 	var word: String = frame.get_session().get_current_target()
 	assert_between(word.length(), 3, 5, word)
@@ -1680,8 +1680,11 @@ func test_horde_rush_end_freezes_and_pays_the_bonus() -> void:
 	assert_eq(result.level_id, &"horde_rush")
 	assert_eq(result.completed_words, 2)
 	assert_eq(result.brains, 0, "no copy reached the house in 5 s (a small crossing is 8 s)")
-	assert_eq(result.bonus_brains, 25)
-	assert_eq(result.total_brains(), 25)
+	# The shipped bonus (Story 6.7 tuned it), read from the config, not a literal.
+	var bonus: int = level.get_level_config().completion_bonus
+	assert_gt(bonus, 0)
+	assert_eq(result.bonus_brains, bonus)
+	assert_eq(result.total_brains(), bonus)
 
 
 ## Types `words` words on a horde_rush run (the first key starts the defender), then marches the level
@@ -1712,7 +1715,7 @@ func test_horde_rush_arrivals_reach_the_hud_and_the_result() -> void:
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	var result: RunResult = _result()
 	assert_eq(result.brains, earned)
-	assert_eq(result.bonus_brains, 25)
+	assert_eq(result.bonus_brains, level.get_level_config().completion_bonus)
 
 
 func test_horde_rush_quit_keeps_the_arrival_brains_without_a_bonus() -> void:

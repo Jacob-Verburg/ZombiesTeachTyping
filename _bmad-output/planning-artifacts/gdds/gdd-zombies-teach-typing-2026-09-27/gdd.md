@@ -28,7 +28,7 @@ Zombies Teach Typing is a goofy typing tutor for kids aged 6–13, in the spirit
 | Level | Typing content | Length | Mood | The zombie… |
 |---|---|---|---|---|
 | **Zombie Run** | Single lowercase letters | 2:00 | Calm | bonks brain blocks and hugs villagers into a conga line |
-| **Horde Rush** | Lowercase words | 5:00 | Rising pressure | sends a copy of itself down a lane for every word, at a house guarded by one pacing defender |
+| **Horde Rush** | Lowercase words | 3:00 (was 5:00, Story 6.7) | Rising pressure | sends a copy of itself down a lane for every word, at a house guarded by one pacing defender |
 | **Pitchfork Panic** | Paragraphs with capitals, punctuation, numbers | Until caught, max 5:00 | Panic | flees a torch-and-pitchfork mob, one character at a time |
 
 Every correct key makes the zombie do something mischievous. A wrong key simply does nothing. Every run ends on a chalkboard report card, and the brains earned buy hats and pets in the **Crypt Closet**.
@@ -265,10 +265,10 @@ Punctuation and numbers appear only in Pitchfork Panic. **MVP:** Zombie Run uses
 | Level | Earning | Bonus | ~Brains/run at 10 WPM | ~at 20 WPM |
 |---|---|---|---|---|
 | Zombie Run | 1 per brain block; brain blocks are 1 in every 4 targets | +10 on completion | 35 (≈17/min) | 60 (≈30/min) |
-| Horde Rush | Per zombie reaching the house: small 1, medium 2, big 3 (≈1.7 average in the 3–5 letter band) | +25 on completion | ≈60 at 40% arriving (≈12/min) | ≈120 at 55% arriving (≈24/min) |
+| Horde Rush | Per zombie reaching the house: small 1, medium 2, big 3 (≈1.7 average in the 3–5 letter band) | +30 on completion (tuned in Story 6.7, 2026-10-08, for the 3:00 run) | ≈50 at 37% arriving (≈17/min) | ≈92 at 60% arriving (≈31/min) |
 | Pitchfork Panic | Brain pickup every 10–30 steps (uniform random), 5 brains each (≈0.25 brains per character, like brain blocks) | +10 on every finished run; +25 if **Escaped!** | ≈40 (2.4 min run, ≈17/min) | ≈160 (escape, ≈32/min) |
 
-(At 5 WPM: Zombie Run ≈ 22 ≈ 11/min; Pitchfork Panic ≈ 17 in a 70 s run ≈ 15/min.) [NOTE FOR DESIGNER: Horde Rush runs about 30% under parity at 5–10 WPM; raise arrival brains or the completion bonus during the Epic 6 tuning pass.]
+(At 5 WPM: Zombie Run ≈ 22 ≈ 11/min; Pitchfork Panic ≈ 17 in a 70 s run ≈ 15/min.) [NOTE FOR DESIGNER: Horde Rush runs about 30% under parity at 5–10 WPM; raise arrival brains or the completion bonus during the Epic 6 tuning pass.] (Resolved in Story 6.7, 2026-10-08: the run was shortened to 3:00 and the completion bonus went 25 → 30 (10 brains/min, as 50 over 5:00 would be), arrival brains unchanged; the headless sim puts Horde Rush at +8 % / −6 % / +2 % of Zombie Run at 5 / 10 / 20 WPM, ≈12/min at 5 WPM.)
 
 - **Welcome bonus:** 100 brains, once per save, after the first completed run.
 - **Prices:** Closet row 1 = 100, row 2 = 200, row 3 = 300. Full set = 3,600.
@@ -307,7 +307,7 @@ The MVP Closet shows both 3×3 grids. The Pumpkin hat and Cute ghost are live; t
 
 #### Level 2: Horde Rush (post-MVP)
 
-- **Content:** lowercase words (pre-adaptive build: fixed 3–5 letter band). **Length:** 5:00. **Mood:** rising pressure.
+- **Content:** lowercase words (pre-adaptive build: fixed 3–5 letter band). **Length:** 5:00 (3:00 since Story 6.7, 2026-10-08: playtest "5 minutes felt too long"). **Mood:** rising pressure.
 - **Field:** 5 horizontal lanes. Zombies enter at the left, and the defended house fills the right edge. The defender paces up and down the lanes in front of the house.
 - **Word loop:** one word is shown at the bottom. Typed letters turn green and the next letter is underlined. The word completes on its last letter (no Space needed). A zombie copy of the player (wearing their hat) spawns in a **random lane**, and the next word appears instantly.
 - **Size classes:**
@@ -318,8 +318,8 @@ The MVP Closet shows both 3×3 grids. The Pumpkin hat and Cute ghost are live; t
 | 4–5 | Medium | 10 s | 2 | 2 |
 | ≥ 6 | Big brute | 13 s | 3 | 3 |
 
-- **Defender** (starting values [NOTE FOR DESIGNER: tune in playtest]): paces continuously at 1 lane per 0.6 s, reversing at the top and bottom lanes. When level with a lane that has a zombie, it throws at the front-most zombie in that lane (0.8 s cooldown; the projectile takes 1.0 s to cross the field). Hit → the zombie flashes red for 0.15 s. Final hit → it falls and melts into the ground over 0.6 s.
-- **Tuning target:** about 40% of zombies arrive at 10 WPM and about 70% at 30 WPM. Adjust defender numbers until playtests hit these, and adjust arrival brains until the economy parity target is met.
+- **Defender** (starting values [NOTE FOR DESIGNER: tune in playtest] (resolved: tuned in Story 6.7, 2026-10-08)): paces continuously at 1 lane per 1.5 s (was 0.6), reversing at the top and bottom lanes. When level with a lane that has a zombie, it throws at the front-most zombie in that lane (2.4 s cooldown, was 0.8; the projectile takes 1.2 s to cross the field, was 1.0). Hit → the zombie flashes red for 0.15 s. Final hit → it falls and melts into the ground over 0.6 s.
+- **Tuning target:** about 40% of zombies arrive at 10 WPM and about 70% at 30 WPM (Story 6.7 sim, 2026-10-08, 3:00 run: 37% and 68%). Adjust defender numbers until playtests hit these, and adjust arrival brains until the economy parity target is met.
 - **Arrival:** the zombie shuffles into the door → "Brainsss" (throttled) → +brains pop.
 - **House + defender pairs** (random per run): Farmhouse + Farmer throwing tomatoes; Castle + Knight with suction-cup darts; Beach Hut + Lifeguard with water balloons. There are no guns.
 

@@ -115,12 +115,13 @@ func test_shipped_registry_menu_levels() -> void:
 	for id: StringName in names:
 		var entry: LevelEntry = registry.get_entry(id)
 		assert_not_null(entry, String(id))
-		assert_false(entry.available, "%s is Coming soon" % id)
+		# Story 6.7: Horde Rush is switched on; Pitchfork Panic stays Coming soon.
+		assert_eq(entry.available, id == &"horde_rush", "%s available" % id)
 		assert_false(entry.debug_only)
 		# Story 5.0: Coming soon cards show their level's picture too (greyed by the card).
 		assert_eq(entry.card_picture.resource_path, "res://assets/sprites/ui/menu/ui_level_card_%s.png" % id)
 		assert_eq(entry.display_name, names[id])
-	# Story 6.3: Horde Rush has its scene (reachable from the debug jump) but stays Coming soon.
+	# Story 6.3: Horde Rush has its scene (reachable from the debug jump); Story 6.7 makes its card selectable.
 	var horde_rush: LevelEntry = registry.get_entry(&"horde_rush")
 	assert_not_null(horde_rush.scene, "Horde Rush has its level scene")
 	assert_not_null(registry.get_scene(&"horde_rush"))

@@ -119,7 +119,8 @@ func test_shipped_registry_gives_three_cards_in_order() -> void:
 		ids.append(card.get_level_id())
 		states.append(card.get_state())
 	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic"] as Array[StringName])
-	assert_eq(states, [LevelCard.State.AVAILABLE, LevelCard.State.COMING_SOON, LevelCard.State.COMING_SOON]
+	# Story 6.7: Horde Rush is selectable (Story 6.8 adds its lock); Pitchfork Panic is still Coming soon.
+	assert_eq(states, [LevelCard.State.AVAILABLE, LevelCard.State.AVAILABLE, LevelCard.State.COMING_SOON]
 			as Array[LevelCard.State])
 	assert_eq(_node("%Cards").get_child_count(), 3, "no test_level card")
 
@@ -196,10 +197,11 @@ func test_available_entry_without_a_scene_shows_coming_soon() -> void:
 
 func test_choosing_a_coming_soon_card_goes_nowhere() -> void:
 	_make()
-	_cards()[1]._activate()
+	# Pitchfork Panic is the Coming soon card since Story 6.7 switched Horde Rush on.
+	assert_eq(_cards()[2].get_state(), LevelCard.State.COMING_SOON)
 	_cards()[2]._activate()
 	assert_eq(_nav, [])
-	assert_true(_cards()[1].is_wiggling())
+	assert_true(_cards()[2].is_wiggling())
 
 
 func test_closet_button_opens_the_closet() -> void:

@@ -35,7 +35,7 @@ extends LevelBase
 ## AudioManager's voice gap is the throttle). Then the visuals chase: the copy's sprite leaves the march,
 ## shuffles into the house (a self-freeing one-shot) and a "+N" brain pop rises from the house front.
 ## The outro: on_run_ending() freezes everything, clears the tomatoes in the air and makes every marching
-## copy dance for outro_time_s, which RunFrame waits before the report card. The +25 completion bonus is
+## copy dance for outro_time_s, which RunFrame waits before the report card. The completion bonus is
 ## horde_rush.tres's completion_bonus, which RunFrame adds (never on quit).
 ## The shuffle is a slide and an edge-on squash into the copy's own lane's doorway; the pop is the shared brain.
 ##
@@ -54,8 +54,12 @@ extends LevelBase
 ## non-final hit and sfx_melt per final hit (no hit sound on top), all in the logic step that resolves them,
 ## never from a tween, never after on_run_ending(), no RNG (AudioManager throttles the bursts).
 ##
-## Still to come: tuning, economy parity and the stress check (6.7); unlocks (6.8); the Castle + Knight
-## and Beach Hut + Lifeguard pairs (Epic 10).
+## Tuning (Story 6.7): every number lives in horde_rush.tres, tuned with the headless sim
+## tools/horde_rush_sim.gd (the story's Tuning Results). Stress hold (Story 6.7, NFR1, debug only): the
+## debug overlay's F4 sets a floor of marching copies that _process tops up, one per frame, from
+## STRESS_WORDS.
+##
+## Still to come: unlocks (6.8); the Castle + Knight and Beach Hut + Lifeguard pairs (Epic 10).
 
 const PLAYER_ZOMBIE_SCENE: PackedScene = preload("res://scenes/characters/player_zombie.tscn")
 const TOMATO_SCENE: PackedScene = preload("res://scenes/levels/horde_rush/tomato.tscn")
@@ -100,6 +104,10 @@ const MAX_FRAME_S: float = 0.5
 ## door while it squashes edge-on, over this long.
 const SHUFFLE_S: float = 0.3
 const SHUFFLE_PX: float = 8.0
+## Debug only (Story 6.7 stress hold, not balance numbers): the word cycle stress copies march with: 3, 4
+## and 6 letters, so the small, medium and brute classes all appear. Never the run's WordSource: that is
+## the TypingSession's, and drawing from it would change the HUD word.
+const STRESS_WORDS: Array[String] = ["cat", "frog", "rabbit", "dog", "lamp", "turtle"]
 ## Layout: the highest a pop may start (its origin is the brain's bottom), so a big copy's pop in lane 0
 ## stays on screen after it rises (16 px brain + HordeArrivalPop.RISE_PX).
 const POP_MIN_Y: float = 32.0
@@ -131,6 +139,10 @@ var _melt_tweens: Dictionary[PlayerZombie, Tween] = {}
 var _shuffle_tweens: Dictionary[PlayerZombie, Tween] = {}
 ## The logical run total of arrival brains (FR57).
 var _brains: int = 0
+## Debug stress hold (Story 6.7): keep at least this many copies marching (0 = off).
+var _stress_floor: int = 0
+## The next STRESS_WORDS index.
+var _stress_next: int = 0
 
 @onready var _zombies: Node2D = %Zombies
 @onready var _projectiles: Node2D = %Projectiles
@@ -246,6 +258,8 @@ func _reset() -> void:
 		_farmer.play_idle()
 	_frozen = false
 	_brains = 0
+	_stress_floor = 0
+	_stress_next = 0
 
 
 ## The first correct key: the defender starts pacing.
@@ -259,7 +273,12 @@ func on_run_started() -> void:
 func on_target_completed(target: String) -> void:
 	if _field == null or _frozen:
 		return
-	var marcher: HordeMarcher = _field.spawn(target)
+	_spawn_copy(target)
+
+
+## A copy of `word`: the logical marcher, its spawn sound, then its sprite.
+func _spawn_copy(word: String) -> void:
+	var marcher: HordeMarcher = _field.spawn(word)
 	if marcher == null:
 		return
 	# The copy exists from here (logic leads), with or without its sprite.
@@ -288,6 +307,7 @@ func on_run_ending(_reason: StringName) -> float:
 		return _cfg.outro_time_s
 	_frozen = true
 	_defender_running = false
+	_stress_floor = 0
 	# The defender's logical projectiles stay as they are: nothing advances them any more.
 	for tomato: Node2D in _projectile_views.values():
 		if is_instance_valid(tomato):
@@ -328,6 +348,18 @@ func get_view_count() -> int:
 
 func is_frozen() -> bool:
 	return _frozen
+
+
+## Debug only (Story 6.7, NFR1 stress check; only the debug overlay's F4 calls it): while the run is
+## running, _process keeps at least `count` copies marching, spawning at most one STRESS_WORDS copy a
+## frame. Stress copies are ordinary copies (they draw a lane, so a stressed run no longer replays its
+## seed's lanes, and they pay on arrival); on_run_ending() and a new run switch it off. 0 = off.
+func debug_set_stress_floor(count: int) -> void:
+	_stress_floor = maxi(0, count)
+
+
+func get_stress_floor() -> int:
+	return _stress_floor
 
 
 func get_defender() -> HordeDefender:
@@ -385,7 +417,18 @@ func _process(delta: float) -> void:
 	var dt: float = delta / steps
 	for i: int in steps:
 		_logic_step(dt)
+	_top_up_stress()
 	_update_views()
+
+
+## The debug stress hold: one STRESS_WORDS copy when fewer than the floor are marching.
+func _top_up_stress() -> void:
+	if _stress_floor <= 0 or not _defender_running or _frozen:
+		return
+	if _field.get_marching().size() >= _stress_floor:
+		return
+	_spawn_copy(STRESS_WORDS[_stress_next % STRESS_WORDS.size()])
+	_stress_next += 1
 
 
 ## One logic step in the fixed order (see the class doc). Never reads a sprite.

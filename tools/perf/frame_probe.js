@@ -4,6 +4,7 @@
 // no storage, no network (NFR12).
 //
 //   zts_probe.arm()                 record 120 s from the next letter key (a-z)
+//   zts_probe.arm({seconds: 180})   record 180 s instead (Horde Rush, Story 6.7); works with startNow
 //   zts_probe.arm({startNow: true}) record now ("load window", not M1's RUNNING row)
 //   zts_probe.stop()                end early and print the summary
 //   zts_probe.summary()             print the last summary again
@@ -14,7 +15,11 @@
 	"use strict";
 	var ZTS_PROBE_SECONDS = 120;
 	var EXTRA_MS = 500;
-	var MAX_FRAMES = Math.ceil((ZTS_PROBE_SECONDS + 1) * 240);
+	// Frames per second of recording the buffer holds (a 240 Hz screen fills it exactly).
+	var BUFFER_HZ = 240;
+	// The current arm's length; arm({seconds}) changes it and the buffer is sized from it.
+	var probeSeconds = ZTS_PROBE_SECONDS;
+	var MAX_FRAMES = bufferFrames(probeSeconds);
 	var MAX_KEYS = 4000;
 	var MAX_KEY_ROWS = 500;
 	var NFR1_FAIL_MS = 33.4;
@@ -27,6 +32,10 @@
 
 	if (window.zts_probe && window.zts_probe._teardown) {
 		window.zts_probe._teardown();
+	}
+
+	function bufferFrames(seconds) {
+		return Math.ceil((seconds + 1) * BUFFER_HZ);
 	}
 
 	var frameTimes = new Float64Array(MAX_FRAMES);
@@ -128,7 +137,7 @@
 		var rawStats = summarize(all, null);
 		var lat = latencySummary(latencies.subarray(0, latencyCount), focusedStats.refresh_ms);
 		return {
-			label: mode === "load window" ? "load window (not M1 RUNNING)" : "RUNNING (first letter -> 120 s)",
+			label: mode === "load window" ? "load window (not M1 RUNNING)" : "RUNNING (first letter -> " + probeSeconds + " s)",
 			duration_s: frameCount > 1 ? round2((frameTimes[frameCount - 1] - frameTimes[0]) / 1000) : 0,
 			is_running_row: mode !== "load window",
 			frames_while_unfocused: unfocusedFrames,
@@ -186,8 +195,8 @@
 			}
 		}
 		pendingKeys.length = 0;
-		if (ts - startTs >= ZTS_PROBE_SECONDS * 1000 + EXTRA_MS || frameCount >= MAX_FRAMES) {
-			truncated = ts - startTs < ZTS_PROBE_SECONDS * 1000;
+		if (ts - startTs >= probeSeconds * 1000 + EXTRA_MS || frameCount >= MAX_FRAMES) {
+			truncated = ts - startTs < probeSeconds * 1000;
 			finish();
 			return;
 		}
@@ -281,16 +290,27 @@
 		arm: function (opts) {
 			if (state === "recording") { console.log("[zts_probe] already recording; stop() first"); return; }
 			mode = opts && opts.startNow ? "load window" : "running";
+			var seconds = opts && typeof opts.seconds === "number" && isFinite(opts.seconds) && opts.seconds > 0 && opts.seconds <= 3600 ? opts.seconds : ZTS_PROBE_SECONDS;
+			if (seconds !== probeSeconds) {
+				// Allocate first, commit after: a failed allocation leaves the old, consistent state.
+				var frames = bufferFrames(seconds);
+				var newTimes = new Float64Array(frames);
+				var newFocus = new Uint8Array(frames);
+				probeSeconds = seconds;
+				MAX_FRAMES = frames;
+				frameTimes = newTimes;
+				frameFocus = newFocus;
+			}
 			lastRun = null;
 			lastSummary = null;
 			keyRows = [];
 			droppedKeyRows = 0;
 			if (mode === "load window") {
 				startRecording();
-				console.log("[zts_probe] recording the load window now for " + ZTS_PROBE_SECONDS + " s");
+				console.log("[zts_probe] recording the load window now for " + probeSeconds + " s");
 			} else {
 				state = "armed";
-				console.log("[zts_probe] armed: click the game, then type the first letter. Don't touch DevTools until the report card.");
+				console.log("[zts_probe] armed for " + probeSeconds + " s: click the game, then type the first letter. Don't touch DevTools until the report card.");
 			}
 		},
 		stop: function () {

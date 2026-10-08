@@ -14,6 +14,7 @@ extends GutTest
 ## per hit, the flash frames (set_flashing) and the melt frames (melt()) instead of a tint and a squash
 ## (the squash stays as the stripped-frames fallback), the hat fit on scaled copies, and the play_sfx seam
 ## (a recorder set before add_child, like the voice).
+## Story 6.7: the debug stress hold (a floor of marching copies topped up one per frame from STRESS_WORDS).
 
 const LevelScene: PackedScene = preload("res://scenes/levels/horde_rush/horde_rush_level.tscn")
 const LevelScript := preload("res://scripts/levels/horde_rush/horde_rush_level.gd")
@@ -26,14 +27,22 @@ var _voices: Array[StringName] = []
 var _sfx: Array[StringName] = []
 
 
-## `tweak` (optional) changes a deep duplicate of the shipped config before the level is added.
+## The defender numbers these tests' timings were written for (Story 6.4). Story 6.7 retuned the shipped
+## ones (see its Tuning Results); the mechanics here are what is tested, so _make pins these.
+const MECHANIC_LANE_TIME_S: float = 0.6
+const MECHANIC_COOLDOWN_S: float = 0.8
+const MECHANIC_PROJECTILE_S: float = 1.0
+
+
+## A deep duplicate of the shipped config with the defender pinned to the MECHANIC_ numbers; `tweak`
+## (optional) changes it further before the level is added. The shipped resource is never edited.
 func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> LevelScript:
 	_level = LevelScene.instantiate() as LevelScript
 	_level.process_mode = Node.PROCESS_MODE_DISABLED
+	var config: HordeRushConfig = _pinned_config(_level)
 	if tweak.is_valid():
-		var config: HordeRushConfig = (_level.config as HordeRushConfig).duplicate(true) as HordeRushConfig
 		tweak.call(config)
-		_level.config = config
+	_level.config = config
 	_voices = []
 	_level.request_voice = func(id: StringName) -> void: _voices.append(id)
 	_sfx = []
@@ -49,6 +58,14 @@ func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> LevelScript:
 		_session.target_completed.connect(_level.on_target_completed)
 	return _level
 
+
+## A deep duplicate of `level`'s shipped config with the defender pinned to the MECHANIC_ numbers.
+func _pinned_config(level: LevelScript) -> HordeRushConfig:
+	var config: HordeRushConfig = (level.config as HordeRushConfig).duplicate(true) as HordeRushConfig
+	config.defender_lane_time_s = MECHANIC_LANE_TIME_S
+	config.defender_throw_cooldown_s = MECHANIC_COOLDOWN_S
+	config.projectile_cross_time_s = MECHANIC_PROJECTILE_S
+	return config
 
 ## Types the whole current word; returns it.
 func _type_word() -> String:
@@ -360,7 +377,8 @@ func test_no_arrival_pays_after_the_end() -> void:
 
 func test_the_shipped_config_ends_with_a_bonus_and_an_outro() -> void:
 	_make()
-	assert_eq(_level.config.completion_bonus, 25)
+	# Tuned in Story 6.7 (25 -> 30 with the 3:00 run, economy parity; see the story's Tuning Results).
+	assert_eq(_level.config.completion_bonus, 30)
 	assert_eq((_level.config as HordeRushConfig).outro_time_s, 2.0)
 
 
@@ -858,6 +876,7 @@ func test_a_non_farmer_defender_still_moves() -> void:
 	plain.owner = _level
 	plain.unique_name_in_owner = true
 	old.free()
+	_level.config = _pinned_config(_level)
 	_level.request_voice = func(_id: StringName) -> void: pass
 	_level.play_sfx = func(_id: StringName) -> void: pass
 	add_child_autofree(_level)
@@ -1084,3 +1103,94 @@ func test_the_hat_sits_on_scaled_copies_in_every_frame() -> void:
 				assert_almost_eq(slot.global_position.x, seat.x, 0.01, "%s %s %d x" % [word, anim, frame])
 				assert_almost_eq(slot.global_position.y, seat.y, 0.01, "%s %s %d y" % [word, anim, frame])
 				assert_almost_eq(slot.global_scale.x, expected_scale, 0.001, "the hat scales with the copy")
+
+
+# --- debug stress hold (Story 6.7) ----------------------------------------------------------------
+
+func _start_stress(count: int) -> void:
+	_make()
+	_level.on_run_started()
+	_level.debug_set_stress_floor(count)
+
+
+func test_the_stress_hold_tops_up_to_the_floor() -> void:
+	_start_stress(30)
+	var field: HordeField = _level.get_field()
+	for i: int in 40:
+		var before: int = field.get_spawned_count()
+		_level._process(STEP)
+		assert_lte(field.get_spawned_count() - before, 1, "at most one stress copy a frame")
+	assert_eq(field.get_marching().size(), 30, "the floor reached")
+	var lowest: int = 30
+	for i: int in roundi(20.0 / STEP):
+		var before: int = field.get_marching().size()
+		var decided: int = field.get_arrived_count() + field.get_stopped_count()
+		_level._process(STEP)
+		var left: int = field.get_arrived_count() + field.get_stopped_count() - decided
+		# Topped up by one a frame: whatever left this frame, one came back (until the floor).
+		assert_eq(field.get_marching().size(), mini(30, before - left + 1), "frame %d" % i)
+		lowest = mini(lowest, field.get_marching().size())
+	assert_gte(lowest, 28, "held at the floor, give or take a frame's leavers")
+	assert_gt(field.get_arrived_count() + field.get_stopped_count(), 0, "stress copies arrive and get stopped")
+	assert_eq(_level.get_view_count(), field.get_marching().size(), "every stress copy has its sprite")
+
+
+func test_stress_copies_cycle_all_three_classes() -> void:
+	_start_stress(6)
+	_steps(0.2)
+	var classes: Array[StringName] = []
+	for marcher: HordeMarcher in _level.get_field().get_marching():
+		if not classes.has(marcher.size_class.id):
+			classes.append(marcher.size_class.id)
+	classes.sort()
+	assert_eq(classes, [&"brute", &"medium", &"small"] as Array[StringName])
+	for word: String in LevelScript.STRESS_WORDS:
+		assert_between(word.length(), 3, 6, word)
+
+
+func test_stress_spawns_never_change_the_hud_word() -> void:
+	_start_stress(30)
+	var word: String = _session.get_current_target()
+	var upcoming: Array[String] = _session.get_upcoming(3)
+	_steps(1.0)
+	assert_eq(_session.get_current_target(), word, "the run's WordSource is never drawn")
+	assert_eq(_session.get_upcoming(3), upcoming)
+
+
+func test_no_stress_without_a_floor_or_before_the_run_starts() -> void:
+	_make()
+	_level.on_run_started()
+	_steps(1.0)
+	assert_eq(_level.get_field().get_spawned_count(), 0, "floor 0: nothing extra")
+	_make()
+	_level.debug_set_stress_floor(30)
+	_steps(1.0)
+	assert_eq(_level.get_field().get_spawned_count(), 0, "the defender is not running yet")
+
+
+func test_run_ending_stops_the_stress_hold() -> void:
+	_start_stress(30)
+	_steps(0.5)
+	_level.on_run_ending(&"timer")
+	assert_eq(_level.get_stress_floor(), 0)
+	var spawned: int = _level.get_field().get_spawned_count()
+	_steps(0.5)
+	assert_eq(_level.get_field().get_spawned_count(), spawned)
+
+
+func test_a_new_run_clears_the_stress_floor() -> void:
+	_start_stress(30)
+	_steps(0.5)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 3
+	_level.create_target_source(rng)
+	assert_eq(_level.get_stress_floor(), 0)
+	_level.on_run_started()
+	_steps(0.5)
+	assert_eq(_level.get_field().get_spawned_count(), 0)
+
+
+func test_a_negative_floor_is_off() -> void:
+	_make()
+	_level.debug_set_stress_floor(-5)
+	assert_eq(_level.get_stress_floor(), 0)

@@ -103,11 +103,11 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 
 **Horde Rush (Level 2)**
 
-- FR53 [Post-MVP]: Horde Rush lasts 5:00 on a 5-lane field, with zombies entering at the left and the defended house at the right edge.
+- FR53 [Post-MVP]: Horde Rush lasts 3:00 (shortened 6.7; was 5:00) on a 5-lane field, with zombies entering at the left and the defended house at the right edge.
 - FR54 [Post-MVP]: One lowercase word is shown at the bottom; typed letters turn green and the next letter is underlined. The word completes on its last letter (no Space), a zombie copy of the player (wearing the hat) spawns in a random lane, and the next word appears instantly.
 - FR55 [Post-MVP]: Size classes by word length: ≤3 small (8 s crossing, 1 hit, 1 brain); 4–5 medium (10 s, 2 hits, 2 brains); ≥6 big brute (13 s, 3 hits, 3 brains).
-- FR56 [Post-MVP]: The defender paces 1 lane per 0.6 s, reversing at the edges, and throws at the front-most zombie in its lane (0.8 s cooldown, 1.0 s projectile travel). A hit flashes the zombie red for 0.15 s; the final hit makes it fall and melt over 0.6 s.
-- FR57 [Post-MVP]: A zombie that reaches the house shuffles in, triggers a throttled "Brainsss" and pops its brains. A +25 completion bonus is awarded at 5:00.
+- FR56 [Post-MVP]: The defender paces 1 lane per 1.5 s (tuned 6.7; was 0.6), reversing at the edges, and throws at the front-most zombie in its lane (2.4 s cooldown, 1.2 s projectile travel; tuned 6.7, was 0.8 / 1.0). A hit flashes the zombie red for 0.15 s; the final hit makes it fall and melt over 0.6 s.
+- FR57 [Post-MVP]: A zombie that reaches the house shuffles in, triggers a throttled "Brainsss" and pops its brains. A +30 completion bonus (tuned 6.7; was +25) is awarded at the end of the run (3:00).
 - FR58 [Post-MVP]: House + defender pairs use food and toys only, never guns: Farmhouse + Farmer (tomatoes) at launch; Castle + Knight (suction-cup darts) and Beach Hut + Lifeguard (water balloons) later.
 - FR59 [Post-MVP]: Before adaptive difficulty exists, Horde Rush uses a fixed 3–5 letter word band from a tagged starter list, and its menu card is enabled.
 

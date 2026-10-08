@@ -8,6 +8,7 @@ extends GutTest
 ## reached through the find_run_frame seam.
 ## Story 3.4: the run-worst frame time, driven through the pure _note_run_frame() bookkeeping.
 ## Story 4.2: the jump row, through the navigate / current_screen seams (the live Router never swaps).
+## Story 6.7: F4 stress hold on a real, disabled Horde Rush run frame (the level's stress floor).
 
 const OverlayScene: PackedScene = preload("res://scenes/debug/debug_overlay.tscn")
 const OverlayScript := preload("res://scripts/debug/debug_overlay.gd")
@@ -231,7 +232,7 @@ func test_unused_keys_are_not_consumed() -> void:
 	var sut: OverlayScript = _make()
 	sut._handle_key(KEY_F3)
 	assert_false(sut._handle_key(KEY_A))
-	assert_false(sut._handle_key(KEY_F4))
+	assert_false(sut._handle_key(KEY_F1), "F1 is free (F4 is the stress hold since Story 6.7)")
 	assert_false(sut._handle_key(KEY_F10))
 	assert_false(sut._handle_key(KEY_ESCAPE))
 
@@ -256,7 +257,7 @@ func test_labels_fill_in_when_opened() -> void:
 	assert_string_contains(save_text, "Last save: never")
 	assert_string_contains(save_text, "Storage: persistent")
 	assert_eq((sut.get_node("%HelpLabel") as Label).text,
-			"F5 +100 brains  F6 end run  F7 typing log\nF8 reset  F9 export  F2 pin seed")
+			"F5 +100 brains  F6 end run  F7 typing log\nF8 reset  F9 export  F2 pin seed  F4 stress")
 
 
 func test_format_save_age() -> void:
@@ -583,3 +584,70 @@ func test_jump_seams_default_to_the_router() -> void:
 	add_child_autofree(sut)
 	assert_true(sut.navigate.is_valid())
 	assert_eq(sut.current_screen.call(), Router.current_screen)
+
+
+# --- F4 stress hold (Story 6.7) ------------------------------------------------
+
+func _horde_frame() -> RunFrameScript:
+	var frame: RunFrameScript = _start_frame({"level_id": &"horde_rush", "seed": 7})
+	(frame.get_level() as Node).set("request_voice", func(_id: StringName) -> void: pass)
+	(frame.get_level() as Node).set("play_sfx", func(_id: StringName) -> void: pass)
+	return frame
+
+
+func test_f4_toggles_the_stress_hold_on_a_running_horde_rush() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _horde_frame()
+	sut._handle_key(KEY_F3)
+	_type_correct(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	var level: LevelBase = frame.get_level()
+	assert_string_contains(_text(sut, "RunLabel"), "stress: off")
+	assert_true(sut._handle_key(KEY_F4))
+	assert_eq(level.call("get_stress_floor"), OverlayScript.STRESS_COPIES)
+	assert_eq(OverlayScript.STRESS_COPIES, 30, "NFR1: 30 zombies")
+	assert_string_contains(_text(sut, "RunLabel"), "stress: 30")
+	assert_true(sut._handle_key(KEY_F4))
+	assert_eq(level.call("get_stress_floor"), 0, "F4 again: off")
+	assert_string_contains(_text(sut, "RunLabel"), "stress: off")
+
+
+func test_f4_is_refused_before_the_first_key() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _horde_frame()
+	sut._handle_key(KEY_F3)
+	frame.get_level().call("debug_set_stress_floor", 5)
+	assert_true(sut._handle_key(KEY_F4), "the overlay's key even when refused")
+	assert_eq(frame.get_level().call("get_stress_floor"), 5, "a refused F4 leaves the floor alone")
+
+
+func test_f4_is_refused_after_the_run_ends() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _horde_frame()
+	sut._handle_key(KEY_F3)
+	_type_correct(frame)
+	sut._handle_key(KEY_F6)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	frame.get_level().call("debug_set_stress_floor", 5)
+	sut._handle_key(KEY_F4)
+	assert_eq(frame.get_level().call("get_stress_floor"), 5, "a refused F4 leaves the floor alone")
+
+
+func test_f4_is_refused_on_another_level() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame()
+	sut._handle_key(KEY_F3)
+	_type_correct(frame)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	assert_true(sut._handle_key(KEY_F4))
+	assert_false(frame.get_level().has_method("debug_set_stress_floor"))
+	assert_false(_text(sut, "RunLabel").contains("stress"), "no stress line for a level without the hold")
+
+
+func test_f4_does_nothing_while_closed() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _horde_frame()
+	_type_correct(frame)
+	frame.get_level().call("debug_set_stress_floor", 5)
+	assert_false(sut._handle_key(KEY_F4))
+	assert_eq(frame.get_level().call("get_stress_floor"), 5, "a closed overlay ignores F4")

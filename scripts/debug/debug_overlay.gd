@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## Debug overlay (Story 1.8). Debug builds only: the Router instances it only when OS.is_debug_build()
-## (Boundary 7), so in release none of this exists and F2/F3/F5-F9 do nothing.
+## (Boundary 7), so in release none of this exists and F2-F9 do nothing.
 ## F3 toggles it on top of every screen (layer above the Router's fade). Sections: stats (FPS, frame time,
 ## the worst frame in the last 10 s, and the worst frame of the current run: Story 3.4, NFR1 check; it
 ## counts only RUNNING frames seen while the overlay is open, resets when a new run frame appears and
@@ -12,13 +12,15 @@ extends CanvasLayer
 ## after a two-step confirm: a second F8 within CONFIRM_SEC. Any other key, the timeout or closing cancels.
 ## F6 ends a RUNNING run as if the clock ran out; F7 toggles Log.verbose_typing; F2 pins the last run's
 ## seed as RunFrame.debug_seed (the next run of that level without a payload seed replays it), F2 again
-## clears it.
+## clears it. F4 (Story 6.7, NFR1 stress check) toggles a RUNNING Horde Rush run's stress hold between off
+## and STRESS_COPIES marching copies (the level's debug_set_stress_floor); refused on any other level or
+## state. The run section shows "stress: N" / "stress: off" for a level that has the hold.
 ## Keys are read in _input, not _unhandled_input: the Keyboard Test screen swallows every key in
 ## _unhandled_input. PROCESS_MODE_ALWAYS so it works while the tree is paused (Router fade, run pause).
 ## Jump rows (Story 4.2; "Test words" Story 6.2; "Horde Rush" and the second row Story 6.3): mouse-only level
 ## buttons "Test level" / "Test words" / "Horde Rush" on %JumpRow and screen buttons "Welcome gift" /
-## "Keyboard test" on %JumpRow2, replacing the placeholder menu's debug buttons. "Horde Rush" starts the
-## hidden level (still Coming soon on the menu). They work only while the main menu is the current screen (a jump out of
+## "Keyboard test" on %JumpRow2, replacing the placeholder menu's debug buttons. "Horde Rush" is a
+## shortcut to the level (its menu card is selectable since Story 6.7). They work only while the main menu is the current screen (a jump out of
 ## a run would skip RunFrame's quit path) and are disabled elsewhere. FOCUS_NONE: they never take the menu's
 ## keyboard focus. They are the only controls here that take the mouse, and only while the overlay is open.
 ## Closed = no per-frame work (_process off, refresh timer stopped). Nothing is logged per frame.
@@ -37,7 +39,10 @@ const CONFIRM_SEC: float = 5.0
 const REFRESH_SEC: float = 0.25
 ## Targets shown after the current one (debug display, not a balance number).
 const UPCOMING_SHOWN: int = 3
-const HELP_TEXT: String = "F5 +100 brains  F6 end run  F7 typing log\nF8 reset  F9 export  F2 pin seed"
+## Copies the F4 stress hold keeps marching (NFR1: 30 zombies on screen; a debug value, not a balance
+## number).
+const STRESS_COPIES: int = 30
+const HELP_TEXT: String = "F5 +100 brains  F6 end run  F7 typing log\nF8 reset  F9 export  F2 pin seed  F4 stress"
 const CONFIRM_TEXT: String = "Reset the save? F8 again = yes, any other key = no"
 
 ## Test seams: default to the live autoloads in _ready().
@@ -176,7 +181,33 @@ func _handle_key(keycode: Key) -> bool:
 			_toggle_seed_pin()
 			_refresh()
 			return true
+		KEY_F4:
+			_toggle_stress()
+			_refresh()
+			return true
 	return false
+
+
+## F4: the stress hold on a RUNNING run whose level has one (Horde Rush), off <-> STRESS_COPIES.
+func _toggle_stress() -> void:
+	var level: LevelBase = _stress_level()
+	if level == null:
+		Log.debug(&"debug", "stress hold needs a running Horde Rush run")
+		return
+	var on: bool = (level.call("get_stress_floor") as int) > 0
+	level.call("debug_set_stress_floor", 0 if on else STRESS_COPIES)
+	Log.info(&"debug", "stress hold %s" % ("off" if on else str(STRESS_COPIES)))
+
+
+## The running run's level when it has the stress hold, else null.
+func _stress_level() -> LevelBase:
+	var frame: RunFrameScript = _run_frame()
+	if frame == null or frame.get_state() != RunFrameScript.RunState.RUNNING:
+		return null
+	var level: LevelBase = frame.get_level()
+	if level == null or not level.has_method("debug_set_stress_floor"):
+		return null
+	return level
 
 
 ## F2: clear a pinned seed, else pin the last run's seed, else nothing to pin.
@@ -255,11 +286,19 @@ func _refresh_run() -> void:
 		current if current != "" else "-", " ".join(session.get_upcoming(UPCOMING_SHOWN))
 	]
 	var keys: int = session.get_keys_typed()
-	%RunLabel.text = "Run %s %s\n%s\nTarget %s\nKeys %d  Errors %d  WPM %d\nSeed %d%s" % [
+	%RunLabel.text = "Run %s %s\n%s\nTarget %s\nKeys %d  Errors %d  WPM %d\nSeed %d%s%s" % [
 		frame.get_level_id(), RunFrameScript.RunState.keys()[frame.get_state()], clock, targets.strip_edges(),
 		keys, session.get_errors(), StatsCalculator.wpm(keys, elapsed, session.get_implied_spaces()), frame.get_seed(),
-		" (replay)" if frame.is_replay() else ""
+		" (replay)" if frame.is_replay() else "", _stress_text(frame.get_level())
 	]
+
+
+## "  stress: N" / "  stress: off" for a level with the stress hold, else "".
+func _stress_text(level: LevelBase) -> String:
+	if level == null or not level.has_method("get_stress_floor"):
+		return ""
+	var count: int = level.call("get_stress_floor") as int
+	return "  stress: %s" % (str(count) if count > 0 else "off")
 
 
 func _refresh_tools() -> void:

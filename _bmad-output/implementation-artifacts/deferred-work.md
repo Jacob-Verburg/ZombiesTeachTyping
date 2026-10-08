@@ -535,6 +535,7 @@
 ## Deferred from: dev of story-6.4 (2026-10-07)
 
 - Feel input for 6.7 (not tuned here): a headless minute on the shipped GDD starting numbers (0.6 / 0.8 / 1.0, no overkill avoidance, 10 seeds, the rest of the copies allowed to finish) lets through about 1% of copies at 10 WPM, 6% at 20, 11% at 25-30 and 20% at 40 WPM, far below the 40%/70% targets. The defender as specified is strong; 6.7 owns the numbers (or a weaker-defender config flag).
+  - Resolved in 6.7: the headless sim (`tools/horde_rush_sim.gd`) reproduced it (2 % at 10 WPM, 14 % at 30 on the 6.6 numbers); `horde_rush.tres` now has lane 1.5 s, cooldown 2.4 s, projectile 1.2 s (37.4 % / 68.4 % at 10 / 30 WPM on the final 3:00 run), guarded by `test_horde_rush_tuning.gd`. No new config flag.
 - Cross-ref the 6.3 huge-delta item above: 6.4's `_process` now splits a long frame into equal steps of at most 1/30 s, so a hitch no longer skips throws or contacts, but the total is still uncapped (a 10 s hitch = 300 logic steps in one frame and still marches copies home). The 6.5 cap fixes both the brain burst and the step count.
   - Resolved in 6.5: `_process` caps a frame at `MAX_FRAME_S` (0.5 s, at most 15 steps); the rest of a hitch is dropped.
 
@@ -546,12 +547,15 @@
 ## Deferred from: code review of story-6-5-arrivals-brains-and-run-end (2026-10-07)
 
 - Frame cap (`MAX_FRAME_S`) drops hitch time from the field while RunClock keeps counting, so arrival counts depend on frame hitches. Spec-mandated by AC5; revisit in 6.7 economy parity.
+  - Decided in 6.7: kept. The sim models no hitches; a hitch only ever drops field time, so it can only cost the kid brains, never pay extra. Parity was tuned on the hitch-free numbers.
 - Horde integration test relies on `HORDE_ARRIVAL_SEED = 7` and the real RNG for "some copies got past"; brittle if the defender tuning or RNG draw order changes.
+  - Re-checked in 6.7 after the retune (shipped config, seed 7): still > 0 arrivals in 12 s, test green unchanged; the bonus asserts now read `completion_bonus` from the config. Still seed-dependent by design.
 - Pops from consecutive arrivals in the same lane stack at the identical point; add jitter if playtest shows overlap.
 
 ## Deferred from: dev of story-6.6 (2026-10-08)
 
 - **Smuck's tuning request for 6.7 (Audio gate, 2026-10-08), verbatim:** "I do want to slow down the defending person move speed by half, a child will not type fast enough to get any points at this speed." Halving the pace is `defender_lane_time_s` 0.6 → 1.2 s in `horde_rush.tres`; Smuck chose to tune it in 6.7 together with the throw cooldown and crossing times (6.6 keeps the shipped numbers). The 6.4 feel note above (1% of copies through at 10 WPM) agrees.
+  - Resolved in 6.7: the Farmer paces at 1.5 s per lane (2.5x slower than 0.6 s, past the 1.2 s half-speed floor, which `test_horde_rush_tuning.gd` enforces); Tuning gate "Approve (Recommended)" 2026-10-08.
 - Sound ids are per house + defender pair: `sfx_tomato_throw` / `sfx_tomato_hit` belong to the Farmhouse; Epic 10's Castle + Knight and Beach Hut + Lifeguard need their own throw/hit ids (and the level a per-pair id lookup). `sfx_zombie_spawn` and `sfx_melt` are pair-independent.
 - Accepted at Gate 2: on a non-final hit the splat's first (squish) frame merges into the copy's orange flash; the flash carries the hit. Revisit only if playtests show kids missing hits.
 - The field art bakes 5 lanes (see the 6.3 item above): Epic 10's pairs each need a `field.png` / house layer with a doorway per lane.
@@ -560,6 +564,19 @@
 
 - Farmer `_throwing` is cleared only by `animation_finished`; no fallback if the signal is lost (animation swapped or stopped externally).
 - Several throws in one frame restart the throw animation and stack `sfx_tomato_throw` (no `min_interval_s`); revisit with the 6.7 cooldown tuning.
+  - Resolved in 6.7: `sfx_tomato_throw` has `min_interval_s = 0.08` (in `test_burst_cues_are_throttled`); with a 2.4 s cooldown at most one throw lands per hitch anyway.
 - Lane geometry (`FARM_FIELD_TOP_Y`, `LANE_HEIGHT`, `HOUSE_X` 548) is duplicated across the art generator, `test_art_backdrop.gd` and the level script with no cross-check; revisit with Epic 10 pairs.
 - `test_art_backdrop.gd` doorway check looks at the first 4 columns and treats "not a wall colour" as an opening; fragile to palette changes.
 - `PlayerZombie._play` returns silently when an animation is missing (no `Log.warn`, unlike `HordeFarmer`).
+
+## Deferred from: dev of story-6.7 (2026-10-08)
+
+- NFR1 on a real 2018-era laptop is still unmeasured for Horde Rush: the 30-copy stress hold ran at 60 FPS, run worst 19.0 ms, on the dev PC (Ryzen 7 5700G / RTX 3070) in the Claude app's Chromium 152 pane, not stand-alone desktop Chrome.
+- AC 6 full-run frame check Skipped (Smuck, 2026-10-08: "Skip it"): one full Horde Rush (3:00 since the 6.7 playtest) on a release web export with `zts_probe.arm({seconds: 180})` is still to do.
+- The sim assumes 100 % accuracy, no pauses and no hitches on both levels; real kids' error rates lower WPM on both sides equally, but parity at very low WPM (< 5) is unchecked.
+- The stress hold draws lanes from the run's lane RNG, so a stressed run's lanes no longer replay its seed (debug only, documented).
+
+## Deferred from: code review of story-6.7 (2026-10-08)
+
+- Nothing cross-checks `tools/horde_rush_sim.gd` against the real level: the tuning bands validate a re-implementation of the step order, and the shipped 1.5 / 2.4 / 1.2 numbers only run through the real level in the seed-7 integration tests. Accepted (pure sim by spec); a level-vs-sim agreement test is a candidate for Epic 7 tuning.
+- F4 stress copies pay brains into the run result and save, and break seed replay; `_top_up_stress` copies `get_marching()` every frame. Debug-only and documented.

@@ -129,6 +129,7 @@ script = ExtResource("2_cue")
 id = &"sfx_tomato_throw"
 stream = ExtResource("20_throw")
 volume_db = -11.0
+min_interval_s = 0.08
 
 [sub_resource type="Resource" id="Resource_hit"]
 script = ExtResource("2_cue")

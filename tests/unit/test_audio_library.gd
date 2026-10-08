@@ -257,7 +257,8 @@ func test_wrong_key_tick_is_the_quietest_effect() -> void:
 
 func test_burst_cues_are_throttled() -> void:
 	var library: AudioLibrary = _library()
-	for id: StringName in [&"sfx_brain_bonk", &"sfx_hug_poof", &"sfx_zombie_spawn", &"sfx_tomato_hit", &"sfx_melt"]:
+	for id: StringName in [&"sfx_brain_bonk", &"sfx_hug_poof", &"sfx_zombie_spawn", &"sfx_tomato_throw", &"sfx_tomato_hit",
+			&"sfx_melt"]:
 		var cue: AudioCue = library.get_cue(id)
 		assert_gt(cue.min_interval_s, 0.0, "%s can't stack in a burst" % id)
 		assert_lt(cue.min_interval_s, 0.1, "%s still plays once per report row / fast key" % id)

@@ -18,6 +18,7 @@
 3. On the **"Type the letter to start!"** screen, type `zts_probe.arm()` in the Console and press Enter.
 4. **Click the game** so it has focus. Type the first letter. Recording starts with it and runs 120 s.
 5. Play the full 2:00 with real typing. Hug villagers so the conga line goes past 12 (the "×N" badge shows).
+   **Horde Rush** (a 3:00 run, Story 6.7): use `zts_probe.arm({seconds: 180})` instead, and play the full 3:00.
 6. **Don't click DevTools until the report card.** Clicking it pauses the run. The probe leaves out unfocused frames, but don't rely on that.
 7. When the report card shows, the Console prints a summary. Copy everything:
    - Chrome / Edge: `copy(JSON.stringify(zts_probe.result()))`, then paste it into chat.
