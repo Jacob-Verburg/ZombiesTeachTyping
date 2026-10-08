@@ -10,6 +10,7 @@ extends SceneTree
 ## FILE_PEAK, starts at its first sound (no leading silence) and starts and ends at exactly zero.
 ## Story 6.6 adds the Horde Rush sounds (sfx_zombie_spawn, sfx_tomato_throw, sfx_tomato_hit, sfx_melt) and
 ## the march loop mus_horde_rush, rendered by its own path (_render_march) so the MVP loops never change.
+## Story 6.8 adds sfx_unlock_jingle (the level unlock moment's "New!" badge thump).
 ## Encode only the new loop:
 ##   uv run --with soundfile tools/encode_ogg.py <dir>/mus_horde_rush.wav assets/audio/music/mus_horde_rush.ogg
 
@@ -111,6 +112,7 @@ func _init() -> void:
 		_save_sfx(_tomato_hit(), SFX_DIR + "sfx_tomato_hit.wav"),
 		_save_sfx(_melt(), SFX_DIR + "sfx_melt.wav"),
 		_save_music(_horde_rush_music(), music_dir.path_join("mus_horde_rush.wav")),
+		_save_sfx(_unlock_jingle(), SFX_DIR + "sfx_unlock_jingle.wav"),
 	]
 	# Non-zero exit on any failure, so a bad path or cwd doesn't look like success.
 	quit(0 if errors.all(func(err: Error) -> bool: return err == OK) else 1)
@@ -190,6 +192,18 @@ func _purchase() -> PackedFloat32Array:
 	_mix(out, start, _bell(_midi(84), 0.62, 5.0))
 	for midi: int in [60, 64, 67]:
 		_mix(out, start, _scaled(_bell(_midi(midi), 0.62, 6.0), 0.35))
+	return out
+
+
+## About 0.65 s (Story 6.8): the unlock jingle, three quick rising bell notes (G5 C6 E6), the last one left
+## to ring. Brighter and shorter than the purchase jingle; the library plays it quieter.
+func _unlock_jingle() -> PackedFloat32Array:
+	var out: PackedFloat32Array = _zeros(_n(0.65))
+	var steps: Array[int] = [79, 84, 88]
+	for k: int in steps.size():
+		var last: bool = k == steps.size() - 1
+		_mix(out, _n(0.08 * k), _scaled(_bell(_midi(steps[k]), 0.49 if last else 0.25, 6.0 if last else 12.0),
+				1.0 if last else 0.8))
 	return out
 
 

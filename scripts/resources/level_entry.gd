@@ -1,7 +1,9 @@
 class_name LevelEntry
 extends Resource
 ## One row of the LevelRegistry: a level id, its scene, the name kids read, whether the menu card
-## can be chosen and the card picture. Unlock rules arrive with Story 6.8.
+## can be chosen, the card picture and which level's finished run opens it (Story 6.8, FR79).
+## Adding a level later: set its unlocked_by here in the registry; only if old saves should get it opened
+## by runs they already hold, add a new SaveSchema migration (migrations never read the registry).
 
 ## The id the menu and the RUN payload use, e.g. &"zombie_run".
 @export var id: StringName
@@ -16,3 +18,6 @@ extends Resource
 ## Card picture, `assets/sprites/ui/menu/ui_level_card_<id>.png` (184 x 72, Story 5.0). Null = the card's flat
 ## PictureFill (NFR16 fallback).
 @export var card_picture: Texture2D
+## The level whose finished run (timer reached its end) opens this one; empty = open from the start. FR79.
+## Must name an existing, non-debug, different entry, without loops (LevelRegistry.validate()).
+@export var unlocked_by: StringName = &""

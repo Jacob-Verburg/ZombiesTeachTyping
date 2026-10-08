@@ -237,12 +237,12 @@ func test_unused_keys_are_not_consumed() -> void:
 	assert_false(sut._handle_key(KEY_ESCAPE))
 
 
-## Only the jump buttons take the mouse (Story 4.2); nothing here ever takes keyboard focus.
+## Only the jump and unlock buttons take the mouse (Stories 4.2, 6.8); nothing here ever takes keyboard focus.
 func test_never_blocks_the_mouse() -> void:
 	var sut: OverlayScript = _make()
 	var controls: Array[Control] = _controls(sut, [])
 	assert_gt(controls.size(), 0)
-	var jumps: Array[Control] = _jump_buttons(sut)
+	var jumps: Array[Control] = _jump_buttons(sut) + _unlock_buttons(sut)
 	for control: Control in controls:
 		assert_eq(control.focus_mode, Control.FOCUS_NONE, str(control.name))
 		if control not in jumps:
@@ -513,15 +513,20 @@ func _jump_buttons(sut: OverlayScript) -> Array[Control]:
 	]
 
 
+func _unlock_buttons(sut: OverlayScript) -> Array[Control]:
+	return [sut.get_node("%UnlockAllButton") as Control, sut.get_node("%RelockAllButton") as Control]
+
+
 func test_jump_buttons_exist_and_never_take_focus() -> void:
 	var sut: OverlayScript = _make()
 	var texts: Array[String] = []
-	for control: Control in _jump_buttons(sut):
+	for control: Control in _jump_buttons(sut) + _unlock_buttons(sut):
 		var button: Button = control as Button
 		assert_not_null(button)
 		assert_eq(button.focus_mode, Control.FOCUS_NONE, str(button.name))
 		texts.append(button.text)
-	assert_eq(texts, ["Test level", "Test words", "Horde Rush", "Welcome gift", "Keyboard test"] as Array[String])
+	assert_eq(texts, ["Test level", "Test words", "Horde Rush", "Welcome gift", "Keyboard test", "Unlock all",
+			"Relock all"] as Array[String])
 
 
 func test_jump_buttons_navigate_from_the_main_menu() -> void:
@@ -545,6 +550,7 @@ func test_jump_buttons_sit_on_two_rows() -> void:
 	var rows: Dictionary[String, String] = {
 		"JumpTestLevelButton": "JumpRow", "JumpWordLevelButton": "JumpRow", "JumpHordeRushButton": "JumpRow",
 		"JumpGiftButton": "JumpRow2", "JumpKeyboardTestButton": "JumpRow2",
+		"UnlockAllButton": "JumpRow2", "RelockAllButton": "JumpRow2",
 	}
 	for button_name: String in rows:
 		var button: Button = sut.get_node("%" + button_name) as Button
@@ -651,3 +657,41 @@ func test_f4_does_nothing_while_closed() -> void:
 	frame.get_level().call("debug_set_stress_floor", 5)
 	assert_false(sut._handle_key(KEY_F4))
 	assert_eq(frame.get_level().call("get_stress_floor"), 5, "a closed overlay ignores F4")
+
+
+# --- Story 6.8: Unlock all / Relock all ------------------------------------------
+
+func test_unlock_buttons_do_nothing_off_the_main_menu_or_closed() -> void:
+	var sut: OverlayScript = _make()
+	for control: Control in _unlock_buttons(sut):
+		(control as Button).pressed.emit()
+	_screen = Router.Screen.RUN
+	sut._handle_key(KEY_F3)
+	for control: Control in _unlock_buttons(sut):
+		assert_true((control as Button).disabled, str(control.name))
+		(control as Button).pressed.emit()
+	assert_eq(_jumps, [])
+	assert_eq_deep(_save.get_active_profile()["level_unlocks"], {})
+
+
+func test_unlock_all_opens_every_level_and_reloads_the_menu() -> void:
+	var sut: OverlayScript = _make()
+	sut._handle_key(KEY_F3)
+	var button: Button = sut.get_node("%UnlockAllButton") as Button
+	assert_false(button.disabled)
+	watch_signals(_player)
+	button.pressed.emit()
+	assert_eq(_jumps, [[Router.Screen.MAIN_MENU, {}]], "reloads the menu once")
+	assert_signal_emit_count(_player, "unlocks_changed", 1)
+	for id: StringName in [&"horde_rush", &"pitchfork_panic"]:
+		assert_eq_deep(_player.get_unlock_state(id), {"unlocked": true, "moment_seen": false, "chosen": false})
+
+
+func test_relock_all_clears_every_unlock_and_reloads_the_menu() -> void:
+	var sut: OverlayScript = _make()
+	_player.debug_set_all_unlocked(true)
+	sut._handle_key(KEY_F3)
+	(sut.get_node("%RelockAllButton") as Button).pressed.emit()
+	assert_eq(_jumps, [[Router.Screen.MAIN_MENU, {}]])
+	assert_false(_player.get_unlock_state(&"horde_rush")["unlocked"])
+	assert_eq_deep(_save.get_active_profile()["level_unlocks"], {})

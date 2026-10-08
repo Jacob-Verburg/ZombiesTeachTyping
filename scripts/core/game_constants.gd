@@ -3,7 +3,7 @@ class_name GameConstants
 
 const LOGICAL_SIZE: Vector2i = Vector2i(640, 360)
 const RUN_HISTORY_CAP: int = 500
-const CURRENT_SCHEMA: int = 1
+const CURRENT_SCHEMA: int = 2
 ## Keys that are never typing input, even if a platform reports a character for them (FR3).
 ## Function keys are a range; see FUNCTION_KEY_FIRST/LAST. Space is a per-level rule, not listed here.
 const IGNORED_KEYCODES: Array[Key] = [

@@ -23,6 +23,8 @@ const APPROVED_COPY: Array[String] = [
 	# Main menu
 	"Zombie Run", "Horde Rush", "Pitchfork Panic", "Crypt Closet", "Music", "Sound", "Fullscreen",
 	"This browser might forget your brains",
+	# Story 6.8: the Locked card's hint sign and the New badge
+	"Finish Zombie Run to open!", "Finish Horde Rush to open!", "New!",
 	# Run HUD (the word / text prompts are post-MVP modes, spec verbatim)
 	"Timer", "Keys", "WPM", "Errors", "Type the letter to start!", "Type the word to start!",
 	"Type the text to start!", "Caps Lock is on",
@@ -132,6 +134,8 @@ func _runtime_strings() -> Dictionary[String, String]:
 	out["report fallback"] = ReportScript.FALLBACK_HEADING
 	for entry: LevelEntry in REGISTRY.menu_entries():
 		out["level %s" % entry.id] = entry.display_name
+		if entry.unlocked_by != &"":
+			out["hint %s" % entry.id] = "Finish %s to open!" % REGISTRY.get_entry(entry.unlocked_by).display_name
 	for state: ClosetItemTile.State in ClosetItemTile.State.values():
 		var lines: PackedStringArray = ClosetItemTile.info_lines(null, state, 40)
 		out["tile null %d" % state] = lines[0]

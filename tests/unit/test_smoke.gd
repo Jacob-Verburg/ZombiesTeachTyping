@@ -9,4 +9,4 @@ func test_harness_runs() -> void:
 func test_game_constants() -> void:
 	assert_eq(GameConstants.LOGICAL_SIZE, Vector2i(640, 360))
 	assert_eq(GameConstants.RUN_HISTORY_CAP, 500)
-	assert_eq(GameConstants.CURRENT_SCHEMA, 1)
+	assert_eq(GameConstants.CURRENT_SCHEMA, 2, "Story 6.8: schema v2 (level_unlocks)")

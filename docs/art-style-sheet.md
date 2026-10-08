@@ -295,6 +295,7 @@ default one restyled by `html/head_include` CSS (night page, pixelated logo, a p
 | `menu/ui_card_frame.png` | 24×24 | 1 | 8 |
 | `menu/ui_coming_soon.png` | 156×50 | 1 | – |
 | `menu/ui_signpost.png` / `ui_thumbtack.png` | 8×16 / 8×8 | 1 | – |
+| `menu/ui_padlock.png` (Locked level card, Story 6.8) | 32×40 | 1 | – |
 | `hud/ui_hud_band.png` | 24×24 | 1 | 8 |
 | `hud/ui_cushion.png` | 48×48 | 1 | – |
 | `hands/ui_hand_left.png`, `ui_hand_right.png` | 64×48 | 1 | – |

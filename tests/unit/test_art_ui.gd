@@ -58,6 +58,7 @@ const UI_SHEETS: Dictionary[String, Array] = {
 	M + "ui_coming_soon.png": [Vector2i(156, 50), 1, NONE],
 	M + "ui_signpost.png": [Vector2i(8, 16), 1, NONE],
 	M + "ui_thumbtack.png": [Vector2i(8, 8), 1, NONE],
+	M + "ui_padlock.png": [Vector2i(32, 40), 1, NONE],
 	HU + "ui_hud_band.png": [Vector2i(24, 24), 1, M8],
 	HU + "ui_cushion.png": [Vector2i(48, 48), 1, NONE],
 	HA + "ui_hand_left.png": [Vector2i(64, 48), 1, NONE],

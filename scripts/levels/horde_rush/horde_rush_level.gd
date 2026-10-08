@@ -59,7 +59,8 @@ extends LevelBase
 ## debug overlay's F4 sets a floor of marching copies that _process tops up, one per frame, from
 ## STRESS_WORDS.
 ##
-## Still to come: unlocks (6.8); the Castle + Knight and Beach Hut + Lifeguard pairs (Epic 10).
+## Unlocked by a finished Zombie Run (Story 6.8, the registry's unlocked_by). Still to come: the Castle + Knight and
+## Beach Hut + Lifeguard pairs (Epic 10).
 
 const PLAYER_ZOMBIE_SCENE: PackedScene = preload("res://scenes/characters/player_zombie.tscn")
 const TOMATO_SCENE: PackedScene = preload("res://scenes/levels/horde_rush/tomato.tscn")

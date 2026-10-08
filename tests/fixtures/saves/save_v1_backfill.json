@@ -1,0 +1,81 @@
+{
+	"active_profile": "p1",
+	"profiles": {
+		"p1": {
+			"best_wpm": {
+				"horde_rush": 9,
+				"zombie_run": 12
+			},
+			"brains": 30,
+			"equipped": {
+				"hat": "",
+				"pet": ""
+			},
+			"flags": {
+				"placement_done": false,
+				"tutorial_seen": true,
+				"welcome_bonus_claimed": true
+			},
+			"name": "",
+			"owned_items": [],
+			"run_history": [
+				{
+					"accuracy": 90,
+					"brains": 10,
+					"duration_s": 60,
+					"end_reason": "timer",
+					"errors": 5,
+					"keys_typed": 60,
+					"letter_pool_or_tier": "all",
+					"level_id": "zombie_run",
+					"per_key": {},
+					"timestamp": 1790000000,
+					"wpm": 12
+				},
+				{
+					"accuracy": 80,
+					"brains": 4,
+					"duration_s": 20,
+					"end_reason": "caught",
+					"errors": 4,
+					"keys_typed": 20,
+					"letter_pool_or_tier": "all",
+					"level_id": "horde_rush",
+					"per_key": {},
+					"timestamp": 1790086400,
+					"wpm": 9
+				},
+				7
+			],
+			"settings": {
+				"music_on": true,
+				"sound_on": true
+			},
+			"tier": 0
+		},
+		"p2": {
+			"best_wpm": {
+				"zombie_run": 0
+			},
+			"brains": 0,
+			"equipped": {
+				"hat": "",
+				"pet": ""
+			},
+			"flags": {
+				"placement_done": false,
+				"tutorial_seen": false,
+				"welcome_bonus_claimed": false
+			},
+			"name": "",
+			"owned_items": [],
+			"run_history": [],
+			"settings": {
+				"music_on": true,
+				"sound_on": true
+			},
+			"tier": 0
+		}
+	},
+	"schema_version": 1
+}

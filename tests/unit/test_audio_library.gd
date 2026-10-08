@@ -125,7 +125,8 @@ func test_groan_defaults_are_neutral() -> void:
 const SFX_IDS: Array[StringName] = [&"sfx_ui_click", &"sfx_wrong_key", &"sfx_brain_bonk", &"sfx_hug_poof",
 		&"sfx_purchase", &"sfx_chalk_scratch", &"sfx_report_chime",
 		&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04",
-		&"sfx_zombie_spawn", &"sfx_tomato_throw", &"sfx_tomato_hit", &"sfx_melt"]
+		&"sfx_zombie_spawn", &"sfx_tomato_throw", &"sfx_tomato_hit", &"sfx_melt",
+		&"sfx_unlock_jingle"]
 const VOICE_IDS: Array[StringName] = [&"vo_brainsss"]
 const MUSIC_IDS: Array[StringName] = [&"mus_menu", &"mus_zombie_run", &"mus_horde_rush"]
 ## -1 dBFS as a 16-bit sample value.

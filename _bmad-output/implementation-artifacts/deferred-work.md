@@ -224,7 +224,7 @@
 ## Deferred from: dev of story-2-8 (2026-10-04)
 
 - A level's first run with 0 WPM leaves the best at 0, so the next run with WPM > 0 is again treated as a "first run" (sets the best, no "New best" flag). Acceptable for a 6-year-old's first run.
-- `record_run` validates only `null`; unlock rule (FR79) and `level_unlocked` join it in Story 6.8.
+- ~~`record_run` validates only `null`; unlock rule (FR79) and `level_unlocked` join it in Story 6.8.~~ Done in 6.8: `record_run` unlocks every level whose `unlocked_by` is the finished level (timer runs only) and emits `level_unlocked` after `run_recorded`, still with one save request.
 - ~~A non-int value inside a hand-edited `best_wpm` is read through `int(...)`.~~ Resolved in code review: non-numbers and negatives count as no best.
 - Games that end through a path other than `RunFrame._send_result` (none today) would not be recorded.
 
@@ -528,7 +528,7 @@
 
 - A huge frame `delta` (background tab, window drag) arrives every in-flight copy in one `HordeField.advance`; harmless in 6.3 but in 6.5 it would pay a burst of brains. Cap or substep the delta in 6.5.
   - Resolved in 6.5: `HordeRushLevel.MAX_FRAME_S` (0.5 s) caps each frame before substepping, so no brain burst.
-- A debug jump into `horde_rush` that ends writes a real `run_history` entry with `level_id = horde_rush`; the 6.8 backfill would count it as a timer run. Already acknowledged in the 6.3 Dev Notes.
+- A debug jump into `horde_rush` that ends writes a real `run_history` entry with `level_id = horde_rush`; the 6.8 backfill would count it as a timer run. Already acknowledged in the 6.3 Dev Notes. **6.8: confirmed**, the backfill and `record_run` both count it (it opens Pitchfork Panic in that save); harmless while Pitchfork Panic is Coming soon (its card never shows the lock or the moment).
 - `horde_rush_level.tscn` hard-codes five lane `ColorRect`s while `lane_count` is config-driven; revisit if the lane count ever changes.
   - Resolved in 6.6: the lane `ColorRect`s are gone; the lanes are one baked 5-lane image (`assets/sprites/backdrops/farmhouse/field.png`) and the farmhouse has a doorway per lane, so a `lane_count` change now needs new field and farmhouse art (`tools/gen_horde_rush_art.gd`).
 
@@ -580,3 +580,9 @@
 
 - Nothing cross-checks `tools/horde_rush_sim.gd` against the real level: the tuning bands validate a re-implementation of the step order, and the shipped 1.5 / 2.4 / 1.2 numbers only run through the real level in the seed-7 integration tests. Accepted (pure sim by spec); a level-vs-sim agreement test is a candidate for Epic 7 tuning.
 - F4 stress copies pay brains into the run result and save, and break seed replay; `_top_up_stress` copies `get_marching()` every frame. Debug-only and documented.
+
+## Deferred from: code review of story-6-8-level-unlocks (2026-10-08)
+
+- `LevelRegistry.validate()` is only called from tests, never at runtime; a malformed `unlocked_by` in a future registry edit would leave a card Locked forever. Shipped registry is test-checked.
+- Level-card moment tests use real-time `wait_seconds` with ~0.05 s slack (flake risk on slow runners), and nothing automates the Router-fade-pauses-the-moment behavior.
+- `debug_set_all_unlocked(false)` (Relock all) wipes unlocks with no confirm; verify the debug overlay is stripped from release exports.

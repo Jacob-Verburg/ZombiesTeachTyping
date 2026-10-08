@@ -1,13 +1,19 @@
 class_name SaveSchema
-## The save file's shape: v1 defaults, number clean-up, default filling and migrations. Pure: no files,
-## no nodes, no autoloads. SaveService calls prepare() on every save it parses.
+## The save file's shape: current (v2) defaults, number clean-up, default filling and migrations. Pure:
+## no files, no nodes, no autoloads. SaveService calls prepare() on every save it parses.
 ## Filling keeps every key it doesn't know (a newer build's fields survive an older build's write).
-## Migrations: one static func per version step, named migrate_N_to_N1 (migrate_1_to_2 lands in
-## Story 6.8). Each takes the whole save Dictionary and returns it; migrate() bumps schema_version
-## after each step. Add the step to migration_steps() at index N - 1 and raise
-## GameConstants.CURRENT_SCHEMA.
+## Migrations: one static func per version step, named migrate_N_to_N1. Each takes the whole save
+## Dictionary and returns it; migrate() bumps schema_version after each step. Add the step to
+## migration_steps() at index N - 1 and raise GameConstants.CURRENT_SCHEMA. Migrations run before
+## filling, so they must not assume any field's type.
+## v2 (Story 6.8) adds profiles.<id>.level_unlocks: {level_id: {"moment_seen": bool, "chosen": bool}};
+## a key present = that level is unlocked. Only PlayerData writes it.
 
 const DEFAULT_PROFILE_ID: String = "p1"
+## The v2 unlock chain (level -> the level whose finished run opens it), frozen at migration time:
+## migrations describe the past, so a later registry change never rewrites what migrate_1_to_2 did.
+## A test keeps it equal to the shipped registry's chain for as long as that chain is unchanged.
+const V2_UNLOCKED_BY: Dictionary = {"horde_rush": "zombie_run", "pitchfork_panic": "horde_rush"}
 
 
 ## A new dictionary every call; callers mutate it.
@@ -22,6 +28,7 @@ static func profile_defaults() -> Dictionary:
 		"settings": {"music_on": true, "sound_on": true},
 		"best_wpm": {"zombie_run": 0},
 		"run_history": [],
+		"level_unlocks": {},
 	}
 
 
@@ -82,9 +89,49 @@ static func fill_defaults(data: Dictionary) -> Dictionary:
 	return data
 
 
-## Migration steps in order: index 0 upgrades v1 to v2, index 1 v2 to v3, and so on. Empty at v1.
+## Migration steps in order: index 0 upgrades v1 to v2, index 1 v2 to v3, and so on.
 static func migration_steps() -> Array[Callable]:
-	return []
+	return [migrate_1_to_2]
+
+
+## v1 -> v2 (Story 6.8): gives every profile a level_unlocks Dictionary and backfills it, so a kid who
+## already finished a level finds the next one open (with its unlock moment still to see). A level is
+## backfilled when its V2_UNLOCKED_BY level has a run_history record with end_reason "timer". Existing
+## entries are kept. Junk (non-dict profiles, non-array history, non-dict records) is skipped.
+static func migrate_1_to_2(data: Dictionary) -> Dictionary:
+	var profiles: Variant = data.get("profiles")
+	if typeof(profiles) != TYPE_DICTIONARY:
+		Log.warn(&"save", "migrate_1_to_2: profiles is not a dictionary, skipping")
+		return data
+	for id: Variant in (profiles as Dictionary).keys():
+		var profile: Variant = profiles[id]
+		if typeof(profile) != TYPE_DICTIONARY:
+			Log.warn(&"save", "migrate_1_to_2: profiles/%s is not a dictionary, skipping" % id)
+			continue
+		if typeof(profile.get("level_unlocks")) != TYPE_DICTIONARY:
+			profile["level_unlocks"] = {}
+		var unlocks: Dictionary = profile["level_unlocks"]
+		var finished: Array[String] = _finished_levels(profile.get("run_history"))
+		for level: String in V2_UNLOCKED_BY:
+			if finished.has(str(V2_UNLOCKED_BY[level])) and not unlocks.has(level):
+				unlocks[level] = {"moment_seen": false, "chosen": false}
+	return data
+
+
+## The level ids with at least one "timer" record in `history`; empty when history isn't an Array.
+static func _finished_levels(history: Variant) -> Array[String]:
+	var result: Array[String] = []
+	if typeof(history) != TYPE_ARRAY:
+		return result
+	for record: Variant in history:
+		if typeof(record) != TYPE_DICTIONARY:
+			continue
+		if str(record.get("end_reason", "")) != "timer":
+			continue
+		var level: String = str(record.get("level_id", ""))
+		if not result.has(level):
+			result.append(level)
+	return result
 
 
 ## Runs the steps from the save's schema_version up to target. steps/target are a test seam.

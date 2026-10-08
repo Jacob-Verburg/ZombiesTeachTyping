@@ -1,0 +1,30 @@
+{
+	"active_profile": "p1",
+	"profiles": {
+		"p1": {
+			"best_wpm": {
+				"zombie_run": 0
+			},
+			"brains": 0,
+			"equipped": {
+				"hat": "",
+				"pet": ""
+			},
+			"flags": {
+				"placement_done": false,
+				"tutorial_seen": false,
+				"welcome_bonus_claimed": false
+			},
+			"level_unlocks": {},
+			"name": "",
+			"owned_items": [],
+			"run_history": [],
+			"settings": {
+				"music_on": true,
+				"sound_on": true
+			},
+			"tier": 0
+		}
+	},
+	"schema_version": 2
+}

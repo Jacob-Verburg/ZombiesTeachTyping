@@ -243,6 +243,52 @@ const LOCKED_Q: Array[String] = [
 	"................................",
 ]
 
+## Story 6.8: the Locked level card's big padlock, 32 x 40, left half. stone-light shackle and body, a stone
+## shade, ink outline and keyhole (never candy-yellow or stamp-red: Locked is not an error).
+const PADLOCK_HALF: Array[String] = [
+	"..........kkkkkk",
+	"........kkllllll",
+	".......kllllllll",
+	"......kllllkkkkk",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"......kllsk.....",
+	"..kkkkkkkkkkkkkk",
+	"..klllllllllllll",
+	"..ksllllllllllll",
+	"..ksllllllllllll",
+	"..ksllllllllllll",
+	"..ksllllllllllll",
+	"..ksllllllllllll",
+	"..ksllllllllllll",
+	"..ksllllllllllkk",
+	"..kslllllllllkkk",
+	"..kslllllllllkkk",
+	"..ksllllllllllkk",
+	"..kslllllllllllk",
+	"..kslllllllllllk",
+	"..kslllllllllllk",
+	"..kslllllllllllk",
+	"..kslllllllllllk",
+	"..ksllllllllllll",
+	"..ksllllllllllll",
+	"..ksllllllllllll",
+	"..ksssssssssssss",
+	"..ksssssssssssss",
+	"..ksssssssssssss",
+	"..kkkkkkkkkkkkkk",
+]
+const PADLOCK_LEGEND: Dictionary[String, String] = {"k": "ink", "l": "stone-light", "s": "stone"}
+
 ## Report card window bat, 16 x 8, left half.
 const BAT_HALF: Array[String] = [
 	"......k.",
@@ -338,6 +384,7 @@ func _write_menu() -> void:
 	_save(_coming_soon(), MENU + "ui_coming_soon.png")
 	_save(_signpost(), MENU + "ui_signpost.png")
 	_save(_thumbtack(), MENU + "ui_thumbtack.png")
+	_save(_map(32, 40, _sym(PADLOCK_HALF), PADLOCK_LEGEND), MENU + "ui_padlock.png")
 
 
 func _write_hud() -> void:

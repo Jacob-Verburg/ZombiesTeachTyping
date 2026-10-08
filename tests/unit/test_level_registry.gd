@@ -135,3 +135,56 @@ func test_shipped_registry_menu_levels() -> void:
 	for entry: LevelEntry in registry.menu_entries():
 		menu_ids.append(entry.id)
 	assert_eq(menu_ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic"] as Array[StringName])
+
+
+func _chain_entry(id: StringName, unlocked_by: StringName, debug_only: bool = false) -> LevelEntry:
+	var entry: LevelEntry = _entry(id, SCENE_A, debug_only)
+	entry.unlocked_by = unlocked_by
+	return entry
+
+
+## Story 6.8 (FR79): Zombie Run opens Horde Rush, Horde Rush opens Pitchfork Panic; the chain is valid.
+func test_shipped_unlock_chain() -> void:
+	var registry: LevelRegistry = load(REGISTRY_PATH) as LevelRegistry
+	assert_eq(registry.validate(), "", "shipped registry validates")
+	var expected: Dictionary[StringName, StringName] = {
+		&"zombie_run": &"", &"horde_rush": &"zombie_run", &"pitchfork_panic": &"horde_rush",
+		&"test_level": &"", &"test_word_level": &"",
+	}
+	for id: StringName in expected:
+		assert_eq(registry.get_entry(id).unlocked_by, expected[id], "%s unlocked_by" % id)
+	var opened: Array[StringName] = []
+	for entry: LevelEntry in registry.unlocks_of(&"zombie_run"):
+		opened.append(entry.id)
+	assert_eq(opened, [&"horde_rush"] as Array[StringName])
+
+
+func test_validate_accepts_a_good_chain() -> void:
+	var registry: LevelRegistry = LevelRegistry.new()
+	registry.entries = [_chain_entry(&"a", &""), _chain_entry(&"b", &"a"), _chain_entry(&"c", &"b"), null]
+	assert_eq(registry.validate(), "")
+
+
+func test_validate_catches_unknown_self_debug_and_loops() -> void:
+	var registry: LevelRegistry = LevelRegistry.new()
+	registry.entries = [_chain_entry(&"a", &""), _chain_entry(&"b", &"nope")]
+	assert_string_contains(registry.validate(), "unknown level nope")
+	registry.entries = [_chain_entry(&"a", &"a")]
+	assert_string_contains(registry.validate(), "unlocked by itself")
+	registry.entries = [_chain_entry(&"dbg", &"", true), _chain_entry(&"b", &"dbg")]
+	assert_string_contains(registry.validate(), "debug-only level dbg")
+	registry.entries = [_chain_entry(&"a", &"b"), _chain_entry(&"b", &"a")]
+	assert_string_contains(registry.validate(), "loops")
+	registry.entries = [_chain_entry(&"x", &"a"), _chain_entry(&"a", &"b"), _chain_entry(&"b", &"c"), _chain_entry(&"c", &"b")]
+	assert_string_contains(registry.validate(), "loops", "a loop the start entry isn't part of")
+
+
+func test_unlocks_of_keeps_registry_order_and_ignores_empty() -> void:
+	var registry: LevelRegistry = LevelRegistry.new()
+	registry.entries = [_chain_entry(&"a", &""), _chain_entry(&"c", &"a"), null, _chain_entry(&"b", &"a")]
+	var ids: Array[StringName] = []
+	for entry: LevelEntry in registry.unlocks_of(&"a"):
+		ids.append(entry.id)
+	assert_eq(ids, [&"c", &"b"] as Array[StringName])
+	assert_eq(registry.unlocks_of(&"").size(), 0, "empty id opens nothing")
+	assert_eq(registry.unlocks_of(&"c").size(), 0)

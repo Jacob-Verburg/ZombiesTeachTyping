@@ -23,6 +23,10 @@ extends CanvasLayer
 ## shortcut to the level (its menu card is selectable since Story 6.7). They work only while the main menu is the current screen (a jump out of
 ## a run would skip RunFrame's quit path) and are disabled elsewhere. FOCUS_NONE: they never take the menu's
 ## keyboard focus. They are the only controls here that take the mouse, and only while the overlay is open.
+## Story 6.8: "Unlock all" / "Relock all" on %JumpRow2 follow the same rules (mouse-only, main menu only).
+## They call PlayerData.debug_set_all_unlocked(true / false) (every locked level opened with its unlock
+## moment unseen and its "New!" badge on, or every unlock cleared), then reload the main menu so the moment
+## or the locks show at once.
 ## Closed = no per-frame work (_process off, refresh timer stopped). Nothing is logged per frame.
 ## A section is one label plus one _refresh_* called from _refresh().
 ## player_data, save_service, find_run_frame, navigate and current_screen are test seams: tests assign them before add_child.
@@ -86,6 +90,8 @@ func _ready() -> void:
 	%JumpHordeRushButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"horde_rush"}))
 	%JumpGiftButton.pressed.connect(_jump.bind(Router.Screen.WELCOME_GIFT, {}))
 	%JumpKeyboardTestButton.pressed.connect(_jump.bind(Router.Screen.KEYBOARD_TEST, {}))
+	%UnlockAllButton.pressed.connect(_set_all_unlocked.bind(true))
+	%RelockAllButton.pressed.connect(_set_all_unlocked.bind(false))
 	visible = false
 	set_process(false)
 	%HelpLabel.text = HELP_TEXT
@@ -330,7 +336,7 @@ func _refresh_save() -> void:
 func _refresh_jumps() -> void:
 	var on_menu: bool = _on_main_menu()
 	for button: Button in [%JumpTestLevelButton, %JumpWordLevelButton, %JumpHordeRushButton, %JumpGiftButton,
-			%JumpKeyboardTestButton]:
+			%JumpKeyboardTestButton, %UnlockAllButton, %RelockAllButton]:
 		button.disabled = not on_menu
 
 
@@ -343,6 +349,14 @@ func _jump(screen: Router.Screen, payload: Dictionary) -> void:
 		return
 	Log.info(&"debug", "jump to %s" % Router.Screen.keys()[screen])
 	navigate.call(screen, payload)
+
+
+## Unlock all / Relock all: through PlayerData, then the main menu reloads (MAIN_MENU -> MAIN_MENU).
+func _set_all_unlocked(on: bool) -> void:
+	if not visible or not _on_main_menu():
+		return
+	player_data.debug_set_all_unlocked(on)
+	navigate.call(Router.Screen.MAIN_MENU, {})
 
 
 func _on_confirm_timer_timeout() -> void:

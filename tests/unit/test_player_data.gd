@@ -1,6 +1,6 @@
 extends GutTest
-## PlayerData: brains, settings, wallet, inventory, equipment and flag mutations, their signals, coalesced
-## save requests, live profile reads.
+## PlayerData: brains, settings, wallet, inventory, equipment, flag and level-unlock (Story 6.8) mutations,
+## their signals, coalesced save requests, live profile reads.
 ## Always a fresh SaveService (save_dir = TEST_DIR) and a fresh PlayerData wired to it through the
 ## save_service seam before add_child. The live autoloads are only read, so the real save is never touched.
 
@@ -815,3 +815,208 @@ func test_reset_all_clears_shop_state_with_only_profile_replaced() -> void:
 	assert_signal_not_emitted(sut, "inventory_changed")
 	assert_signal_not_emitted(sut, "flags_changed")
 	assert_signal_not_emitted(sut, "brains_changed")
+
+
+# --- level unlocks (Story 6.8, FR79) ---------------------------------------------
+
+const UNSEEN: Dictionary = {"moment_seen": false, "chosen": false}
+
+
+func _level(id: StringName, unlocked_by: StringName) -> LevelEntry:
+	var entry: LevelEntry = LevelEntry.new()
+	entry.id = id
+	entry.display_name = String(id)
+	entry.available = true
+	entry.unlocked_by = unlocked_by
+	return entry
+
+
+## a (open) -> b -> c, plus d (open) that opens nothing. Not the shipped chain on purpose.
+func _test_registry() -> LevelRegistry:
+	var registry: LevelRegistry = LevelRegistry.new()
+	registry.entries = [_level(&"a", &""), _level(&"b", &"a"), _level(&"c", &"b"), _level(&"d", &"")]
+	return registry
+
+
+func _make_unlocks(counting: bool = false) -> PlayerDataScript:
+	_save = CountingSave.new() if counting else SaveServiceScript.new()
+	_save.save_dir = TEST_DIR
+	add_child_autofree(_save)
+	var sut: PlayerDataScript = PlayerDataScript.new()
+	sut.save_service = _save
+	sut.level_registry = _test_registry()
+	add_child_autofree(sut)
+	return sut
+
+
+func _run(level: StringName, reason: StringName = GameConstants.END_REASON_TIMER) -> RunResult:
+	return RunResult.create(level, 1000, 60.0, 50, 0, {}, 0, 0, "all", reason)
+
+
+func _unlocks_raw() -> Dictionary:
+	return _save.get_active_profile()["level_unlocks"]
+
+
+func test_timer_run_unlocks_the_next_level_once() -> void:
+	var sut: PlayerDataScript = _make_unlocks()
+	assert_false(sut.get_unlock_state(&"b")["unlocked"])
+	watch_signals(sut)
+	var order: Array[String] = []
+	sut.run_recorded.connect(func(_id: StringName, _best: bool) -> void: order.append("run_recorded"))
+	sut.level_unlocked.connect(func(id: StringName) -> void: order.append("unlocked %s" % id))
+	sut.record_run(_run(&"a"))
+	assert_eq(order, ["run_recorded", "unlocked b"] as Array[String], "level_unlocked after run_recorded")
+	assert_signal_emit_count(sut, "level_unlocked", 1)
+	assert_signal_emitted_with_parameters(sut, "level_unlocked", [&"b"])
+	assert_eq_deep(_unlocks_raw(), {"b": UNSEEN})
+	assert_eq_deep(sut.get_unlock_state(&"b"), {"unlocked": true, "moment_seen": false, "chosen": false})
+	assert_false(sut.get_unlock_state(&"c")["unlocked"], "only the next level, not the whole chain")
+	sut.record_run(_run(&"a"))
+	assert_signal_emit_count(sut, "level_unlocked", 1, "a second finish emits nothing")
+	assert_eq_deep(_unlocks_raw(), {"b": UNSEEN})
+
+
+func test_record_run_with_an_unlock_still_requests_one_save() -> void:
+	var sut: PlayerDataScript = _make_unlocks(true)
+	watch_signals(_save)
+	sut.record_run(_run(&"a"))
+	assert_eq((_save as CountingSave).requests, 1)
+	await wait_process_frames(2)
+	assert_signal_emit_count(_save, "save_written", 1)
+	assert_eq_deep(_written_profile()["level_unlocks"], {"b": UNSEEN})
+
+
+func test_non_timer_runs_unlock_nothing() -> void:
+	var sut: PlayerDataScript = _make_unlocks()
+	watch_signals(sut)
+	sut.record_run(_run(&"a", GameConstants.END_REASON_CAUGHT))
+	sut.record_run(_run(&"a", GameConstants.END_REASON_ESCAPED))
+	assert_signal_not_emitted(sut, "level_unlocked")
+	assert_eq_deep(_unlocks_raw(), {})
+	assert_false(sut.get_unlock_state(&"b")["unlocked"])
+
+
+func test_run_of_a_level_that_opens_nothing_changes_nothing() -> void:
+	var sut: PlayerDataScript = _make_unlocks()
+	watch_signals(sut)
+	sut.record_run(_run(&"d"))
+	sut.record_run(_run(&"unknown"))
+	assert_signal_not_emitted(sut, "level_unlocked")
+	assert_eq_deep(_unlocks_raw(), {})
+
+
+func test_unlock_state_defaults() -> void:
+	var sut: PlayerDataScript = _make_unlocks()
+	var open: Dictionary = {"unlocked": true, "moment_seen": true, "chosen": true}
+	# empty unlocked_by is always open
+	assert_eq_deep(sut.get_unlock_state(&"a"), open)
+	# unknown id is open
+	assert_eq_deep(sut.get_unlock_state(&"nope"), open)
+	assert_eq_deep(sut.get_unlock_state(&"b"), {"unlocked": false, "moment_seen": false, "chosen": false})
+
+
+func test_mark_unlock_seen_and_chosen() -> void:
+	var sut: PlayerDataScript = _make_unlocks(true)
+	sut.record_run(_run(&"a"))
+	var requests: int = (_save as CountingSave).requests
+	watch_signals(sut)
+	sut.mark_unlock_seen(&"b")
+	assert_eq_deep(sut.get_unlock_state(&"b"), {"unlocked": true, "moment_seen": true, "chosen": false})
+	assert_signal_emit_count(sut, "unlocks_changed", 1)
+	assert_signal_emitted_with_parameters(sut, "unlocks_changed", [&"b"])
+	assert_eq((_save as CountingSave).requests, requests + 1)
+	sut.mark_unlock_seen(&"b")
+	assert_signal_emit_count(sut, "unlocks_changed", 1, "already seen: no-op")
+	assert_eq((_save as CountingSave).requests, requests + 1)
+	sut.mark_level_chosen(&"b")
+	assert_eq_deep(sut.get_unlock_state(&"b"), {"unlocked": true, "moment_seen": true, "chosen": true})
+	assert_signal_emit_count(sut, "unlocks_changed", 2)
+	assert_eq((_save as CountingSave).requests, requests + 2)
+	sut.mark_level_chosen(&"b")
+	assert_eq((_save as CountingSave).requests, requests + 2, "already chosen: no-op")
+	assert_eq_deep(_unlocks_raw(), {"b": {"moment_seen": true, "chosen": true}})
+
+
+func test_marks_on_locked_or_open_levels_change_nothing() -> void:
+	var sut: PlayerDataScript = _make_unlocks(true)
+	watch_signals(sut)
+	for id: StringName in [&"b", &"a", &"nope"]:
+		sut.mark_unlock_seen(id)
+		sut.mark_level_chosen(id)
+	assert_signal_not_emitted(sut, "unlocks_changed")
+	assert_eq((_save as CountingSave).requests, 0)
+	assert_eq_deep(_unlocks_raw(), {})
+
+
+func test_junk_entries_read_as_seen_and_are_repaired_by_a_mark() -> void:
+	var sut: PlayerDataScript = _make_unlocks(true)
+	_unlocks_raw()["b"] = 5
+	_unlocks_raw()["c"] = {"moment_seen": "no"}
+	assert_eq_deep(sut.get_unlock_state(&"b"), {"unlocked": true, "moment_seen": true, "chosen": true})
+	assert_eq_deep(sut.get_unlock_state(&"c"), {"unlocked": true, "moment_seen": true, "chosen": true})
+	watch_signals(sut)
+	sut.mark_unlock_seen(&"b")
+	# rewritten as a Dictionary
+	assert_eq_deep(_unlocks_raw()["b"], {"moment_seen": true, "chosen": true})
+	assert_signal_not_emitted(sut, "unlocks_changed", "the read state did not change")
+	assert_eq((_save as CountingSave).requests, 1, "the repair is saved")
+	sut.mark_level_chosen(&"c")
+	assert_eq_deep(_unlocks_raw()["c"], {"moment_seen": true, "chosen": true})
+	sut.mark_level_chosen(&"c")
+	assert_eq((_save as CountingSave).requests, 2, "a proper entry is not rewritten again")
+
+
+func test_non_dictionary_level_unlocks_reads_as_empty() -> void:
+	var sut: PlayerDataScript = _make_unlocks()
+	_save.get_active_profile()["level_unlocks"] = "junk"
+	assert_false(sut.get_unlock_state(&"b")["unlocked"])
+	sut.record_run(_run(&"a"))
+	assert_eq_deep(_unlocks_raw(), {"b": UNSEEN})
+
+
+func test_unlocks_survive_a_reload() -> void:
+	var sut: PlayerDataScript = _make_unlocks()
+	sut.record_run(_run(&"a"))
+	sut.mark_unlock_seen(&"b")
+	_save.save_now()
+	var reloaded: PlayerDataScript = _make_unlocks()
+	assert_eq_deep(reloaded.get_unlock_state(&"b"), {"unlocked": true, "moment_seen": true, "chosen": false})
+	assert_false(reloaded.get_unlock_state(&"c")["unlocked"])
+
+
+func test_debug_set_all_unlocked() -> void:
+	var sut: PlayerDataScript = _make_unlocks(true)
+	sut.record_run(_run(&"a"))
+	sut.mark_unlock_seen(&"b")
+	sut.mark_level_chosen(&"b")
+	var requests: int = (_save as CountingSave).requests
+	watch_signals(sut)
+	sut.debug_set_all_unlocked(true)
+	# overwrites, so the moment replays
+	assert_eq_deep(_unlocks_raw(), {"b": UNSEEN, "c": UNSEEN})
+	assert_signal_emit_count(sut, "unlocks_changed", 1)
+	assert_signal_emitted_with_parameters(sut, "unlocks_changed", [&""])
+	assert_eq((_save as CountingSave).requests, requests + 1)
+	sut.debug_set_all_unlocked(false)
+	assert_eq_deep(_unlocks_raw(), {})
+	assert_false(sut.get_unlock_state(&"b")["unlocked"])
+	assert_eq((_save as CountingSave).requests, requests + 2)
+
+
+func test_reset_all_relocks() -> void:
+	var sut: PlayerDataScript = _make_unlocks()
+	sut.record_run(_run(&"a"))
+	sut.reset_all()
+	assert_false(sut.get_unlock_state(&"b")["unlocked"])
+	assert_eq_deep(_unlocks_raw(), {})
+
+
+func test_lazily_uses_the_shipped_registry() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_null(sut.level_registry, "not loaded at _ready (no level scenes at boot)")
+	assert_false(sut.get_unlock_state(&"horde_rush")["unlocked"])
+	assert_not_null(sut.level_registry)
+	assert_eq(sut.level_registry.resource_path, "res://data/levels/level_registry.tres")
+	sut.record_run(_result(&"zombie_run", 50))
+	assert_true(sut.get_unlock_state(&"horde_rush")["unlocked"], "the shipped chain: Zombie Run opens Horde Rush")
+	assert_false(sut.get_unlock_state(&"pitchfork_panic")["unlocked"])

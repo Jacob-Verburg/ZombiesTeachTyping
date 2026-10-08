@@ -27,6 +27,7 @@ scene = ExtResource("9_horde_rush")
 debug_only = false
 available = true
 card_picture = ExtResource("6_card_horde_rush")
+unlocked_by = &"zombie_run"
 
 [sub_resource type="Resource" id="Resource_pitchfork_panic"]
 script = ExtResource("2_entry")
@@ -35,6 +36,7 @@ display_name = "Pitchfork Panic"
 debug_only = false
 available = false
 card_picture = ExtResource("7_card_pitchfork_panic")
+unlocked_by = &"horde_rush"
 
 [sub_resource type="Resource" id="Resource_test_level"]
 script = ExtResource("2_entry")

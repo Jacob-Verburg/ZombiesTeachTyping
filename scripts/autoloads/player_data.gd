@@ -14,7 +14,13 @@ extends Node
 ## owns/get_owned_items, equip/unequip/get_equipped (one hat, one pet, either may be empty) and
 ## set_flag/get_flag. Ids and keys are stored as Strings (the save is JSON); the API uses StringNames.
 ## Listeners also re-read on profile_replaced (a reset changes owned/equipped/flags with no delta signals).
-## Later methods, by story: mark_unlock_seen/mark_level_chosen/get_unlock_state (6.8).
+## Level unlocks (Story 6.8, FR79): a level whose registry unlocked_by is empty is always open. Any other
+## level opens when a run of its unlocked_by level is recorded with end_reason timer (quits are never
+## recorded, so they never unlock). The profile's level_unlocks holds {level_id: {"moment_seen", "chosen"}};
+## a key present = unlocked, never removed by gameplay (only reset_all and the debug relock clear it).
+## get_unlock_state reads it, mark_unlock_seen (the menu's one-time unlock moment) and mark_level_chosen
+## (the "New!" badge) write it. level_registry is a test seam, loaded lazily (never preloaded: the
+## registry references every level scene, which must not load at boot).
 
 enum PurchaseResult { OK, NOT_ENOUGH_BRAINS, ALREADY_OWNED, UNAVAILABLE }
 
@@ -29,14 +35,23 @@ signal inventory_changed(item_id: StringName)
 ## A slot's item changed; item_id is &"" when the slot was emptied.
 signal equipment_changed(slot: StringName, item_id: StringName)
 signal flags_changed(flag: StringName, value: bool)
+## record_run opened this level (emitted after run_recorded, once per newly unlocked level).
+signal level_unlocked(level_id: StringName)
+## A level's moment_seen or chosen changed; &"" = many levels changed at once (the debug tools).
+signal unlocks_changed(level_id: StringName)
 
 const SaveServiceScript: GDScript = preload("res://scripts/autoloads/save_service.gd")
 const CATALOGUE: Catalogue = preload("res://data/cosmetics/catalogue.tres")
+const LEVEL_REGISTRY_PATH: String = "res://data/levels/level_registry.tres"
+## What get_unlock_state returns for an open level (no lock, nothing new to show).
+const OPEN_STATE: Dictionary = {"unlocked": true, "moment_seen": true, "chosen": true}
 
 ## Test seam: tests assign a fresh SaveService before add_child.
 var save_service: SaveServiceScript = null
 ## Test seam: tests assign a code-built Catalogue before add_child.
 var catalogue: Catalogue = null
+## Test seam: tests assign a code-built LevelRegistry; null = the shipped one, loaded on first use.
+var level_registry: LevelRegistry = null
 
 
 func _ready() -> void:
@@ -67,8 +82,8 @@ func add_brains(amount: int) -> void:
 
 
 ## Saves a finished run (never a quit): appends its record (newest RUN_HISTORY_CAP kept), updates the
-## level's best WPM and adds the run's brains, with one save request. Returns true for a new personal
-## best; a level's first run sets the best but returns false.
+## level's best WPM, adds the run's brains and, for a timer finish, unlocks the levels it opens, with one
+## save request. Returns true for a new personal best; a level's first run sets the best but returns false.
 func record_run(result: RunResult) -> bool:
 	if result == null:
 		Log.error(&"run", "record_run: null result")
@@ -94,11 +109,66 @@ func record_run(result: RunResult) -> bool:
 		var total: int = get_brains() + earned
 		profile["brains"] = total
 		brains_changed.emit(total, earned)
+	var opened: Array[StringName] = []
+	if result.end_reason == GameConstants.END_REASON_TIMER:
+		var unlocks: Dictionary = _level_unlocks()
+		for entry: LevelEntry in _registry().unlocks_of(result.level_id):
+			if not unlocks.has(String(entry.id)):
+				unlocks[String(entry.id)] = {"moment_seen": false, "chosen": false}
+				opened.append(entry.id)
 	run_recorded.emit(result.level_id, new_best)
+	for id: StringName in opened:
+		level_unlocked.emit(id)
 	save_service.request_save()
 	Log.info(&"run", "recorded level=%s wpm=%d new_best=%s history=%d" % [
 			result.level_id, result.wpm, new_best, history.size()])
+	for id: StringName in opened:
+		Log.info(&"run", "unlocked %s" % id)
 	return new_best
+
+
+## {"unlocked", "moment_seen", "chosen"} for `level_id`. A level with an empty unlocked_by, or one the
+## registry doesn't know, is always open (all true). A hand-edited entry reads leniently: a key present
+## is unlocked, and a non-Dictionary entry or a missing / non-bool field reads as true (no surprise replays).
+func get_unlock_state(level_id: StringName) -> Dictionary:
+	var entry: LevelEntry = _registry().get_entry(level_id)
+	if entry == null or entry.unlocked_by == &"":
+		return OPEN_STATE.duplicate()
+	var unlocks: Dictionary = _level_unlocks()
+	if not unlocks.has(String(level_id)):
+		return {"unlocked": false, "moment_seen": false, "chosen": false}
+	var stored: Variant = unlocks[String(level_id)]
+	return {
+		"unlocked": true,
+		"moment_seen": _stored_flag(stored, "moment_seen"),
+		"chosen": _stored_flag(stored, "chosen"),
+	}
+
+
+## The unlock moment for `level_id` has played (the menu calls it as the moment starts). Changes nothing
+## for a locked or always-open level, or when already seen.
+func mark_unlock_seen(level_id: StringName) -> void:
+	_mark_unlock(level_id, "moment_seen")
+
+
+## The kid picked `level_id` on the menu, so its "New!" badge is gone for good. Changes nothing for a
+## locked or always-open level, or when already chosen.
+func mark_level_chosen(level_id: StringName) -> void:
+	_mark_unlock(level_id, "chosen")
+
+
+## Debug overlay only. on: every level with an unlocked_by is unlocked with its moment not seen and not
+## chosen (overwriting, so the moment replays); off: level_unlocks is emptied. One save request.
+func debug_set_all_unlocked(on: bool) -> void:
+	var unlocks: Dictionary = _level_unlocks()
+	unlocks.clear()
+	if on:
+		for entry: LevelEntry in _registry().entries:
+			if entry != null and entry.unlocked_by != &"":
+				unlocks[String(entry.id)] = {"moment_seen": false, "chosen": false}
+	unlocks_changed.emit(&"")
+	save_service.request_save()
+	Log.info(&"run", "debug: all levels %s" % ("unlocked" if on else "relocked"))
 
 
 func get_setting(key: StringName) -> bool:
@@ -242,6 +312,51 @@ func reset_all() -> void:
 
 func _profile() -> Dictionary:
 	return save_service.get_active_profile()
+
+
+func _registry() -> LevelRegistry:
+	if level_registry == null:
+		level_registry = load(LEVEL_REGISTRY_PATH) as LevelRegistry
+		if level_registry == null:
+			# Every level then reads as open and no run unlocks anything, but runs still record and save.
+			Log.error(&"run", "level registry failed to load from %s" % LEVEL_REGISTRY_PATH)
+			level_registry = LevelRegistry.new()
+	return level_registry
+
+
+## The profile's level_unlocks Dictionary; a non-Dictionary value is replaced by {} first.
+func _level_unlocks() -> Dictionary:
+	var profile: Dictionary = _profile()
+	if typeof(profile.get("level_unlocks")) != TYPE_DICTIONARY:
+		profile["level_unlocks"] = {}
+	return profile["level_unlocks"]
+
+
+## A stored unlock field: false only when it is a real false; junk reads as true.
+func _stored_flag(stored: Variant, field: String) -> bool:
+	if typeof(stored) != TYPE_DICTIONARY:
+		return true
+	var value: Variant = (stored as Dictionary).get(field, true)
+	return value if value is bool else true
+
+
+## Sets `field` on an unlocked level's entry, rewriting a junk entry as a proper Dictionary. Emits only
+## when the read value changes; a repair alone just saves.
+func _mark_unlock(level_id: StringName, field: String) -> void:
+	var state: Dictionary = get_unlock_state(level_id)
+	var entry: LevelEntry = _registry().get_entry(level_id)
+	if not state["unlocked"] or entry == null or entry.unlocked_by == &"":
+		return
+	var updated: Dictionary = {"moment_seen": state["moment_seen"], "chosen": state["chosen"]}
+	updated[field] = true
+	var unlocks: Dictionary = _level_unlocks()
+	var stored: Variant = unlocks[String(level_id)]
+	if typeof(stored) == TYPE_DICTIONARY and stored == updated:
+		return
+	unlocks[String(level_id)] = updated
+	if not state[field]:
+		unlocks_changed.emit(level_id)
+	save_service.request_save()
 
 
 func _settings() -> Dictionary:

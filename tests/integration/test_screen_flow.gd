@@ -6,6 +6,8 @@ extends GutTest
 ## recorder before add_child, so the live Router never runs.
 ## WELCOME_GIFT (Story 4.5) grants brains and sets a flag in _ready(), so it gets a temp-dir PlayerData and
 ## recorder seams before add_child: the real save is never written.
+## MAIN_MENU gets a temp-dir PlayerData too: since Story 6.8 it writes unlock state (mark_unlock_seen /
+## mark_level_chosen), which must never reach the real save.
 
 const FLOW_BUTTONS: Dictionary = {
 	"MAIN_MENU": ["%ClosetButton"],
@@ -65,6 +67,8 @@ func _instance(screen: Router.Screen) -> Control:
 	node.process_mode = Node.PROCESS_MODE_DISABLED
 	if screen == Router.Screen.RUN:
 		node.set("navigate", _record)
+	if screen == Router.Screen.MAIN_MENU:
+		node.set("player_data", _temp_player_data())
 	if screen == Router.Screen.WELCOME_GIFT:
 		node.set("navigate", _record)
 		node.set("play_sfx", func(_id: StringName) -> void: pass)
@@ -140,6 +144,7 @@ func test_menu_card_routes_to_a_zombie_run() -> void:
 	var menu: Control = packed.instantiate() as Control
 	menu.process_mode = Node.PROCESS_MODE_DISABLED
 	menu.set("navigate", _record)
+	menu.set("player_data", _temp_player_data())
 	add_child_autofree(menu)
 	var cards: Array[LevelCard] = menu.call("get_cards")
 	cards[0]._activate()
@@ -152,17 +157,22 @@ func test_menu_card_routes_to_a_zombie_run() -> void:
 	assert_eq(_nav, [], "the run started instead of bouncing back to the menu")
 
 
-## Story 6.7: the Horde Rush card is available and its payload starts the horde_rush level in a real
-## RunFrame.
+## Story 6.7: the Horde Rush card starts the horde_rush level in a real RunFrame. Story 6.8: it is Locked
+## until a Zombie Run is finished, so the temp save gets one (and its moment seen): the card is New.
 func test_menu_card_routes_to_a_horde_rush() -> void:
+	var player: PlayerDataScript = _temp_player_data()
+	player.record_run(RunResult.create(
+		&"zombie_run", 1000, 60.0, 50, 0, {}, 0, 0, "all", GameConstants.END_REASON_TIMER))
+	player.mark_unlock_seen(&"horde_rush")
 	var packed: PackedScene = load(Router.SCREEN_PATHS[Router.Screen.MAIN_MENU]) as PackedScene
 	var menu: Control = packed.instantiate() as Control
 	menu.process_mode = Node.PROCESS_MODE_DISABLED
 	menu.set("navigate", _record)
+	menu.set("player_data", player)
 	add_child_autofree(menu)
 	var cards: Array[LevelCard] = menu.call("get_cards")
 	assert_eq(cards[1].get_level_id(), &"horde_rush")
-	assert_eq(cards[1].get_state(), LevelCard.State.AVAILABLE)
+	assert_eq(cards[1].get_state(), LevelCard.State.NEW)
 	cards[1]._activate()
 	assert_eq(_nav, [[Router.Screen.RUN, {"level_id": &"horde_rush"}]])
 	Router._store_payload(_nav[0][1])

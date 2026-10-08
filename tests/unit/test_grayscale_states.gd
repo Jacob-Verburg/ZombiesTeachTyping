@@ -16,7 +16,7 @@ extends GutTest
 ## rim beyond a dark one (the Closet tile moved there in this story's review).
 ## Covered elsewhere, referenced by the Grayscale Checklist: the lit finger's luma gap
 ## (test_art_ui.gd::test_lit_finger_is_brighter_in_grayscale), the toggle-off slash (test_menu_toggle.gd), the
-## Coming soon plank (test_level_card.gd).
+## Coming soon plank (test_level_card.gd); the Locked padlock vs that plank is checked below (Story 6.8).
 
 const TileScene: PackedScene = preload("res://scenes/ui/closet_item_tile.tscn")
 const CardScene: PackedScene = preload("res://scenes/ui/level_card.tscn")
@@ -67,6 +67,42 @@ func test_the_five_tile_states_differ_by_shape_or_content() -> void:
 				ClosetItemTile.State.keys()[state], ClosetItemTile.State.keys()[seen.get(signature, 0)], signature])
 		seen[signature] = state
 	assert_eq(seen.size(), 5)
+
+
+
+## Story 6.8 (DESIGN.md "Distinct Locked vs Coming soon"): the four level-card states read without hue. The
+## dusk (0.234) and stone (0.426) tints are close in grayscale, so Locked and Coming soon differ by shape: a
+## padlock vs a plank (and a parchment vs a grey sign); New adds the badge's shape and word.
+func _card_signature(card: LevelCard) -> String:
+	return "padlock=%s plank=%s badge=%s tint=%s sign=%s" % [
+		(card.get_node("%Padlock") as CanvasItem).visible, (card.get_node("%ComingSoonPlank") as CanvasItem).visible,
+		(card.get_node("%NewBadge") as CanvasItem).visible, (card.get_node("%Tint") as CanvasItem).visible,
+		(card.get_node("%NameSign") as Panel).theme_type_variation]
+
+
+func test_the_four_card_states_differ_by_shape() -> void:
+	var entry: LevelEntry = LevelEntry.new()
+	entry.id = &"horde_rush"
+	entry.display_name = "Horde Rush"
+	entry.available = true
+	var card: LevelCard = CardScene.instantiate() as LevelCard
+	card.setup(entry)
+	card.play_sfx = func(_id: StringName) -> void: pass
+	add_child_autofree(card)
+	var seen: Dictionary[String, LevelCard.State] = {}
+	for state: LevelCard.State in LevelCard.State.values():
+		card.set_state(state)
+		var signature: String = _card_signature(card)
+		assert_false(seen.has(signature), "%s looks like %s without colour: %s" % [
+				LevelCard.State.keys()[state], LevelCard.State.keys()[seen.get(signature, 0)], signature])
+		seen[signature] = state
+	assert_eq(seen.size(), 4)
+	card.set_state(LevelCard.State.LOCKED)
+	assert_true((card.get_node("%Padlock") as CanvasItem).visible and not
+			(card.get_node("%ComingSoonPlank") as CanvasItem).visible, "Locked: padlock, never the plank")
+	card.set_state(LevelCard.State.COMING_SOON)
+	assert_true((card.get_node("%ComingSoonPlank") as CanvasItem).visible and not
+			(card.get_node("%Padlock") as CanvasItem).visible, "Coming soon: plank, never the padlock")
 
 
 ## The focus box of every focusable kind is the stepped candy ring drawn outside the control's ink edge.

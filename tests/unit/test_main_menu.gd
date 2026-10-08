@@ -4,6 +4,9 @@ extends GutTest
 ## the 16 px margin. Kept from Stories 1.7 / 1.8: the FR27 storage notice and the Ctrl+Shift+E chord.
 ## Disabled instances: no real input reaches them, so handlers and _gui_input are called directly.
 ## The live Router, window and save are never touched (navigate recorder, fake fullscreen, temp SaveService).
+## Story 6.8: Locked / New cards from the temp save's unlocks, the hint copy, the one-time unlock moment and
+## the input that finishes it (handlers called directly: the menu is disabled, so its tweens never run),
+## mark_level_chosen, re-reads on profile_replaced / unlocks_changed, the hint and badge layout.
 
 const MenuScene: PackedScene = preload("res://scenes/screens/main_menu.tscn")
 const MainMenuScript := preload("res://scripts/screens/main_menu.gd")
@@ -119,8 +122,9 @@ func test_shipped_registry_gives_three_cards_in_order() -> void:
 		ids.append(card.get_level_id())
 		states.append(card.get_state())
 	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic"] as Array[StringName])
-	# Story 6.7: Horde Rush is selectable (Story 6.8 adds its lock); Pitchfork Panic is still Coming soon.
-	assert_eq(states, [LevelCard.State.AVAILABLE, LevelCard.State.AVAILABLE, LevelCard.State.COMING_SOON]
+	# Story 6.8: on a fresh save Horde Rush is Locked until Zombie Run is finished; Pitchfork Panic is still
+	# Coming soon (that wins over its lock).
+	assert_eq(states, [LevelCard.State.AVAILABLE, LevelCard.State.LOCKED, LevelCard.State.COMING_SOON]
 			as Array[LevelCard.State])
 	assert_eq(_node("%Cards").get_child_count(), 3, "no test_level card")
 
@@ -423,7 +427,9 @@ func test_export_chord_is_ctrl_shift_e_only() -> void:
 
 # --- Layout --------------------------------------------------------------------------------------------
 
-## The menu's own controls (cards as whole cards), excluding the background and the notice.
+## The menu's own controls (cards as whole cards), excluding the background and the notice. A Locked card's
+## hint sign is not part of the card's rect: it is a transient overlay drawn over the notice on purpose, and
+## test_hint_sign_stays_inside_the_margin_and_over_the_notice checks it on its own (Story 6.8).
 func _interactive_and_decor() -> Array[Control]:
 	var result: Array[Control] = [_node("%BrainCounter"), _node("%Logo"), _node("%ClosetButton")]
 	result.append_array(_cards())
@@ -528,3 +534,251 @@ func _assert_label_fits(label: Label) -> void:
 		assert_lte(word_width, label.size.x, "%s word '%s' overflows" % [label.name, word])
 	var lines_height: float = label.get_line_count() * label.get_line_height()
 	assert_lte(lines_height, label.size.y, "%s wraps taller than its box" % label.name)
+
+
+# --- Level unlocks (Story 6.8) -------------------------------------------------------------------------
+
+func _action(action: StringName, pressed: bool = true) -> InputEventAction:
+	var event: InputEventAction = InputEventAction.new()
+	event.action = action
+	event.pressed = pressed
+	return event
+
+
+func _left_click() -> InputEventMouseButton:
+	var event: InputEventMouseButton = InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	return event
+
+
+## A finished (timer) Zombie Run in the temp save: Horde Rush is unlocked, its moment unseen.
+func _finish_zombie_run() -> void:
+	_player.record_run(RunResult.create(
+		&"zombie_run", 1000, 60.0, 50, 0, {}, 0, 0, "all", GameConstants.END_REASON_TIMER))
+
+
+func _card_of(id: StringName) -> LevelCard:
+	for card: LevelCard in _cards():
+		if card.get_level_id() == id:
+			return card
+	return null
+
+
+## a (open) -> b -> c, all available, every entry with a scene; injected into both the menu and PlayerData.
+func _chain_registry() -> LevelRegistry:
+	var a: LevelEntry = _entry(&"a", true)
+	var b: LevelEntry = _entry(&"b", true)
+	b.unlocked_by = &"a"
+	var c: LevelEntry = _entry(&"c", true)
+	c.unlocked_by = &"b"
+	var registry: LevelRegistry = _registry([a, b, c])
+	_player.level_registry = registry
+	return registry
+
+
+func test_fresh_save_locks_horde_rush_with_its_hint() -> void:
+	_make()
+	var horde: LevelCard = _card_of(&"horde_rush")
+	assert_eq(horde.get_state(), LevelCard.State.LOCKED)
+	assert_false(horde.is_playing_moment())
+	assert_eq(horde.get_hint_text(), "Finish Zombie Run to open!")
+	assert_eq(_card_of(&"pitchfork_panic").get_hint_text(), "Finish Horde Rush to open!")
+	assert_true(_cards()[0].has_focus(), "Zombie Run is the only choosable card and has focus")
+	assert_eq(_neighbor(_node("%ClosetButton"), SIDE_TOP), _cards()[0])
+	horde._activate()
+	assert_eq(_nav, [], "a Locked card goes nowhere")
+	assert_true(horde.is_wiggling())
+
+
+func test_unlock_moment_plays_once_and_is_saved_as_seen() -> void:
+	_finish_zombie_run()
+	_make()
+	var horde: LevelCard = _card_of(&"horde_rush")
+	assert_true(horde.is_playing_moment(), "plays when the menu opens")
+	assert_true(_menu.is_playing_unlock_moment())
+	assert_true(_player.get_unlock_state(&"horde_rush")["moment_seen"], "saved as seen at the start")
+	assert_true(_cards()[0].has_focus(), "focus starts on Zombie Run")
+	horde.finish_unlock_moment()
+	assert_true(horde.has_focus(), "focus moves to the new card at the end")
+	assert_eq(horde.get_state(), LevelCard.State.NEW)
+	_make()
+	var again: LevelCard = _card_of(&"horde_rush")
+	assert_false(again.is_playing_moment(), "never plays twice")
+	assert_eq(again.get_state(), LevelCard.State.NEW)
+	assert_true(_cards()[0].has_focus())
+
+
+func test_right_arrow_finishes_the_moment_then_moves_on() -> void:
+	_finish_zombie_run()
+	_make()
+	var horde: LevelCard = _card_of(&"horde_rush")
+	_menu._input(_action(&"ui_right"))
+	assert_false(horde.is_playing_moment(), "finished instantly")
+	assert_eq(horde.get_state(), LevelCard.State.NEW)
+	assert_true(horde.has_focus())
+	# The arrow is not consumed: the GUI then moves focus right of Horde Rush.
+	assert_eq(_neighbor(horde, SIDE_RIGHT), _card_of(&"pitchfork_panic"))
+
+
+func test_enter_finishes_the_moment_and_starts_horde_rush_once() -> void:
+	_finish_zombie_run()
+	_make()
+	var horde: LevelCard = _card_of(&"horde_rush")
+	var accept: InputEventAction = _action(&"ui_accept")
+	_menu._input(accept)
+	assert_true(horde.has_focus())
+	horde._gui_input(accept)
+	assert_eq(_nav, [[Router.Screen.RUN, {"level_id": &"horde_rush"}]])
+	assert_true(_player.get_unlock_state(&"horde_rush")["chosen"], "choosing a New card clears its badge")
+
+
+func test_esc_and_click_finish_the_moment_and_esc_still_goes_nowhere() -> void:
+	_finish_zombie_run()
+	_make()
+	var horde: LevelCard = _card_of(&"horde_rush")
+	_menu._input(_action(&"ui_cancel"))
+	assert_false(horde.is_playing_moment())
+	_menu._unhandled_input(_action(&"ui_cancel"))
+	assert_eq(_nav, [])
+	_player.debug_set_all_unlocked(true)
+	_make()
+	horde = _card_of(&"horde_rush")
+	assert_true(horde.is_playing_moment())
+	_menu._input(_left_click())
+	assert_false(horde.is_playing_moment(), "a left click finishes it")
+
+
+func test_other_input_does_not_finish_the_moment() -> void:
+	_finish_zombie_run()
+	_make()
+	var horde: LevelCard = _card_of(&"horde_rush")
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	var right_click: InputEventMouseButton = _left_click()
+	right_click.button_index = MOUSE_BUTTON_RIGHT
+	var release: InputEventMouseButton = _left_click()
+	release.pressed = false
+	var letter: InputEventKey = _chord(KEY_A, false, false)
+	for event: InputEvent in [motion, right_click, release, letter, _chord(KEY_E, true, true),
+			_action(&"ui_right", false)]:
+		_menu._input(event)
+		assert_true(horde.is_playing_moment(), "%s keeps it playing" % event.as_text())
+	assert_false(MainMenuScript.finishes_unlock_moment(motion))
+	assert_true(MainMenuScript.finishes_unlock_moment(_action(&"ui_down")))
+	assert_true(MainMenuScript.finishes_unlock_moment(_action(&"ui_up")))
+	assert_true(MainMenuScript.finishes_unlock_moment(_action(&"ui_left")))
+
+
+func test_choosing_the_new_card_saves_chosen_and_the_badge_is_gone_next_time() -> void:
+	_finish_zombie_run()
+	_player.mark_unlock_seen(&"horde_rush")
+	_make()
+	var horde: LevelCard = _card_of(&"horde_rush")
+	assert_eq(horde.get_state(), LevelCard.State.NEW)
+	assert_false(horde.is_playing_moment())
+	horde._activate()
+	assert_eq(_nav, [[Router.Screen.RUN, {"level_id": &"horde_rush"}]])
+	assert_true(_player.get_unlock_state(&"horde_rush")["chosen"])
+	_make()
+	assert_eq(_card_of(&"horde_rush").get_state(), LevelCard.State.AVAILABLE)
+
+
+func test_choosing_during_a_transition_does_not_clear_the_badge() -> void:
+	_finish_zombie_run()
+	_player.mark_unlock_seen(&"horde_rush")
+	_make()
+	_transitioning = true
+	_card_of(&"horde_rush")._activate()
+	assert_eq(_nav, [])
+	assert_false(_player.get_unlock_state(&"horde_rush")["chosen"])
+
+
+func test_coming_soon_pending_moment_waits() -> void:
+	_player.debug_set_all_unlocked(true)
+	_make()
+	var pitchfork: LevelCard = _card_of(&"pitchfork_panic")
+	assert_eq(pitchfork.get_state(), LevelCard.State.COMING_SOON)
+	assert_false(pitchfork.is_playing_moment())
+	assert_false(_player.get_unlock_state(&"pitchfork_panic")["moment_seen"], "not marked: it waits")
+	assert_true(_card_of(&"horde_rush").is_playing_moment())
+
+
+func test_several_moments_play_together_and_focus_the_first() -> void:
+	var registry: LevelRegistry = _chain_registry()
+	_player.debug_set_all_unlocked(true)
+	_make(registry, true)
+	var b: LevelCard = _cards()[1]
+	var c: LevelCard = _cards()[2]
+	assert_true(b.is_playing_moment() and c.is_playing_moment())
+	c.finish_unlock_moment()
+	assert_false(c.has_focus(), "focus waits for the last moment")
+	b.finish_unlock_moment()
+	assert_true(b.has_focus(), "the first new card in registry order")
+
+
+func test_profile_replaced_relocks_the_card() -> void:
+	_finish_zombie_run()
+	_player.mark_unlock_seen(&"horde_rush")
+	_make()
+	var horde: LevelCard = _card_of(&"horde_rush")
+	horde.grab_focus()
+	assert_eq(horde.get_state(), LevelCard.State.NEW)
+	_player.reset_all()
+	assert_eq(horde.get_state(), LevelCard.State.LOCKED)
+	assert_true(horde.has_focus(), "a Locked card keeps focus")
+	assert_true((horde.get_node("%Hint") as Control).visible, "and shows its hint")
+
+
+func test_unlocks_changed_rereads_states_and_rewires_focus() -> void:
+	_make(_chain_registry(), true)
+	assert_eq(_neighbor(_node("%ClosetButton"), SIDE_TOP), _cards()[0])
+	_player.debug_set_all_unlocked(true)
+	assert_eq(_cards()[1].get_state(), LevelCard.State.NEW, "re-read with no moment")
+	assert_false(_cards()[1].is_playing_moment())
+	_player.debug_set_all_unlocked(false)
+	assert_eq(_cards()[1].get_state(), LevelCard.State.LOCKED)
+	assert_eq(_cards()[2].get_state(), LevelCard.State.LOCKED)
+
+
+func test_a_relock_during_the_moment_finishes_it_locked() -> void:
+	_finish_zombie_run()
+	_make()
+	var horde: LevelCard = _card_of(&"horde_rush")
+	assert_true(horde.is_playing_moment())
+	_player.debug_set_all_unlocked(false)
+	assert_false(horde.is_playing_moment())
+	assert_eq(horde.get_state(), LevelCard.State.LOCKED)
+
+
+## The hint sign is a transient overlay of a focused Locked card, so _interactive_and_decor() leaves it out
+## (it would otherwise "overlap" the storage notice it is drawn over on purpose). Checked here instead.
+func test_hint_sign_stays_inside_the_margin_and_over_the_notice() -> void:
+	_make(_chain_registry(), true)
+	_menu.call("_show_storage_notice", false)
+	await wait_process_frames(2)
+	for card: LevelCard in [_cards()[1], _cards()[2]]:
+		card.grab_focus()
+		var hint: Control = card.get_node("%Hint") as Control
+		assert_true(hint.is_visible_in_tree())
+		var rect: Rect2 = hint.get_global_rect()
+		assert_true(SAFE_RECT.encloses(rect), "%s hint %s inside the 16 px margin" % [card.get_level_id(), rect])
+		assert_gt(hint.z_index, _notice().z_index, "drawn over the storage notice")
+		assert_lt(rect.end.y, _node("%MusicToggle").get_global_rect().position.y, "above the bottom row")
+		_assert_label_fits(card.get_node("%HintLabel") as Label)
+
+
+func test_text_fits_with_the_badge_and_the_hint_shown() -> void:
+	var registry: LevelRegistry = _chain_registry()
+	_player.record_run(RunResult.create(&"a", 1000, 60.0, 50, 0, {}, 0, 0, "all", GameConstants.END_REASON_TIMER))
+	_player.mark_unlock_seen(&"b")
+	_make(registry, true)
+	_cards()[2].grab_focus()
+	_menu.call("_show_storage_notice", false)
+	await wait_process_frames(2)
+	assert_true((_cards()[1].get_node("%NewBadge") as Control).is_visible_in_tree(), "b shows New!")
+	assert_true((_cards()[2].get_node("%Hint") as Control).is_visible_in_tree(), "c shows its hint")
+	_assert_label_fits(_cards()[1].get_node("%NewBadgeLabel") as Label)
+	_assert_label_fits(_cards()[2].get_node("%HintLabel") as Label)
+	var badge: Rect2 = (_cards()[1].get_node("%NewBadge") as Control).get_global_rect()
+	assert_true(SAFE_RECT.encloses(badge), "badge %s inside the margin" % badge)
+	assert_false(badge.intersects(_node("%Logo").get_global_rect()), "badge clear of the logo")
