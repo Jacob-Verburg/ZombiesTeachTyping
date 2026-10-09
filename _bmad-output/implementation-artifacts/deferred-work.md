@@ -635,3 +635,17 @@
 - Horde Rush tuning per tier band: 6.7's targets (about 40 % arrivals at 10 WPM, 70 % at 30) were measured on the 3-5 band. Tier 1 (2-4 letters) makes mostly 1-hit small copies and tier 5 (5-8) medium copies and brutes; FR64 forbids scaling the defender, so 7.5 changed nothing. When tuning is next revisited, run `tools/horde_rush_sim.gd` per tier band (e.g. tier 1 at 6 WPM, tier 5 at 32 WPM).
 - A pinned debug replay seed (Story 2.10) replays the same targets only at the same tier: the overlay does not show the tier (FR60), so a seed pinned before a tier change deals different letters or words after it.
 - The browser pane's `type` action does not reach the game canvas in web builds; single `key` presses do (seen in 7.5's web check). Use per-key presses in future pane checks.
+
+## Deferred from: dev of story 8-1 (2026-10-09)
+
+- Passage lengths sit at the low end of the authoring guide's aimed spread: tier 3 155-182, tier 4 199-232, tier 5 231-281 (guide: tier 4 200-330, tier 5 260-400). All are within the 150-400 rule and Smuck shipped them as is. If 8.7's per-level WPM check shows tier 5 runs feel short, add longer tier 5 passages (new ids `t5_14`+, up to `MAX_PER_TIER`).
+- GUT's `-gtest=<path>` still runs every script from `.gutconfig.json`'s dirs here. To run one test script, use `-gdir=res://tests/unit -gselect=<name>`.
+
+## Deferred from: code review of story-8-1 (2026-10-09)
+
+- `SentenceGenerator.for_tier` accepts any tier silently; log an error or assert tiers 1-2 when 8.2 wires it.
+- Generated tier 1-2 passages cannot reach `ParagraphRules.MIN_CHARS` (150): 8.2 must exempt generated passages or join more sentences.
+- `ParagraphRules` has no id-format or id/tier-prefix rule; add it (or check in 8.2's loader) before trusting ids at runtime.
+- Validator messages name tiers; 8.2 must not log them at runtime (FR60).
+- Generator replay depends on shared-RNG call order and `WordSource` internals; document the contract in 8.2 and consider a golden-output test.
+- `test_paragraphs.gd` BANNED list is exact-token and broad (`hard`, `easy`, `level`); the test also errors rather than fails on malformed shipped JSON. Revisit with 8.7.
