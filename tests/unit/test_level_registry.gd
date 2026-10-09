@@ -107,7 +107,16 @@ func test_shipped_registry_menu_levels() -> void:
 	var ids: Array[StringName] = []
 	for entry: LevelEntry in registry.entries:
 		ids.append(entry.id)
-	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic", &"test_level", &"test_word_level"] as Array[StringName])
+	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic", &"test_level", &"test_word_level",
+			&"test_paragraph_level"] as Array[StringName])
+	# Story 8.2: the debug-only "Test text" paragraph level.
+	var text_entry: LevelEntry = registry.get_entry(&"test_paragraph_level")
+	assert_true(text_entry.debug_only)
+	assert_eq(text_entry.display_name, "Test text")
+	var text_level: Node = registry.get_scene(&"test_paragraph_level").instantiate()
+	assert_true(text_level is LevelBase)
+	assert_eq((text_level as LevelBase).get_level_config().target_mode, LevelConfig.TargetMode.PARAGRAPH)
+	text_level.free()
 	var zombie_run: LevelEntry = registry.get_entry(&"zombie_run")
 	assert_true(zombie_run.available)
 	assert_eq(zombie_run.card_picture.resource_path, "res://assets/sprites/ui/menu/ui_level_card_zombie_run.png")
@@ -149,7 +158,7 @@ func test_shipped_unlock_chain() -> void:
 	assert_eq(registry.validate(), "", "shipped registry validates")
 	var expected: Dictionary[StringName, StringName] = {
 		&"zombie_run": &"", &"horde_rush": &"zombie_run", &"pitchfork_panic": &"horde_rush",
-		&"test_level": &"", &"test_word_level": &"",
+		&"test_level": &"", &"test_word_level": &"", &"test_paragraph_level": &"",
 	}
 	for id: StringName in expected:
 		assert_eq(registry.get_entry(id).unlocked_by, expected[id], "%s unlocked_by" % id)

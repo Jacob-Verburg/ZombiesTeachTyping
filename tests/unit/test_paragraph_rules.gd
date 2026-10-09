@@ -165,8 +165,8 @@ func test_quoted_and_bracketed_starts() -> void:
 
 
 func test_long_word() -> void:
-	_assert_bad(GOOD_T3.replace("village", "villagevillag"), 3, "longer than")
-	_assert_good(GOOD_T3.replace("village", "villagevilla"), 3)
+	_assert_bad(GOOD_T3.replace("village", "villagevilla"), 3, "longer than")
+	_assert_good(GOOD_T3.replace("village", "villagevill"), 3)
 	_assert_bad(GOOD_T5.replace("(he always smiles)", "(heeeeeeeeeee)"), 5, "longer than")
 
 

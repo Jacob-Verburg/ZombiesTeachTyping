@@ -1862,3 +1862,96 @@ func test_an_invalid_tier_config_runs_horde_rush_untiered() -> void:
 	assert_eq(frame.get_level().tier, 0, "an invalid config is passed as tier 0")
 	assert_null(frame.get_level().tier_config)
 	assert_eq(frame.get_level().get_pool_label(), "all")
+
+
+# --- paragraph mode (Story 8.2): the real test_paragraph_level ---------------------
+
+## A tier 3 save whose used list is `used`, on a temp SaveService.
+func _paragraph_player_data(used: Array[String]) -> PlayerDataScript:
+	var data: PlayerDataScript = _placed_player_data(3)
+	data.set_used_passages(used)
+	return data
+
+
+func _start_paragraphs(data: PlayerDataScript) -> RunFrameScript:
+	var frame: RunFrameScript = _make({"level_id": &"test_paragraph_level", "seed": 42}, null, data)
+	add_child_autofree(frame)
+	return frame
+
+
+## Sends one character: Space through a real Space key event, anything else by its unicode.
+func _send_char(frame: RunFrameScript, c: String) -> bool:
+	return _input_node(frame).handle_key(_space() if c == " " else _key(c))
+
+
+func _current_passage_id(frame: RunFrameScript) -> String:
+	return ((frame.get_level() as LevelBase).get("_paragraphs") as ParagraphSource).get_current_id()
+
+
+func test_paragraph_level_gets_the_used_ids_before_its_source() -> void:
+	var used: Array[String] = []
+	for i: int in 12:
+		used.append("t3_%02d" % (i + 1))
+	var frame: RunFrameScript = _start_paragraphs(_paragraph_player_data(used))
+	assert_eq(frame.get_level().used_passages, used, "the save's list reached the level")
+	assert_eq(_current_passage_id(frame), "t3_13", "only the one unused passage can be dealt first")
+	assert_eq(frame.get_level().get_pool_label(), "tier_3")
+	assert_eq(_hud_text(frame, "%StartPromptLabel"), "Type the text to start!")
+	assert_eq(_letter(frame), "", "the playfield never shows the passage")
+
+
+func test_paragraph_completed_passage_saves_the_used_list() -> void:
+	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
+	var frame: RunFrameScript = _start_paragraphs(data)
+	var first_id: String = _current_passage_id(frame)
+	assert_eq(data.get_used_passages(), [] as Array[String], "nothing is saved before the first key")
+	var passage: String = frame.get_session().get_current_target()
+	assert_true(passage.ends_with(" "), "the target ends with the join Space")
+	assert_true(_send_char(frame, passage[0]))
+	assert_eq(data.get_used_passages(), [first_id] as Array[String], "saved on the run's start")
+	for i: int in range(1, passage.length()):
+		assert_true(_send_char(frame, passage[i]), "'%s' at %d handled" % [passage[i], i])
+	var session: TypingSession = frame.get_session()
+	assert_eq(session.get_errors(), 0)
+	assert_eq(session.get_keys_typed(), passage.length(), "the join Space counts as a typed key")
+	assert_eq(session.get_implied_spaces(), 0, "paragraphs count no implied spaces")
+	assert_eq(session.get_cursor(), 0, "the next passage starts at its first character")
+	var second_id: String = _current_passage_id(frame)
+	assert_ne(second_id, first_id)
+	assert_eq(data.get_used_passages(), [first_id, second_id] as Array[String], "the completion is saved")
+	assert_eq(frame.get_level().get_brains_earned(), 1)
+
+
+func test_paragraph_capital_typed_lowercase_is_wrong() -> void:
+	var frame: RunFrameScript = _start_paragraphs(_paragraph_player_data([] as Array[String]))
+	var passage: String = frame.get_session().get_current_target()
+	var first: String = passage[0]
+	assert_ne(first, first.to_lower(), "an authored passage starts with a capital: '%s'" % first)
+	_send_char(frame, first.to_lower())
+	assert_eq(frame.get_session().get_errors(), 1, "'%s' for '%s' is a wrong key" % [first.to_lower(), first])
+	assert_eq(frame.get_session().get_cursor(), 0)
+	assert_eq(frame.get_session().get_keys_typed(), 0)
+	_send_char(frame, first)
+	assert_eq(frame.get_session().get_cursor(), 1, "the capital itself is right")
+
+
+func test_paragraph_hud_shows_the_window_and_the_next_passage() -> void:
+	var frame: RunFrameScript = _start_paragraphs(_paragraph_player_data([] as Array[String]))
+	var passage: String = frame.get_session().get_current_target()
+	var starts: PackedInt32Array = ParagraphLayout.wrap(passage)
+	assert_eq(_hud_text(frame, "%TargetLabel"), passage.substr(0, starts[1]), "line 1 is the first line")
+	var next: String = frame.get_session().get_upcoming(1)[0]
+	# Type up to the last line: line 2 is then the next passage's first line.
+	for i: int in starts[starts.size() - 1]:
+		_send_char(frame, passage[i])
+	var next_starts: PackedInt32Array = ParagraphLayout.wrap(next)
+	var next_first: String = next.substr(0, next_starts[1]) if next_starts.size() > 1 else next
+	assert_eq(_hud_text(frame, "%NextLineLabel"), next_first, "line 2 is the next passage's first line")
+	assert_true((_hud(frame).get_node("%SpaceMarker") as Control).visible)
+
+
+func test_letter_and_word_runs_do_not_peek_for_the_hud() -> void:
+	var frame: RunFrameScript = _start_words()
+	assert_eq(frame._next_target(), "", "word mode never asks for the next target")
+	var letters: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
+	assert_eq(letters._next_target(), "")

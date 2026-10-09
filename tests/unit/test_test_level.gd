@@ -179,3 +179,84 @@ func test_word_mode_brain_per_completed_word() -> void:
 	assert_signal_emitted_with_parameters(level, "brains_earned_changed", [1])
 	assert_eq(level.get_brains_earned(), 1)
 	assert_eq(_letter(level), source.current())
+
+
+# --- paragraph mode (Story 8.2) -------------------------------------------------
+
+const ParagraphLevelScene: PackedScene = preload("res://scenes/levels/test_level/test_paragraph_level.tscn")
+const TIER_CONFIG_PATH: String = "res://data/tier_config.tres"
+
+
+func _paragraph_level(tier: int = 0, used: Array[String] = []) -> LevelBase:
+	var level: LevelBase = ParagraphLevelScene.instantiate() as LevelBase
+	add_child_autofree(level)
+	level.set_tier(tier, load(TIER_CONFIG_PATH) as TierConfig if tier != 0 else null)
+	level.set_used_passages(used)
+	return level
+
+
+func test_paragraph_config() -> void:
+	var config: LevelConfig = _paragraph_level().get_level_config()
+	assert_eq(config.target_mode, LevelConfig.TargetMode.PARAGRAPH)
+	assert_eq(config.duration_s, 120.0)
+	assert_true(config.case_sensitive)
+	assert_true(config.space_is_input)
+	assert_eq(config.completion_bonus, 0)
+	assert_eq(config.music_id, &"")
+	assert_eq(config.paragraphs.resource_path, "res://data/content/paragraphs.json")
+	assert_eq(config.tier_word_pools.resource_path, "res://data/content/word_pools.json")
+
+
+func test_paragraph_mode_builds_a_paragraph_source() -> void:
+	var level: LevelBase = _paragraph_level()
+	var source: TargetSource = level.create_target_source(_rng(3))
+	assert_true(source is ParagraphSource)
+	assert_true(source.current().ends_with(ParagraphSource.JOIN))
+	assert_eq(_letter(level), "", "a passage is never drawn in the playfield")
+	assert_eq(level.get_pool_label(), GameConstants.LETTER_POOL_ALL, "untiered falls back to all")
+
+
+func test_paragraph_mode_labels_the_pool_by_tier() -> void:
+	for tier: int in [1, 2, 3, 4, 5]:
+		var level: LevelBase = _paragraph_level(tier)
+		level.create_target_source(_rng(tier))
+		assert_eq(level.get_pool_label(), GameConstants.TIER_POOL_FORMAT % tier, "tier %d" % tier)
+
+
+func test_paragraph_mode_uses_the_handed_down_used_list() -> void:
+	var level: LevelBase = _paragraph_level(3, ["t3_01"] as Array[String])
+	var source: ParagraphSource = level.create_target_source(_rng(1)) as ParagraphSource
+	assert_ne(source.get_current_id(), "t3_01", "a used passage is not dealt first")
+	assert_true(source.get_used_ids().has("t3_01"))
+
+
+func test_paragraph_mode_emits_used_passages_and_brains() -> void:
+	var level: LevelBase = _paragraph_level(3)
+	var source: ParagraphSource = level.create_target_source(_rng(4)) as ParagraphSource
+	watch_signals(level)
+	var first_id: String = source.get_current_id()
+	level.on_run_started()
+	assert_signal_emit_count(level, "used_passages_changed", 1, "on the run's start")
+	assert_signal_emitted_with_parameters(level, "used_passages_changed", [[first_id] as Array[String]])
+	var passage: String = source.current()
+	for i: int in passage.length() - 1:
+		level.on_char_accepted(passage[i], i)
+	assert_signal_emit_count(level, "brains_earned_changed", 0, "no per-key brains in paragraph mode")
+	source.advance()
+	level.on_char_accepted(passage[passage.length() - 1], passage.length() - 1)
+	level.on_target_completed(passage)
+	assert_signal_emit_count(level, "brains_earned_changed", 1, "one brain per completed passage")
+	assert_eq(level.get_brains_earned(), 1)
+	assert_signal_emit_count(level, "used_passages_changed", 2, "again on the completion")
+	assert_signal_emitted_with_parameters(level, "used_passages_changed",
+			[[first_id, source.get_current_id()] as Array[String]])
+	assert_eq(_letter(level), "", "still nothing in the playfield")
+
+
+func test_paragraph_mode_without_text_returns_null() -> void:
+	var level: LevelBase = _paragraph_level()
+	var config: LevelConfig = level.get_level_config().duplicate() as LevelConfig
+	config.paragraphs = null
+	level.config = config
+	assert_null(level.create_target_source(_rng(1)))
+	assert_push_error_count(2, "no paragraphs, then no fallback passages")

@@ -3,8 +3,12 @@ extends Node2D
 ## The level contract (ADR-1): RunFrame calls down into a level, the level signals up. Every level
 ## scene's root extends this; the defaults here are safe no-ops.
 ##
-## Rules: a level never reads input, never touches the clock, never writes PlayerData and never calls
-## the Router. It reacts to the calls below and emits end_requested / brains_earned_changed.
+## Rules: a level never reads input, never touches the clock, never reads or writes PlayerData and never
+## calls the Router. It reacts to the calls below and emits end_requested / brains_earned_changed /
+## used_passages_changed.
+## Used passages (Story 8.2, FR68): RunFrame hands the save's used paragraph ids down with
+## set_used_passages(); a paragraph level emits used_passages_changed(ids) whenever its list changes and
+## RunFrame forwards it to PlayerData, the only writer.
 ##
 ## Randomness: create_target_source() must give the source its OWN RandomNumberGenerator seeded from
 ## the run RNG (child.seed = rng.randi()). The level may keep the run rng for its own draws; the
@@ -12,7 +16,7 @@ extends Node2D
 ##
 ## Call order inside one run (all synchronous, in the key event's call stack):
 ##   RunFrame._ready: level instanced -> added under %LevelHost (level _ready) -> set_tier(tier, config)
-##     -> create_target_source(rng) -> TypingSession built -> TypingInput configured
+##     -> set_used_passages(ids) -> create_target_source(rng) -> TypingSession built -> TypingInput configured
 ##   first correct key: on_run_started() -> on_char_accepted(expected, 0)
 ##   each correct key: on_char_accepted(expected, index)
 ##   a word's (or paragraph's) last correct letter: on_char_accepted(expected, index) -> on_target_completed(target)
@@ -27,6 +31,9 @@ signal end_requested(reason: StringName)
 ## Emitted by the level whenever its brain total for this run changes (the HUD counter, Story 2.5).
 @warning_ignore("unused_signal")
 signal brains_earned_changed(total: int)
+## Emitted by a paragraph level whenever its used passage ids change (Story 8.2): RunFrame saves them.
+@warning_ignore("unused_signal")
+signal used_passages_changed(ids: Array[String])
 
 ## The level's settings (duration, case and Space rules, target mode). Set in the level scene.
 @export var config: LevelConfig
@@ -37,6 +44,9 @@ signal brains_earned_changed(total: int)
 var tier: int = 0
 ## The TierConfig that computed `tier` (its rows and word bands). null = untiered.
 var tier_config: TierConfig = null
+## The save's used paragraph ids (Story 8.2), set by RunFrame through set_used_passages(). [] outside a
+## RunFrame. Only paragraph levels read it.
+var used_passages: Array[String] = []
 
 
 ## Called by RunFrame in _ready, before the session is built. Returns `config`.
@@ -49,6 +59,11 @@ func get_level_config() -> LevelConfig:
 func set_tier(p_tier: int, p_config: TierConfig) -> void:
 	tier = p_tier
 	tier_config = p_config
+
+
+## Called once by RunFrame in _ready, after set_tier and before create_target_source. Stores a copy.
+func set_used_passages(ids: Array[String]) -> void:
+	used_passages = ids.duplicate()
 
 
 ## Read by RunFrame when it builds the RunResult (FR51): which pool the run's targets came from.

@@ -345,7 +345,7 @@ func test_run_section_shows_the_run() -> void:
 	assert_eq(upcoming.size(), 3)
 	assert_string_contains(text, "Run test_level WAITING_FIRST_KEY")
 	assert_string_contains(text, "Clock 0.0 / 120 s")
-	assert_string_contains(text, "Target %s > %s" % [session.get_current_target(), " ".join(upcoming)])
+	assert_string_contains(text, "Target %s@0 > %s" % [session.get_current_target(), " ".join(upcoming)])
 	assert_string_contains(text, "Keys 0  Errors 0  WPM 0")
 	assert_string_contains(text, "Seed 42")
 	assert_false(text.contains("(replay)"))
@@ -357,7 +357,7 @@ func test_run_section_shows_the_run() -> void:
 	assert_string_contains(text, "Run test_level RUNNING")
 	assert_string_contains(text, "Clock 6.0 / 120 s")
 	assert_string_contains(text, "Keys 5  Errors 0  WPM %d" % StatsCalculator.wpm(5, 6.0))
-	assert_string_contains(text, "Target %s > " % session.get_current_target())
+	assert_string_contains(text, "Target %s@0 > " % session.get_current_target())
 
 
 func test_run_section_marks_a_replay() -> void:
@@ -508,7 +508,7 @@ func test_run_worst_survives_the_run_and_shows() -> void:
 func _jump_buttons(sut: OverlayScript) -> Array[Control]:
 	return [
 		sut.get_node("%JumpTestLevelButton") as Control, sut.get_node("%JumpWordLevelButton") as Control,
-		sut.get_node("%JumpHordeRushButton") as Control, sut.get_node("%JumpGiftButton") as Control,
+		sut.get_node("%JumpParagraphLevelButton") as Control, sut.get_node("%JumpHordeRushButton") as Control, sut.get_node("%JumpGiftButton") as Control,
 		sut.get_node("%JumpKeyboardTestButton") as Control,
 	]
 
@@ -525,7 +525,7 @@ func test_jump_buttons_exist_and_never_take_focus() -> void:
 		assert_not_null(button)
 		assert_eq(button.focus_mode, Control.FOCUS_NONE, str(button.name))
 		texts.append(button.text)
-	assert_eq(texts, ["Test level", "Test words", "Horde Rush", "Welcome gift", "Keyboard test", "Unlock all",
+	assert_eq(texts, ["Test level", "Test words", "Test text", "Horde Rush", "Welcome gift", "Keyboard test", "Unlock all",
 			"Relock all"] as Array[String])
 
 
@@ -538,6 +538,7 @@ func test_jump_buttons_navigate_from_the_main_menu() -> void:
 	assert_eq(_jumps, [
 		[Router.Screen.RUN, {"level_id": &"test_level"}],
 		[Router.Screen.RUN, {"level_id": &"test_word_level"}],
+		[Router.Screen.RUN, {"level_id": &"test_paragraph_level"}],
 		[Router.Screen.RUN, {"level_id": &"horde_rush"}],
 		[Router.Screen.WELCOME_GIFT, {}],
 		[Router.Screen.KEYBOARD_TEST, {}],
@@ -548,7 +549,8 @@ func test_jump_buttons_navigate_from_the_main_menu() -> void:
 func test_jump_buttons_sit_on_two_rows() -> void:
 	var sut: OverlayScript = _make()
 	var rows: Dictionary[String, String] = {
-		"JumpTestLevelButton": "JumpRow", "JumpWordLevelButton": "JumpRow", "JumpHordeRushButton": "JumpRow",
+		"JumpTestLevelButton": "JumpRow", "JumpWordLevelButton": "JumpRow", "JumpParagraphLevelButton": "JumpRow",
+		"JumpHordeRushButton": "JumpRow",
 		"JumpGiftButton": "JumpRow2", "JumpKeyboardTestButton": "JumpRow2",
 		"UnlockAllButton": "JumpRow2", "RelockAllButton": "JumpRow2",
 	}
@@ -695,3 +697,19 @@ func test_relock_all_clears_every_unlock_and_reloads_the_menu() -> void:
 	assert_eq(_jumps, [[Router.Screen.MAIN_MENU, {}]])
 	assert_false(_player.get_unlock_state(&"horde_rush")["unlocked"])
 	assert_eq_deep(_save.get_active_profile()["level_unlocks"], {})
+
+
+## Story 8.2: a passage is cut to TARGET_SHOWN_CHARS + "..." and the cursor follows the current target.
+func test_run_section_truncates_paragraph_targets() -> void:
+	var sut: OverlayScript = _make()
+	var frame: RunFrameScript = _start_frame({"level_id": &"test_paragraph_level", "seed": 42})
+	sut._handle_key(KEY_F3)
+	var session: TypingSession = frame.get_session()
+	var current: String = session.get_current_target()
+	assert_gt(current.length(), OverlayScript.TARGET_SHOWN_CHARS)
+	var shown: String = current.left(OverlayScript.TARGET_SHOWN_CHARS) + "..."
+	assert_string_contains(_text(sut, "RunLabel"), "Target %s@0 > " % shown)
+	_type_correct(frame)
+	sut._refresh()
+	assert_string_contains(_text(sut, "RunLabel"), "Target %s@1 > " % shown)
+	assert_false(_text(sut, "RunLabel").contains(current), "a whole passage is never printed")

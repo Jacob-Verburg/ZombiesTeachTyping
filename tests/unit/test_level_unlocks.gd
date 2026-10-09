@@ -233,7 +233,7 @@ func test_an_old_save_is_backfilled_and_shows_the_moment() -> void:
 	file.store_string(FileAccess.get_file_as_string(BACKFILL_PATH))
 	file.close()
 	_make_player()
-	assert_eq(int(_save.get_data()["schema_version"]), 2)
+	assert_eq(int(_save.get_data()["schema_version"]), GameConstants.CURRENT_SCHEMA, "migrated to the current schema")
 	var menu: MainMenuScript = _make_menu()
 	var horde: LevelCard = _card(menu, &"horde_rush")
 	assert_true(horde.is_playing_moment(), "the backfilled unlock plays its moment")

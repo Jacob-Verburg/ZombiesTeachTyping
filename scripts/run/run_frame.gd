@@ -24,6 +24,9 @@ extends Control
 ## Tier (Story 7.5): the frame hands player_data's hidden tier and TierConfig down with level.set_tier()
 ## before create_target_source, and records the level's get_pool_label(); a seed replays the same targets
 ## only at the same tier. The tier is never shown or logged (FR60).
+## Paragraphs (Story 8.2): the frame hands player_data's used passage ids down with level.set_used_passages()
+## after set_tier, forwards the level's used_passages_changed to player_data.set_used_passages(), and in
+## PARAGRAPH mode passes the next passage to the HUD (its line 2 on a passage's last line).
 
 enum RunState { WAITING_FIRST_KEY, RUNNING, PAUSED, COUNTDOWN, ENDING, DONE }
 
@@ -87,6 +90,8 @@ var _resume_to: RunState = RunState.WAITING_FIRST_KEY
 var _quitting: bool = false
 ## True when the seed came from the pinned debug_seed.
 var _replayed: bool = false
+## True for a PARAGRAPH level: only then does the HUD get the next target (Story 8.2).
+var _paragraph_mode: bool = false
 
 
 func _ready() -> void:
@@ -245,11 +250,13 @@ func _start_level(payload: Dictionary) -> String:
 	%LevelHost.add_child(level)
 	var tier_config: TierConfig = _valid_tier_config()
 	level.set_tier(player_data.get_tier() if tier_config != null else 0, tier_config)
+	level.set_used_passages(player_data.get_used_passages())
 	_seed_rng(_requested_seed(payload))
 	var source: TargetSource = level.create_target_source(_rng)
 	if source == null:
 		return "level %s gave no target source" % _level_id
 	_session = TypingSession.new(source, config)
+	_paragraph_mode = config.target_mode == LevelConfig.TargetMode.PARAGRAPH
 	_duration = config.duration_s
 	_completion_bonus = maxi(0, config.completion_bonus)
 	%TypingInput.configure(config)
@@ -259,8 +266,9 @@ func _start_level(payload: Dictionary) -> String:
 	_session.char_rejected.connect(_level.on_char_rejected)
 	_session.target_completed.connect(_level.on_target_completed)
 	_level.end_requested.connect(_on_level_end_requested)
+	_level.used_passages_changed.connect(_on_level_used_passages_changed)
 	# HUD after the level, so the level reacts first; all in the same call as the key.
-	%Hud.setup(config, _session.get_current_target())
+	%Hud.setup(config, _session.get_current_target(), _next_target())
 	_session.char_accepted.connect(_on_session_char_accepted)
 	_session.char_rejected.connect(_on_session_char_rejected)
 	_level.brains_earned_changed.connect(%Hud.set_brains)
@@ -466,8 +474,22 @@ func _on_session_run_started() -> void:
 ## The HUD's only target refresh: every correct letter (a word's progress, or the next target once the
 ## source has advanced), in the key's call stack.
 func _on_session_char_accepted(_expected: String, _index: int) -> void:
-	%Hud.show_target(_session.get_current_target(), _session.get_cursor())
+	%Hud.show_target(_session.get_current_target(), _session.get_cursor(), _next_target())
 	%Hud.set_counts(_session.get_keys_typed(), _session.get_errors())
+
+
+## PARAGRAPH mode only: the target after the current one (the HUD's line 2 on a passage's last line).
+## Other modes never peek, so letter and word runs are untouched.
+func _next_target() -> String:
+	if not _paragraph_mode or _session == null:
+		return ""
+	var upcoming: Array[String] = _session.get_upcoming(1)
+	return upcoming[0] if not upcoming.is_empty() else ""
+
+
+## The level's used passage ids changed (Story 8.2): player_data is the only writer.
+func _on_level_used_passages_changed(ids: Array[String]) -> void:
+	player_data.set_used_passages(ids)
 
 
 ## Wrong key (FR2): count, shake the glyph and the quiet tick (AudioManager throttles it to 150 ms).

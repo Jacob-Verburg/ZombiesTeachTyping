@@ -23,6 +23,9 @@ extends CanvasLayer
 ## shortcut to the level (its menu card is selectable since Story 6.7). They work only while the main menu is the current screen (a jump out of
 ## a run would skip RunFrame's quit path) and are disabled elsewhere. FOCUS_NONE: they never take the menu's
 ## keyboard focus. They are the only controls here that take the mouse, and only while the overlay is open.
+## Story 8.2: "Test text" (the paragraph test level) joins %JumpRow after "Test words". The run line truncates
+## each shown target to TARGET_SHOWN_CHARS (a passage is up to 400 characters) and shows @<cursor> after the
+## current one.
 ## Story 6.8: "Unlock all" / "Relock all" on %JumpRow2 follow the same rules (mouse-only, main menu only).
 ## They call PlayerData.debug_set_all_unlocked(true / false) (every locked level opened with its unlock
 ## moment unseen and its "New!" badge on, or every unlock cleared), then reload the main menu so the moment
@@ -43,6 +46,8 @@ const CONFIRM_SEC: float = 5.0
 const REFRESH_SEC: float = 0.25
 ## Targets shown after the current one (debug display, not a balance number).
 const UPCOMING_SHOWN: int = 3
+## Characters of each shown target before "..." (debug display: a passage would fill the panel).
+const TARGET_SHOWN_CHARS: int = 16
 ## Copies the F4 stress hold keeps marching (NFR1: 30 zombies on screen; a debug value, not a balance
 ## number).
 const STRESS_COPIES: int = 30
@@ -87,6 +92,7 @@ func _ready() -> void:
 		current_screen = func() -> Router.Screen: return Router.current_screen
 	%JumpTestLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_level"}))
 	%JumpWordLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_word_level"}))
+	%JumpParagraphLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_paragraph_level"}))
 	%JumpHordeRushButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"horde_rush"}))
 	%JumpGiftButton.pressed.connect(_jump.bind(Router.Screen.WELCOME_GIFT, {}))
 	%JumpKeyboardTestButton.pressed.connect(_jump.bind(Router.Screen.KEYBOARD_TEST, {}))
@@ -288,8 +294,11 @@ func _refresh_run() -> void:
 	var clock: String = "Clock %.1f / %d s" % [elapsed, roundi(duration)] if duration > 0.0 \
 			else "Clock %.1f s" % elapsed
 	var current: String = session.get_current_target()
-	var targets: String = "%s > %s" % [
-		current if current != "" else "-", " ".join(session.get_upcoming(UPCOMING_SHOWN))
+	var upcoming: Array[String] = []
+	for target: String in session.get_upcoming(UPCOMING_SHOWN):
+		upcoming.append(_shown_target(target))
+	var targets: String = "%s@%d > %s" % [
+		_shown_target(current) if current != "" else "-", session.get_cursor(), " ".join(upcoming)
 	]
 	var keys: int = session.get_keys_typed()
 	%RunLabel.text = "Run %s %s\n%s\nTarget %s\nKeys %d  Errors %d  WPM %d\nSeed %d%s%s" % [
@@ -332,11 +341,16 @@ func _refresh_save() -> void:
 	]
 
 
+## A target as the run line shows it: cut to TARGET_SHOWN_CHARS + "..." when longer.
+static func _shown_target(target: String) -> String:
+	return target if target.length() <= TARGET_SHOWN_CHARS else target.left(TARGET_SHOWN_CHARS) + "..."
+
+
 ## The jump buttons work only on the main menu.
 func _refresh_jumps() -> void:
 	var on_menu: bool = _on_main_menu()
-	for button: Button in [%JumpTestLevelButton, %JumpWordLevelButton, %JumpHordeRushButton, %JumpGiftButton,
-			%JumpKeyboardTestButton, %UnlockAllButton, %RelockAllButton]:
+	for button: Button in [%JumpTestLevelButton, %JumpWordLevelButton, %JumpParagraphLevelButton,
+			%JumpHordeRushButton, %JumpGiftButton, %JumpKeyboardTestButton, %UnlockAllButton, %RelockAllButton]:
 		button.disabled = not on_menu
 
 

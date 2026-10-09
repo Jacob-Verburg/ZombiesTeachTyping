@@ -137,7 +137,7 @@
 
 ## Deferred from: code review of 2-2-judgment-session-and-letter-bag (2026-10-04)
 
-- `TypingSession.judge()` returns `WRONG` when the source is exhausted/empty, so callers cannot tell "no target" from a typo, and a correct key on the last target emits `target_changed("")` with no end signal. Harmless with the infinite `LetterBagSource`; address with `WordSource`/`ParagraphSource` (Epic 6/8), e.g. a `NO_TARGET` verdict or a `source_exhausted` signal. Still open after 6.2: `WordSource` is an infinite bag too, so `ParagraphSource` (8.2) is the first finite source.
+- `TypingSession.judge()` returns `WRONG` when the source is exhausted/empty, so callers cannot tell "no target" from a typo, and a correct key on the last target emits `target_changed("")` with no end signal. Harmless with the infinite `LetterBagSource`; address with `WordSource`/`ParagraphSource` (Epic 6/8), e.g. a `NO_TARGET` verdict or a `source_exhausted` signal. Still open after 6.2: `WordSource` is an infinite bag too, so `ParagraphSource` (8.2) is the first finite source. Still open after 8.2: `ParagraphSource` cycles (a new cycle starts once a tier's passages are used up), so it never runs dry either.
 - ~~`TypingSession.judge()` has no re-entrancy guard: a `run_started` handler that calls `judge()` would advance the source twice for one key. Check when `RunFrame` (2.4) connects handlers; add a `_judging` guard if any handler can feed input back.~~ Checked in Story 2.4: no `RunFrame` or level handler calls `judge()`; no guard added.
 
 ## Deferred from: dev of story-2-3 (2026-10-04)
@@ -174,8 +174,8 @@
 
 - ~~HUD chrome is placeholder (flat palette `StyleBoxFlat`s, 1 px ink borders, zero corner radius, ColorRect brain icon, two-bar pause icon) until Story 5.0's 9-slice art.~~ Done in 5.0: HUD band, target sign, stats chalkboard, cushion, Caps Lock sign, pause button and brain pill are 9-slice / sprite art.
 - Brain counter count-up tick and pop (EXPERIENCE.md Game Feel) are Story 5.0 / 5.1 polish; `BrainCounter.set_count()` just sets the number.
-- Word-mode progress colouring / underline (Story 6.2) and paragraph text rendering (Story 8.2) use the target area sized here (word sign grows with the word up to 9 letters; paragraph sign 304 x 48, 2 lines of 24 px).
-- Paragraph mode fits **12 characters per 24 px line** with Press Start 2P. Epic 8 must accept it, use another 8 px-grid size, or widen the target area.
+- ~~Word-mode progress colouring / underline (Story 6.2) and paragraph text rendering (Story 8.2) use the target area sized here (word sign grows with the word up to 9 letters; paragraph sign 304 x 48, 2 lines of 24 px).~~ Done in 8.2: the 2-line paragraph window renders in the 304 x 48 sign.
+- ~~Paragraph mode fits **12 characters per 24 px line** with Press Start 2P. Epic 8 must accept it, use another 8 px-grid size, or widen the target area.~~ Done in 8.2: accepted; `ParagraphLayout.LINE_CHARS = 12`, with a hyphen break for `brain-shaped`.
 - Approved sketch deviations from DESIGN.md / FR14 (Smuck, 2026-10-04, `sketches/hud-band-2-5.md`): HUD label "Keys" (report card keeps "Keys Typed"); stats column 176 px and target area 312 px; start prompt and Caps Lock hint above the band; WPM placeholder en dash; brain counter 80 px (3 digits). DESIGN.md itself is not edited; the sketch is the override.
 - The pause button is drawn as two ink bars, not the text "II": "II" at 16 px is 32 px wide and does not fit the 24 px button (the sketch table said "II", font 16).
 - The test level's own `%StatusLabel` ("Brains: N", y 176-200) touches the Caps Lock hint (y 196-224) by 4 px. Debug level only; Zombie Run (3.1) draws its own playfield.
@@ -184,7 +184,7 @@
 
 ## Deferred from: code review of story-2-5-shared-hud-with-wrong-key-feedback (2026-10-04)
 
-- `Hud`'s `%TargetLabel` has no `autowrap_mode`: paragraph text stays on one line and overflows the two-line sign. The layout only sizes the area; set `autowrap_mode` with paragraph rendering in Story 8.2.
+- ~~`Hud`'s `%TargetLabel` has no `autowrap_mode`: paragraph text stays on one line and overflows the two-line sign. The layout only sizes the area; set `autowrap_mode` with paragraph rendering in Story 8.2.~~ Done in 8.2: `ParagraphLayout` wraps the text itself; `%TargetLabel` shows one line (autowrap off) and `%NextLineLabel` the second.
 - Word sign width in `Hud._layout_target` is unclamped: a word over about 9 letters at 32 px overflows the 312 px target area. The MVP / Epic 6 words (max 8 letters) fit; check when Story 6.x adds longer words.
 - ~~The wrong-key shake runs from the HUD's own `_process`. If Story 2.7 pauses through `RunFrame` state rather than the tree, the shake keeps animating; stop it with the pause.~~ Done in Story 2.7: the pause goes through the tree; the HUD inherits and freezes.
 
@@ -643,9 +643,25 @@
 
 ## Deferred from: code review of story-8-1 (2026-10-09)
 
-- `SentenceGenerator.for_tier` accepts any tier silently; log an error or assert tiers 1-2 when 8.2 wires it.
-- Generated tier 1-2 passages cannot reach `ParagraphRules.MIN_CHARS` (150): 8.2 must exempt generated passages or join more sentences.
-- `ParagraphRules` has no id-format or id/tier-prefix rule; add it (or check in 8.2's loader) before trusting ids at runtime.
-- Validator messages name tiers; 8.2 must not log them at runtime (FR60).
-- Generator replay depends on shared-RNG call order and `WordSource` internals; document the contract in 8.2 and consider a golden-output test.
+- ~~`SentenceGenerator.for_tier` accepts any tier silently; log an error or assert tiers 1-2 when 8.2 wires it.~~ Done in 8.2: a tier outside `GENERATED_TIERS` logs one error (no tier number) and gives null.
+- ~~Generated tier 1-2 passages cannot reach `ParagraphRules.MIN_CHARS` (150): 8.2 must exempt generated passages or join more sentences.~~ Done in 8.2: generated passages are exempt. They are `GENERATED_SENTENCES` (3) sentences and are never run through `ParagraphRules`.
+- ~~`ParagraphRules` has no id-format or id/tier-prefix rule; add it (or check in 8.2's loader) before trusting ids at runtime.~~ Done in 8.2: `ParagraphSource.passages_from_json` keeps only ids matching `t<tier>_NN` with the entry's own tier.
+- ~~Validator messages name tiers; 8.2 must not log them at runtime (FR60).~~ Done in 8.2: the loader logs only the count of skipped passages (`test_paragraph_source.gd` checks that no error line names a tier).
+- ~~Generator replay depends on shared-RNG call order and `WordSource` internals; document the contract in 8.2 and consider a golden-output test.~~ Done in 8.2: the replay contract is in `ParagraphSource`'s class doc; `test_generated_golden_passage` pins seed 8201's first tier 1 passage.
 - `test_paragraphs.gd` BANNED list is exact-token and broad (`hard`, `easy`, `level`); the test also errors rather than fails on malformed shipped JSON. Revisit with 8.7.
+
+## Deferred from: dev of story 8-2 (2026-10-09)
+
+- Caps Lock in case-sensitive levels: `TypingInput` only runs the Caps hint when the level is not case-sensitive, so in paragraph mode a kid with Caps Lock on gets only wrong keys and no hint. GDD M1 scopes the hint to the lowercase levels; adding a case-sensitive hint is a GDD change. Raise it for 8.7 tuning or the Pitchfork Panic playtest.
+- AltGr / dead keys: on non-US layouts some symbols arrive as Ctrl+Alt and are ignored (see the 2-1 note), and on US-International `'` and `"` are dead keys. Tier 4-5 text makes this visible. It needs a browser check on a real layout (8.7).
+- The debug "Test text" level writes the real save's `used_passages`, as debug jumps already write run history. Acceptable for a debug-only level. It is in `tier_config.tres` `ignored_levels` (the registry-debug-levels guard test), so its runs never move the hidden tier.
+- Paragraph sign fit: at Smuck's visual gate the sign grew from 48 to 52 px for 2 px of line padding. Its bottom 4 rows overlap `%HandsArea`'s empty top rows, but the middle-finger glow sprite starts at row 2, so a lit middle finger's glow tip draws over the sign's bottom edge (y 310-311). Smuck shipped it as is ("ship it like this"). Revisit if 8.6's art pass reworks the band (for example a glow sprite that starts at row 4, or a taller band).
+- `%SpaceMarker` is a `%TargetLabel` child (spec), so when the join Space is on line 2 the marker still moves with the wrong-key shake while line 2 stays still. It is a 2 px move for 0.2 s.
+- The visual check ran in a desktop window (a throwaway capture script on the real `RunFrame`), not a web export, so `paragraphs.json` loading in a web build is unverified. `export_presets.cfg` already includes `data/content/*.json`; check it on the next web build (8.3 or 8.7).
+- A 1-passage authored list repeats that passage every time (`ParagraphSource._deal_authored`'s last resort). Shipped tiers have 13 passages each.
+
+## Deferred from: code review of 8-2-paragraph-target-mode (2026-10-09)
+
+- Layout assumes a monospace font: `ParagraphLayout.LINE_CHARS = 12` is a character count while the HUD measures pixel widths. Wide glyphs ("W", "M", "@") could overflow the 288 px line if the font is proportional. Verify against the shipped font in 8.6/8.7.
+- Quitting a paragraph level before the first correct key saves nothing, so the same seed and used list re-deal the same first passage. Benign; 8.3 (Pitchfork Panic) should emit at the same point.
+- Space marker shakes with line 1 while it sits on line 2 (already noted above; spec-mandated parent).

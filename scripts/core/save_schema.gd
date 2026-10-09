@@ -1,5 +1,5 @@
 class_name SaveSchema
-## The save file's shape: current (v2) defaults, number clean-up, default filling and migrations. Pure:
+## The save file's shape: current (v3) defaults, number clean-up, default filling and migrations. Pure:
 ## no files, no nodes, no autoloads. SaveService calls prepare() on every save it parses.
 ## Filling keeps every key it doesn't know (a newer build's fields survive an older build's write).
 ## Migrations: one static func per version step, named migrate_N_to_N1. Each takes the whole save
@@ -8,6 +8,8 @@ class_name SaveSchema
 ## filling, so they must not assume any field's type.
 ## v2 (Story 6.8) adds profiles.<id>.level_unlocks: {level_id: {"moment_seen": bool, "chosen": bool}};
 ## a key present = that level is unlocked. Only PlayerData writes it.
+## v3 (Story 8.2) adds profiles.<id>.used_passages: an Array of the paragraph ids (paragraphs.json) already
+## shown, so no passage repeats until its tier's set is used up (FR68). Only PlayerData writes it.
 
 const DEFAULT_PROFILE_ID: String = "p1"
 ## The v2 unlock chain (level -> the level whose finished run opens it), frozen at migration time:
@@ -29,6 +31,7 @@ static func profile_defaults() -> Dictionary:
 		"best_wpm": {"zombie_run": 0},
 		"run_history": [],
 		"level_unlocks": {},
+		"used_passages": [],
 	}
 
 
@@ -91,7 +94,7 @@ static func fill_defaults(data: Dictionary) -> Dictionary:
 
 ## Migration steps in order: index 0 upgrades v1 to v2, index 1 v2 to v3, and so on.
 static func migration_steps() -> Array[Callable]:
-	return [migrate_1_to_2]
+	return [migrate_1_to_2, migrate_2_to_3]
 
 
 ## v1 -> v2 (Story 6.8): gives every profile a level_unlocks Dictionary and backfills it, so a kid who
@@ -115,6 +118,24 @@ static func migrate_1_to_2(data: Dictionary) -> Dictionary:
 		for level: String in V2_UNLOCKED_BY:
 			if finished.has(str(V2_UNLOCKED_BY[level])) and not unlocks.has(level):
 				unlocks[level] = {"moment_seen": false, "chosen": false}
+	return data
+
+
+## v2 -> v3 (Story 8.2): gives every profile an empty used_passages Array; a profile that already has an
+## Array there keeps it. Junk (non-dict profiles, profiles not a dict) is skipped with a warning, and a
+## non-Array used_passages is replaced by [].
+static func migrate_2_to_3(data: Dictionary) -> Dictionary:
+	var profiles: Variant = data.get("profiles")
+	if typeof(profiles) != TYPE_DICTIONARY:
+		Log.warn(&"save", "migrate_2_to_3: profiles is not a dictionary, skipping")
+		return data
+	for id: Variant in (profiles as Dictionary).keys():
+		var profile: Variant = profiles[id]
+		if typeof(profile) != TYPE_DICTIONARY:
+			Log.warn(&"save", "migrate_2_to_3: profiles/%s is not a dictionary, skipping" % id)
+			continue
+		if typeof(profile.get("used_passages")) != TYPE_ARRAY:
+			profile["used_passages"] = []
 	return data
 
 

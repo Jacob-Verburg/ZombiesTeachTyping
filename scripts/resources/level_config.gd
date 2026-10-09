@@ -30,3 +30,6 @@ enum TargetMode { LETTER, WORD, PARAGRAPH }
 ## The per-tier word pools (res://data/content/word_pools.json, Story 7.4) a tiered word level draws
 ## from (Story 7.5); null = the level ignores the tier and uses word_list with the fixed band.
 @export var tier_word_pools: JSON
+## The authored passages (res://data/content/paragraphs.json, Story 8.1) a paragraph level draws from;
+## null = none. Tiers 1-2 generate text from tier_word_pools instead (Story 8.2).
+@export var paragraphs: JSON

@@ -1020,3 +1020,56 @@ func test_lazily_uses_the_shipped_registry() -> void:
 	sut.record_run(_result(&"zombie_run", 50))
 	assert_true(sut.get_unlock_state(&"horde_rush")["unlocked"], "the shipped chain: Zombie Run opens Horde Rush")
 	assert_false(sut.get_unlock_state(&"pitchfork_panic")["unlocked"])
+
+
+# --- used passages (Story 8.2) ---------------------------------------------------
+
+func test_used_passages_start_empty_and_round_trip() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_eq(sut.get_used_passages(), [] as Array[String])
+	watch_signals(sut)
+	sut.set_used_passages(["t3_01", "t4_02"] as Array[String])
+	assert_eq(sut.get_used_passages(), ["t3_01", "t4_02"] as Array[String])
+	assert_signal_emit_count(sut, "used_passages_changed", 1)
+	await wait_process_frames(2)
+	assert_eq_deep(_written_profile()["used_passages"], ["t3_01", "t4_02"])
+
+
+func test_used_passages_dedup_and_drop_empty_ids() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.set_used_passages(["t3_01", "", "t3_02", "t3_01"] as Array[String])
+	assert_eq(sut.get_used_passages(), ["t3_01", "t3_02"] as Array[String])
+
+
+func test_used_passages_equal_list_is_a_noop() -> void:
+	_save = CountingSave.new()
+	_save.save_dir = TEST_DIR
+	add_child_autofree(_save)
+	var sut: PlayerDataScript = PlayerDataScript.new()
+	sut.save_service = _save
+	add_child_autofree(sut)
+	sut.set_used_passages(["t3_01"] as Array[String])
+	assert_eq((_save as CountingSave).requests, 1, "one save request per change")
+	watch_signals(sut)
+	sut.set_used_passages(["t3_01", "t3_01"] as Array[String])
+	assert_signal_not_emitted(sut, "used_passages_changed")
+	assert_eq((_save as CountingSave).requests, 1, "an equal list requests no save")
+	sut.set_used_passages(["t3_01", "t3_02"] as Array[String])
+	assert_eq((_save as CountingSave).requests, 2)
+
+
+func test_used_passages_reset_all_clears_them() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.set_used_passages(["t3_01"] as Array[String])
+	sut.reset_all()
+	assert_eq(sut.get_used_passages(), [] as Array[String])
+
+
+func test_used_passages_bad_stored_type_reads_empty() -> void:
+	var sut: PlayerDataScript = _make()
+	_save.get_active_profile()["used_passages"] = "t3_01"
+	assert_eq(sut.get_used_passages(), [] as Array[String])
+	_save.get_active_profile()["used_passages"] = ["t3_01", 5, null, "t4_01"]
+	assert_eq(sut.get_used_passages(), ["t3_01", "t4_01"] as Array[String], "non-String entries are skipped")
+	sut.set_used_passages(["t3_01"] as Array[String])
+	assert_eq_deep(_save.get_active_profile()["used_passages"], ["t3_01"])

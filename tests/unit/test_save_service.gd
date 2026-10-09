@@ -6,8 +6,8 @@ extends GutTest
 const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
 const TEST_DIR: String = "user://test_save_service/"
 const NESTED_DIR: String = "user://test_save_service/nested/"
-## The current-schema fresh save (v2 since Story 6.8): what a new SaveService exports.
-const FRESH_PATH: String = "res://tests/fixtures/saves/save_v2_fresh.json"
+## The current-schema fresh save (v3 since Story 8.2): what a new SaveService exports.
+const FRESH_PATH: String = "res://tests/fixtures/saves/save_v3_fresh.json"
 const FULL_PATH: String = "res://tests/fixtures/saves/save_v1_full.json"
 const CORRUPT_PATH: String = "res://tests/fixtures/saves/save_corrupt.json"
 

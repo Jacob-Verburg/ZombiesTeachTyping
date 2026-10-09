@@ -41,6 +41,7 @@ func test_signals_exist() -> void:
 	var level: LevelBase = _level()
 	assert_true(level.has_signal("end_requested"))
 	assert_true(level.has_signal("brains_earned_changed"))
+	assert_true(level.has_signal("used_passages_changed"))
 
 
 func test_is_a_node_2d() -> void:
@@ -74,3 +75,17 @@ func test_tier_active_needs_a_known_tier_and_a_config() -> void:
 	assert_false(level._tier_active(), "null config")
 	level.set_tier(TIER_CONFIG.tier_count(), TIER_CONFIG)
 	assert_true(level._tier_active(), "the top tier")
+
+
+## Story 8.2: the used passage hand-off.
+func test_used_passages_default_empty() -> void:
+	assert_eq(_level().used_passages, [] as Array[String])
+
+
+func test_set_used_passages_stores_a_copy() -> void:
+	var level: LevelBase = _level()
+	var ids: Array[String] = ["t3_01", "t4_02"]
+	level.set_used_passages(ids)
+	assert_eq(level.used_passages, ["t3_01", "t4_02"] as Array[String])
+	ids.append("t5_03")
+	assert_eq(level.used_passages.size(), 2, "a copy: the caller's list can change freely")

@@ -33,7 +33,7 @@ func test_shipped_values() -> void:
 	assert_eq(config.window_runs, 5)
 	assert_eq(config.level_wpm_scale.size(), 0, "no per-level weighting (Gate A)")
 	assert_eq(config.tier_count(), 5)
-	assert_eq(config.ignored_levels, [&"test_level", &"test_word_level"] as Array[StringName])
+	assert_eq(config.ignored_levels, [&"test_level", &"test_word_level", &"test_paragraph_level"] as Array[StringName])
 	assert_eq(config.placement_level, &"zombie_run")
 	assert_eq(config.tier_row_counts, [1, 2, 3, 3, 3] as Array[int])
 	# Tier 1 is 2-4, not the GDD's 2-3: Smuck's decision at the Story 7.3 review gate (2026-10-08).
@@ -55,7 +55,7 @@ func test_ignored_levels_are_the_registry_debug_levels() -> void:
 	debug_ids.sort()
 	ignored.sort()
 	assert_eq(ignored, debug_ids)
-	assert_eq(ignored.size(), 2)
+	assert_eq(ignored.size(), 3, "Story 8.2 adds test_paragraph_level")
 
 
 func test_defaults_are_neutral() -> void:

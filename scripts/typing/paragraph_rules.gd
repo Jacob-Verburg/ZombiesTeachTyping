@@ -15,9 +15,9 @@ const MIN_CHARS: int = 150
 const MAX_CHARS: int = 400
 const MIN_SENTENCES: int = 2
 const MAX_SENTENCES: int = 4
-## The paragraph sign fits 12 characters per 24 px line (deferred-work.md, Story 2.5 note), so a longer
-## word could never wrap.
-const MAX_WORD_CHARS: int = 12
+## The paragraph sign fits 12 characters per 24 px line (deferred-work.md, Story 2.5 note). A word plus its
+## trailing Space must fit one line, so a word is at most 11 characters.
+const MAX_WORD_CHARS: int = 11
 const MIN_PER_TIER: int = 12
 const MAX_PER_TIER: int = 15
 const MIN_TOTAL: int = 38

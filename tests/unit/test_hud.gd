@@ -161,7 +161,7 @@ func test_widest_tier_word_fits_the_target_area() -> void:
 
 func test_paragraph_sign_rect() -> void:
 	_hud.setup(_config(LevelConfig.TargetMode.PARAGRAPH), "the cat sat")
-	assert_eq(_rect("%TargetSign"), Rect2(68, 260, 304, 48))
+	assert_eq(_rect("%TargetSign"), Rect2(68, 260, 304, 52), "Story 8.2: 48 + 4 px of padding")
 
 
 func test_start_prompt_strip_centred_on_target_area() -> void:
@@ -223,7 +223,10 @@ func test_target_line_count_by_mode() -> void:
 func test_paragraph_lines_are_24_px() -> void:
 	_hud.setup(_config(LevelConfig.TargetMode.PARAGRAPH), "the cat sat")
 	var target: Label = _hud.get_node("%TargetLabel") as Label
-	assert_eq(target.get_line_height(), 24)
+	assert_eq(target.get_line_height(), 24, "line 1")
+	var next_line: Label = _hud.get_node("%NextLineLabel") as Label
+	assert_eq(next_line.get_line_height(), 24, "line 2")
+	assert_eq(_font_size(next_line), 24)
 
 
 # --- waiting prompt ---------------------------------------------------------------
@@ -529,11 +532,14 @@ func test_letter_mode_never_shows_word_progress() -> void:
 	assert_false(_underline().visible)
 
 
-func test_paragraph_mode_never_shows_word_progress() -> void:
+## Story 8.2 replaces the 6.2 "paragraph mode never shows word progress" rule: paragraphs have their own
+## overlay now (the paragraph section below).
+func test_paragraph_mode_shows_progress_on_line_1() -> void:
 	_hud.setup(_config(LevelConfig.TargetMode.PARAGRAPH), "the cat sat")
 	_hud.show_target("the cat sat", 2)
-	assert_false(_typed().visible)
-	assert_false(_underline().visible)
+	assert_true(_typed().visible)
+	assert_eq(_typed().text, "th")
+	assert_true(_underline().visible)
 
 
 func test_word_shake_moves_the_overlay_with_the_word() -> void:
@@ -554,3 +560,243 @@ func test_word_live_wpm_counts_implied_spaces() -> void:
 	_hud.update_clock(10.0, 50, 10)
 	assert_eq(_text("%WpmValue"), str(StatsCalculator.wpm(50, 10.0, 10)))
 	assert_ne(_text("%WpmValue"), str(StatsCalculator.wpm(50, 10.0)), "the spaces change the number")
+
+
+# --- paragraph mode (Story 8.2) ---------------------------------------------------
+
+## Passage 1 wraps to "The dog ran " / "up the big " / "hill. " (starts 0, 12, 23); passage 2 to
+## "Zip woke " / "up. " (starts 0, 9). Written out by hand: the oracle is not ParagraphLayout.
+const P1: String = "The dog ran up the big hill. "
+const P2: String = "Zip woke up. "
+const FINGER_MAP_PATH: String = "res://data/finger_map.tres"
+const HAND_LEFT_PATH: String = "res://assets/sprites/ui/hands/ui_hand_left.png"
+const HAND_RIGHT_PATH: String = "res://assets/sprites/ui/hands/ui_hand_right.png"
+
+
+## The first row of the sprite with an opaque pixel.
+func _first_opaque_row(path: String) -> int:
+	var image: Image = (load(path) as Texture2D).get_image()
+	for y: int in image.get_height():
+		for x: int in image.get_width():
+			if image.get_pixel(x, y).a > 0.0:
+				return y
+	return image.get_height()
+
+
+func _paragraph_setup(first: String = P1, next: String = P2) -> void:
+	_hud.setup(_config(LevelConfig.TargetMode.PARAGRAPH), first, next)
+
+
+func _paragraph_width(text: String) -> float:
+	var font: Font = (_hud.get_node("%TargetLabel") as Label).get_theme_font("font")
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, HudScript.PARAGRAPH_FONT_SIZE).x
+
+
+func _marker() -> Control:
+	return _hud.get_node("%SpaceMarker") as Control
+
+
+## The marker's bottom edge in line 1's coordinates.
+func _marker_cell_y() -> float:
+	return _marker().position.y + _marker().size.y
+
+
+func test_paragraph_window_at_the_start() -> void:
+	_paragraph_setup()
+	assert_eq(_text("%TargetLabel"), "The dog ran ")
+	assert_eq(_text("%NextLineLabel"), "up the big ")
+	assert_true(_node("%NextLineLabel").visible)
+	assert_false(_typed().visible)
+	assert_true(_underline().visible)
+	assert_eq(_underline().position, Vector2(0.0, HudScript.PARAGRAPH_UNDERLINE_Y))
+	assert_false(_marker().visible, "the join Space is 2 lines away")
+
+
+func test_paragraph_window_mid_line() -> void:
+	_paragraph_setup()
+	_hud.show_target(P1, 5, P2)
+	assert_eq(_text("%TargetLabel"), "The dog ran ")
+	assert_eq(_typed().text, "The d", "the typed prefix of line 1")
+	assert_true(_typed().visible)
+	assert_eq(_underline().position.x, _paragraph_width("The d"), "under the 6th character")
+	assert_eq(_underline().size, Vector2(_paragraph_width("o"), HudScript.UNDERLINE_PX))
+
+
+func test_paragraph_window_scrolls_one_line() -> void:
+	_paragraph_setup()
+	_hud.show_target(P1, 12, P2)
+	assert_eq(_text("%TargetLabel"), "up the big ", "the cursor's line is line 1")
+	assert_eq(_text("%NextLineLabel"), "hill. ")
+	assert_false(_typed().visible, "nothing typed on the new line yet")
+	assert_eq(_underline().position.x, 0.0)
+	assert_true(_marker().visible, "the last line is line 2")
+	assert_eq(_marker().position.x, _paragraph_width("hill.") + HudScript.SPACE_MARKER_INSET_X)
+	assert_eq(_marker_cell_y(), 24.0 + HudScript.SPACE_MARKER_BOTTOM, "inside line 2's cell")
+
+
+func test_paragraph_last_line_shows_the_next_passage() -> void:
+	_paragraph_setup()
+	_hud.show_target(P1, 25, P2)
+	assert_eq(_text("%TargetLabel"), "hill. ")
+	assert_eq(_text("%NextLineLabel"), "Zip woke ", "line 2 is the next passage's first line")
+	assert_eq(_typed().text, "hi")
+	assert_true(_marker().visible)
+	assert_eq(_marker().position.x, _paragraph_width("hill.") + HudScript.SPACE_MARKER_INSET_X)
+	assert_eq(_marker_cell_y(), HudScript.SPACE_MARKER_BOTTOM, "inside line 1's cell")
+
+
+func test_paragraph_cursor_on_the_join_space() -> void:
+	_paragraph_setup()
+	_hud.show_target(P1, P1.length() - 1, P2)
+	assert_true(_underline().visible, "the join Space is underlined")
+	assert_eq(_underline().position.x, _paragraph_width("hill."))
+	assert_true(_marker().visible)
+	var bar: Rect2 = Rect2(_underline().position, _underline().size)
+	var marker: Rect2 = Rect2(_marker().position, _marker().size)
+	assert_false(bar.intersects(marker), "the marker stays visible next to the underline")
+	assert_true(marker.position.y >= 0.0 and marker.end.y <= 24.0, "the marker stays in its cell")
+	assert_true(bar.position.y >= 0.0 and bar.end.y <= 24.0, "the underline never touches line 2")
+
+
+func test_paragraph_next_passage_starts_on_a_fresh_line() -> void:
+	_paragraph_setup()
+	_hud.show_target(P2, 0, "")
+	assert_eq(_text("%TargetLabel"), "Zip woke ")
+	assert_eq(_text("%NextLineLabel"), "up. ")
+	assert_false(_typed().visible)
+	assert_eq(_marker_cell_y(), 24.0 + HudScript.SPACE_MARKER_BOTTOM)
+	_hud.show_target(P2, 9, "")
+	assert_eq(_text("%TargetLabel"), "up. ")
+	assert_eq(_text("%NextLineLabel"), "", "no next passage known: line 2 is empty")
+
+
+func test_paragraph_rects_fit_the_band() -> void:
+	_paragraph_setup()
+	var line1: Rect2 = _rect("%TargetLabel")
+	var line2: Rect2 = _rect("%NextLineLabel")
+	var hands: Rect2 = _rect("%HandsArea")
+	var sign: Rect2 = _rect("%TargetSign")
+	assert_eq(line1, Rect2(76, 262, 288, 24))
+	assert_eq(line2, Rect2(76, 286, 288, 24))
+	for rect: Rect2 in [line1, line2, hands, sign]:
+		assert_true(rect.position.y >= 256.0 and rect.end.y <= 360.0, "%s in the band" % rect)
+	assert_false(line1.intersects(line2), "line 1 and line 2 do not overlap")
+	assert_true(sign.encloses(line1) and sign.encloses(line2), "both lines inside the sign")
+	assert_true(line1.position.y > sign.position.y, "padding above line 1")
+	assert_true(line2.end.y < sign.end.y, "padding below line 2")
+	# The sign overhangs the hands area only over rows the hand sprites leave empty (read from the art).
+	var art_top: int = mini(_first_opaque_row(HAND_LEFT_PATH), _first_opaque_row(HAND_RIGHT_PATH))
+	assert_true(sign.end.y <= hands.position.y + art_top, "sign ends at %s, hand art starts at %s" % [
+		sign.end.y, hands.position.y + art_top])
+
+
+func test_paragraph_colours() -> void:
+	_paragraph_setup()
+	_hud.show_target(P1, 3, P2)
+	var line2: Label = _hud.get_node("%NextLineLabel") as Label
+	assert_eq(line2.get_theme_color(&"font_color"), Color("#8A7552"), "line 2 is ink-faded")
+	assert_eq(_typed().get_theme_color(&"font_color"), Color("#2E6B26"), "typed is zombie-green-dark")
+	var ink: Color = (_hud.get_node("%TargetLabel") as Label).get_theme_color(&"font_color")
+	assert_eq(ink, Color("#1E1428"), "untyped is ink")
+	assert_eq(_underline().color, ink)
+	for part: Node in _marker().get_children():
+		assert_eq((part as ColorRect).color, Color("#8A7552"), "the marker is ink-faded")
+	assert_eq(_font_size(_typed()), 24)
+	assert_eq((_hud.get_node("%TargetLabel") as Label).horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT)
+
+
+func test_paragraph_shake_moves_line_1_only() -> void:
+	_paragraph_setup()
+	_hud.show_target(P1, 25, P2)
+	var line1_before: Vector2 = _node("%TargetLabel").global_position
+	var marker_before: Vector2 = _marker().global_position
+	var line2_before: Vector2 = _node("%NextLineLabel").global_position
+	_hud.shake_target()
+	_hud._process(0.05)
+	var offset: float = _hud.get_target_offset_x()
+	assert_ne(offset, 0.0)
+	assert_eq(_node("%TargetLabel").global_position, line1_before + Vector2(offset, 0.0))
+	assert_eq(_marker().global_position, marker_before + Vector2(offset, 0.0))
+	assert_eq(_node("%NextLineLabel").global_position, line2_before, "line 2 stays still")
+
+
+## The expected fingers straight from finger_map.tres entries (hand, finger, shift): the character's
+## finger, plus the other hand's pinky when shifted, or the other thumb for a thumb key. Sorted.
+func _expected_fingers(c: String) -> Array[Vector2i]:
+	var entries: Dictionary = (load(FINGER_MAP_PATH) as FingerMap).entries
+	assert_true(entries.has(c), "'%s' is mapped" % c)
+	var entry: Vector3i = entries[c]
+	var other: int = 1 - entry.x
+	var fingers: Array[Vector2i] = [Vector2i(entry.x, entry.y)]
+	if entry.y == FingerMap.Finger.THUMB:
+		fingers.append(Vector2i(other, FingerMap.Finger.THUMB))
+	elif entry.z == 1:
+		fingers.append(Vector2i(other, FingerMap.Finger.PINKY))
+	fingers.sort()
+	return fingers
+
+
+func _lit_sorted() -> Array[Vector2i]:
+	var lit: Array[Vector2i] = _hands_lit()
+	lit.sort()
+	return lit
+
+
+func _sorted(fingers: Array[Vector2i]) -> Array[Vector2i]:
+	fingers.sort()
+	return fingers
+
+
+func test_paragraph_hands_capitals_symbols_digits_and_space() -> void:
+	var text: String = "Tim ran! It was 3. Yes, ok. "
+	_paragraph_setup(text, "")
+	assert_eq(_lit_sorted(), _expected_fingers("T"), "T")
+	assert_eq(_lit_sorted(), _sorted([Vector2i(FingerMap.Hand.LEFT, FingerMap.Finger.INDEX),
+			Vector2i(FingerMap.Hand.RIGHT, FingerMap.Finger.PINKY)]), "T = left index + right pinky")
+	var checks: Dictionary[String, int] = {
+		"!": text.find("!"), ".": text.find("."), ",": text.find(","), "3": text.find("3"), " ": 3,
+	}
+	for c: String in checks:
+		_hud.show_target(text, checks[c], "")
+		assert_eq(_lit_sorted(), _expected_fingers(c), "'%s'" % c)
+	_hud.show_target(text, text.find("!"), "")
+	assert_eq(_lit_sorted(), _sorted([Vector2i(FingerMap.Hand.LEFT, FingerMap.Finger.PINKY),
+			Vector2i(FingerMap.Hand.RIGHT, FingerMap.Finger.PINKY)]), "! is on the 1 key: both pinkies")
+	_hud.show_target(text, text.find("."), "")
+	assert_eq(_hands_lit().size(), 1, "an unshifted symbol lights its finger alone")
+	_hud.show_target(text, text.length() - 1, "")
+	assert_eq(_lit_sorted(), _sorted([Vector2i(FingerMap.Hand.LEFT, FingerMap.Finger.THUMB),
+			Vector2i(FingerMap.Hand.RIGHT, FingerMap.Finger.THUMB)]), "the join Space lights both thumbs")
+
+
+func test_paragraph_then_word_setup_restores_word_mode() -> void:
+	_paragraph_setup()
+	_hud.show_target(P1, 25, P2)
+	_word_setup("dad")
+	var target: Label = _hud.get_node("%TargetLabel") as Label
+	assert_eq(_font_size(target), 32)
+	assert_eq(_font_size(_typed()), 32)
+	assert_eq(target.horizontal_alignment, HORIZONTAL_ALIGNMENT_CENTER)
+	assert_false(_node("%NextLineLabel").visible)
+	assert_false(_marker().visible)
+	assert_eq(_text("%TargetLabel"), "dad")
+	_hud.show_target("dad", 1)
+	assert_eq(_underline().position.y, HudScript.LINE_FONT_SIZE + HudScript.UNDERLINE_GAP, "word underline as before")
+	assert_eq(_underline().position.x, _glyph_width("d"))
+	var word_sign: Rect2 = _rect("%TargetSign")
+	_letter_setup()
+	assert_eq(_font_size(target), 32)
+	assert_false(_node("%NextLineLabel").visible)
+	assert_false(_marker().visible)
+	var letter_sign: Rect2 = _rect("%TargetSign")
+	_hud.setup(_config(LevelConfig.TargetMode.LETTER), "f")
+	assert_eq(_rect("%TargetSign"), letter_sign, "the letter sign as before")
+	assert_ne(word_sign, Rect2(68, 260, 304, 52), "the word sign is not the paragraph sign")
+
+
+func test_every_tier_5_character_has_a_glyph() -> void:
+	var font: Font = (load(THEME_PATH) as Theme).default_font
+	var chars: String = ParagraphRules.allowed_chars(5)
+	assert_gt(chars.length(), 0)
+	for i: int in chars.length():
+		assert_true(font.has_char(chars.unicode_at(i)), "glyph '%s'" % chars[i])

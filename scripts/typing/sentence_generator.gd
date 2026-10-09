@@ -31,7 +31,12 @@ func _init(rng: RandomNumberGenerator, pool: Array[String], allow_comma: bool) -
 
 
 ## The generator for a tier: commas only in ParagraphRules.COMMA_TIERS, so the rule lives in one place.
+## Only ParagraphRules.GENERATED_TIERS generate text: any other tier logs one error (no tier number,
+## FR60) and gives null (Story 8.2).
 static func for_tier(rng: RandomNumberGenerator, pool: Array[String], tier: int) -> SentenceGenerator:
+	if not tier in ParagraphRules.GENERATED_TIERS:
+		Log.error(&"typing", "SentenceGenerator: the requested tier has authored text, not generated")
+		return null
 	return SentenceGenerator.new(rng, pool, tier in ParagraphRules.COMMA_TIERS)
 
 

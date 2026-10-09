@@ -155,3 +155,12 @@ func test_bad_inputs_give_empty_sentences() -> void:
 		assert_eq(gen.next_sentence(), "", "empty for %s" % [pool])
 		assert_eq(gen.next_sentence(), "", "still empty")
 	assert_push_error_count(bad.size(), "one error line per bad generator")
+
+
+## Story 8.2 (8.1 defer): only the generated tiers build a generator; an authored tier is null, one error.
+func test_for_tier_refuses_an_authored_tier() -> void:
+	assert_null(SentenceGenerator.for_tier(_rng(3), ["dad", "sad"] as Array[String], 3))
+	assert_push_error_count(1, "one error line for a tier outside GENERATED_TIERS")
+	assert_null(SentenceGenerator.for_tier(_rng(3), ["dad", "sad"] as Array[String], 0))
+	assert_null(SentenceGenerator.for_tier(_rng(3), ["dad", "sad"] as Array[String], 6))
+	assert_push_error_count(3, "tiers 0 and 6 are refused too")

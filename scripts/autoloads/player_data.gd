@@ -31,6 +31,9 @@ extends Node
 ## get_tier() is the one read (Story 7.5). An invalid tier config changes nothing and logs an error.
 ## tier_config is a test seam (null = the shipped data/tier_config.tres); only the shipped one is validated
 ## at _ready.
+## Used passages (Story 8.2, FR68): get_used_passages / set_used_passages read and write the profile's
+## used_passages, the paragraph ids already shown; RunFrame forwards the level's list, so this is its only
+## writer. Generated tier 1-2 text is never tracked.
 
 enum PurchaseResult { OK, NOT_ENOUGH_BRAINS, ALREADY_OWNED, UNAVAILABLE }
 
@@ -49,6 +52,8 @@ signal flags_changed(flag: StringName, value: bool)
 signal level_unlocked(level_id: StringName)
 ## A level's moment_seen or chosen changed; &"" = many levels changed at once (the debug tools).
 signal unlocks_changed(level_id: StringName)
+## The used passage ids changed (set_used_passages, Story 8.2).
+signal used_passages_changed
 
 const SaveServiceScript: GDScript = preload("res://scripts/autoloads/save_service.gd")
 const CATALOGUE: Catalogue = preload("res://data/cosmetics/catalogue.tres")
@@ -332,6 +337,34 @@ func get_tier() -> int:
 		return 0
 	var tier: int = value
 	return tier if tier >= 1 and tier <= tier_config.tier_count() else 0
+
+
+## The paragraph ids already shown (Story 8.2), in the order used: a copy of the String entries. A
+## non-Array in the save reads as [].
+func get_used_passages() -> Array[String]:
+	var ids: Array[String] = []
+	var stored: Variant = _profile().get("used_passages", [])
+	if not stored is Array:
+		return ids
+	for id: Variant in stored as Array:
+		if id is String:
+			ids.append(id as String)
+	return ids
+
+
+## Stores `ids` as the used passages: the unique non-empty Strings, in order. An unchanged list does
+## nothing; otherwise it writes, emits used_passages_changed and requests a save.
+func set_used_passages(ids: Array[String]) -> void:
+	var clean: Array[String] = []
+	for id: String in ids:
+		if id != "" and not clean.has(id):
+			clean.append(id)
+	var stored: Variant = _profile().get("used_passages")
+	if stored is Array and Array(clean) == Array((stored as Array).duplicate()):
+		return
+	_profile()["used_passages"] = clean.duplicate()
+	used_passages_changed.emit()
+	save_service.request_save()
 
 
 ## Replaces the save with defaults (debug overlay F8). The old save.json becomes save.bak on the write.
