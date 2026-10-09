@@ -27,7 +27,7 @@ static func rolling_average(history: Array, config: TierConfig) -> float:
 			junk += 1
 			continue
 		var record: Dictionary = history[i]
-		if not _is_completed(record.get("end_reason")):
+		if not is_completed(record.get("end_reason")):
 			continue
 		var level_value: Variant = record.get("level_id", "")
 		var level_id: StringName = StringName(level_value) if level_value is String else &""
@@ -87,7 +87,7 @@ static func compute_tier(current: int, history: Array, config: TierConfig) -> in
 
 
 ## True for the end reasons of a finished run (timer, caught, escaped). Records store Strings.
-static func _is_completed(end_reason: Variant) -> bool:
+static func is_completed(end_reason: Variant) -> bool:
 	if not end_reason is String:
 		return false
 	return end_reason in [

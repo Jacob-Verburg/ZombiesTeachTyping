@@ -42,9 +42,11 @@ func test_brain_block_values() -> void:
 	assert_eq(config.brainsss_chance, 0.2)
 
 
+## Also the placement guarantee (Story 7.2, FR61): a new save's first Zombie Run uses all 26 letters, so
+## Story 7.5 must keep a..z here while placement_done is false.
 func test_letter_pool_is_a_to_z() -> void:
 	var pool: Array[String] = _config().letter_pool
-	assert_eq(pool.size(), 26)
+	assert_eq(pool.size(), 26, "the placement run needs all 26 letters")
 	var seen: Dictionary = {}
 	for letter: String in pool:
 		assert_eq(letter.length(), 1, "single letter '%s'" % letter)

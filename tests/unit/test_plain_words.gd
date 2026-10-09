@@ -48,7 +48,7 @@ const APPROVED_PATTERNS: Array[String] = [
 ]
 const SLANG: String = "(?i)(brains{2,}|bra{2,}i*n|\\bu{2,}h+|\\bgr{2,}|\\bargh+|\\bra{2,}wr|\\bmm{2,}|\\bnom\\b)"
 const TECHNICAL: String = "(?i)(error:|\\bnull\\b|\\bnil\\b|invalid|exception|failed|res://|user://|%s|%d|\\w_\\w|StringName|&\")"
-const RANKS: String = "(?i)(\\beasy\\b|\\bhard\\b|difficult|\\brank|\\bgrade|beginner|expert|\\blevel \\d|noob|\\bpro\\b)"
+const RANKS: String = "(?i)(\\beasy\\b|\\bhard\\b|difficult|\\brank|\\bgrade|beginner|expert|\\blevel \\d|noob|\\bpro\\b|\\btier)"
 const ALL_CAPS_ALLOWED: Array[String] = ["WPM"]
 
 const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
@@ -284,7 +284,7 @@ func test_the_rules_bite() -> void:
 	for tech: String in ["Error: null", "res://x.tscn", "Need %d more", "hat_pumpkin", "Invalid save"]:
 		assert_true(_matches(TECHNICAL, tech), "technical: %s" % tech)
 	assert_false(_matches(TECHNICAL, "Errors"))
-	for rank: String in ["Easy mode", "Hard", "Rank 3", "Grade A", "Level 2", "Expert"]:
+	for rank: String in ["Easy mode", "Hard", "Rank 3", "Grade A", "Level 2", "Expert", "Tier 3"]:
 		assert_true(_matches(RANKS, rank), "rank: %s" % rank)
 	assert_false(_matches(RANKS, "Lesson Time"))
 	assert_eq(_all_caps_words("QUIT"), ["QUIT"] as Array[String])

@@ -21,6 +21,16 @@ extends Node
 ## get_unlock_state reads it, mark_unlock_seen (the menu's one-time unlock moment) and mark_level_chosen
 ## (the "New!" badge) write it. level_registry is a test seam, loaded lazily (never preloaded: the
 ## registry references every level scene, which must not load at boot).
+## Tier (Story 7.2, FR60-FR63): the hidden adaptive-difficulty tier. The first completed run of
+## tier_config.placement_level places a new save: that run's WPM alone (times its level scale) sets the tier
+## and flags.placement_done turns true. Every later recorded run moves it with TierCalculator.compute_tier
+## (rolling average, hysteresis). Both are written inline in record_run, so it still makes one save request.
+## _reconcile_tier() keeps placement_done true <=> tier in 1..tier count: it runs at load and in reset_all
+## (Epic 11's profile switch must call it too), and places an MVP save that has runs but no tier from its
+## rolling average. The tier is never shown (FR60): no copy, no label, no log line carries it or the average.
+## get_tier() is the one read (Story 7.5). An invalid tier config changes nothing and logs an error.
+## tier_config is a test seam (null = the shipped data/tier_config.tres); only the shipped one is validated
+## at _ready.
 
 enum PurchaseResult { OK, NOT_ENOUGH_BRAINS, ALREADY_OWNED, UNAVAILABLE }
 
@@ -42,6 +52,7 @@ signal unlocks_changed(level_id: StringName)
 
 const SaveServiceScript: GDScript = preload("res://scripts/autoloads/save_service.gd")
 const CATALOGUE: Catalogue = preload("res://data/cosmetics/catalogue.tres")
+const TIER_CONFIG: TierConfig = preload("res://data/tier_config.tres")
 const LEVEL_REGISTRY_PATH: String = "res://data/levels/level_registry.tres"
 ## What get_unlock_state returns for an open level (no lock, nothing new to show).
 const OPEN_STATE: Dictionary = {"unlocked": true, "moment_seen": true, "chosen": true}
@@ -52,6 +63,8 @@ var save_service: SaveServiceScript = null
 var catalogue: Catalogue = null
 ## Test seam: tests assign a code-built LevelRegistry; null = the shipped one, loaded on first use.
 var level_registry: LevelRegistry = null
+## Test seam: tests assign a code-built TierConfig before add_child; null = the shipped tier_config.tres.
+var tier_config: TierConfig = null
 
 
 func _ready() -> void:
@@ -63,6 +76,12 @@ func _ready() -> void:
 		var problem: String = catalogue.validate()
 		if not problem.is_empty():
 			Log.error(&"economy", "shipped catalogue invalid: %s" % problem)
+	if tier_config == null:
+		tier_config = TIER_CONFIG
+		var tier_problem: String = tier_config.validate()
+		if not tier_problem.is_empty():
+			Log.error(&"tier", "shipped tier config invalid: %s" % tier_problem)
+	_reconcile_tier()
 
 
 func get_brains() -> int:
@@ -82,8 +101,8 @@ func add_brains(amount: int) -> void:
 
 
 ## Saves a finished run (never a quit): appends its record (newest RUN_HISTORY_CAP kept), updates the
-## level's best WPM, adds the run's brains and, for a timer finish, unlocks the levels it opens, with one
-## save request. Returns true for a new personal best; a level's first run sets the best but returns false.
+## level's best WPM, adds the run's brains, for a timer finish unlocks the levels it opens, and places or
+## moves the hidden tier, with one save request. Returns true for a new personal best; a level's first run sets the best but returns false.
 func record_run(result: RunResult) -> bool:
 	if result == null:
 		Log.error(&"run", "record_run: null result")
@@ -116,6 +135,7 @@ func record_run(result: RunResult) -> bool:
 			if not unlocks.has(String(entry.id)):
 				unlocks[String(entry.id)] = {"moment_seen": false, "chosen": false}
 				opened.append(entry.id)
+	_update_tier(result, profile)
 	run_recorded.emit(result.level_id, new_best)
 	for id: StringName in opened:
 		level_unlocked.emit(id)
@@ -304,14 +324,89 @@ func set_flag(flag: StringName, value: bool) -> void:
 	save_service.request_save()
 
 
+## The hidden tier for Story 7.5: 1..tier count once placed; 0 when not placed yet (or a junk stored value).
+## Never shown to the player (FR60).
+func get_tier() -> int:
+	var value: Variant = _profile().get("tier", 0)
+	if not value is int or tier_config == null:
+		return 0
+	var tier: int = value
+	return tier if tier >= 1 and tier <= tier_config.tier_count() else 0
+
+
 ## Replaces the save with defaults (debug overlay F8). The old save.json becomes save.bak on the write.
 func reset_all() -> void:
 	save_service.reset_to_defaults()
+	_reconcile_tier()
 	profile_replaced.emit()
 
 
 func _profile() -> Dictionary:
 	return save_service.get_active_profile()
+
+
+## False (with an error) when tier_config is missing or invalid: tier work then changes nothing.
+func _tier_config_ok() -> bool:
+	if tier_config == null:
+		Log.error(&"tier", "no tier config")
+		return false
+	var problem: String = tier_config.validate()
+	if not problem.is_empty():
+		Log.error(&"tier", "tier config invalid: %s" % problem)
+		return false
+	return true
+
+
+## record_run's tier step, after the record is appended. Placed: compute_tier over the history. Not placed:
+## a run of placement_level places from its own WPM; any other level changes nothing. Inline writes, no save.
+func _update_tier(result: RunResult, profile: Dictionary) -> void:
+	if not _tier_config_ok():
+		return
+	var flags: Dictionary = profile["flags"]
+	if bool(flags["placement_done"]):
+		var next: int = TierCalculator.compute_tier(get_tier(), profile["run_history"], tier_config)
+		if next >= 1:
+			profile["tier"] = next
+		return
+	if result.level_id != tier_config.placement_level or not TierCalculator.is_completed(String(result.end_reason)):
+		return
+	var placement_wpm: float = result.wpm * tier_config.scale_for(result.level_id)
+	profile["tier"] = TierCalculator.tier_for_wpm(placement_wpm, tier_config)
+	flags["placement_done"] = true
+	flags_changed.emit(&"placement_done", true)
+	Log.info(&"tier", "placed")
+
+
+## Enforces placement_done true <=> tier in 1..tier count on the loaded profile. Not placed but with counted
+## runs (an MVP save) -> placed from the rolling average; not placed, no runs -> tier 0; placed with a junk
+## tier -> recomputed from the average, or unplaced when there is none. One save request only when it changed
+## something. No signal: it runs at load and before profile_replaced, which make listeners re-read.
+func _reconcile_tier() -> void:
+	if not _tier_config_ok():
+		return
+	var profile: Dictionary = _profile()
+	var flags: Dictionary = profile["flags"]
+	var placed: bool = bool(flags["placement_done"])
+	if placed and get_tier() >= 1:
+		return
+	var average: float = TierCalculator.rolling_average(profile["run_history"], tier_config)
+	var has_average: bool = average >= 0.0
+	if not placed:
+		var stored: Variant = profile.get("tier", 0)
+		if has_average:
+			profile["tier"] = TierCalculator.tier_for_wpm(average, tier_config)
+			flags["placement_done"] = true
+		elif stored is int and stored == 0:
+			return
+		else:
+			profile["tier"] = 0
+	elif has_average:
+		profile["tier"] = TierCalculator.tier_for_wpm(average, tier_config)
+	else:
+		profile["tier"] = 0
+		flags["placement_done"] = false
+	save_service.request_save()
+	Log.info(&"tier", "reconciled placement")
 
 
 func _registry() -> LevelRegistry:

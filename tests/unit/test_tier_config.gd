@@ -1,6 +1,7 @@
 extends GutTest
 ## TierConfig (Story 7.1): the shipped data/tier_config.tres values, validate() on each broken case, and
-## ignored_levels matching the registry's debug-only levels.
+## ignored_levels matching the registry's debug-only levels. Story 7.2: placement_level (shipped, invalid
+## cases, a real non-debug registry level).
 
 const CONFIG_PATH: String = "res://data/tier_config.tres"
 const REGISTRY_PATH: String = "res://data/levels/level_registry.tres"
@@ -16,6 +17,7 @@ func _valid() -> TierConfig:
 	config.drop_margin_wpm = 2.0
 	config.window_runs = 5
 	config.ignored_levels = [&"test_level"]
+	config.placement_level = &"zombie_run"
 	return config
 
 
@@ -28,6 +30,7 @@ func test_shipped_values() -> void:
 	assert_eq(config.level_wpm_scale.size(), 0, "no per-level weighting (Gate A)")
 	assert_eq(config.tier_count(), 5)
 	assert_eq(config.ignored_levels, [&"test_level", &"test_word_level"] as Array[StringName])
+	assert_eq(config.placement_level, &"zombie_run")
 
 
 func test_shipped_is_valid() -> void:
@@ -54,6 +57,7 @@ func test_defaults_are_neutral() -> void:
 	assert_eq(config.window_runs, 0)
 	assert_eq(config.level_wpm_scale.size(), 0)
 	assert_eq(config.ignored_levels.size(), 0)
+	assert_eq(config.placement_level, &"")
 	assert_ne(config.validate(), "", "neutral defaults are not a usable config")
 
 
@@ -128,4 +132,24 @@ func test_bad_scale() -> void:
 func test_empty_ignored_id() -> void:
 	var config: TierConfig = _valid()
 	config.ignored_levels = [&"test_level", &""]
+	assert_ne(config.validate(), "")
+
+
+func test_placement_level_is_a_real_registry_level() -> void:
+	var registry: LevelRegistry = load(REGISTRY_PATH) as LevelRegistry
+	var entry: LevelEntry = registry.get_entry(_shipped().placement_level)
+	assert_not_null(entry, "placement_level is in the registry")
+	if entry != null:
+		assert_false(entry.debug_only, "placement_level is a real level, not a debug one")
+
+
+func test_empty_placement_level() -> void:
+	var config: TierConfig = _valid()
+	config.placement_level = &""
+	assert_ne(config.validate(), "")
+
+
+func test_ignored_placement_level() -> void:
+	var config: TierConfig = _valid()
+	config.placement_level = &"test_level"
 	assert_ne(config.validate(), "")

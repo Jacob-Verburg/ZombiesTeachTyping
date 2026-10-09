@@ -594,6 +594,18 @@
 
 ## Deferred from: code review of story-7-1-tier-calculator-with-hysteresis (2026-10-08)
 
-- `TierCalculator` never calls `TierConfig.validate()`; a hand-edited or neutral config (window_runs 0, empty or unsorted floors, NaN/negative scale) silently returns NO_AVERAGE or tier 1. Validate (and log) at the load site in Story 7.2.
+- ~~`TierCalculator` never calls `TierConfig.validate()`; a hand-edited or neutral config (window_runs 0, empty or unsorted floors, NaN/negative scale) silently returns NO_AVERAGE or tier 1. Validate (and log) at the load site in Story 7.2.~~ Done in 7.2: PlayerData validates the shipped TierConfig in _ready and skips tier work on an invalid config.
 - Records with `StringName` `level_id` / `end_reason` are treated as not-ignored / not-completed. `RunResult.to_record()` writes Strings, so only hand-built records are affected.
 - `TierConfig.floor_of` returns 0.0 for an out-of-range tier; safe today because `next_tier` range-guards `current`.
+
+## Deferred from: dev of story-7-2 (2026-10-08)
+
+- Epic 11's profile switch must call `PlayerData._reconcile_tier()` after swapping the active profile (as `reset_all` does) so a switched-to MVP profile is placed and the `placement_done` <=> tier invariant holds.
+- Before placement, a non-placement run (e.g. Horde Rush after debug "Unlock all") leaves the tier at 0, but the next load's reconcile then places from the rolling average (it can't tell that save from an MVP save). Only reachable through the debug unlock today; accepted per the AC 7 rules.
+- `summarize_save.py`'s `TIER_IGNORED_LEVELS` / window still mirror `tier_config.tres` by hand (see 7.1 note); `placement_level` is not mirrored (the tool only prints the stored tier).
+
+## Deferred from: code review of story-7-2-placement-run-and-hidden-tier (2026-10-08)
+
+- `_reconcile_tier` rewrites the in-memory profile and requests a save at every boot when the save is read-only (newer schema than the build); the save then warns ERR_LOCKED each boot.
+- `flags_changed(&"placement_done")` is emitted from `_update_tier` before `run_recorded`, `level_unlocked` and `request_save`, so a listener reading state inside the handler sees a half-finished `record_run`.
+- `TierConfig.validate()` does not check that `placement_level` exists in the registry; only `test_tier_config.gd` does. A typo'd id silently never places.

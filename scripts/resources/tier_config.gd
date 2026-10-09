@@ -2,8 +2,8 @@ class_name TierConfig
 extends Resource
 ## The adaptive-difficulty numbers (GDD Adaptive Difficulty, FR60-FR63) that TierCalculator reads: tier
 ## floors, the drop margin, the rolling window, per-level WPM weighting and the levels that never count.
-## The shipped values live in data/tier_config.tres; the defaults here are neutral. Stories 7.4 / 7.5 may
-## extend this same resource with per-tier pools.
+## The shipped values live in data/tier_config.tres; the defaults here are neutral. Story 7.2 added the
+## placement level; Stories 7.4 / 7.5 may extend this same resource with per-tier pools.
 
 ## Each tier's lowest rolling-average WPM, tier 1 first (FR62: 0, 8, 15, 22, 30). Tier n is the n-th entry;
 ## tier 1's floor must be 0 and the floors strictly rise.
@@ -17,6 +17,8 @@ extends Resource
 @export var level_wpm_scale: Dictionary[StringName, float] = {}
 ## Levels whose runs never count toward the average (the debug-only test levels).
 @export var ignored_levels: Array[StringName] = []
+## The level whose first completed run places a new save (FR61): that run's WPM alone sets the tier.
+@export var placement_level: StringName = &""
 
 
 ## How many tiers there are.
@@ -56,4 +58,8 @@ func validate() -> String:
 	for level_id: StringName in ignored_levels:
 		if level_id == &"":
 			return "ignored_levels has an empty id"
+	if placement_level == &"":
+		return "placement_level is empty"
+	if placement_level in ignored_levels:
+		return "placement_level %s is an ignored level" % placement_level
 	return ""

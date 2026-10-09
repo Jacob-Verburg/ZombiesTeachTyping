@@ -24,7 +24,7 @@ extends Control
 
 enum RunState { WAITING_FIRST_KEY, RUNNING, PAUSED, COUNTDOWN, ENDING, DONE }
 
-## MVP value for RunResult.letter_pool_or_tier; Epic 7 replaces it with the tier.
+## MVP value for RunResult.letter_pool_or_tier; Story 7.5 replaces it with the tier.
 const LETTER_POOL_ALL: String = "all"
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 

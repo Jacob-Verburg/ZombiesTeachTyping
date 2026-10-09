@@ -221,7 +221,9 @@ def summarize(data, s: Summary) -> dict:
             "brains": num_field(profile, "brains", s, "profile"),
             "owned_items": [x for x in owned if isinstance(x, str)] if owned is not None else None,
             "equipped": {"hat": text(equipped, "hat"), "pet": text(equipped, "pet")},
-            "flags": {k: flag(flags, k) for k in ("welcome_bonus_claimed", "tutorial_seen")},
+            # Story 7.2: the hidden tier is a profile field, shown with the flags so a dev can check placement.
+            "flags": {**{k: flag(flags, k) for k in ("welcome_bonus_claimed", "tutorial_seen", "placement_done")},
+                    "tier": num_field(profile, "tier", s, "profile")},
             "settings": {k: flag(settings, k) for k in ("music_on", "sound_on")},
         },
         "top_missed_keys": merge_per_key(runs, s),
@@ -274,7 +276,8 @@ def print_text(result: dict, path: str) -> None:
     print(f"Worn: hat {DASH if hat is None else hat or 'none'} · pet {DASH if pet is None else pet or 'none'}")
     f, st = t["flags"], t["settings"]
     print(f"Flags: welcome_bonus_claimed {show(f['welcome_bonus_claimed'])}"
-            f" · tutorial_seen {show(f['tutorial_seen'])}")
+            f" · tutorial_seen {show(f['tutorial_seen'])}"
+            f" · placement_done {show(f['placement_done'])} · tier {show(f['tier'])}")
     print(f"Settings: music_on {show(st['music_on'])} · sound_on {show(st['sound_on'])}")
     print()
     print("Most-missed keys (all runs):")
@@ -303,7 +306,8 @@ SELFTEST_SAVE = {
         "brains": 41.0,
         "owned_items": ["hat_pumpkin"],
         "equipped": {"hat": "hat_pumpkin", "pet": ""},
-        "flags": {"welcome_bonus_claimed": True, "tutorial_seen": True},
+        "flags": {"welcome_bonus_claimed": True, "tutorial_seen": True, "placement_done": True},
+        "tier": 2.0,
         "settings": {"music_on": False, "sound_on": True},
         "best_wpm": {"zombie_run": 9.0},
         "run_history": [
@@ -333,6 +337,10 @@ def selftest() -> int:
         ("second missed key", r["top_missed_keys"][1]["key"], "q"),
         ("float 41.0 read as int", r["totals"]["brains"], 41),
         ("music off seen", r["totals"]["settings"]["music_on"], False),
+        ("flags with placement and tier", r["totals"]["flags"],
+            {"welcome_bonus_claimed": True, "tutorial_seen": True, "placement_done": True, "tier": 2}),
+        ("missing placement and tier show as None", {k: summarize({}, Summary())["totals"]["flags"][k]
+            for k in ("placement_done", "tier")}, {"placement_done": None, "tier": None}),
         ("wrong-typed field warned", any("is not a finite number" in w for w in summarize(
             {"profiles": {"p1": {"run_history": [{"wpm": "fast"}]}}}, Summary())["warnings"]), True),
         ("negative duration shows a dash", mmss(-5), DASH),
