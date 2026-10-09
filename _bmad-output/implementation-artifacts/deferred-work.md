@@ -609,3 +609,12 @@
 - `_reconcile_tier` rewrites the in-memory profile and requests a save at every boot when the save is read-only (newer schema than the build); the save then warns ERR_LOCKED each boot.
 - `flags_changed(&"placement_done")` is emitted from `_update_tier` before `run_recorded`, `level_unlocked` and `request_save`, so a listener reading state inside the handler sees a half-finished `record_run`.
 - `TierConfig.validate()` does not check that `placement_level` exists in the registry; only `test_tier_config.gd` does. A typo'd id silently never places.
+
+## Deferred from: dev of story-7-3 (2026-10-08)
+
+- Tier 1 band decision (Smuck, Story 7.3 review gate 2026-10-08): only 21 kid-safe home-row words have 2-3 letters, so tier 1's Horde Rush band widens to **2-4** (40 words, minimum stays 40). Story 7.4 must build tier 1's pool with the 2-4 band and Story 7.5's band list must use it; FR62 / the GDD tier table still say 2-3 and need the same edit. The count is exactly 40, so any home-row removal from `master_words.txt` breaks it (`test_master_word_list.gd` fails on purpose).
+- Tier pool counts from the reviewed master list (1,512 words): tier 1 (home, 2-4) 40, tier 2 (home+top, 3-4) 304, tier 3 (all, 3-5) 901, tier 4 (all, 4-6) 951, tier 5 (all, 5-8) 904. `test_master_word_list.gd` and 7.4's pool validation will both hold tier minimums; keep one source of truth when 7.4 adds its constants.
+
+## Deferred from: code review of story-7-3-master-word-list (2026-10-08)
+
+- `test_lf_endings` in `tests/unit/test_master_word_list.gd` checks only `master_words.txt`; `dolch_words.txt` and `starter_words.txt` are not covered. Low risk: the tagger rejects words carrying a stray carriage return.
