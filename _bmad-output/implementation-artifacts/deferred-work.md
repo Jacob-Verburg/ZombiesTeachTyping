@@ -520,8 +520,8 @@
 ## Deferred from: code review of story-6.1 (2026-10-07)
 
 - Banned-word test is exact-match only (`hit` caught, `hits` not); a documented backstop, not a filter.
-- `tools/tag_words.gd` does not validate `--in`/`--out` (empty `--out=`, relative paths).
-- The starter-band check (>=150 words of length 3-5) runs on any `--in` list; Story 7.4's master list may need it relaxed or parameterised.
+- ~~`tools/tag_words.gd` does not validate `--in`/`--out` (empty `--out=`, relative paths).~~ Done in 7.4: `--in`, `--out`, `--pools-out` and `--report-out` must be non-empty `res://` paths or the tool fails.
+- ~~The starter-band check (>=150 words of length 3-5) runs on any `--in` list; Story 7.4's master list may need it relaxed or parameterised.~~ Done in 7.4: only the default (starter) mode runs it; `--pools` mode checks the tier minimums.
 - When the runtime loader for `words.json` lands, verify in a real web export that it loads (`include_filter="data/content/*.json"`, `load()` vs `FileAccess`).
 
 ## Deferred from: code review of story-6.3 (2026-10-07)
@@ -612,9 +612,20 @@
 
 ## Deferred from: dev of story-7-3 (2026-10-08)
 
-- Tier 1 band decision (Smuck, Story 7.3 review gate 2026-10-08): only 21 kid-safe home-row words have 2-3 letters, so tier 1's Horde Rush band widens to **2-4** (40 words, minimum stays 40). Story 7.4 must build tier 1's pool with the 2-4 band and Story 7.5's band list must use it; FR62 / the GDD tier table still say 2-3 and need the same edit. The count is exactly 40, so any home-row removal from `master_words.txt` breaks it (`test_master_word_list.gd` fails on purpose).
-- Tier pool counts from the reviewed master list (1,512 words): tier 1 (home, 2-4) 40, tier 2 (home+top, 3-4) 304, tier 3 (all, 3-5) 901, tier 4 (all, 4-6) 951, tier 5 (all, 5-8) 904. `test_master_word_list.gd` and 7.4's pool validation will both hold tier minimums; keep one source of truth when 7.4 adds its constants.
+- ~~Tier 1 band decision (Smuck, Story 7.3 review gate 2026-10-08): only 21 kid-safe home-row words have 2-3 letters, so tier 1's Horde Rush band widens to **2-4** (40 words, minimum stays 40). Story 7.4 must build tier 1's pool with the 2-4 band and Story 7.5's band list must use it; FR62 / the GDD tier table still say 2-3 and need the same edit. The count is exactly 40, so any home-row removal from `master_words.txt` breaks it (`test_master_word_list.gd` fails on purpose).~~ Done in 7.4: tier 1's band (2-4) lives in `TierConfig` and the pools are built with it; FR62, FR66, the 7.4/7.5 ACs and the GDD tier table and pool check now say 2-4.
+- ~~Tier pool counts from the reviewed master list (1,512 words): tier 1 (home, 2-4) 40, tier 2 (home+top, 3-4) 304, tier 3 (all, 3-5) 901, tier 4 (all, 4-6) 951, tier 5 (all, 5-8) 904. `test_master_word_list.gd` and 7.4's pool validation will both hold tier minimums; keep one source of truth when 7.4 adds its constants.~~ Done in 7.4: `WordTagger.TIER_POOL_MINIMUMS` and the shipped `TierConfig` bands are the one source; `test_master_word_list.gd` and `test_word_pools.gd` both read them.
 
 ## Deferred from: code review of story-7-3-master-word-list (2026-10-08)
 
 - `test_lf_endings` in `tests/unit/test_master_word_list.gd` checks only `master_words.txt`; `dolch_words.txt` and `starter_words.txt` are not covered. Low risk: the tagger rejects words carrying a stray carriage return.
+
+## Deferred from: dev of story-7-4 (2026-10-08)
+
+- `PlayerData._tier_config_ok()` validates **injected** `TierConfig`s on every `record_run`, not just the shipped one (the 7.4 story note assumed otherwise). Since 7.4's stricter `validate()`, any code-built config that reaches `PlayerData` needs `tier_row_counts`, `tier_word_min_length` and `tier_word_max_length`; `test_placement.gd`'s `_config()` fixture got them in 7.4. Story 7.5's test configs must include them too. `test_tier_calculator.gd`'s config never reaches `validate()`, so it stays as is.
+
+## Deferred from: code review of story-7-4-tier-word-pools-and-validation (2026-10-08)
+
+- `WordTagger.pool_words`/`pool_report` crash on JSON entries missing `word`, `rows` or `length`, and `pool_report` needs a typed `Array[int]` for `minimums`. Only generated data reaches them today; harden when Story 7.5 reads `word_pools.json`.
+- Pools mode writes `word_pools.json` then `word_pool_report.json` non-atomically; a failed second write leaves a mismatched pair. Manual tool run, and `test_matches_a_fresh_build` catches a stale pair.
+- Tier 1's pool has exactly its minimum (40 of 40), so removing any one word fails the gate. Intentional per the story.
+- `test_word_pools.gd` loads the pool JSONs with `load()`, so a fresh clone without an editor import sees empty docs and confusing failures.

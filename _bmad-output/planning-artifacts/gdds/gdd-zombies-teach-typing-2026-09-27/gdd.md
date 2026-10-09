@@ -215,7 +215,7 @@ Punctuation and numbers appear only in Pitchfork Panic. **MVP:** Zombie Run uses
 
 | Tier | Rolling WPM | Keys in play | Horde Rush word length | Pitchfork Panic text |
 |---|---|---|---|---|
-| 1 | < 8 | Home row | 2–3 | Generated sentences from row-filtered words; capital first letter, ends with `.` |
+| 1 | < 8 | Home row | 2–4 (widened to 2–4, Smuck, Story 7.3 review 2026-10-08) | Generated sentences from row-filtered words; capital first letter, ends with `.` |
 | 2 | 8–14 | Home + top | 3–4 | Same, plus `,` |
 | 3 | 15–21 | All letters | 3–5 | Authored paragraphs using `. , ! ?` |
 | 4 | 22–29 | All letters | 4–6 | + numbers and apostrophes |
@@ -230,7 +230,7 @@ Punctuation and numbers appear only in Pitchfork Panic. **MVP:** Zombie Run uses
 ### Content: Word Lists & Paragraphs
 
 - **Master word list:** about 1,500 kid-safe lowercase words, authored by Claude and cross-checked against the public-domain Dolch sight-word lists. It excludes scary, violent, rude or brand words. Smuck reviews the list by hand once before first use.
-- **Tagging (build-time, offline):** every word is tagged with the rows it needs (home, top, bottom) and its length. A tier's word pool = words using only the tier's rows and within its length band. Tier 1 pool check: at least 40 home-row words of 2–3 letters (e.g. *dad, sad, ask, all, lad, gag, had, flag*).
+- **Tagging (build-time, offline):** every word is tagged with the rows it needs (home, top, bottom) and its length. A tier's word pool = words using only the tier's rows and within its length band. Tier 1 pool check: at least 40 home-row words of 2–4 letters (widened to 2–4, Smuck, Story 7.3 review 2026-10-08) (e.g. *dad, sad, ask, all, lad, gag, had, flag*).
 - **Paragraphs:** about 40 original passages, goofy and zombie-themed in plain words, 2–4 sentences, 150–400 characters each, tagged tier 3, 4 or 5 (about 13 per tier). Tiers 1–2 generate sentences at runtime from their word pool: 4–7 words, capital first letter, end punctuation.
 - **Selection:** no passage repeats until all passages in the tier have been used (per save).
 

@@ -1,7 +1,8 @@
 extends GutTest
 ## TierConfig (Story 7.1): the shipped data/tier_config.tres values, validate() on each broken case, and
 ## ignored_levels matching the registry's debug-only levels. Story 7.2: placement_level (shipped, invalid
-## cases, a real non-debug registry level).
+## cases, a real non-debug registry level). Story 7.4: per-tier row counts and word length bands (shipped,
+## helpers, invalid cases).
 
 const CONFIG_PATH: String = "res://data/tier_config.tres"
 const REGISTRY_PATH: String = "res://data/levels/level_registry.tres"
@@ -18,6 +19,9 @@ func _valid() -> TierConfig:
 	config.window_runs = 5
 	config.ignored_levels = [&"test_level"]
 	config.placement_level = &"zombie_run"
+	config.tier_row_counts = [1, 2, 3, 3, 3]
+	config.tier_word_min_length = [2, 3, 3, 4, 5]
+	config.tier_word_max_length = [4, 4, 5, 6, 8]
 	return config
 
 
@@ -31,6 +35,10 @@ func test_shipped_values() -> void:
 	assert_eq(config.tier_count(), 5)
 	assert_eq(config.ignored_levels, [&"test_level", &"test_word_level"] as Array[StringName])
 	assert_eq(config.placement_level, &"zombie_run")
+	assert_eq(config.tier_row_counts, [1, 2, 3, 3, 3] as Array[int])
+	# Tier 1 is 2-4, not the GDD's 2-3: Smuck's decision at the Story 7.3 review gate (2026-10-08).
+	assert_eq(config.tier_word_min_length, [2, 3, 3, 4, 5] as Array[int])
+	assert_eq(config.tier_word_max_length, [4, 4, 5, 6, 8] as Array[int])
 
 
 func test_shipped_is_valid() -> void:
@@ -58,6 +66,9 @@ func test_defaults_are_neutral() -> void:
 	assert_eq(config.level_wpm_scale.size(), 0)
 	assert_eq(config.ignored_levels.size(), 0)
 	assert_eq(config.placement_level, &"")
+	assert_eq(config.tier_row_counts.size(), 0)
+	assert_eq(config.tier_word_min_length.size(), 0)
+	assert_eq(config.tier_word_max_length.size(), 0)
 	assert_ne(config.validate(), "", "neutral defaults are not a usable config")
 
 
@@ -153,3 +164,59 @@ func test_ignored_placement_level() -> void:
 	var config: TierConfig = _valid()
 	config.placement_level = &"test_level"
 	assert_ne(config.validate(), "")
+
+
+func test_pool_helpers() -> void:
+	var config: TierConfig = _valid()
+	assert_eq(config.row_count_of(1), 1)
+	assert_eq(config.row_count_of(2), 2)
+	assert_eq(config.row_count_of(5), 3)
+	assert_eq(config.row_count_of(0), 0)
+	assert_eq(config.row_count_of(6), 0)
+	assert_eq(config.word_band_of(1), Vector2i(2, 4))
+	assert_eq(config.word_band_of(5), Vector2i(5, 8))
+	assert_eq(config.word_band_of(0), Vector2i.ZERO)
+	assert_eq(config.word_band_of(6), Vector2i.ZERO)
+
+
+func test_pool_arrays_wrong_size() -> void:
+	var config: TierConfig = _valid()
+	config.tier_row_counts = [1, 2, 3, 3]
+	assert_ne(config.validate(), "", "row counts short")
+	config = _valid()
+	config.tier_word_min_length = [2, 3, 3, 4, 5, 5]
+	assert_ne(config.validate(), "", "min lengths long")
+	config = _valid()
+	config.tier_word_max_length = []
+	assert_ne(config.validate(), "", "max lengths empty")
+
+
+func test_bad_row_counts() -> void:
+	var config: TierConfig = _valid()
+	config.tier_row_counts = [0, 2, 3, 3, 3]
+	assert_ne(config.validate(), "", "row count 0")
+	config.tier_row_counts = [1, 2, 3, 3, 4]
+	assert_ne(config.validate(), "", "row count 4")
+	config.tier_row_counts = [1, 2, 1, 3, 3]
+	assert_ne(config.validate(), "", "row count falls 2 -> 1")
+
+
+func test_word_bands_must_not_fall_between_tiers() -> void:
+	var config: TierConfig = _valid()
+	config.tier_word_max_length = [4, 4, 5, 8, 6]
+	assert_ne(config.validate(), "", "max falls from tier 4 to 5")
+	config = _valid()
+	config.tier_word_min_length = [2, 3, 4, 3, 5]
+	assert_ne(config.validate(), "", "min falls from tier 3 to 4")
+
+
+func test_bad_word_bands() -> void:
+	var config: TierConfig = _valid()
+	config.tier_word_min_length = [2, 5, 3, 4, 5]
+	assert_ne(config.validate(), "", "min > max (tier 2: 5-4)")
+	config = _valid()
+	config.tier_word_min_length = [1, 3, 3, 4, 5]
+	assert_ne(config.validate(), "", "min < 2")
+	config = _valid()
+	config.tier_word_max_length = [4, 4, 5, 6, 9]
+	assert_ne(config.validate(), "", "max > 8")

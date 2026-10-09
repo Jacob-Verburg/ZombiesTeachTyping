@@ -31,14 +31,11 @@ const BANNED: Array[String] = [
 const HOME: String = "asdfghjkl"
 const TOP: String = "qwertyuiop"
 const BOTTOM: String = "zxcvbnm"
-## FR62 / FR66 / Story 7.4: every tier pool except tier 1 needs at least this many words.
-const TIER_MIN: int = 100
-## Tier 1 (home row only): only 21 kid-safe home-row words have 2-3 letters, so Smuck widened tier 1's
-## band to 2-4 at the Story 7.3 review gate (2026-10-08; see the Word List Review in that story file).
-## That gives exactly 40: removing any home-row word from the master list fails this test on purpose.
-const TIER1_MIN_LEN: int = 2
-const TIER1_MAX_LEN: int = 4
-const TIER1_MIN: int = 40
+## Tier minimums and bands come from their one source (Story 7.4): WordTagger.TIER_POOL_MINIMUMS and the
+## shipped TierConfig. Tier 1 (home row only): only 21 kid-safe home-row words have 2-3 letters, so Smuck
+## widened tier 1's band to 2-4 at the Story 7.3 review gate (2026-10-08; see the Word List Review in that
+## story file). That gives exactly 40: removing any home-row word from the master list fails this test on purpose.
+const TIER_CONFIG_PATH: String = "res://data/tier_config.tres"
 
 var _lines: PackedStringArray = PackedStringArray()
 var _words: Array[String] = []
@@ -161,8 +158,14 @@ func test_no_banned_words() -> void:
 
 func test_tier_pools_have_enough_words() -> void:
 	assert_eq((HOME + TOP + BOTTOM).length(), 26, "the three rows hold 26 letters")
-	assert_gte(_count_fitting(HOME, TIER1_MIN_LEN, TIER1_MAX_LEN), TIER1_MIN, "tier 1: home row, %d-%d letters" % [TIER1_MIN_LEN, TIER1_MAX_LEN])
-	assert_gte(_count_fitting(HOME + TOP, 3, 4), TIER_MIN, "tier 2: home + top, 3-4 letters")
-	assert_gte(_count_fitting(HOME + TOP + BOTTOM, 3, 5), TIER_MIN, "tier 3: all rows, 3-5 letters")
-	assert_gte(_count_fitting(HOME + TOP + BOTTOM, 4, 6), TIER_MIN, "tier 4: all rows, 4-6 letters")
-	assert_gte(_count_fitting(HOME + TOP + BOTTOM, 5, 8), TIER_MIN, "tier 5: all rows, 5-8 letters")
+	var config: TierConfig = load(TIER_CONFIG_PATH) as TierConfig
+	assert_not_null(config, "tier_config.tres loads as a TierConfig")
+	if config == null:
+		return
+	assert_eq(config.tier_count(), WordTagger.TIER_POOL_MINIMUMS.size(), "one minimum per tier")
+	var rows: Array[String] = [HOME, TOP, BOTTOM]
+	for tier: int in range(1, mini(config.tier_count(), WordTagger.TIER_POOL_MINIMUMS.size()) + 1):
+		var letters: String = "".join(rows.slice(0, config.row_count_of(tier)))
+		var band: Vector2i = config.word_band_of(tier)
+		assert_gte(_count_fitting(letters, band.x, band.y), WordTagger.TIER_POOL_MINIMUMS[tier - 1],
+				"tier %d: %d rows, %d-%d letters" % [tier, config.row_count_of(tier), band.x, band.y])

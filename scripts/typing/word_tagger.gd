@@ -2,7 +2,8 @@ class_name WordTagger
 extends RefCounted
 ## Tags words by the keyboard rows they need and their length (Story 6.1, FR66). Pure logic: no
 ## nodes, no autoloads, no file access, so tools/tag_words.gd does the I/O and GUT tests this
-## directly. Epic 7 can reuse the row strings for the tier letter pools.
+## directly. Story 7.4 added the tier pools: which words each tier may use (its rows and length band
+## come from TierConfig) and whether each pool meets its minimum.
 
 ## GDD *Curriculum* row table (US QWERTY). Together the three rows hold a-z exactly once.
 const ROW_HOME: String = "asdfghjkl"
@@ -18,6 +19,10 @@ const MAX_LENGTH: int = 8
 const STARTER_BAND_MIN_LEN: int = 3
 const STARTER_BAND_MAX_LEN: int = 5
 const STARTER_BAND_MIN_COUNT: int = 150
+## The fewest words each tier pool may have, tier 1 first. Tier 1: FR66's 40 home-row words, with its band
+## widened to 2-4 by Smuck at the Story 7.3 review gate (only 21 kid-safe words have 2-3 letters). Tiers
+## 2-5: Story 7.4 AC, 100 each. The one source for tools/tag_words.gd and the word list tests.
+const TIER_POOL_MINIMUMS: Array[int] = [40, 100, 100, 100, 100]
 
 
 ## The rows the word needs, in canonical order, no repeats. Letters outside a-z are ignored.
@@ -89,3 +94,64 @@ static func count_in_band(words: Array, min_len: int, max_len: int) -> int:
 		if length >= min_len and length <= max_len:
 			count += 1
 	return count
+
+
+## The letters of the first `row_count` rows in ROW_NAMES order (1 = home, 2 = home + top, 3 = all).
+## "" for a count outside 1-3, so a bad count gives an empty pool rather than a silently clamped one.
+static func letters_for_rows(row_count: int) -> String:
+	if row_count < 1 or row_count > ROW_NAMES.size():
+		return ""
+	var rows: Array[String] = [ROW_HOME, ROW_TOP, ROW_BOTTOM]
+	return "".join(rows.slice(0, row_count))
+
+
+## The words (sorted) whose row tags all fall within the first `row_count` rows and whose length is in
+## [min_len, max_len] (FR66). Reads the tags rather than rescanning letters. Takes tag_lines entries or
+## the parsed JSON (length as float).
+static func pool_words(words: Array, row_count: int, min_len: int, max_len: int) -> Array[String]:
+	var allowed: Array[String] = []
+	if row_count >= 1 and row_count <= ROW_NAMES.size():  # a bad count gives an empty pool, like letters_for_rows
+		allowed = ROW_NAMES.slice(0, row_count)
+	var out: Array[String] = []
+	for entry: Dictionary in words:
+		var length: int = int(entry["length"])
+		if length < min_len or length > max_len:
+			continue
+		var fits: bool = true
+		for row: String in entry["rows"]:
+			if not allowed.has(row):
+				fits = false
+				break
+		if fits:
+			out.append(entry["word"])
+	out.sort()
+	return out
+
+
+## One pool per tier of `config`, tier 1 first: { tier, rows (names), min_length, max_length, words }.
+static func build_tier_pools(words: Array, config: TierConfig) -> Array[Dictionary]:
+	var pools: Array[Dictionary] = []
+	for tier: int in range(1, config.tier_count() + 1):
+		var row_count: int = config.row_count_of(tier)
+		var band: Vector2i = config.word_band_of(tier)
+		pools.append({
+			"tier": tier,
+			"rows": ROW_NAMES.slice(0, row_count),
+			"min_length": band.x,
+			"max_length": band.y,
+			"words": pool_words(words, row_count, band.x, band.y),
+		})
+	return pools
+
+
+## Per pool: { tier, count, minimum, ok }. `minimums` is tier 1 first. A tier with no minimum reports
+## minimum 0 and ok false, so adding a tier without choosing its minimum fails instead of passing.
+static func pool_report(pools: Array, minimums: Array[int]) -> Array[Dictionary]:
+	var report: Array[Dictionary] = []
+	for pool: Dictionary in pools:
+		var tier: int = int(pool["tier"])
+		var count: int = (pool["words"] as Array).size()
+		var has_minimum: bool = tier >= 1 and tier <= minimums.size()
+		var minimum: int = minimums[tier - 1] if has_minimum else 0
+		report.append({ "tier": tier, "count": count, "minimum": minimum, "ok": has_minimum and count >= minimum })
+	return report

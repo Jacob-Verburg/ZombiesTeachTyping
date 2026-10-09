@@ -59,6 +59,10 @@ func _config() -> TierConfig:
 	config.window_runs = 5
 	config.ignored_levels = [&"test_level", &"test_word_level"]
 	config.placement_level = &"zombie_run"
+	# Story 7.4: validate() needs the pool table too, and PlayerData validates injected configs.
+	config.tier_row_counts = [1, 2, 3, 3, 3]
+	config.tier_word_min_length = [2, 3, 3, 4, 5]
+	config.tier_word_max_length = [4, 4, 5, 6, 8]
 	return config
 
 

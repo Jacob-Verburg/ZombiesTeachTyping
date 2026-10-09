@@ -115,14 +115,14 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 
 - FR60 [Post-MVP]: The input signal is the rolling average WPM of the most recent 1–5 completed runs across all levels (quit runs excluded). The kid never sees the value or the tier.
 - FR61 [Post-MVP]: A save's first Zombie Run is a placement run with all 26 letters; its WPM sets the starting tier.
-- FR62 [Post-MVP]: Five tiers (<8, 8–14, 15–21, 22–29, 30+ WPM) scope keys in play (home → +top → all), Horde Rush word length (2–3, 3–4, 3–5, 4–6, 5–8) and Pitchfork Panic text richness per the GDD table.
+- FR62 [Post-MVP]: Five tiers (<8, 8–14, 15–21, 22–29, 30+ WPM) scope keys in play (home → +top → all), Horde Rush word length (2–4, 3–4, 3–5, 4–6, 5–8) (tier 1 widened to 2–4, Smuck, Story 7.3 review 2026-10-08) and Pitchfork Panic text richness per the GDD table.
 - FR63 [Post-MVP]: A tier rises as soon as the average reaches the next floor and drops only when the average falls 2 WPM below the current floor. Comparisons use the unrounded average, and a drop can skip tiers to the tier whose range contains the average.
 - FR64 [Post-MVP]: Zombie Run's letter pool follows the tier's rows (tiers 3–5 use all 26). Pacing, the defender and the mob never scale.
 
 **Content**
 
 - FR65 [Post-MVP]: A master list of about 1,500 kid-safe lowercase words (no scary, violent, rude or brand words), cross-checked against Dolch sight words and reviewed once by Smuck.
-- FR66 [Post-MVP]: Words are tagged offline by rows needed and length; a tier's pool is words using only its rows within its length band. The tier 1 pool has at least 40 home-row words of 2–3 letters.
+- FR66 [Post-MVP]: Words are tagged offline by rows needed and length; a tier's pool is words using only its rows within its length band. The tier 1 pool has at least 40 home-row words of 2–4 letters (tier 1 widened to 2–4, Smuck, Story 7.3 review 2026-10-08).
 - FR67 [Post-MVP]: About 40 original goofy paragraphs (2–4 sentences, 150–400 characters) tagged tiers 3–5 (about 13 each); tiers 1–2 generate 4–7-word sentences at runtime from the tier word pool, with a capital first letter and end punctuation.
 - FR68 [Post-MVP]: No passage repeats until every passage in its tier has been used (tracked per save).
 
@@ -1736,7 +1736,7 @@ So that no tier ever runs short of words.
 
 **Given** the validation report
 **When** it is checked
-**Then** tier 1 has at least 40 home-row words of 2–3 letters and every other tier meets a minimum count set in the tool (at least 100 words per tier unless the story records a reason)
+**Then** tier 1 has at least 40 home-row words of 2–4 letters (tier 1 widened to 2–4, Smuck, Story 7.3 review 2026-10-08) and every other tier meets a minimum count set in the tool (at least 100 words per tier unless the story records a reason)
 **And** CI fails if any tier falls below its minimum
 
 ### Story 7.5: Zombie Run and Horde Rush Follow the Tier
@@ -1754,7 +1754,7 @@ So that I learn one keyboard row at a time.
 
 **Given** the profile's tier
 **When** a Horde Rush starts
-**Then** `WordSource` draws from the tier's pool with its length band (2–3, 3–4, 3–5, 4–6, 5–8) instead of the fixed 3–5 band (FR62)
+**Then** `WordSource` draws from the tier's pool with its length band (2–4, 3–4, 3–5, 4–6, 5–8) (tier 1 widened to 2–4, Smuck, Story 7.3 review 2026-10-08) instead of the fixed 3–5 band (FR62)
 
 **Given** any tier
 **When** Zombie Run pacing or the Horde Rush defender is checked

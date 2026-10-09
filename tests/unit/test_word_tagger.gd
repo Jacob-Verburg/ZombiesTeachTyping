@@ -1,6 +1,7 @@
 extends GutTest
 ## WordTagger (Story 6.1, FR66): row and length tagging against an independent copy of the GDD row
 ## table, the rejection rules (uppercase, non-letter, 2-8 letters, duplicates) and the output order.
+## Story 7.4: tier letter sets, tier pools (rows + length band), the pool builder and the pool report.
 
 ## The GDD row table, written out again here on purpose (independent of WordTagger's constants).
 const HOME: String = "asdfghjkl"
@@ -127,3 +128,86 @@ func test_count_in_band() -> void:
 	assert_eq(WordTagger.count_in_band(words, 2, 8), 5)
 	assert_eq(WordTagger.count_in_band(words, 6, 8), 1)
 	assert_eq(WordTagger.count_in_band([], 3, 5), 0)
+
+
+func _sorted_letters(s: String) -> String:
+	var chars: Array[String] = []
+	for c: String in s:
+		chars.append(c)
+	chars.sort()
+	return "".join(chars)
+
+
+func _tier_config() -> TierConfig:
+	var config: TierConfig = TierConfig.new()
+	config.tier_floors = [0.0, 8.0, 15.0]
+	config.tier_row_counts = [1, 2, 3]
+	config.tier_word_min_length = [2, 3, 4]
+	config.tier_word_max_length = [3, 4, 5]
+	return config
+
+
+func test_letters_for_rows() -> void:
+	assert_eq(WordTagger.letters_for_rows(1), HOME)
+	assert_eq(_sorted_letters(WordTagger.letters_for_rows(2)), _sorted_letters(HOME + TOP))
+	assert_eq(_sorted_letters(WordTagger.letters_for_rows(3)), "abcdefghijklmnopqrstuvwxyz")
+	assert_eq(WordTagger.letters_for_rows(0), "", "below 1 gives no letters")
+	assert_eq(WordTagger.letters_for_rows(4), "", "above 3 gives no letters")
+
+
+func test_pool_words_filters_rows_and_band() -> void:
+	var words: Array = WordTagger.tag_lines(PackedStringArray(
+			["sad", "dad", "as", "flask", "the", "ride", "can", "glad", "a"]))["words"]
+	# Home row, 2-4: "flask" is too long, "the"/"ride" use the top row, "can" the bottom row.
+	assert_eq(WordTagger.pool_words(words, 1, 2, 4), ["as", "dad", "glad", "sad"] as Array[String])
+	# Band edges are inclusive.
+	assert_eq(WordTagger.pool_words(words, 1, 3, 3), ["dad", "sad"] as Array[String])
+	assert_eq(WordTagger.pool_words(words, 1, 5, 5), ["flask"] as Array[String])
+	# Home + top: "can" (bottom row) stays out.
+	assert_eq(WordTagger.pool_words(words, 2, 3, 4), ["dad", "glad", "ride", "sad", "the"] as Array[String])
+	assert_eq(WordTagger.pool_words(words, 3, 3, 3), ["can", "dad", "sad", "the"] as Array[String])
+	assert_eq(WordTagger.pool_words([], 3, 2, 8), [] as Array[String])
+
+
+func test_pool_words_bad_row_count_gives_an_empty_pool() -> void:
+	var words: Array = WordTagger.tag_lines(PackedStringArray(["sad", "the"]))["words"]
+	assert_eq(WordTagger.pool_words(words, 0, 2, 8), [] as Array[String])
+	assert_eq(WordTagger.pool_words(words, 4, 2, 8), [] as Array[String])
+
+
+func test_pool_words_sorts_and_takes_parsed_json() -> void:
+	var parsed: Variant = JSON.parse_string(JSON.stringify([
+		{ "word": "sad", "rows": ["home"], "length": 3 },
+		{ "word": "ask", "rows": ["home"], "length": 3 },
+		{ "word": "tea", "rows": ["home", "top"], "length": 3 },
+	]))
+	var entries: Array = parsed
+	assert_typeof(entries[0]["length"], TYPE_FLOAT, "JSON numbers load as float")
+	assert_eq(WordTagger.pool_words(entries, 1, 3, 3), ["ask", "sad"] as Array[String])
+	assert_eq(WordTagger.pool_words(entries, 2, 3, 3), ["ask", "sad", "tea"] as Array[String])
+
+
+func test_build_tier_pools() -> void:
+	var words: Array = WordTagger.tag_lines(PackedStringArray(["as", "dad", "the", "ride", "cat", "glass"]))["words"]
+	var pools: Array[Dictionary] = WordTagger.build_tier_pools(words, _tier_config())
+	assert_eq(pools.size(), 3)
+	assert_eq(pools[0], { "tier": 1, "rows": ["home"], "min_length": 2, "max_length": 3, "words": ["as", "dad"] })
+	assert_eq(pools[1], { "tier": 2, "rows": ["home", "top"], "min_length": 3, "max_length": 4, "words": ["dad", "ride", "the"] })
+	assert_eq(pools[2], { "tier": 3, "rows": ["home", "top", "bottom"], "min_length": 4, "max_length": 5, "words": ["glass", "ride"] })
+
+
+func test_pool_report() -> void:
+	var pools: Array = [
+		{ "tier": 1, "words": ["as", "dad"] },
+		{ "tier": 2, "words": ["the"] },
+		{ "tier": 3, "words": ["a1", "a2", "a3"] },
+	]
+	var report: Array[Dictionary] = WordTagger.pool_report(pools, [2, 2] as Array[int])
+	assert_eq(report.size(), 3)
+	assert_eq(report[0], { "tier": 1, "count": 2, "minimum": 2, "ok": true }, "exactly the minimum is ok")
+	assert_eq(report[1], { "tier": 2, "count": 1, "minimum": 2, "ok": false }, "short")
+	assert_eq(report[2], { "tier": 3, "count": 3, "minimum": 0, "ok": false }, "no minimum set fails loudly")
+
+
+func test_tier_pool_minimums() -> void:
+	assert_eq(WordTagger.TIER_POOL_MINIMUMS, [40, 100, 100, 100, 100] as Array[int])

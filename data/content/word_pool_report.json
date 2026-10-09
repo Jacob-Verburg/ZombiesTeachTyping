@@ -1,0 +1,36 @@
+{
+	"schema": 1,
+	"source": "res://tools/word_lists/master_words.txt",
+	"tiers": [
+		{
+			"count": 40,
+			"minimum": 40,
+			"ok": true,
+			"tier": 1
+		},
+		{
+			"count": 304,
+			"minimum": 100,
+			"ok": true,
+			"tier": 2
+		},
+		{
+			"count": 901,
+			"minimum": 100,
+			"ok": true,
+			"tier": 3
+		},
+		{
+			"count": 951,
+			"minimum": 100,
+			"ok": true,
+			"tier": 4
+		},
+		{
+			"count": 904,
+			"minimum": 100,
+			"ok": true,
+			"tier": 5
+		}
+	]
+}

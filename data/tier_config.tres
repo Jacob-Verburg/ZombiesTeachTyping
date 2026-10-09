@@ -10,3 +10,6 @@ window_runs = 5
 level_wpm_scale = Dictionary[StringName, float]({})
 ignored_levels = Array[StringName]([&"test_level", &"test_word_level"])
 placement_level = &"zombie_run"
+tier_row_counts = Array[int]([1, 2, 3, 3, 3])
+tier_word_min_length = Array[int]([2, 3, 3, 4, 5])
+tier_word_max_length = Array[int]([4, 4, 5, 6, 8])
