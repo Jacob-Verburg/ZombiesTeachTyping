@@ -34,3 +34,9 @@ const COUNTDOWN_FROM: int = 3
 const COUNTDOWN_STEP_S: float = 0.5
 ## FR21: Enter / Esc / clicks on the report card do nothing for this many seconds after it opens.
 const REPORT_CARD_INPUT_GUARD_S: float = 1.0
+## FR51: RunResult.letter_pool_or_tier for a run that used no tier pool (the placement run, untiered
+## levels, a tier pool that fell back). Saved in the run record, never shown (FR60).
+const LETTER_POOL_ALL: String = "all"
+## FR51: RunResult.letter_pool_or_tier for a run that used tier n's pool ("tier_1".."tier_5", Story 7.5).
+## Saved in the run record, never shown (FR60).
+const TIER_POOL_FORMAT: String = "tier_%d"

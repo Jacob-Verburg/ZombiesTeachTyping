@@ -1,8 +1,10 @@
 extends GutTest
 ## Level contract (Story 2.4): LevelBase defaults. The base create_target_source is a contract
 ## violation (debug assert) and is never called here.
+## Story 7.5: the tier hand-off (set_tier, get_pool_label, _tier_active).
 
 const CONFIG_PATH: String = "res://tests/fixtures/levels/level_config_lowercase.tres"
+const TIER_CONFIG: TierConfig = preload("res://data/tier_config.tres")
 
 
 func _level() -> LevelBase:
@@ -43,3 +45,32 @@ func test_signals_exist() -> void:
 
 func test_is_a_node_2d() -> void:
 	assert_true(_level() is Node2D)
+
+
+func test_tier_defaults_are_untiered() -> void:
+	var level: LevelBase = _level()
+	assert_eq(level.tier, 0)
+	assert_null(level.tier_config)
+	assert_eq(level.get_pool_label(), "all")
+	assert_false(level._tier_active())
+
+
+func test_set_tier_stores_both() -> void:
+	var level: LevelBase = _level()
+	level.set_tier(2, TIER_CONFIG)
+	assert_eq(level.tier, 2)
+	assert_eq(level.tier_config, TIER_CONFIG)
+	assert_true(level._tier_active())
+	assert_eq(level.get_pool_label(), "all", "the base level never uses a tier pool")
+
+
+func test_tier_active_needs_a_known_tier_and_a_config() -> void:
+	var level: LevelBase = _level()
+	level.set_tier(0, TIER_CONFIG)
+	assert_false(level._tier_active(), "tier 0")
+	level.set_tier(TIER_CONFIG.tier_count() + 1, TIER_CONFIG)
+	assert_false(level._tier_active(), "above tier_count()")
+	level.set_tier(1, null)
+	assert_false(level._tier_active(), "null config")
+	level.set_tier(TIER_CONFIG.tier_count(), TIER_CONFIG)
+	assert_true(level._tier_active(), "the top tier")

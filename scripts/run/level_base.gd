@@ -11,8 +11,8 @@ extends Node2D
 ## source then never interleaves with them, so a seed always replays the same targets.
 ##
 ## Call order inside one run (all synchronous, in the key event's call stack):
-##   RunFrame._ready: level instanced -> added under %LevelHost (level _ready) -> create_target_source(rng)
-##     -> TypingSession built -> TypingInput configured
+##   RunFrame._ready: level instanced -> added under %LevelHost (level _ready) -> set_tier(tier, config)
+##     -> create_target_source(rng) -> TypingSession built -> TypingInput configured
 ##   first correct key: on_run_started() -> on_char_accepted(expected, 0)
 ##   each correct key: on_char_accepted(expected, index)
 ##   a word's (or paragraph's) last correct letter: on_char_accepted(expected, index) -> on_target_completed(target)
@@ -31,10 +31,41 @@ signal brains_earned_changed(total: int)
 ## The level's settings (duration, case and Space rules, target mode). Set in the level scene.
 @export var config: LevelConfig
 
+## The save's hidden tier (Story 7.5), set by RunFrame through set_tier(). 0 = untiered (not placed yet,
+## or the level runs outside a RunFrame): the level plays as before tiers existed. A level never reads
+## PlayerData (call down): this is the only way the tier reaches it.
+var tier: int = 0
+## The TierConfig that computed `tier` (its rows and word bands). null = untiered.
+var tier_config: TierConfig = null
+
 
 ## Called by RunFrame in _ready, before the session is built. Returns `config`.
 func get_level_config() -> LevelConfig:
 	return config
+
+
+## Called once by RunFrame in _ready, after the level is in the tree and before create_target_source.
+## Tier 0 or a null config leaves the level untiered.
+func set_tier(p_tier: int, p_config: TierConfig) -> void:
+	tier = p_tier
+	tier_config = p_config
+
+
+## Read by RunFrame when it builds the RunResult (FR51): which pool the run's targets came from.
+## Levels that use a tier pool override it; saved in the run record, never shown (FR60).
+func get_pool_label() -> String:
+	return _pool_label
+
+
+## Fixed when a level builds its pool (not read live from `tier`), so a later set_tier() cannot
+## relabel a run whose targets were already dealt. Levels with a tier pool set it to
+## GameConstants.TIER_POOL_FORMAT % tier; the default is the untiered label.
+var _pool_label: String = GameConstants.LETTER_POOL_ALL
+
+
+## True when set_tier() gave a tier the config knows (1..tier_count()).
+func _tier_active() -> bool:
+	return tier >= 1 and tier_config != null and tier <= tier_config.tier_count()
 
 
 ## Called once by RunFrame in _ready. Every level must override it and return a source that owns a

@@ -22,7 +22,11 @@ enum TargetMode { LETTER, WORD, PARAGRAPH }
 @export var music_id: StringName = &""
 ## The tagged word list (res://data/content/words.json, Story 6.1) word levels draw from; null = no words.
 @export var word_list: JSON
-## Shortest word the level uses, inclusive. Epic 7 replaces the fixed band with the tier band.
+## Shortest word of the fixed band, inclusive: the band used before placement or when the tier pool
+## is missing (FR59); a placed save uses its tier's band from tier_word_pools.
 @export var word_min_length: int = 0
-## Longest word the level uses, inclusive. Epic 7 replaces the fixed band with the tier band.
+## Longest word of the fixed band, inclusive (see word_min_length).
 @export var word_max_length: int = 0
+## The per-tier word pools (res://data/content/word_pools.json, Story 7.4) a tiered word level draws
+## from (Story 7.5); null = the level ignores the tier and uses word_list with the fixed band.
+@export var tier_word_pools: JSON

@@ -18,6 +18,11 @@ extends LevelBase
 ## seed keeps its words), lanes second (HordeField's child RNG, one draw per spawn). The run RNG itself is
 ## unused (6.5's Brainsss has no roll; AudioManager's voice gap throttles it).
 ##
+## Tier (Story 7.5, FR62/FR64): tier n draws tier n's words from LevelConfig.tier_word_pools in
+## TierConfig.word_band_of(n). Tier 0 (only reachable through the debug "Unlock all"), no pools, or a tier
+## pool under 2 words keeps the fixed word_list band (FR59). Only the words read the tier: size classes stay
+## by word length (FR55), and the defender, crossing times and bonuses never scale.
+##
 ## Defender (Story 6.4, FR56): HordeDefender (pure, no RNG at all) paces the lanes in front of the house
 ## and throws projectiles that hit, flash and stop copies. It runs only from on_run_started() until
 ## on_run_ending(); the tree pause freezes it with everything else. Step order, every logic step:
@@ -214,7 +219,7 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 	word_rng.seed = rng.randi()
 	var lane_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	lane_rng.seed = rng.randi()
-	var pool: Array[String] = WordSource.pool_from_json(_cfg.word_list, _cfg.word_min_length, _cfg.word_max_length)
+	var pool: Array[String] = _word_pool()
 	if pool.size() < 2:
 		Log.error(&"level", "horde rush: only %d words in the band %d-%d" % [
 			pool.size(), _cfg.word_min_length, _cfg.word_max_length])
@@ -225,6 +230,21 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 	_defender = HordeDefender.new(_cfg)
 	_update_defender_view()
 	return _source
+
+
+## The run's words: tier n's pool in its band when tiered and it has 2+ words, else the fixed band of
+## word_list (FR59). Sets _pool_label.
+func _word_pool() -> Array[String]:
+	_pool_label = GameConstants.LETTER_POOL_ALL
+	if _tier_active() and _cfg.tier_word_pools != null:
+		var band: Vector2i = tier_config.word_band_of(tier)
+		if band != Vector2i.ZERO:
+			var tier_pool: Array[String] = WordSource.tier_pool_from_json(_cfg.tier_word_pools, tier, band.x, band.y)
+			if tier_pool.size() >= 2:
+				_pool_label = GameConstants.TIER_POOL_FORMAT % tier
+				return tier_pool
+			Log.error(&"level", "horde rush: tier pool too small, using the fixed band")
+	return WordSource.pool_from_json(_cfg.word_list, _cfg.word_min_length, _cfg.word_max_length)
 
 
 ## A fresh run on this node: drop every old sprite, tomato, melt, shuffle and pop, stop the defender,
@@ -261,6 +281,7 @@ func _reset() -> void:
 	_brains = 0
 	_stress_floor = 0
 	_stress_next = 0
+	_pool_label = GameConstants.LETTER_POOL_ALL
 
 
 ## The first correct key: the defender starts pacing.

@@ -59,6 +59,11 @@ extends LevelBase
 ## Sounds (Story 5.1): the play_sfx seam plays sfx_brain_bonk in the same call that resolves a brain
 ## block, and each villager gets the seam in _spawn() to play sfx_hug_poof when its poof starts (with the
 ## cloud, not the key). Neither touches the run RNG; the Zombie Run music is RunFrame's (LevelConfig.music_id).
+##
+## Tier (Story 7.5, FR64): tier 0 (not placed yet, so the placement run, FR61) deals the whole letter_pool.
+## Tier n keeps the letter_pool letters on TierConfig.row_count_of(n) keyboard rows, in letter_pool order,
+## so tiers 3-5 give the identical array and a seed deals the same letters as before tiers. Only the
+## letters read the tier: pacing, blocks, villagers and the conga line never do.
 
 ## The non-block slots (Story 3.3). The generic zombie_run_target.tscn stays the base and test fixture.
 const VILLAGER_SCENE: PackedScene = preload("res://scenes/levels/zombie_run/villager.tscn")
@@ -141,7 +146,7 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 	# Letters first, layout second: see the class doc.
 	var child: RandomNumberGenerator = RandomNumberGenerator.new()
 	child.seed = rng.randi()
-	_source = LetterBagSource.new(child, _cfg.letter_pool)
+	_source = LetterBagSource.new(child, _letter_pool())
 	var group_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	group_rng.seed = rng.randi()
 	_groups = ZombieRunGroups.new(group_rng, _cfg.brain_block_every)
@@ -151,6 +156,24 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 		_spawn(i + 1, upcoming[i])
 	_queue[0].set_active(true)
 	return _source
+
+
+## The run's letters: letter_pool, or (tiered) the letter_pool letters on the tier's rows, in letter_pool
+## order. A tier pool under 2 letters logs and falls back to the whole letter_pool (NFR16).
+func _letter_pool() -> Array[String]:
+	_pool_label = GameConstants.LETTER_POOL_ALL
+	if not _tier_active():
+		return _cfg.letter_pool
+	var rows: String = WordTagger.letters_for_rows(tier_config.row_count_of(tier))
+	var pool: Array[String] = []
+	for letter: String in _cfg.letter_pool:
+		if not letter.is_empty() and rows.contains(letter):
+			pool.append(letter)
+	if pool.size() < 2:
+		Log.error(&"level", "zombie run: tier letter pool too small, using all letters")
+		return _cfg.letter_pool
+	_pool_label = GameConstants.TIER_POOL_FORMAT % tier
+	return pool
 
 
 ## The source has already advanced: current() is the new active letter and the last of

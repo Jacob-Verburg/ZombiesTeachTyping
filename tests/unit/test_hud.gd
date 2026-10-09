@@ -1,6 +1,7 @@
 extends GutTest
 ## Shared HUD band (Story 2.5): layout from the approved sketch (sketches/hud-band-2-5.md), prompt
 ## per mode, countdown, live WPM rule, counts, shake, Caps Lock hint, focus and mouse rules.
+## Story 7.5: the widest word of every tier pool fits the sign inside the 312 px target area.
 ## Disabled instance: _process is driven by hand.
 
 const HudScene: PackedScene = preload("res://scenes/run/hud.tscn")
@@ -129,6 +130,33 @@ func test_word_sign_grows_with_the_word() -> void:
 	assert_eq(_rect("%TargetSign"), Rect2(116, 260, 208, 40), "6 x 32 + 16, centred on x 220")
 	_hud.show_target("cat")
 	assert_eq(_rect("%TargetSign"), Rect2(164, 260, 112, 40))
+
+
+func test_widest_tier_word_fits_the_target_area() -> void:
+	var json: JSON = load("res://data/content/word_pools.json") as JSON
+	assert_not_null(json, "word_pools.json loads")
+	var tiers: Array = (json.data as Dictionary).get("tiers", []) as Array
+	assert_false(tiers.is_empty(), "the pools have tiers")
+	_hud.setup(_config(LevelConfig.TargetMode.WORD), "a")
+	var font: Font = (_hud.get_node("%TargetLabel") as Label).get_theme_font("font")
+	var area: Rect2 = _rect("%TargetArea")
+	assert_eq(area.size.x, 312.0, "the target area is 312 px wide")
+	for entry: Dictionary in tiers:
+		var words: Array = entry["words"] as Array
+		assert_false(words.is_empty(), "tier %d has words" % int(entry["tier"]))
+		var widest: String = ""
+		var widest_px: float = 0.0
+		for word: String in words:
+			var px: float = font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, HudScript.LINE_FONT_SIZE).x
+			if px > widest_px:
+				widest_px = px
+				widest = word
+		assert_true(widest_px + 2.0 * HudScript.SIGN_PAD_X <= area.size.x,
+				"tier %d: '%s' (%.0f px) fits" % [int(entry["tier"]), widest, widest_px])
+		_hud.show_target(widest)
+		var sign_rect: Rect2 = _rect("%TargetSign")
+		assert_true(sign_rect.position.x >= area.position.x and sign_rect.end.x <= area.end.x,
+				"tier %d: the sign for '%s' stays inside the target area" % [int(entry["tier"]), widest])
 
 
 func test_paragraph_sign_rect() -> void:

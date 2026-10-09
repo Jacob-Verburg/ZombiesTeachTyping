@@ -2,6 +2,7 @@ extends GutTest
 ## Run frame (Story 2.4): state machine, clock, level calls, run end, seed replay, failed loads.
 ## Debug hooks (Story 2.10): last_seed, pinned debug_seed, debug_end_run, the is_debug_build seam.
 ## Ambience (Story 3.7): set_ambience is a recorder too; only one test uses the live AudioManager.
+## Tier (Story 7.5): the frame hands the injected PlayerData's tier down and records the level's pool label.
 ## Instances are disabled (no engine _process, no real keys): tests call _process(delta) and
 ## %TypingInput.handle_key(event) by hand. navigate is a recorder, so the live Router never swaps
 ## GUT's scene.
@@ -1779,3 +1780,85 @@ func test_horde_rush_asks_for_the_march_once_at_start() -> void:
 	frame._process(2.01)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_music, [&"mus_horde_rush"] as Array[StringName], "the march plays on through the outro")
+
+
+# --- Story 7.5: the tier hand-off ---------------------------------------------------------------------------
+
+## A PlayerData on a temp SaveService whose profile is placed at `tier` before PlayerData loads it.
+func _placed_player_data(tier: int) -> PlayerDataScript:
+	DirAccess.make_dir_recursive_absolute(PAUSE_SAVE_DIR)
+	_clear_pause_saves()
+	var save: SaveServiceScript = SaveServiceScript.new()
+	save.save_dir = PAUSE_SAVE_DIR
+	add_child_autofree(save)
+	var profile: Dictionary = save.get_active_profile()
+	profile["flags"]["placement_done"] = true
+	profile["tier"] = tier
+	var data: PlayerDataScript = PlayerDataScript.new()
+	data.save_service = save
+	add_child_autofree(data)
+	assert_eq(data.get_tier(), tier, "the save is placed at tier %d" % tier)
+	return data
+
+
+## A Zombie Run frame on `data`, `count` targets typed, then ended (debug F6, as if the clock ran out).
+## Returns the targets; the recorded run is the save's last history entry.
+func _play_zombie_run(data: PlayerDataScript, count: int) -> Array[String]:
+	var frame: RunFrameScript = _make({"level_id": &"zombie_run", "seed": 42}, null, data)
+	frame.is_debug_build = func() -> bool: return true
+	add_child_autofree(frame)
+	var targets: Array[String] = []
+	for i: int in count:
+		targets.append(_type_correct(frame))
+	assert_true(frame.debug_end_run())
+	return targets
+
+
+func _last_pool_label(data: PlayerDataScript) -> String:
+	var history: Array = data.save_service.get_active_profile()["run_history"] as Array
+	assert_false(history.is_empty(), "the run was recorded")
+	return String((history.back() as Dictionary)["letter_pool_or_tier"])
+
+
+func test_a_tier_1_save_deals_home_row_letters_and_records_tier_1() -> void:
+	var data: PlayerDataScript = _placed_player_data(1)
+	var targets: Array[String] = _play_zombie_run(data, 18)
+	for letter: String in targets:
+		assert_true("asdfghjkl".contains(letter), "'%s' is home row" % letter)
+	assert_eq(_last_pool_label(data), "tier_1")
+
+
+func test_an_unplaced_save_deals_all_letters_and_records_all() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	assert_eq(data.get_tier(), 0)
+	var targets: Array[String] = _play_zombie_run(data, 30)
+	var off_home: bool = false
+	for letter: String in targets:
+		off_home = off_home or not "asdfghjkl".contains(letter)
+	assert_true(off_home, "the placement run deals the whole alphabet")
+	assert_eq(_last_pool_label(data), "all")
+
+
+func test_an_invalid_tier_config_runs_untiered() -> void:
+	var data: PlayerDataScript = _placed_player_data(1)
+	var broken: TierConfig = data.tier_config.duplicate(true) as TierConfig
+	broken.tier_row_counts = [] as Array[int]
+	assert_ne(broken.validate(), "", "the config is invalid")
+	data.tier_config = broken
+	var frame: RunFrameScript = _make({"level_id": &"zombie_run", "seed": 42}, null, data)
+	add_child_autofree(frame)
+	assert_eq(frame.get_level().tier, 0, "an invalid config is passed as tier 0")
+	assert_null(frame.get_level().tier_config)
+	assert_eq(frame.get_level().get_pool_label(), "all")
+
+
+func test_an_invalid_tier_config_runs_horde_rush_untiered() -> void:
+	var data: PlayerDataScript = _placed_player_data(1)
+	var broken: TierConfig = data.tier_config.duplicate(true) as TierConfig
+	broken.tier_row_counts = [] as Array[int]
+	data.tier_config = broken
+	var frame: RunFrameScript = _make({"level_id": &"horde_rush", "seed": 42}, null, data)
+	add_child_autofree(frame)
+	assert_eq(frame.get_level().tier, 0, "an invalid config is passed as tier 0")
+	assert_null(frame.get_level().tier_config)
+	assert_eq(frame.get_level().get_pool_label(), "all")

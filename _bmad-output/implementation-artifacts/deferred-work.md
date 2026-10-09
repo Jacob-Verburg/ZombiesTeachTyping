@@ -144,7 +144,7 @@
 
 - Accuracy and WPM round **down** (decision taken in 2.3: 100 % only with zero errors; WPM never overstates, so "New best!" needs a real improvement). The GDD only says "whole number". Smuck may overrule after playtest: one line each in `StatsCalculator.accuracy_percent` / `wpm` plus the edge tests.
 - ~~`RunClock` overshoot: accumulated deltas can push the last frame past the level duration (e.g. 120.016 s). Story 2.4's `RunFrame` should pass `minf(elapsed, config.duration_s)` for `&"timer"` ends; `RunResult` doesn't know the level duration.~~ Done in Story 2.4: `RunFrame` clamps timer ends with `minf(elapsed, duration)`.
-- `letter_pool_or_tier` is `"all"` for the MVP. Epic 7 decides the tier string format (e.g. `"tier_3"`).
+- ~~`letter_pool_or_tier` is `"all"` for the MVP. Epic 7 decides the tier string format (e.g. `"tier_3"`).~~ Done in 7.5: `"tier_N"` (`GameConstants.TIER_POOL_FORMAT`) when the level used a tier pool, `"all"` otherwise; the level answers through `LevelBase.get_pool_label()`.
 - `RunResult.completed_words` and `bonus_brains` are not written to the run record (architecture key set). Adding them to the save is a schema decision for Epic 6/10 if trends need them.
 - Contract guards (`StatsCalculator` negative counts, `RunResult.create` empty level id / unknown end reason) are covered by code review only; calling them in a GUT test would trip the debug `assert`.
 
@@ -156,7 +156,7 @@
 
 - ~~Completion bonus is `0` in `RunFrame._send_result()` until Story 3.5 adds it to `LevelConfig`.~~ Done in 3.5: `RunFrame` reads `LevelConfig.completion_bonus` at start and passes it as `RunResult.bonus_brains` on every recorded run.
 - ~~`LevelBase.brains_earned_changed` is not connected until the HUD brain counter (Story 2.5); the result reads `get_brains_earned()` at run end.~~ Done in Story 2.5: `RunFrame` connects it to `Hud.set_brains`.
-- `RunFrame.LETTER_POOL_ALL` (`"all"`) is a placeholder for `letter_pool_or_tier` until Epic 7.
+- ~~`RunFrame.LETTER_POOL_ALL` (`"all"`) is a placeholder for `letter_pool_or_tier` until Epic 7.~~ Done in 7.5: moved to `GameConstants.LETTER_POOL_ALL`; RunFrame records the level's `get_pool_label()`.
 - The test level (`scenes/levels/test_level/`) and its `debug_only` registry entry ship in release builds but are unreachable there (the menu button is debug-only). Exclude them from release exports with the Keyboard Test and art review screens if export size matters.
 - ~~Main menu "Play" sends `&"zombie_run"`, which is not registered until Story 3.1: `RunFrame` logs `[ERROR][run]` and returns to the menu (NFR16 path, on purpose).~~ Done in 3.1: `zombie_run` is registered and the button reads "Zombie Run".
 - ~~The main menu's `_is_debug_build()` seam is a placeholder-menu exception to Boundary 7 (`OS.is_debug_build()` outside `scripts/debug/`). Story 4.2 decides where a debug entry to the test level lives.~~ Done in 4.2: the seam is gone; the test level is a jump button in the F3 debug overlay.
@@ -522,7 +522,7 @@
 - Banned-word test is exact-match only (`hit` caught, `hits` not); a documented backstop, not a filter.
 - ~~`tools/tag_words.gd` does not validate `--in`/`--out` (empty `--out=`, relative paths).~~ Done in 7.4: `--in`, `--out`, `--pools-out` and `--report-out` must be non-empty `res://` paths or the tool fails.
 - ~~The starter-band check (>=150 words of length 3-5) runs on any `--in` list; Story 7.4's master list may need it relaxed or parameterised.~~ Done in 7.4: only the default (starter) mode runs it; `--pools` mode checks the tier minimums.
-- When the runtime loader for `words.json` lands, verify in a real web export that it loads (`include_filter="data/content/*.json"`, `load()` vs `FileAccess`).
+- ~~When the runtime loader for `words.json` lands, verify in a real web export that it loads (`include_filter="data/content/*.json"`, `load()` vs `FileAccess`).~~ Done in 7.5: in a debug web export a tier 1 save's Horde Rush dealt `had`, `asks`, `ha`, `sags` from `word_pools.json` (a 2-letter word the fixed 3-5 band cannot give), no console errors (`screenshots/7-5/horde-rush-tier1.png`). Both JSONs load through `.tres` ext_resources with `load()`.
 
 ## Deferred from: code review of story-6.3 (2026-10-07)
 
@@ -625,7 +625,13 @@
 
 ## Deferred from: code review of story-7-4-tier-word-pools-and-validation (2026-10-08)
 
-- `WordTagger.pool_words`/`pool_report` crash on JSON entries missing `word`, `rows` or `length`, and `pool_report` needs a typed `Array[int]` for `minimums`. Only generated data reaches them today; harden when Story 7.5 reads `word_pools.json`.
+- `WordTagger.pool_words`/`pool_report` crash on JSON entries missing `word`, `rows` or `length`, and `pool_report` needs a typed `Array[int]` for `minimums`. Only generated data reaches them today; harden when Story 7.5 reads `word_pools.json`. 7.5: the runtime reader is `WordSource.tier_pool_from_json`, which skips malformed tiers and words with one log line; the `WordTagger` functions still see only tool data.
 - Pools mode writes `word_pools.json` then `word_pool_report.json` non-atomically; a failed second write leaves a mismatched pair. Manual tool run, and `test_matches_a_fresh_build` catches a stale pair.
 - Tier 1's pool has exactly its minimum (40 of 40), so removing any one word fails the gate. Intentional per the story.
 - `test_word_pools.gd` loads the pool JSONs with `load()`, so a fresh clone without an editor import sees empty docs and confusing failures.
+
+## Deferred from: dev of story-7-5 (2026-10-08)
+
+- Horde Rush tuning per tier band: 6.7's targets (about 40 % arrivals at 10 WPM, 70 % at 30) were measured on the 3-5 band. Tier 1 (2-4 letters) makes mostly 1-hit small copies and tier 5 (5-8) medium copies and brutes; FR64 forbids scaling the defender, so 7.5 changed nothing. When tuning is next revisited, run `tools/horde_rush_sim.gd` per tier band (e.g. tier 1 at 6 WPM, tier 5 at 32 WPM).
+- A pinned debug replay seed (Story 2.10) replays the same targets only at the same tier: the overlay does not show the tier (FR60), so a seed pinned before a tier change deals different letters or words after it.
+- The browser pane's `type` action does not reach the game canvas in web builds; single `key` presses do (seen in 7.5's web check). Use per-key presses in future pane checks.

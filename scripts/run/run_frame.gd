@@ -21,11 +21,12 @@ extends Control
 ## word's last letter, the HUD is refreshed on every accepted letter, and implied spaces feed live/final WPM.
 ## Everything in the typing path is synchronous: nothing in it waits or defers a call.
 ## A level config with duration_s <= 0 means "no timer": the level must end the run with end_requested.
+## Tier (Story 7.5): the frame hands player_data's hidden tier and TierConfig down with level.set_tier()
+## before create_target_source, and records the level's get_pool_label(); a seed replays the same targets
+## only at the same tier. The tier is never shown or logged (FR60).
 
 enum RunState { WAITING_FIRST_KEY, RUNNING, PAUSED, COUNTDOWN, ENDING, DONE }
 
-## MVP value for RunResult.letter_pool_or_tier; Story 7.5 replaces it with the tier.
-const LETTER_POOL_ALL: String = "all"
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 
 ## Debug builds only (Story 2.10): the replay seed the debug overlay pins; -1 = off. Used when the RUN
@@ -242,6 +243,8 @@ func _start_level(payload: Dictionary) -> String:
 		return "level %s has no LevelConfig" % _level_id
 	_level = level
 	%LevelHost.add_child(level)
+	var tier_config: TierConfig = _valid_tier_config()
+	level.set_tier(player_data.get_tier() if tier_config != null else 0, tier_config)
 	_seed_rng(_requested_seed(payload))
 	var source: TargetSource = level.create_target_source(_rng)
 	if source == null:
@@ -278,6 +281,15 @@ func _start_level(payload: Dictionary) -> String:
 	last_seed_level = _level_id
 	Log.info(&"run", "started level=%s seed=%d%s" % [_level_id, _seed, " (replay)" if _replayed else ""])
 	return ""
+
+
+## player_data's TierConfig, or null when missing or invalid (the level then runs untiered, tier 0).
+## get_tier() already returns 0 when the save is not placed.
+func _valid_tier_config() -> TierConfig:
+	var tier_config: TierConfig = player_data.tier_config
+	if tier_config == null or not tier_config.validate().is_empty():
+		return null
+	return tier_config
 
 
 ## The payload's seed wins (even -1 or a wrong type = random); without one, a debug build uses the
@@ -427,7 +439,7 @@ func _record_result() -> void:
 	_result = RunResult.create(
 		_level_id, int(Time.get_unix_time_from_system()), duration, _session.get_keys_typed(),
 		_session.get_errors(), _session.get_per_key(), _level.get_brains_earned(), _completion_bonus,
-		LETTER_POOL_ALL, _end_reason, _session.get_implied_spaces())
+		_level.get_pool_label(), _end_reason, _session.get_implied_spaces())
 	Log.info(&"run", "ended level=%s reason=%s wpm=%d bonus=%d" % [
 		_result.level_id, _result.end_reason, _result.wpm, _result.bonus_brains])
 	_new_best = player_data.record_run(_result)
