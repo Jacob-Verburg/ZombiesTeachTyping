@@ -181,3 +181,29 @@ func test_menu_card_routes_to_a_horde_rush() -> void:
 	assert_eq(run.call("get_level_id"), &"horde_rush")
 	assert_not_null(run.call("get_session"), "the run built a typing session")
 	assert_eq(_nav, [], "the run started instead of bouncing back to the menu")
+
+
+## Story 8.7: Pitchfork Panic is switched on. A Horde Rush run that ends on its timer opens it (FR79), and
+## its card routes to a real run.
+func test_menu_card_routes_to_a_pitchfork_panic() -> void:
+	var player: PlayerDataScript = _temp_player_data()
+	player.record_run(RunResult.create(
+		&"horde_rush", 1000, 180.0, 300, 0, {}, 0, 0, "all", GameConstants.END_REASON_TIMER))
+	player.mark_unlock_seen(&"pitchfork_panic")
+	var packed: PackedScene = load(Router.SCREEN_PATHS[Router.Screen.MAIN_MENU]) as PackedScene
+	var menu: Control = packed.instantiate() as Control
+	menu.process_mode = Node.PROCESS_MODE_DISABLED
+	menu.set("navigate", _record)
+	menu.set("player_data", player)
+	add_child_autofree(menu)
+	var cards: Array[LevelCard] = menu.call("get_cards")
+	assert_eq(cards[2].get_level_id(), &"pitchfork_panic")
+	assert_eq(cards[2].get_state(), LevelCard.State.NEW)
+	cards[2]._activate()
+	assert_eq(_nav, [[Router.Screen.RUN, {"level_id": &"pitchfork_panic"}]])
+	Router._store_payload(_nav[0][1])
+	_nav = []
+	var run: Control = _instance(Router.Screen.RUN)
+	assert_eq(run.call("get_level_id"), &"pitchfork_panic")
+	assert_not_null(run.call("get_session"), "the run built a typing session")
+	assert_eq(_nav, [], "the run started instead of bouncing back to the menu")

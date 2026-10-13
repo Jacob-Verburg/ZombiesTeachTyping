@@ -54,9 +54,11 @@ func _make_player(registry: LevelRegistry = null) -> PlayerDataScript:
 	return _player
 
 
-## The real main menu (shipped registry) on _player, disabled, with a navigate recorder.
-func _make_menu() -> MainMenuScript:
+## The real main menu (shipped registry, or `registry`) on _player, disabled, with a navigate recorder.
+func _make_menu(registry: LevelRegistry = null) -> MainMenuScript:
 	var menu: MainMenuScript = MenuScene.instantiate() as MainMenuScript
+	if registry != null:
+		menu.level_registry = registry
 	menu.process_mode = Node.PROCESS_MODE_DISABLED
 	menu.navigate = func(screen: int, payload: Dictionary) -> void: _nav.append([screen, payload])
 	menu.is_transitioning = func() -> bool: return false
@@ -217,9 +219,13 @@ func test_the_unlock_survives_a_reload() -> void:
 
 
 func test_a_coming_soon_level_keeps_its_moment_for_later() -> void:
-	_make_player()
+	# Story 8.7 switched Pitchfork Panic on; a deep copy of the shipped registry turns it back to Coming soon
+	# (the shipped resource is never changed).
+	var registry: LevelRegistry = (load("res://data/levels/level_registry.tres") as LevelRegistry).duplicate(true)
+	registry.get_entry(&"pitchfork_panic").available = false
+	_make_player(registry)
 	_player.debug_set_all_unlocked(true)
-	var menu: MainMenuScript = _make_menu()
+	var menu: MainMenuScript = _make_menu(registry)
 	var pitchfork: LevelCard = _card(menu, &"pitchfork_panic")
 	assert_eq(pitchfork.get_state(), LevelCard.State.COMING_SOON)
 	assert_false(pitchfork.is_playing_moment())
@@ -237,7 +243,7 @@ func test_an_old_save_is_backfilled_and_shows_the_moment() -> void:
 	var menu: MainMenuScript = _make_menu()
 	var horde: LevelCard = _card(menu, &"horde_rush")
 	assert_true(horde.is_playing_moment(), "the backfilled unlock plays its moment")
-	assert_eq(_card(menu, &"pitchfork_panic").get_state(), LevelCard.State.COMING_SOON)
+	assert_eq(_card(menu, &"pitchfork_panic").get_state(), LevelCard.State.LOCKED, "switched on in 8.7, still locked")
 	assert_false(_player.get_unlock_state(&"pitchfork_panic")["unlocked"], "a caught Horde Rush run opens nothing")
 	menu._input(_esc_action())
 	assert_false(horde.is_playing_moment())

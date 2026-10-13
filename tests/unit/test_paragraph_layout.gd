@@ -7,6 +7,7 @@ const PARAGRAPHS_PATH: String = "res://data/content/paragraphs.json"
 const POOLS_PATH: String = "res://data/content/word_pools.json"
 const CONFIG_PATH: String = "res://data/tier_config.tres"
 const GENERATED_PASSAGES: int = 200
+const HudScript := preload("res://scripts/run/hud.gd")
 
 
 func _lines(text: String, starts: PackedInt32Array) -> Array[String]:
@@ -100,3 +101,19 @@ func test_generated_passages_wrap_cleanly() -> void:
 			assert_ne(target, "", "tier %d passage %d" % [tier, i])
 			_assert_clean(target)
 			source.advance()
+
+
+## Story 8.7 (8-2 review defer): the HUD paragraph font (the theme's Press Start 2P, at the HUD's paragraph
+## size) is monospace, so a 12-character line is the same width whatever its letters, and LINE_CHARS is safe.
+func test_the_paragraph_font_is_monospace() -> void:
+	var theme: Theme = load("res://data/ui_theme.tres") as Theme
+	assert_not_null(theme.default_font)
+	if theme.default_font == null:
+		return
+	assert_eq(theme.default_font.resource_path, "res://assets/fonts/press_start_2p.ttf")
+	var size: int = HudScript.PARAGRAPH_FONT_SIZE
+	var widths: Array[float] = []
+	for glyph: String in ["W", "i", "@", "."]:
+		widths.append(theme.default_font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x)
+	for i: int in range(1, widths.size()):
+		assert_eq(widths[i], widths[0], "every glyph has the same advance: %s" % [widths])

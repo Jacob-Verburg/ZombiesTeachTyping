@@ -37,7 +37,7 @@ id = &"pitchfork_panic"
 display_name = "Pitchfork Panic"
 scene = ExtResource("11_pitchfork_panic")
 debug_only = false
-available = false
+available = true
 card_picture = ExtResource("7_card_pitchfork_panic")
 unlocked_by = &"horde_rush"
 

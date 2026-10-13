@@ -129,10 +129,10 @@ The GDD's epic sketch (`gdds/.../gdd-epics-overview.md`, 11 epics, MVP = Epics 1
 **Pitchfork Panic (Level 3)**
 
 - FR69 [Post-MVP]: The target area shows a 2-line text window: typed characters green, the next character underlined, the next line dimmed. Passages flow continuously, joined by a single typed Space.
-- FR70 [Post-MVP]: Each correct character moves the zombie 1 step. The mob starts 15 steps behind at 4 WPM-eq (1 WPM-eq = 5 steps/min) and gains +1 WPM-eq every 10 s.
-- FR71 [Post-MVP]: The camera keeps the zombie at 60% of screen width; the mob's distance is always readable and the mob is on screen once the gap is under 20 steps.
+- FR70 [Post-MVP]: Each correct character moves the zombie 1 step. The mob starts 30 steps behind at 8 WPM-eq (1 WPM-eq = 5 steps/min) and gains +2 WPM-eq every 10 s (tuned 8.7; was 15 / 4 / +1).
+- FR71 [Post-MVP]: The camera keeps the zombie at 60% of screen width; the mob's distance is always readable and the whole mob walks in from the left edge once the gap is under 25 steps (tuned 8.7; was 20, with a tips-only hint before it).
 - FR72 [Post-MVP]: Brain pickups are placed every 10–30 steps (uniform random from the previous pickup) and give 5 brains each.
-- FR73 [Post-MVP]: Caught: input stops → dust cloud (1.5 s) → dazed zombie with stars and "Got you!" (1.0 s) → fade (0.5 s) → report card; brains kept. Escaped! at 5:00: dive through a hedge/gate/bush (1.5 s) → "Escaped!" → report card with +25. Every finished run gets +10.
+- FR73 [Post-MVP]: Caught: input stops → dust cloud (1.5 s) → dazed zombie with stars and "Got you!" (1.0 s) → fade (0.5 s) → report card; brains kept. Escaped! at 5:00: dive through a hedge/gate/bush (1.5 s) → "Escaped!" → report card with +25. Every finished run gets +5 (tuned 8.7; was +10).
 - FR74 [Post-MVP]: Chase settings: Moonlit Village at launch; Cornfield Path and Spooky Forest Bridge later. Its menu card is enabled.
 
 **Full Closet, variety, trends, profiles**

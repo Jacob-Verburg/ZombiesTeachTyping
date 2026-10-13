@@ -5,8 +5,15 @@ extends GutTest
 const TICK: float = 1.0 / 60.0
 
 
+## A duplicate of the shipped config with the mob pinned to the GDD 8.3 numbers (gap 15, 4 WPM-eq + 1 every
+## 10 s), so these tests check the model, not the tuning (Story 8.7 retuned the shipped mob; see its Tuning
+## Results and test_pitchfork_panic_tuning.gd).
 func _config() -> PitchforkPanicConfig:
 	var config: PitchforkPanicConfig = (load("res://data/levels/pitchfork_panic.tres") as PitchforkPanicConfig).duplicate(true)
+	config.start_gap_steps = 15.0
+	config.mob_start_wpm_eq = 4.0
+	config.mob_accel_wpm_eq = 1.0
+	config.mob_accel_every_s = 10.0
 	assert_eq(config.validate(), "", "shipped config is valid")
 	return config
 

@@ -109,6 +109,8 @@ func test_shipped_registry_menu_levels() -> void:
 		ids.append(entry.id)
 	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic", &"test_level", &"test_word_level",
 			&"test_paragraph_level"] as Array[StringName])
+	for debug_id: StringName in [&"test_level", &"test_word_level", &"test_paragraph_level"]:
+		assert_true(registry.get_entry(debug_id).debug_only, "%s stays debug-only" % debug_id)
 	# Story 8.2: the debug-only "Test text" paragraph level.
 	var text_entry: LevelEntry = registry.get_entry(&"test_paragraph_level")
 	assert_true(text_entry.debug_only)
@@ -124,8 +126,8 @@ func test_shipped_registry_menu_levels() -> void:
 	for id: StringName in names:
 		var entry: LevelEntry = registry.get_entry(id)
 		assert_not_null(entry, String(id))
-		# Story 6.7: Horde Rush is switched on; Pitchfork Panic stays Coming soon.
-		assert_eq(entry.available, id == &"horde_rush", "%s available" % id)
+		# Story 6.7 switched Horde Rush on; Story 8.7 switched Pitchfork Panic on.
+		assert_true(entry.available, "%s available" % id)
 		assert_false(entry.debug_only)
 		# Story 5.0: Coming soon cards show their level's picture too (greyed by the card).
 		assert_eq(entry.card_picture.resource_path, "res://assets/sprites/ui/menu/ui_level_card_%s.png" % id)
@@ -138,10 +140,11 @@ func test_shipped_registry_menu_levels() -> void:
 	assert_true(root is LevelBase, "Horde Rush's root is a LevelBase")
 	root.free()
 	var pitchfork: LevelEntry = registry.get_entry(&"pitchfork_panic")
-	# Story 8.3: it has its level scene (reachable from the debug jump); the card stays Coming soon until 8.7.
+	# Story 8.3 gave it its level scene; Story 8.7 makes its card selectable (locked behind Horde Rush).
 	assert_not_null(pitchfork.scene, "Pitchfork Panic has its level scene")
-	assert_false(pitchfork.available, "Pitchfork Panic is still Coming soon")
-	assert_eq(registry.get_scene(&"pitchfork_panic"), pitchfork.scene, "get_scene serves it while Coming soon")
+	assert_true(pitchfork.available, "Pitchfork Panic is switched on")
+	assert_eq(pitchfork.unlocked_by, &"horde_rush", "it opens after a Horde Rush run ends on its timer")
+	assert_eq(registry.get_scene(&"pitchfork_panic"), pitchfork.scene)
 	var pitchfork_root: Node = pitchfork.scene.instantiate()
 	assert_true(pitchfork_root is LevelBase, "Pitchfork Panic's root is a LevelBase")
 	pitchfork_root.free()

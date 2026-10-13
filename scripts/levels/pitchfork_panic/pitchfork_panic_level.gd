@@ -15,11 +15,11 @@ extends LevelBase
 ## where the camera stops and only the zombie node runs off into the bush.
 ##
 ## The mob (ChaseMob, Story 8.6) lives in world coordinates at mob_steps * step_px, so it scrolls with %World;
-## its origin is the front member's feet and the other three trail behind within 58 px. It is on screen
-## whenever the gap is under mob_visible_gap_steps; otherwise %MobHint, torch flames and pitchfork tips
-## poking in from the left screen edge, warns that it is coming: it slides in by whole px as the gap closes
-## from HINT_START_GAP_STEPS to mob_visible_gap_steps (no alpha), and hides while the mob itself shows. The
-## mob runs from on_run_started() and freezes on its frame in on_run_ending().
+## its origin is the front member's feet and the other three trail behind within 58 px. It is drawn whenever
+## the gap is under mob_visible_gap_steps, which the shipped config sets so the front member is still just
+## off the left screen edge then: the whole mob, villagers with their pitchforks and torches, walks in
+## together from the edge (Story 8.7, Smuck's playtest call; the 8.6 tips-only hint was removed). The mob
+## runs from on_run_started() and freezes on its frame in on_run_ending().
 ##
 ## Time: _process() does nothing until on_run_started() and after on_run_ending(); the tree pause (PAUSED,
 ## COUNTDOWN) stops it, so the mob freezes for free. A frame is capped at MAX_FRAME_S (a longer hitch is
@@ -71,12 +71,6 @@ const SCREEN_W: float = 640.0
 const MAX_FRAME_S: float = 0.5
 ## Longest single integration slice. Robustness, not a GDD number.
 const MAX_STEP_S: float = 1.0 / 30.0
-## The hint starts sliding in this many steps out and is fully in at mob_visible_gap_steps (look value).
-const HINT_START_GAP_STEPS: float = 32.0
-## The hint sprite's width: at strength 0 it sits just off the left edge (x -HINT_W). Layout value.
-const HINT_W: float = 32.0
-## The hint's bottom row (sheet row 30) sits on the feet line, like a character's soles. Layout value.
-const HINT_FEET_ROW: float = 31.0
 ## Below RunFrame's default 0, so the mob moves and the catch is checked before RunFrame's timer each frame.
 const PROCESS_PRIORITY: int = -1
 ## Pickup nodes are placed this many steps past the right screen edge. Layout, not a GDD number.
@@ -128,8 +122,6 @@ var _ending_reason: StringName = &""
 var _outro_length: float = 0.0
 ## The outro's node-bound tween chain (null before an outro starts).
 var _outro_tween: Tween
-## The hint's current strength (0 = off screen, 1 = fully in); 0 while the mob shows.
-var _hint_strength: float = 0.0
 
 @onready var _zombie: PlayerZombie = %Zombie
 @onready var _world: Node2D = %World
@@ -138,7 +130,6 @@ var _hint_strength: float = 0.0
 ## The mob as a ChaseMob (null if %Mob is a plain Node2D: it still positions, it just has no run frames).
 @onready var _chase_mob: ChaseMob = _mob as ChaseMob
 @onready var _pickups: Node2D = %Pickups
-@onready var _hint: AnimatedSprite2D = %MobHint
 @onready var _dust: DustCloud = %DustCloud
 @onready var _stars: DizzyStars = %DizzyStars
 @onready var _bush: EscapeBush = %EscapeBush
@@ -158,9 +149,6 @@ func _ready() -> void:
 	_mob.position.y = GROUND_Y
 	_set_zombie_x(0.0)
 	_mob.visible = false
-	if _hint != null:
-		_hint.position = Vector2(-HINT_W, GROUND_Y - HINT_FEET_ROW)
-		_hint.visible = false
 
 
 ## Builds the paragraph source, the chase model and the pickup trail. A broken config or no text at all returns null, so
@@ -229,8 +217,6 @@ func on_run_ending(reason: StringName) -> float:
 	_running = false
 	if _walk_tween != null and _walk_tween.is_valid():
 		_walk_tween.kill()
-	if _hint != null:
-		_hint.visible = false
 	if _chase_mob != null:
 		_chase_mob.freeze()
 	if _zombie != null:
@@ -378,11 +364,6 @@ func get_mob_screen_rect() -> Rect2:
 	return Rect2(x - back, GROUND_Y - 32.0, back + MOB_HALF_WIDTH_PX, 32.0)
 
 
-## The mob hint's strength: 0 when off screen (or while the mob shows), 1 fully in. For tests.
-func get_mob_hint_strength() -> float:
-	return _hint_strength
-
-
 ## Moves the zombie and the camera together (see the class doc). One float argument, for tween_method.
 func _set_zombie_x(x: float) -> void:
 	var screen_x: float = _cfg.zombie_screen_x_frac * SCREEN_W
@@ -452,18 +433,9 @@ func _clear_pickup_nodes() -> void:
 			pop.queue_free()
 
 
-## Places the mob and the hint from the logical gap, once per frame and per key.
+## Places the mob from the logical gap, once per frame and per key.
 func _update_views() -> void:
 	if _model == null or _cfg == null:
 		return
 	_mob.position.x = _model.mob_steps * _cfg.step_px
-	var gap: float = _model.gap()
-	var mob_visible: bool = gap < _cfg.mob_visible_gap_steps
-	_mob.visible = mob_visible
-	_hint_strength = 0.0
-	if not mob_visible:
-		var span: float = maxf(HINT_START_GAP_STEPS - _cfg.mob_visible_gap_steps, 0.001)
-		_hint_strength = clampf((HINT_START_GAP_STEPS - gap) / span, 0.0, 1.0)
-	if _hint != null:
-		_hint.position.x = roundf(lerpf(-HINT_W, 0.0, _hint_strength))
-		_hint.visible = _hint.position.x > -HINT_W
+	_mob.visible = _model.gap() < _cfg.mob_visible_gap_steps

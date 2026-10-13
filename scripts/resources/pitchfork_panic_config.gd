@@ -18,7 +18,7 @@ extends LevelConfig
 @export var step_px: float = 0.0
 ## FR71: where the camera keeps the zombie, as a fraction of the screen width (0.6 = 60%).
 @export var zombie_screen_x_frac: float = 0.0
-## FR71: the mob is on screen whenever the gap is below this many steps.
+## FR71: the mob is drawn whenever the gap is below this many steps (8.7: set so it walks in from the left edge).
 @export var mob_visible_gap_steps: float = 0.0
 ## Look value: seconds the zombie sprite takes to walk one step.
 @export var step_time_s: float = 0.0

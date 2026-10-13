@@ -26,7 +26,7 @@ extends CanvasLayer
 ## Story 8.2: "Test text" (the paragraph test level) joins %JumpRow after "Test words". The run line truncates
 ## each shown target to TARGET_SHOWN_CHARS (a passage is up to 400 characters) and shows @<cursor> after the
 ## current one.
-## Story 8.3: "Pitchfork" (the chase level, still Coming soon on the menu) closes %JumpRow after "Horde Rush".
+## "Pitchfork" (the chase level, added in Story 8.3; since Story 8.7 switched its menu card on this is only a shortcut) closes %JumpRow after "Horde Rush".
 ## Story 6.8: "Unlock all" / "Relock all" on %JumpRow2 follow the same rules (mouse-only, main menu only).
 ## They call PlayerData.debug_set_all_unlocked(true / false) (every locked level opened with its unlock
 ## moment unseen and its "New!" badge on, or every unlock cleared), then reload the main menu so the moment

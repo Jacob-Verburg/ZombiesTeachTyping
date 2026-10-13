@@ -591,6 +591,7 @@
 ## Deferred from: dev of story-7-1 (2026-10-08)
 
 - Per-level WPM weighting (Gate A, Smuck 2026-10-08: option (b) no weighting now): `level_wpm_scale` ships empty. The dev save held 1 Zombie Run run (18 WPM) and no Horde Rush runs. Revisit with `tools/playtest/summarize_save.py` (Per-level WPM block) once a real kid save with >= 3 runs on each level exists; Pitchfork Panic gets its own review in 8.7.
+  - 8.7 (2026-10-13), Smuck: "No weighting now (Recommended)" for Pitchfork Panic too; `tier_config.tres` unchanged. Still revisit with `summarize_save.py` once a kid save has >= 3 runs per level.
 - `summarize_save.py` mirrors TierCalculator's completed end reasons, ignored levels and window (`COMPLETED_END_REASONS`, `TIER_IGNORED_LEVELS`, `TIER_WINDOW_RUNS`) by hand; nothing checks them against `data/tier_config.tres`. Dev tool only.
 
 ## Deferred from: code review of story-7-1-tier-calculator-with-hysteresis (2026-10-08)
@@ -640,6 +641,7 @@
 ## Deferred from: dev of story 8-1 (2026-10-09)
 
 - Passage lengths sit at the low end of the authoring guide's aimed spread: tier 3 155-182, tier 4 199-232, tier 5 231-281 (guide: tier 4 200-330, tier 5 260-400). All are within the 150-400 rule and Smuck shipped them as is. If 8.7's per-level WPM check shows tier 5 runs feel short, add longer tier 5 passages (new ids `t5_14`+, up to `MAX_PER_TIER`).
+  - 8.7: not reported in Smuck's stand-in playtest; still open for a kid playtest (Q8). No passages added.
 - GUT's `-gtest=<path>` still runs every script from `.gutconfig.json`'s dirs here. To run one test script, use `-gdir=res://tests/unit -gselect=<name>`.
 
 ## Deferred from: code review of story-8-1 (2026-10-09)
@@ -650,20 +652,25 @@
 - ~~Validator messages name tiers; 8.2 must not log them at runtime (FR60).~~ Done in 8.2: the loader logs only the count of skipped passages (`test_paragraph_source.gd` checks that no error line names a tier).
 - ~~Generator replay depends on shared-RNG call order and `WordSource` internals; document the contract in 8.2 and consider a golden-output test.~~ Done in 8.2: the replay contract is in `ParagraphSource`'s class doc; `test_generated_golden_passage` pins seed 8201's first tier 1 passage.
 - `test_paragraphs.gd` BANNED list is exact-token and broad (`hard`, `easy`, `level`); the test also errors rather than fails on malformed shipped JSON. Revisit with 8.7.
+  - 8.7: no passages added, so nothing to revisit yet.
 
 ## Deferred from: dev of story 8-2 (2026-10-09)
 
 - Caps Lock in case-sensitive levels: `TypingInput` only runs the Caps hint when the level is not case-sensitive, so in paragraph mode a kid with Caps Lock on gets only wrong keys and no hint. GDD M1 scopes the hint to the lowercase levels; adding a case-sensitive hint is a GDD change. Raise it for 8.7 tuning or the Pitchfork Panic playtest.
+  - 8.7: not seen in Smuck's stand-in playtest; still open for a kid playtest (Q8).
 - AltGr / dead keys: on non-US layouts some symbols arrive as Ctrl+Alt and are ignored (see the 2-1 note), and on US-International `'` and `"` are dead keys. Tier 4-5 text makes this visible. It needs a browser check on a real layout (8.7).
+  - 8.7: still open. Smuck has no non-US layout to check with ("No, leave it open", 2026-10-13).
 - The debug "Test text" level writes the real save's `used_passages`, as debug jumps already write run history. Acceptable for a debug-only level. It is in `tier_config.tres` `ignored_levels` (the registry-debug-levels guard test), so its runs never move the hidden tier.
 - Paragraph sign fit: at Smuck's visual gate the sign grew from 48 to 52 px for 2 px of line padding. Its bottom 4 rows overlap `%HandsArea`'s empty top rows, but the middle-finger glow sprite starts at row 2, so a lit middle finger's glow tip draws over the sign's bottom edge (y 310-311). Smuck shipped it as is ("ship it like this"). Revisit if 8.6's art pass reworks the band (for example a glow sprite that starts at row 4, or a taller band).
 - `%SpaceMarker` is a `%TargetLabel` child (spec), so when the join Space is on line 2 the marker still moves with the wrong-key shake while line 2 stays still. It is a 2 px move for 0.2 s.
 - The visual check ran in a desktop window (a throwaway capture script on the real `RunFrame`), not a web export, so `paragraphs.json` loading in a web build is unverified. `export_presets.cfg` already includes `data/content/*.json`; check it on the next web build (8.3 or 8.7).
+  - Resolved in 8.7: the web debug export loads Pitchfork Panic and shows the passage text (screenshots/8-7/).
 - A 1-passage authored list repeats that passage every time (`ParagraphSource._deal_authored`'s last resort). Shipped tiers have 13 passages each.
 
 ## Deferred from: code review of 8-2-paragraph-target-mode (2026-10-09)
 
 - Layout assumes a monospace font: `ParagraphLayout.LINE_CHARS = 12` is a character count while the HUD measures pixel widths. Wide glyphs ("W", "M", "@") could overflow the 288 px line if the font is proportional. Verify against the shipped font in 8.6/8.7.
+  - Resolved in 8.7: `test_the_paragraph_font_is_monospace` measures "W", "i", "@" and "." at the same advance in the theme font at the paragraph size.
 - Quitting a paragraph level before the first correct key saves nothing, so the same seed and used list re-deal the same first passage. Benign; 8.3 (Pitchfork Panic) should emit at the same point. Handled for Pitchfork Panic in 8.3 (`on_run_started` emits the list, the same point as the Test text level); the Test text level itself keeps the behaviour.
 - Space marker shakes with line 1 while it sits on line 2 (already noted above; spec-mandated parent).
 
@@ -673,6 +680,7 @@
 - The 300 s ending is RunFrame's timer (`timer`, not `escaped`). 8.5 owns turning it into the Escaped! ending (set `duration_s` to 0 and let the level emit `escaped`, or end it before the timer). `caught` is an interim ending too (no outro, no dust cloud, no "Got you!"). Resolved in 8.5: RunFrame asks the new `LevelBase.get_timer_end_reason()` (escaped for Pitchfork Panic), so the HUD keeps counting down; the caught outro (dust cloud, dazed + "Got you!", fade) and the escape outro (bush dive + "Escaped!") are in.
 - Past 20 steps the mob is off screen and only `%MobGlow` (an orange gradient strip, 48 px) hints at it. Whether a fast typist needs a stronger cue (an arrow, a distance number) is a playtest call for 8.7.
   - Changed in 8.6: `%MobGlow` is replaced by `%MobHint` (torch and pitchfork tips sliding in by whole px, gap 32 -> 20). Whether a fast typist needs a stronger cue is still a playtest call for 8.7.
+  - Changed in 8.7 (Smuck's playtest call: the tips appeared before the villagers): `%MobHint` is removed; the whole mob walks in from the left edge at gap 25. Whether a fast typist needs a stronger cue is still open for a kid playtest (Q6).
 - The sprite chases the logical step through a 0.1 s walk tween, while the mob is placed from the logical gap. Each key restarts the tween from the sprite's unfinished x, so at keys `d` seconds apart (d < 0.1 s) the sprite settles about 16·(0.1 − d)/d px behind the logical x: none at 10 keys/s or slower, 16 px at 20 keys/s, 64 px in a 50 keys/s burst. The mob's screen x (and `get_mob_screen_rect()`) is off by the same amount until the sprite catches up. Visual only; the gap and the catch use the model. (Corrected in code review; first written as "at most one step".)
 - Placeholder art: Sunny Village Green and a dark villager frame as the mob. Moonlit Village, mob sprites, dust cloud and music are 8.6. `%MobGlow` is a plain gradient there too.
   - Resolved in 8.6: Moonlit Village backdrop, the four-member mob from two recoloured bases, the mob hint (no gradient), sprite endings and the chase loop; Gate 1, Gate 2 and the Audio gate approved.
@@ -684,9 +692,11 @@
 ## Deferred from: code review of 8-3-chase-movement-mob-and-camera (2026-10-13)
 
 - Mob is hidden at gaps 20–24 while it would still be on screen (x 64 at gap 20, half out at 24), so it pops out instead of walking off the left edge. AC 6/7 specify this; revisit with 8.6's mob art.
+  - Resolved in 8.7: `mob_visible_gap_steps` 25, so the mob is drawn from just off the left edge and walks in and out (`test_the_whole_mob_walks_in_from_the_left_edge`).
 - Mob sprite overlaps the zombie for gaps under 2 steps (both ~32 px wide, centred), while the catch fires only at gap 0. Placeholder catch visuals; 8.5/8.6. Resolved in 8.5 for the catch itself: the dust cloud covers both at the catch spot (the near-miss overlap at gaps under 2 remains until 8.6's mob art).
   - 8.6: the mob art is in; the front member still overlaps the zombie at gaps under 2 steps (the catch is at 0). Accepted at Gate 2; the dust cloud covers the catch itself.
 - `PitchforkPanicConfig.validate()` checks fields only one at a time. `mob_visible_gap_steps × step_px` beyond the left edge would hide both the mob and the glow, and `mob_visible_gap_steps ≥ HINT_START_GAP_STEPS` (32, a level constant) means the hint never appears. Shipped values are safe; check the combinations when 8.7 tunes.
+  - 8.7: `test_shipped_mob_walks_in_from_the_left_edge` guards the shipped combination; the hint (and `HINT_START_GAP_STEPS`) is gone.
 - `MAX_FRAME_S` drops anything over 0.5 s per frame, while RunFrame's clock counts it in full, so under a sustained frame rate below 2 FPS the mob's `elapsed_s` lags the run clock and the mob stays slower than tuned.
 - `LevelRegistry.get_scene()` ignores `available`, so a Coming soon level with a scene (Pitchfork Panic now) can run from any RUN payload; only the menu card guards it. Pre-existing registry design.
 - `ChaseModel` computes `_valid` once in `_init` but reads the config live in `advance()`; mutating the shared `pitchfork_panic.tres` afterwards (e.g. `mob_accel_every_s = 0`) gives NaN and no catch. Hardening only.
@@ -696,10 +706,12 @@
 - `sfx_brain_pickup` plays the brain bonk WAV (`sfx_brain_bonk.wav`) as a placeholder. 8.6 adds the real pickup file, points the cue at it and credits it in `CREDITS.md`.
   - Resolved in 8.6: `sfx_brain_pickup.wav` (a bright "schlorp-pop", tools/gen_audio.gd), the cue points at it, one CREDITS.md row; a test checks it is not the bonk stream.
 - No "Brainsss" voice line on a pickup (Zombie Run rolls 20% per brain, Horde Rush asks on every arrival). Not in 8.4's ACs; a roll would need a third child RNG drawn after the pickup one. Playtest call for 8.7.
+  - 8.7: not raised in Smuck's stand-in playtest; still open for a kid playtest (Q7).
 - Logic leads: the pickup is collected on the key that reaches its step, so when typing fast the brain pops a little before the lagging sprite reaches it (see the 8.3 walk-tween note above).
 - Pickups left on the path when the run ends stay where they are. 8.5's ending visuals decide whether to hide them. Resolved in 8.5: `on_run_ending` hides `%Pickups`; pops already rising finish on their own.
 - Readability: the brain art (`brain_pop.png`, about 8×6 visible px in a 16×16 frame, lifted 2 px) is small, and on Sunny Village Green it sits against the fence line, so it reads more "by the fence" than "on the path". Smuck approved the layout for placeholder art; revisit size and placement with 8.6's Moonlit Village art.
   - Checked in 8.6 (Gate 2, checklist item 5): the pickup reads on the cobbles in colour; in grayscale it is a small mid-grey block. Accepted as is (pink in colour, the pop and the counter confirm it); kid playtest 8.7.
+  - 8.7: Smuck's stand-in playtest collected pickups without comment; the kid playtest is still open.
 - Layout change at Smuck's visual gate: the `BrainPop` is added to `%World` after the zombie (in front of it), not to `%Pickups`, so the rise is visible; the story spec had it under the pickup's parent, where the zombie hid it.
 - Seed 42 (the debug and test seed) puts its first pickup at step 29, so nothing is on screen at the start; the screenshots use seed 58 for two pickups on screen at once. No change needed; noted for anyone checking by eye.
 
@@ -715,8 +727,10 @@
   - Resolved in 8.6: `sfx_dust_cloud` (caught) and `sfx_escape` (escape), played once inside on_run_ending()'s call; Audio gate approved.
 - One bush for every setting; hedge/gate variants arrive with the chase settings (Epic 10.4).
 - The report card shows one "+35 bonus" line for an escape, not "+10" and "+25" separately; the "Escaped!" moment carries the win. Revisit if playtest kids don't connect the bonus to escaping.
+  - 8.7: the escape line is now "+30 bonus" (`completion_bonus` 10 -> 5). Still open for a kid playtest (Q5).
 - The dust cloud (about 56x36 px) and the stars (3.5 px radius) are small at 1x on the 640x360 playfield; they read in the screenshots but check them with 8.6's art and on the kid playtest (8.7).
   - Resolved in 8.6: the dust cloud is a 48x48 effect frame covering the zombie and the front mob member; the stars are 7 px parchment sprites; both approved at Gate 2. Kid playtest (8.7) still the final word.
+  - 8.7: Smuck (stand-in): "escaped and caught both worked". Kid playtest still open.
 - `EndLabel` is 320 px wide (offsets 160-480), centred by the level from its own size; "Got you!" follows the zombie's screen x, so a zombie far right (not possible while the camera holds it at 60%) would clamp it inside the playfield.
 
 ## Deferred from: code review of 8-5-caught-and-escaped-endings (2026-10-13)
@@ -731,6 +745,7 @@
   and a static Moon child differ). Rename/generalise it (e.g. `ParallaxBackdrop`) when Epic 10.2/10.4 add the
   other settings; Zombie Run untouched for now.
 - The mob still pops in at gap 20 rather than walking on from the left edge (8.3 AC); the hint covers the
+  - Resolved in 8.7 at Smuck's playtest call: the hint is removed and the mob walks in from the edge (gap 25).
   approach. Revisit if the 8.7 playtest finds the pop-in jarring.
 - Accepted at Gate 1: the busy cobble grout (2 px wood-dark lines read slightly brick-like), the zombie and the
   stone wall being close in grayscale (the ink outline separates them), the subtle bush rustle.
@@ -749,3 +764,19 @@
 - Parallax clouds draw over the static moon at some scroll offsets; approved at Gate 1 screenshots (offsets 0 and 320).
 - Pitchfork Panic level tests use literal `custom_step` timings and poke the private `_walk_tween`; already flagged in the 8.5 review.
 - Mob skin test only asserts zombie-green and bat-purple are absent, not that skin is limited to `art-skin-light`/`art-skin-dark`.
+
+
+## Deferred from: dev of story 8-7 (2026-10-13)
+
+- Kid playtest still to do. Smuck played as the stand-in on the web build (caught, escaped, then the retune). The open Q1-Q10 items for a kid: a fair start for a beginner now that 5 WPM is caught in about 47 s and 10 WPM in about 71 s (Q2); whether a fast kid is discouraged now that escaping needs about 37 WPM (Q3/Q5); the mob cue (Q6), pickups and "Brainsss" (Q7), Caps Lock and tier 5 length (Q8), pay (Q9), nothing scary (Q10).
+- `assets/sprites/props/mob_hint.png` is no longer used by the level (the hint was removed in 8.7). It stays in `tools/gen_pitchfork_panic_art.gd`, the art review page and `test_art_sprites.gd`; delete the sheet and those entries if no setting needs it by Epic 10.
+- Pre-existing, fixed in 8.7: `test_pitchfork_panic_level.gd` failed to parse at the 8.6 commit (`ChaseMob.get_back_px()` called on the class), so its 49 tests were silently skipped (GUT still exits 0). The full-suite count went 1960 at the 8.6 commit to 2031. Worth a CI or script guard that fails on "Failed to load script".
+- Browser automation: the pane's `key` action with `shift+a` sends a lowercase "a" (judged wrong); `shift+A` works. Real keyboards were fine (Smuck's runs: 0 errors with capitals). Note for future web checks.
+- With the Claude browser pane hidden the web build runs at about 2 FPS. The level's frame cap (`MAX_FRAME_S` 0.5) then slows the mob slightly against the clock (8-3 review note). It was fine for the smoke check.
+
+## Deferred from: code review of 8-7-chase-tuning (2026-10-13)
+
+- AC 7 web check gaps: menu card not clicked in the web build, tuned escape (37+ WPM) not played, capitals/punctuation evidence thin. Covered by the open kid playtest.
+- Cross-check of the sim against the real level covers one WPM, one seed and the caught path, with a +-3 s closed-form tolerance. Widen when the sim is next touched.
+- Economy parity vs Zombie Run is only guarded at 5/10/20 WPM, not for escaping typists (37+ WPM).
+- `test_level_unlocks` registry `.duplicate(true)` may not isolate external-resource entries from the shipped registry; verify when next touched.

@@ -266,9 +266,9 @@ Punctuation and numbers appear only in Pitchfork Panic. **MVP:** Zombie Run uses
 |---|---|---|---|---|
 | Zombie Run | 1 per brain block; brain blocks are 1 in every 4 targets | +10 on completion | 35 (≈17/min) | 60 (≈30/min) |
 | Horde Rush | Per zombie reaching the house: small 1, medium 2, big 3 (≈1.7 average in the 3–5 letter band) | +30 on completion (tuned in Story 6.7, 2026-10-08, for the 3:00 run) | ≈50 at 37% arriving (≈17/min) | ≈92 at 60% arriving (≈31/min) |
-| Pitchfork Panic | Brain pickup every 10–30 steps (uniform random), 5 brains each (≈0.25 brains per character, like brain blocks) | +10 on every finished run; +25 if **Escaped!** | ≈40 (2.4 min run, ≈17/min) | ≈160 (escape, ≈32/min) |
+| Pitchfork Panic | Brain pickup every 10–30 steps (uniform random), 5 brains each (≈0.25 brains per character, like brain blocks) | +5 on every finished run (tuned in Story 8.7, 2026-10-13, was +10); +25 if **Escaped!** | ≈18 (≈70 s run, ≈15/min) | ≈63 (≈2.4 min run, ≈26/min) |
 
-(At 5 WPM: Zombie Run ≈ 22 ≈ 11/min; Pitchfork Panic ≈ 17 in a 70 s run ≈ 15/min.) [NOTE FOR DESIGNER: Horde Rush runs about 30% under parity at 5–10 WPM; raise arrival brains or the completion bonus during the Epic 6 tuning pass.] (Resolved in Story 6.7, 2026-10-08: the run was shortened to 3:00 and the completion bonus went 25 → 30 (10 brains/min, as 50 over 5:00 would be), arrival brains unchanged; the headless sim puts Horde Rush at +8 % / −6 % / +2 % of Zombie Run at 5 / 10 / 20 WPM, ≈12/min at 5 WPM.)
+(At 5 WPM: Zombie Run ≈ 22 ≈ 11/min; Pitchfork Panic ≈ 8 in a 47 s run ≈ 10/min. Story 8.7 sim, 2026-10-13: Pitchfork Panic is −13 % / −15 % / −13 % of Zombie Run at 5 / 10 / 20 WPM.) [NOTE FOR DESIGNER: Horde Rush runs about 30% under parity at 5–10 WPM; raise arrival brains or the completion bonus during the Epic 6 tuning pass.] (Resolved in Story 6.7, 2026-10-08: the run was shortened to 3:00 and the completion bonus went 25 → 30 (10 brains/min, as 50 over 5:00 would be), arrival brains unchanged; the headless sim puts Horde Rush at +8 % / −6 % / +2 % of Zombie Run at 5 / 10 / 20 WPM, ≈12/min at 5 WPM.)
 
 - **Welcome bonus:** 100 brains, once per save, after the first completed run.
 - **Prices:** Closet row 1 = 100, row 2 = 200, row 3 = 300. Full set = 3,600.
@@ -328,11 +328,11 @@ The MVP Closet shows both 3×3 grids. The Pumpkin hat and Cute ghost are live; t
 - **Content:** paragraphs with capitals, punctuation and numbers (tier-based, see Adaptive Difficulty). **Length:** until caught, max 5:00. **Mood:** goofy panic.
 - **Text display:** the bottom target area shows a 2-line window. The current line has typed characters in green and the next character underlined; the next line is dimmed. Paragraphs flow continuously. Passages are joined by a single Space: after the last character of a passage the kid types Space (both thumbs light), and the next passage starts on the next line. The joining Space counts as a typed key.
 - **Movement model:** each correct character moves the zombie **1 step** forward. The torch-and-pitchfork mob chases from the left.
-  - Start gap: **15 steps**.
-  - Mob speed is expressed as a WPM-equivalent (1 WPM-eq = 5 steps/min). It starts at **4 WPM-eq** and gains **+1 WPM-eq every 10 s**.
-  - Resulting run lengths: ≈ 70 s at 5 WPM, ≈ 2.4 min at 10 WPM, and ≈ 19+ WPM typically escapes.
-  - [NOTE FOR DESIGNER: tune start gap and acceleration in playtest.]
-- **Screen:** the camera keeps the zombie at 60% of screen width. The mob's distance is always readable, and the mob appears on screen once the gap is under 20 steps.
+  - Start gap: **30 steps** (tuned in Story 8.7, was 15).
+  - Mob speed is expressed as a WPM-equivalent (1 WPM-eq = 5 steps/min). It starts at **8 WPM-eq** and gains **+2 WPM-eq every 10 s** (tuned in Story 8.7, was 4 and +1).
+  - Resulting run lengths: ≈ 70 s at 10 WPM, ≈ 2.4 min at 20 WPM, and ≈ 37+ WPM typically escapes (a 5 WPM typist is caught in ≈ 47 s).
+  - [NOTE FOR DESIGNER: tune start gap and acceleration in playtest.] (Resolved: Story 8.7 sim and playtest, 2026-10-13: Smuck doubled the mob (gap, speed and ramp) for a 10 WPM minimum target, and the finished-run bonus went +10 → +5 to keep brains/min within ±20 % of Zombie Run.)
+- **Screen:** the camera keeps the zombie at 60% of screen width. The mob's distance is always readable: the whole mob walks in from the left screen edge once the gap is under 25 steps (Story 8.7: it is drawn while still just off screen, so it never pops in).
 - **Brain pickups:** placed along the path every 10–30 steps (uniform random, counted from the previous pickup), and the zombie collects each one by typing forward (5 brains). Spawning by distance, not time, makes pickups pay per character typed.
 - **Finished-run bonus:** +10 brains for any caught or escaped run.
 - **Caught:** the mob reaches the zombie → input stops → cartoon dust cloud (1.5 s) → the zombie sits dazed with circling stars and a "Got you!" label (1.0 s) → fade (0.5 s) → report card. All brains are kept.

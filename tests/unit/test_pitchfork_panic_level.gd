@@ -6,9 +6,10 @@ extends GutTest
 ## the second child RNG, collected in the key's own call (brains, signal, sound), their nodes on the path.
 ## Story 8.5: the two hooks (escaped at the clock, +25 escape bonus) and both outros by beats. Keys go
 ## through a real TypingSession wired like RunFrame; _process() is called with fixed deltas, never real time.
-## Story 8.6: the ChaseMob (frozen until the run starts, frozen again at its end, its whole-mob rect), the mob
-## hint (whole-px slide, no alpha), the dazed sit (with the tilt fallback), the outro sounds, the sprite
+## Story 8.6: the ChaseMob (frozen until the run starts, frozen again at its end, its whole-mob rect), the dazed
+## sit (with the tilt fallback), the outro sounds, the sprite
 ## ending nodes (frames and whole px, scale ONE throughout) and the static moon.
+## Story 8.7: the whole mob walks in from the left edge (gap 25 puts the front frame's right edge at x 0).
 ## Outro beats are driven with Tween.custom_step() on the level's outro tween (get_outro_tween()), so they are
 ## deterministic and fast; the tree's own frames add only a few real milliseconds on top.
 
@@ -91,7 +92,7 @@ func test_one_correct_key_is_one_step_in_the_same_call() -> void:
 	assert_eq(model.zombie_steps, 3)
 	# The level's own handler runs first (connected first), so each call already saw its step.
 	assert_eq(seen, [1, 2, 3] as Array[int])
-	assert_eq(model.gap(), 18.0)
+	assert_eq(model.gap(), (_level.config as PitchforkPanicConfig).start_gap_steps + 3.0)
 
 
 func test_capitals_punctuation_and_spaces_all_step_and_wrong_keys_do_not() -> void:
@@ -186,19 +187,19 @@ func test_zombie_stays_at_60_percent_of_the_width_every_frame() -> void:
 	assert_almost_eq(zombie.global_position.x, ZOMBIE_SCREEN_X, 0.001)
 
 
-func test_mob_is_on_screen_for_gaps_under_20_and_off_it_at_30() -> void:
+func test_mob_is_fully_on_screen_for_gaps_under_20_and_off_it_at_30() -> void:
 	_make()
 	_type(1)
 	# The sprite chases the logical step; finish the walk so the camera has caught up with the model.
+	assert_not_null(_level._walk_tween, "the first key starts the walk")
 	_level._walk_tween.custom_step(1.0)
 	for gap: float in [1.0, 5.0, 10.0, 15.0, 19.0, 19.9]:
 		_set_gap(gap)
 		var rect: Rect2 = _level.get_mob_screen_rect()
 		assert_true(rect.position.x >= 0.0 and rect.end.x <= 640.0, "gap %s rect %s" % [gap, rect])
 		assert_true((_level.get_node("%Mob") as Node2D).visible, "gap %s shows the mob" % gap)
-		assert_false((_level.get_node("%MobHint") as CanvasItem).visible, "gap %s hides the hint" % gap)
 		var mob_x: float = (_level.get_node("%Mob") as Node2D).global_position.x
-		assert_almost_eq(rect.position.x, mob_x - float(ChaseMob.get_back_px()), 1e-4, "gap %s: the rect starts at the back member" % gap)
+		assert_almost_eq(rect.position.x, mob_x - (_level.get_node("%Mob") as ChaseMob).get_back_px(), 1e-4, "gap %s: the rect starts at the back member" % gap)
 	# Written-out oracles: gap 15 puts the mob's feet at screen x 144, gap 20 at 64.
 	_set_gap(15.0)
 	assert_eq((_level.get_node("%Mob") as Node2D).global_position.x, 144.0)
@@ -207,31 +208,30 @@ func test_mob_is_on_screen_for_gaps_under_20_and_off_it_at_30() -> void:
 	assert_true(far.end.x <= 0.0 or far.position.x >= 640.0, "gap 30 is off screen: %s" % far)
 
 
-func test_hint_slides_in_by_whole_px_while_the_mob_is_off_screen() -> void:
+## Story 8.7 (Smuck's playtest call): no tips-only hint; the whole mob, villagers with their pitchforks and
+## torches, walks in together from the left edge. It is first drawn while its front member is still off
+## screen (gap 25 puts the front frame's right edge at x 0), so it never pops in on screen.
+func test_the_whole_mob_walks_in_from_the_left_edge() -> void:
 	_make()
 	_type(1)
-	var hint: AnimatedSprite2D = _level.get_node("%MobHint")
-	_set_gap(40.0)
-	assert_eq(_level.get_mob_hint_strength(), 0.0)
-	assert_false(hint.visible, "gap 40: nothing yet")
-	_set_gap(26.0)
-	var middle: float = _level.get_mob_hint_strength()
-	assert_true(hint.visible)
-	assert_gt(middle, 0.0)
-	assert_lt(middle, 1.0)
-	assert_eq(hint.position.x, roundf(hint.position.x), "whole px")
-	assert_lt(hint.position.x, 0.0, "partly off the left edge")
-	var middle_x: float = hint.position.x
-	_set_gap(20.0)
-	assert_eq(_level.get_mob_hint_strength(), 1.0)
-	assert_eq(hint.position.x, 0.0, "fully in at gap 20")
-	assert_gt(hint.position.x, middle_x)
-	assert_eq(hint.modulate, Color.WHITE, "no alpha")
-	assert_eq(hint.position.y + PitchforkPanicLevel.HINT_FEET_ROW, PitchforkPanicLevel.GROUND_Y)
-	assert_false(hint.get_parent() == _level.get_node("%World"), "screen space")
-	_set_gap(19.0)
-	assert_false(hint.visible, "the mob itself shows")
-	assert_eq(_level.get_mob_hint_strength(), 0.0)
+	assert_not_null(_level._walk_tween, "the first key starts the walk")
+	_level._walk_tween.custom_step(1.0)
+	assert_false(_level.has_node("%MobHint"), "the 8.6 hint is gone")
+	var mob: Node2D = _level.get_node("%Mob")
+	_set_gap(25.0)
+	assert_false(mob.visible, "gap 25: not drawn yet")
+	assert_almost_eq(_level.get_mob_screen_rect().end.x, 0.0, 1e-4, "gap 25: the front frame ends at the edge")
+	_set_gap(30.0)
+	assert_false(mob.visible, "gap 30: not drawn")
+	for gap: float in [24.9, 23.0, 22.0, 21.0]:
+		_set_gap(gap)
+		var rect: Rect2 = _level.get_mob_screen_rect()
+		assert_true(mob.visible, "gap %s: drawn" % gap)
+		assert_lt(rect.position.x, 0.0, "gap %s: the back members still off the left edge" % gap)
+		assert_gt(rect.end.x, 0.0, "gap %s: the front member is coming in" % gap)
+	# Shown, then pushed back out: hidden again.
+	_set_gap(25.0)
+	assert_false(mob.visible, "gap 25 after being shown: hidden again")
 
 
 func test_caught_emits_the_ending_exactly_once() -> void:
@@ -269,7 +269,6 @@ func test_a_hitch_advances_the_mob_by_at_most_the_frame_cap() -> void:
 func test_the_level_pauses_with_the_tree() -> void:
 	_make()
 	assert_eq(_level.process_mode, Node.PROCESS_MODE_INHERIT)
-	assert_eq((_level.get_node("%MobHint") as Node).process_mode, Node.PROCESS_MODE_INHERIT)
 	assert_true(_level.can_process(), "runs while the tree runs")
 	get_tree().paused = true
 	var paused_can_process: bool = _level.can_process()
@@ -784,6 +783,7 @@ func test_the_moonlit_backdrop_and_a_static_moon() -> void:
 	assert_false(moon.centered)
 	assert_lt(moon_at.x + 48.0, 600.0, "clear of the pause button corner")
 	_type(10)
+	assert_not_null(_level._walk_tween, "the first key starts the walk")
 	_level._walk_tween.custom_step(1.0)
 	assert_ne(backdrop.get_layer_offset(SunnyVillageBackdrop.LAYER_GROUND), 0.0, "the street scrolled")
 	assert_eq(moon.global_position, moon_at, "the moon stays put")

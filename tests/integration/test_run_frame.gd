@@ -1968,6 +1968,13 @@ func test_letter_and_word_runs_do_not_peek_for_the_hud() -> void:
 
 # --- Pitchfork Panic (Stories 8.3-8.5): the chase level through a real RunFrame -----------
 
+## The shipped Pitchfork Panic bonus for a caught (false) or escaped (true) run, read from the config so a
+## retune never silently changes these tests (Story 8.7 moved the finished-run bonus 10 -> 5).
+func _pp_bonus(escaped: bool) -> int:
+	var cfg: PitchforkPanicConfig = load("res://data/levels/pitchfork_panic.tres") as PitchforkPanicConfig
+	return cfg.completion_bonus + (cfg.escape_bonus if escaped else 0)
+
+
 func _start_pitchfork(data: PlayerDataScript) -> RunFrameScript:
 	var frame: RunFrameScript = _make({"level_id": &"pitchfork_panic", "seed": 42}, null, data)
 	add_child_autofree(frame)
@@ -2023,11 +2030,11 @@ func test_pitchfork_caught_run_keeps_the_pickup_brains() -> void:
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_result().end_reason, GameConstants.END_REASON_CAUGHT)
 	assert_eq(_result().brains, 5)
-	assert_eq(_result().bonus_brains, 10, "the finished-run bonus only")
-	assert_eq(data.get_brains(), before + 5 + 10, "the wallet grew by the pickup brains and the bonus")
+	assert_eq(_result().bonus_brains, _pp_bonus(false), "the finished-run bonus only")
+	assert_eq(data.get_brains(), before + 5 + _pp_bonus(false), "the wallet grew by the pickup brains and the bonus")
 
 
-func test_pitchfork_escaped_run_keeps_the_pickup_brains_and_gets_35() -> void:
+func test_pitchfork_escaped_run_keeps_the_pickup_brains_and_both_bonuses() -> void:
 	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
 	var before: int = data.get_brains()
 	var frame: RunFrameScript = _start_pitchfork(data)
@@ -2044,9 +2051,9 @@ func test_pitchfork_escaped_run_keeps_the_pickup_brains_and_gets_35() -> void:
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_result().end_reason, GameConstants.END_REASON_ESCAPED)
 	assert_eq(_result().brains, 5)
-	assert_eq(_result().bonus_brains, 35, "+10 finished run, +25 escaped")
+	assert_eq(_result().bonus_brains, _pp_bonus(true), "finished-run bonus + escape bonus")
 	assert_eq(_result().duration_s, 300.0, "clamped to the clock")
-	assert_eq(data.get_brains(), before + 5 + 35)
+	assert_eq(data.get_brains(), before + 5 + _pp_bonus(true))
 	var history: Array = data.save_service.get_active_profile()["run_history"]
 	assert_eq(history.size(), 1)
 	assert_eq(history[0]["end_reason"], "escaped")
@@ -2092,7 +2099,7 @@ func test_pitchfork_catch_in_the_timers_last_frame_ends_as_caught() -> void:
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_nav.size(), 1)
 	assert_eq(_result().end_reason, GameConstants.END_REASON_CAUGHT)
-	assert_eq(_result().bonus_brains, 10, "a catch never gets the escape bonus")
+	assert_eq(_result().bonus_brains, _pp_bonus(false), "a catch never gets the escape bonus")
 
 
 func test_pitchfork_debug_end_run_ends_as_escaped() -> void:
@@ -2107,7 +2114,7 @@ func test_pitchfork_debug_end_run_ends_as_escaped() -> void:
 	frame._process(2.6)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_result().end_reason, GameConstants.END_REASON_ESCAPED)
-	assert_eq(_result().bonus_brains, 35)
+	assert_eq(_result().bonus_brains, _pp_bonus(true))
 	assert_eq(_result().duration_s, 4.0, "the elapsed time so far")
 
 

@@ -18,17 +18,18 @@ func test_shipped_config_validates_with_the_spec_numbers() -> void:
 	assert_true(config.case_sensitive)
 	assert_true(config.space_is_input)
 	assert_eq(config.target_mode, LevelConfig.TargetMode.PARAGRAPH)
-	assert_eq(config.completion_bonus, 10)
+	# Tuned in Story 8.7 (Smuck's gate, mob doubled), see its Tuning Results.
+	assert_eq(config.completion_bonus, 5)
 	assert_eq(config.music_id, &"mus_pitchfork_panic", "the chase loop (Story 8.6)")
 	assert_not_null(config.paragraphs)
 	assert_not_null(config.tier_word_pools)
-	assert_eq(config.start_gap_steps, 15.0)
-	assert_eq(config.mob_start_wpm_eq, 4.0)
-	assert_eq(config.mob_accel_wpm_eq, 1.0)
+	assert_eq(config.start_gap_steps, 30.0, "tuned in 8.7")
+	assert_eq(config.mob_start_wpm_eq, 8.0, "tuned in 8.7")
+	assert_eq(config.mob_accel_wpm_eq, 2.0, "tuned in 8.7")
 	assert_eq(config.mob_accel_every_s, 10.0)
 	assert_eq(config.step_px, 16.0)
 	assert_eq(config.zombie_screen_x_frac, 0.6)
-	assert_eq(config.mob_visible_gap_steps, 20.0)
+	assert_eq(config.mob_visible_gap_steps, 25.0, "8.7: the mob walks in from the left edge")
 	assert_eq(config.step_time_s, 0.1)
 	assert_eq(config.pickup_min_steps, 10)
 	assert_eq(config.pickup_max_steps, 30)
@@ -39,6 +40,17 @@ func test_shipped_config_validates_with_the_spec_numbers() -> void:
 	assert_eq(config.caught_fade_s, 0.5)
 	assert_eq(config.escape_dive_s, 1.5)
 	assert_eq(config.escape_label_s, 1.0)
+
+
+## Story 8.7 (8-3 review defer, Smuck's playtest call): on the shipped numbers the mob is drawn from the gap
+## at which its front member is still off the left screen edge, so it walks in from the edge (no pop-in on
+## screen), and it starts the run off screen.
+func test_shipped_mob_walks_in_from_the_left_edge() -> void:
+	var config: PitchforkPanicConfig = _shipped()
+	var zombie_x: float = config.zombie_screen_x_frac * PitchforkPanicLevel.SCREEN_W
+	var edge_gap: float = (zombie_x + PitchforkPanicLevel.MOB_HALF_WIDTH_PX) / config.step_px
+	assert_almost_eq(config.mob_visible_gap_steps, edge_gap, 1e-4, "the mob is first drawn with its front member exactly at the left edge")
+	assert_gte(config.start_gap_steps, config.mob_visible_gap_steps, "the run starts with the mob off screen")
 
 
 func test_default_config_is_rejected() -> void:

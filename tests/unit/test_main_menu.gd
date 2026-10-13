@@ -122,9 +122,9 @@ func test_shipped_registry_gives_three_cards_in_order() -> void:
 		ids.append(card.get_level_id())
 		states.append(card.get_state())
 	assert_eq(ids, [&"zombie_run", &"horde_rush", &"pitchfork_panic"] as Array[StringName])
-	# Story 6.8: on a fresh save Horde Rush is Locked until Zombie Run is finished; Pitchfork Panic is still
-	# Coming soon (that wins over its lock).
-	assert_eq(states, [LevelCard.State.AVAILABLE, LevelCard.State.LOCKED, LevelCard.State.COMING_SOON]
+	# Story 6.8: on a fresh save Horde Rush is Locked until Zombie Run is finished; Story 8.7 switched
+	# Pitchfork Panic on, so it is Locked until a Horde Rush run ends on its timer.
+	assert_eq(states, [LevelCard.State.AVAILABLE, LevelCard.State.LOCKED, LevelCard.State.LOCKED]
 			as Array[LevelCard.State])
 	assert_eq(_node("%Cards").get_child_count(), 3, "no test_level card")
 
@@ -200,12 +200,12 @@ func test_available_entry_without_a_scene_shows_coming_soon() -> void:
 
 
 func test_choosing_a_coming_soon_card_goes_nowhere() -> void:
-	_make()
-	# Pitchfork Panic is the Coming soon card since Story 6.7 switched Horde Rush on.
-	assert_eq(_cards()[2].get_state(), LevelCard.State.COMING_SOON)
-	_cards()[2]._activate()
+	# No shipped card is Coming soon since Story 8.7, so a fixture registry keeps the behaviour covered.
+	_make(_registry([_entry(&"a", true), _entry(&"b", false)]), true)
+	assert_eq(_cards()[1].get_state(), LevelCard.State.COMING_SOON)
+	_cards()[1]._activate()
 	assert_eq(_nav, [])
-	assert_true(_cards()[2].is_wiggling())
+	assert_true(_cards()[1].is_wiggling())
 
 
 func test_closet_button_opens_the_closet() -> void:
@@ -517,7 +517,7 @@ func test_text_fits_and_is_at_least_16px() -> void:
 			assert_gte(button.get_theme_font_size(&"font_size"), 16, "%s font size" % button.name)
 			assert_lte(button.get_minimum_size().x, button.size.x, "%s text overflows" % button.name)
 			checked += 1
-	# Fewer since Story 5.0: the logo and the two "Coming soon" planks are hand-lettered sprites, not Labels.
+	# Fewer since Story 5.0: the logo and the "Coming soon" plank are hand-lettered sprites, not Labels.
 	assert_gt(checked, 8, "the walk found the menu's text")
 
 
@@ -694,13 +694,31 @@ func test_choosing_during_a_transition_does_not_clear_the_badge() -> void:
 
 
 func test_coming_soon_pending_moment_waits() -> void:
+	# A fixture (no shipped card is Coming soon since Story 8.7): b is unlocked but not available yet.
+	var a: LevelEntry = _entry(&"a", true)
+	var b: LevelEntry = _entry(&"b", false)
+	b.unlocked_by = &"a"
+	var c: LevelEntry = _entry(&"c", true)
+	c.unlocked_by = &"a"
+	var registry: LevelRegistry = _registry([a, b, c])
+	_player.level_registry = registry
+	_player.debug_set_all_unlocked(true)
+	_make(registry, true)
+	assert_true(_player.get_unlock_state(&"b")["unlocked"], "b is unlocked, so Coming soon is what the card shows")
+	var waiting: LevelCard = _card_of(&"b")
+	assert_eq(waiting.get_state(), LevelCard.State.COMING_SOON)
+	assert_false(waiting.is_playing_moment())
+	assert_false(_player.get_unlock_state(&"b")["moment_seen"], "not marked: it waits")
+	assert_true(_card_of(&"c").is_playing_moment())
+
+
+## Story 8.7: on the shipped registry with everything unlocked (Smuck's dev save after "Unlock all"), both
+## Horde Rush and Pitchfork Panic play their one-time moments together (FR79).
+func test_all_unlocked_plays_both_shipped_moments() -> void:
 	_player.debug_set_all_unlocked(true)
 	_make()
-	var pitchfork: LevelCard = _card_of(&"pitchfork_panic")
-	assert_eq(pitchfork.get_state(), LevelCard.State.COMING_SOON)
-	assert_false(pitchfork.is_playing_moment())
-	assert_false(_player.get_unlock_state(&"pitchfork_panic")["moment_seen"], "not marked: it waits")
 	assert_true(_card_of(&"horde_rush").is_playing_moment())
+	assert_true(_card_of(&"pitchfork_panic").is_playing_moment())
 
 
 func test_several_moments_play_together_and_focus_the_first() -> void:

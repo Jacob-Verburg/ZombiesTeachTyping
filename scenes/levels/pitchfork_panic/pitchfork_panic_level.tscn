@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" uid="uid://dmp5v10tvccvo" path="res://scripts/levels/pitchfork_panic/pitchfork_panic_level.gd" id="1_script"]
 [ext_resource type="Resource" path="res://data/levels/pitchfork_panic.tres" id="2_config"]
@@ -13,29 +13,7 @@
 [ext_resource type="Script" uid="uid://cta6dxhxc0wj2" path="res://scripts/levels/pitchfork_panic/dust_cloud.gd" id="12_dust"]
 [ext_resource type="Script" uid="uid://c6qvuswu3vpv6" path="res://scripts/levels/pitchfork_panic/dizzy_stars.gd" id="13_stars"]
 [ext_resource type="PackedScene" path="res://scenes/levels/pitchfork_panic/chase_mob.tscn" id="14_mob"]
-[ext_resource type="Texture2D" uid="uid://c3j7jeef4fs41" path="res://assets/sprites/props/mob_hint.png" id="15_hint"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_hint_0"]
-atlas = ExtResource("15_hint")
-region = Rect2(0, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_hint_1"]
-atlas = ExtResource("15_hint")
-region = Rect2(32, 0, 32, 32)
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_hint"]
-animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_hint_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_hint_1")
-}],
-"loop": true,
-"name": &"mob_hint",
-"speed": 8.0
-}]
 
 [node name="PitchforkPanicLevel" type="Node2D"]
 script = ExtResource("1_script")
@@ -127,15 +105,6 @@ script = ExtResource("12_dust")
 unique_name_in_owner = true
 visible = false
 script = ExtResource("13_stars")
-
-[node name="MobHint" type="AnimatedSprite2D" parent="."]
-unique_name_in_owner = true
-visible = false
-position = Vector2(-32, 161)
-sprite_frames = SubResource("SpriteFrames_hint")
-animation = &"mob_hint"
-autoplay = "mob_hint"
-centered = false
 
 [node name="EndLabel" type="Label" parent="."]
 unique_name_in_owner = true
