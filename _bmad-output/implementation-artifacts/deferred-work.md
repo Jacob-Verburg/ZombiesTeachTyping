@@ -685,3 +685,17 @@
 - `MAX_FRAME_S` drops anything over 0.5 s per frame, while RunFrame's clock counts it in full, so under a sustained frame rate below 2 FPS the mob's `elapsed_s` lags the run clock and the mob stays slower than tuned.
 - `LevelRegistry.get_scene()` ignores `available`, so a Coming soon level with a scene (Pitchfork Panic now) can run from any RUN payload; only the menu card guards it. Pre-existing registry design.
 - `ChaseModel` computes `_valid` once in `_init` but reads the config live in `advance()`; mutating the shared `pitchfork_panic.tres` afterwards (e.g. `mob_accel_every_s = 0`) gives NaN and no catch. Hardening only.
+
+## Deferred from: dev of story 8-4 (2026-10-13)
+
+- `sfx_brain_pickup` plays the brain bonk WAV (`sfx_brain_bonk.wav`) as a placeholder. 8.6 adds the real pickup file, points the cue at it and credits it in `CREDITS.md`.
+- No "Brainsss" voice line on a pickup (Zombie Run rolls 20% per brain, Horde Rush asks on every arrival). Not in 8.4's ACs; a roll would need a third child RNG drawn after the pickup one. Playtest call for 8.7.
+- Logic leads: the pickup is collected on the key that reaches its step, so when typing fast the brain pops a little before the lagging sprite reaches it (see the 8.3 walk-tween note above).
+- Pickups left on the path when the run ends stay where they are. 8.5's ending visuals decide whether to hide them.
+- Readability: the brain art (`brain_pop.png`, about 8×6 visible px in a 16×16 frame, lifted 2 px) is small, and on Sunny Village Green it sits against the fence line, so it reads more "by the fence" than "on the path". Smuck approved the layout for placeholder art; revisit size and placement with 8.6's Moonlit Village art.
+- Layout change at Smuck's visual gate: the `BrainPop` is added to `%World` after the zombie (in front of it), not to `%Pickups`, so the rise is visible; the story spec had it under the pickup's parent, where the zombie hid it.
+- Seed 42 (the debug and test seed) puts its first pickup at step 29, so nothing is on screen at the start; the screenshots use seed 58 for two pickups on screen at once. No change needed; noted for anyone checking by eye.
+
+## Deferred from: code review of story 8-4-brain-pickups-on-the-path (2026-10-13)
+
+- The pickup lookahead margin (`PICKUP_LOOKAHEAD_MARGIN_STEPS`, 2 steps) is not tied to the sprite's walk lag. At a high typing speed the sprite can trail the logical step by more than the margin, so a node could appear inside the view. Revisit with 8.5/8.6 visuals.

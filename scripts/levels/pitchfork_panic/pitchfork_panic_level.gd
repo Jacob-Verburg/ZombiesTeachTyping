@@ -1,6 +1,6 @@
 class_name PitchforkPanicLevel
 extends LevelBase
-## Pitchfork Panic (Story 8.3): the chase. Every correct key moves the zombie one step away from the mob
+## Pitchfork Panic (Stories 8.3, 8.4): the chase. Every correct key moves the zombie one step away from the mob
 ## (ChaseModel.step(), the logical position, in the key's own call); the mob advances by run time in
 ## _process(). The text is a paragraph dealt exactly as in the Test text level (ParagraphSource); the level
 ## draws none of it.
@@ -24,14 +24,26 @@ extends LevelBase
 ## Interim endings (replaced by Story 8.5): when the mob catches the zombie the level emits
 ## end_requested(&"caught") once and on_run_ending() returns 0.0 (no outro). A run that reaches duration_s
 ## still ends through RunFrame's timer. The level processes before RunFrame (PROCESS_PRIORITY), so a catch
-## in the timer's last frame ends the run as caught, not timer. No brains yet (Story 8.4):
-## get_brains_earned() is 0.
+## in the timer's last frame ends the run as caught, not timer.
+##
+## Brain pickups (Story 8.4, FR72): a PickupTrail places pickups by distance on the path (min to max steps
+## apart). When a correct key raises zombie_steps to a pickup's step it is collected in that key's call,
+## before any visual: brains grow by brains_per_pickup, brains_earned_changed carries the total to the HUD,
+## and play_sfx plays sfx_brain_pickup once per pickup. Only then does the sprite walk, the pickup node pop
+## (BrainPickup.collect) and new nodes get placed ahead. Nodes live in %Pickups under %World (behind the mob
+## and the zombie) at step * step_px on GROUND_Y, placed _pickup_lookahead_steps() ahead of the logical
+## zombie so each one exists before it scrolls in. The pop is added to %World itself, after the zombie, so
+## it rises in front of it (Smuck's layout call). Nothing time-based collects anything.
 ##
 ## Placeholder art (replaced by Story 8.6): Sunny Village Green as the backdrop, the mob is one dark
 ## villager frame with an orange torch. No new art files.
 ##
-## Randomness: the paragraph source gets its own child RNG; the chase itself draws nothing, so a seed
-## replays the same text.
+## Randomness: the run RNG's first randi() seeds the paragraph source's child RNG (unchanged from 8.3, so a
+## seed deals the same text), its second seeds the pickup trail's child RNG; after create_target_source the
+## run RNG is never drawn again. The chase itself draws nothing.
+##
+## Sounds: the play_sfx seam (like ZombieRunLevel); _ready() points it at AudioManager.play_sfx unless a test
+## assigned a recorder before add_child.
 
 ## Feet line in playfield px, the same as Zombie Run so the HUD band stays clear. Layout, not a GDD number.
 const GROUND_Y: float = 192.0
@@ -49,12 +61,24 @@ const GLOW_START_GAP_STEPS: float = 32.0
 const GLOW_MAX_ALPHA: float = 0.6
 ## Below RunFrame's default 0, so the mob moves and the catch is checked before RunFrame's timer each frame.
 const PROCESS_PRIORITY: int = -1
+## Pickup nodes are placed this many steps past the right screen edge. Layout, not a GDD number.
+const PICKUP_LOOKAHEAD_MARGIN_STEPS: int = 2
+const SFX_PICKUP: StringName = &"sfx_brain_pickup"
+const PICKUP_SCENE: PackedScene = preload("res://scenes/levels/pitchfork_panic/brain_pickup.tscn")
+
+## Plays a sound effect by id. _ready() points it at AudioManager.play_sfx unless a test assigned a recorder
+## before add_child.
+var play_sfx: Callable
 
 var _cfg: PitchforkPanicConfig
 var _model: ChaseModel
 var _paragraphs: ParagraphSource = null
 var _running: bool = false
 var _caught_emitted: bool = false
+var _trail: PickupTrail = null
+var _brains: int = 0
+## Placed, uncollected pickup nodes by their step.
+var _pickup_nodes: Dictionary[int, BrainPickup] = {}
 ## The sprite's single walk tween; every correct key kills and restarts it.
 var _walk_tween: Tween
 
@@ -62,11 +86,14 @@ var _walk_tween: Tween
 @onready var _world: Node2D = %World
 @onready var _backdrop: SunnyVillageBackdrop = %Backdrop
 @onready var _mob: Node2D = %Mob
+@onready var _pickups: Node2D = %Pickups
 @onready var _glow: TextureRect = %MobGlow
 
 
 func _ready() -> void:
 	process_priority = PROCESS_PRIORITY
+	if not play_sfx.is_valid():
+		play_sfx = AudioManager.play_sfx
 	_cfg = config as PitchforkPanicConfig
 	if _cfg == null:
 		Log.error(&"level", "pitchfork panic level has no PitchforkPanicConfig")
@@ -77,7 +104,7 @@ func _ready() -> void:
 	_mob.visible = false
 
 
-## Builds the paragraph source and the chase model. A broken config or no text at all returns null, so
+## Builds the paragraph source, the chase model and the pickup trail. A broken config or no text at all returns null, so
 ## RunFrame fails safely to the menu (NFR16).
 func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 	if _cfg == null:
@@ -92,8 +119,15 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 	if _paragraphs == null:
 		return null
 	_pool_label = _paragraphs.get_pool_label()
+	# Second draw, after the paragraph's: see the class doc. The run RNG is not kept.
+	var pickup_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	pickup_rng.seed = rng.randi()
+	_trail = PickupTrail.new(pickup_rng, _cfg.pickup_min_steps, _cfg.pickup_max_steps)
+	_brains = 0
+	_clear_pickup_nodes()
 	_model = ChaseModel.new(_cfg)
 	_caught_emitted = false
+	_fill_pickups()
 	_update_views()
 	return _paragraphs
 
@@ -106,13 +140,16 @@ func on_run_started() -> void:
 		used_passages_changed.emit(_paragraphs.get_used_ids())
 
 
-## One correct key = one step, logic first, then the sprite chases. A key judged after the run ended
-## (the session still judges one in the same frame) moves nothing.
+## One correct key = one step, logic first (the step, then any pickup it reaches: brains, signal, sound),
+## then the sprite chases and new pickups are placed ahead. A key judged after the run ended (the session
+## still judges one in the same frame) moves and collects nothing.
 func on_char_accepted(_expected: String, _index: int) -> void:
 	if _model == null or not _running:
 		return
 	_model.step()
+	_collect_pickups()
 	_walk_to(_model.zombie_steps * _cfg.step_px)
+	_fill_pickups()
 	_update_views()
 
 
@@ -122,7 +159,8 @@ func on_target_completed(_target: String) -> void:
 		used_passages_changed.emit(_paragraphs.get_used_ids())
 
 
-## Interim ending (Story 8.5 replaces it): the camera stays put, the zombie idles, no outro.
+## Interim ending (Story 8.5 replaces it): the camera stays put, the zombie idles, no outro. Pickups left
+## on the path stay where they are.
 func on_run_ending(_reason: StringName) -> float:
 	_running = false
 	if _walk_tween != null and _walk_tween.is_valid():
@@ -132,9 +170,9 @@ func on_run_ending(_reason: StringName) -> float:
 	return 0.0
 
 
-## No brains until Story 8.4.
+## The brains from pickups collected this run.
 func get_brains_earned() -> int:
-	return 0
+	return _brains
 
 
 func _process(delta: float) -> void:
@@ -158,6 +196,11 @@ func _process(delta: float) -> void:
 ## The chase model (for tests and the headless sim); null before create_target_source succeeds.
 func get_model() -> ChaseModel:
 	return _model
+
+
+## The pickup trail (for tests and the 8.7 sim); null before create_target_source succeeds.
+func get_pickup_trail() -> PickupTrail:
+	return _trail
 
 
 ## Where the camera keeps the zombie on screen, in px (0.0 without a config).
@@ -193,6 +236,53 @@ func _walk_to(goal: float) -> void:
 	_walk_tween.tween_method(_set_zombie_x, _zombie.position.x, goal, _cfg.step_time_s)
 	_walk_tween.finished.connect(_zombie.play_idle)
 	_zombie.play_walk()
+
+
+## Logic: takes the pickups the logical zombie has reached and pays for them in this call; then pops
+## their nodes.
+func _collect_pickups() -> void:
+	var count: int = _trail.collect(_model.zombie_steps)
+	if count <= 0:
+		return
+	for i: int in count:
+		_brains += _cfg.brains_per_pickup
+		brains_earned_changed.emit(_brains)
+		if play_sfx.is_valid():
+			play_sfx.call(SFX_PICKUP)
+	for step: int in _pickup_nodes.keys():
+		if step <= _model.zombie_steps:
+			var node: BrainPickup = _pickup_nodes[step]
+			_pickup_nodes.erase(step)
+			if is_instance_valid(node):
+				node.collect(_world)
+
+
+## Places a node for every pickup up to the lookahead ahead of the logical zombie.
+func _fill_pickups() -> void:
+	if _trail == null or _model == null:
+		return
+	for step: int in _trail.fill_to(_model.zombie_steps + _pickup_lookahead_steps()):
+		var node: BrainPickup = PICKUP_SCENE.instantiate() as BrainPickup
+		node.position = Vector2(step * _cfg.step_px, GROUND_Y)
+		_pickups.add_child(node)
+		_pickup_nodes[step] = node
+
+
+## Steps from the zombie to the right screen edge, plus a margin (18 with the shipped config).
+func _pickup_lookahead_steps() -> int:
+	return ceili((SCREEN_W - get_zombie_screen_x()) / _cfg.step_px) + PICKUP_LOOKAHEAD_MARGIN_STEPS
+
+
+func _clear_pickup_nodes() -> void:
+	for node: BrainPickup in _pickup_nodes.values():
+		if is_instance_valid(node):
+			_pickups.remove_child(node)
+			node.queue_free()
+	_pickup_nodes.clear()
+	for pop: Node in _world.get_children():
+		if pop is BrainPop:
+			_world.remove_child(pop)
+			pop.queue_free()
 
 
 ## Places the mob and the glow from the logical gap, once per frame and per key.

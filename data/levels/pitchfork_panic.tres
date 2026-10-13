@@ -22,3 +22,6 @@ step_px = 16.0
 zombie_screen_x_frac = 0.6
 mob_visible_gap_steps = 20.0
 step_time_s = 0.1
+pickup_min_steps = 10
+pickup_max_steps = 30
+brains_per_pickup = 5

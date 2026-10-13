@@ -152,9 +152,15 @@ id = &"sfx_unlock_jingle"
 stream = ExtResource("23_unlock")
 volume_db = -6.0
 
+[sub_resource type="Resource" id="Resource_pickup"]
+script = ExtResource("2_cue")
+id = &"sfx_brain_pickup"
+stream = ExtResource("13_bonk")
+volume_db = -6.0
+
 [resource]
 script = ExtResource("1_lib")
-cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04"), SubResource("Resource_purchase"), SubResource("Resource_bonk"), SubResource("Resource_poof"), SubResource("Resource_chalk"), SubResource("Resource_chime"), SubResource("Resource_run_music"), SubResource("Resource_horde_music"), SubResource("Resource_spawn"), SubResource("Resource_throw"), SubResource("Resource_hit"), SubResource("Resource_melt"), SubResource("Resource_unlock")])
+cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04"), SubResource("Resource_purchase"), SubResource("Resource_bonk"), SubResource("Resource_poof"), SubResource("Resource_chalk"), SubResource("Resource_chime"), SubResource("Resource_run_music"), SubResource("Resource_horde_music"), SubResource("Resource_spawn"), SubResource("Resource_throw"), SubResource("Resource_hit"), SubResource("Resource_melt"), SubResource("Resource_unlock"), SubResource("Resource_pickup")])
 voice_min_gap_s = 8.0
 groan_ids = Array[StringName]([&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04"])
 groan_min_interval_s = 3.0

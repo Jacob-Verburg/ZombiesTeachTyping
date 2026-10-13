@@ -126,7 +126,9 @@ const SFX_IDS: Array[StringName] = [&"sfx_ui_click", &"sfx_wrong_key", &"sfx_bra
 		&"sfx_purchase", &"sfx_chalk_scratch", &"sfx_report_chime",
 		&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04",
 		&"sfx_zombie_spawn", &"sfx_tomato_throw", &"sfx_tomato_hit", &"sfx_melt",
-		&"sfx_unlock_jingle"]
+		&"sfx_unlock_jingle",
+		# Story 8.4: plays the brain bonk WAV as a placeholder until Story 8.6 delivers its own file.
+		&"sfx_brain_pickup"]
 const VOICE_IDS: Array[StringName] = [&"vo_brainsss"]
 const MUSIC_IDS: Array[StringName] = [&"mus_menu", &"mus_zombie_run", &"mus_horde_rush"]
 ## -1 dBFS as a 16-bit sample value.

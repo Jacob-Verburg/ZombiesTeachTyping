@@ -2,8 +2,10 @@ extends GutTest
 ## Pitchfork Panic level (Story 8.3): the paragraph source, one correct key = one logical step in the
 ## key's own call, the mob advancing only between on_run_started and on_run_ending, the camera that keeps the
 ## zombie at 60% of the width every frame, the mob's screen rect and the left-edge glow, the interim caught
-## ending (once), the used-passage hand-up, the frame cap, and the neutral brains. Keys go through a real
-## TypingSession wired like RunFrame; _process() is called with fixed deltas, never real time.
+## ending (once), the used-passage hand-up, the frame cap. Story 8.4: brain pickups placed by distance from
+## the second child RNG, collected in the key's own call (brains, signal, sound), their nodes on the path.
+## Keys go through a real TypingSession wired like RunFrame; _process() is called with fixed deltas, never
+## real time.
 
 const LevelScene: PackedScene = preload("res://scenes/levels/pitchfork_panic/pitchfork_panic_level.tscn")
 const STEP: float = 1.0 / 60.0
@@ -12,10 +14,16 @@ const ZOMBIE_SCREEN_X: float = 384.0
 var _level: PitchforkPanicLevel
 var _source: TargetSource
 var _session: TypingSession
+## The run RNG handed to the level (to check who draws from it).
+var _run_rng: RandomNumberGenerator
+## Sound effect ids the level played, in order (the play_sfx recorder).
+var _sfx: Array[StringName] = []
 
 
 func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> PitchforkPanicLevel:
 	_level = LevelScene.instantiate() as PitchforkPanicLevel
+	_sfx = []
+	_level.play_sfx = func(id: StringName) -> void: _sfx.append(id)
 	if tweak.is_valid():
 		var cfg: PitchforkPanicConfig = (_level.config as PitchforkPanicConfig).duplicate(true)
 		tweak.call(cfg)
@@ -23,6 +31,7 @@ func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> PitchforkPanicLe
 	add_child_autofree(_level)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = rng_seed
+	_run_rng = rng
 	_source = _level.create_target_source(rng)
 	if _source != null:
 		_session = TypingSession.new(_source, _level.get_level_config())
@@ -128,13 +137,10 @@ func test_process_does_nothing_before_the_run_starts_and_freezes_after() -> void
 	assert_eq(model.zombie_steps, 1)
 
 
-func test_run_ending_returns_no_outro_and_brains_stay_zero() -> void:
+func test_run_ending_returns_no_outro() -> void:
 	_make()
-	watch_signals(_level)
 	_type(2)
 	assert_eq(_level.on_run_ending(&"timer"), 0.0)
-	assert_eq(_level.get_brains_earned(), 0)
-	assert_signal_not_emitted(_level, "brains_earned_changed")
 
 
 func test_zombie_stays_at_60_percent_of_the_width_every_frame() -> void:
@@ -250,3 +256,195 @@ func test_same_seed_deals_the_same_text() -> void:
 	var first: String = _source.current()
 	_make(7)
 	assert_eq(_source.current(), first)
+
+
+# --- brain pickups (Story 8.4) ------------------------------------------------
+
+func _first_pickup() -> int:
+	var upcoming: Array[int] = _level.get_pickup_trail().upcoming()
+	assert_gt(upcoming.size(), 0, "pickups are placed at create_target_source")
+	return upcoming[0] if not upcoming.is_empty() else 0
+
+
+func _pickup_nodes() -> Array[BrainPickup]:
+	var nodes: Array[BrainPickup] = []
+	for child: Node in _level.get_node("%Pickups").get_children():
+		if child is BrainPickup and not child.is_queued_for_deletion():
+			nodes.append(child as BrainPickup)
+	return nodes
+
+
+## BrainPops in %World (drawn in front of the zombie: Smuck's layout call).
+func _pops() -> Array[BrainPop]:
+	var pops: Array[BrainPop] = []
+	for child: Node in _level.get_node("%World").get_children():
+		if child is BrainPop:
+			pops.append(child as BrainPop)
+	return pops
+
+
+func test_first_pickup_pays_5_on_exactly_its_key_in_the_same_call() -> void:
+	_make()
+	watch_signals(_level)
+	var first: int = _first_pickup()
+	assert_between(first, 10, 30)
+	assert_lt(first, _session.get_current_target().length(), "the first pickup is inside the first passage")
+	# Seen from a handler connected after the level's: the award already happened in the key's own call.
+	var seen: Array[int] = []
+	_session.char_accepted.connect(func(_e: String, _i: int) -> void: seen.append(_level.get_brains_earned()))
+	_type(first - 1)
+	assert_eq(_level.get_brains_earned(), 0, "not one key early")
+	assert_signal_not_emitted(_level, "brains_earned_changed")
+	assert_eq(_sfx, [] as Array[StringName])
+	_type(1)
+	assert_eq(seen[seen.size() - 1], 5, "paid in the key's call, before any _process")
+	assert_eq(_level.get_brains_earned(), 5)
+	assert_signal_emit_count(_level, "brains_earned_changed", 1)
+	assert_signal_emitted_with_parameters(_level, "brains_earned_changed", [5])
+	assert_eq(_sfx, [&"sfx_brain_pickup"] as Array[StringName])
+
+
+func test_several_pickups_emit_the_running_total_once_each() -> void:
+	_make()
+	watch_signals(_level)
+	# Only the lookahead is placed up front, so type until the third pickup (at most 90 steps) is taken.
+	var length: int = _session.get_current_target().length()
+	var keys: int = 0
+	while _level.get_brains_earned() < 15 and keys < mini(length, 90):
+		_type(1)
+		keys += 1
+	assert_eq(_level.get_brains_earned(), 15)
+	assert_signal_emit_count(_level, "brains_earned_changed", 3)
+	for i: int in 3:
+		assert_eq(get_signal_parameters(_level, "brains_earned_changed", i), [5 * (i + 1)])
+	assert_eq(_sfx, [&"sfx_brain_pickup", &"sfx_brain_pickup", &"sfx_brain_pickup"] as Array[StringName])
+
+
+func test_wrong_keys_collect_nothing() -> void:
+	_make()
+	watch_signals(_level)
+	var first: int = _first_pickup()
+	_type(first - 1)
+	var expected: String = _session.get_current_target()[_session.get_cursor()]
+	var wrong: String = "~" if expected != "~" else "^"
+	for i: int in 5:
+		assert_eq(_session.judge(wrong), TypingSession.Verdict.WRONG)
+	assert_eq(_level.get_brains_earned(), 0)
+	assert_signal_not_emitted(_level, "brains_earned_changed")
+	assert_eq(_sfx, [] as Array[StringName])
+
+
+func test_keys_before_the_run_starts_collect_nothing() -> void:
+	_make()
+	watch_signals(_level)
+	for i: int in 40:
+		_level.on_char_accepted("x", i)
+	assert_eq(_level.get_model().zombie_steps, 0)
+	assert_eq(_level.get_brains_earned(), 0)
+	assert_signal_not_emitted(_level, "brains_earned_changed")
+	assert_eq(_sfx, [] as Array[StringName])
+
+
+func test_keys_after_the_run_ends_collect_nothing() -> void:
+	_make()
+	watch_signals(_level)
+	var first: int = _first_pickup()
+	_type(first - 1)
+	_level.on_run_ending(&"timer")
+	for i: int in 40:
+		_level.on_char_accepted("x", first + i)
+	assert_eq(_level.get_brains_earned(), 0)
+	assert_signal_not_emitted(_level, "brains_earned_changed")
+	assert_eq(_sfx, [] as Array[StringName])
+	assert_eq(_pickup_nodes().size(), _level.get_pickup_trail().upcoming().size(), "remaining nodes stay")
+
+
+func test_run_rng_gives_two_child_seeds_and_nothing_else() -> void:
+	_make(42)
+	var expected: RandomNumberGenerator = RandomNumberGenerator.new()
+	expected.seed = 42
+	expected.randi()
+	expected.randi()
+	assert_eq(_run_rng.state, expected.state, "paragraph child + pickup child")
+	_type(1)
+	for i: int in 199:
+		_level.on_char_accepted("x", i + 1)
+		_level._process(STEP)
+	assert_gt(_level.get_brains_earned(), 0, "the 200 keys collected pickups")
+	assert_eq(_run_rng.state, expected.state, "no other consumer of the run RNG")
+
+
+func test_seed_42_deals_the_same_first_passage_as_before_pickups() -> void:
+	_make(42)
+	var oracle: RandomNumberGenerator = RandomNumberGenerator.new()
+	oracle.seed = 42
+	var child: RandomNumberGenerator = RandomNumberGenerator.new()
+	child.seed = oracle.randi()
+	var paragraphs: ParagraphSource = ParagraphSource.for_level(child, _level.config, _level.tier,
+			_level.tier_config, _level.used_passages)
+	assert_not_null(paragraphs)
+	if paragraphs != null:
+		assert_eq(_source.current(), paragraphs.current())
+
+
+func test_same_seed_places_the_same_pickups() -> void:
+	_make(42)
+	var first: Array[int] = _level.get_pickup_trail().upcoming()
+	assert_gt(first.size(), 0)
+	_make(42)
+	assert_eq(_level.get_pickup_trail().upcoming(), first)
+	# Independent oracle: the trail's RNG is seeded with the run RNG's second draw.
+	var oracle: RandomNumberGenerator = RandomNumberGenerator.new()
+	oracle.seed = 42
+	oracle.randi()
+	var pickup_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	pickup_rng.seed = oracle.randi()
+	assert_eq(first[0], pickup_rng.randi_range(10, 30))
+
+
+func test_every_placed_pickup_has_a_node_on_the_ground_line() -> void:
+	_make()
+	var upcoming: Array[int] = _level.get_pickup_trail().upcoming()
+	var nodes: Array[BrainPickup] = _pickup_nodes()
+	assert_gt(nodes.size(), 0)
+	assert_eq(nodes.size(), upcoming.size())
+	for i: int in mini(nodes.size(), upcoming.size()):
+		assert_eq(nodes[i].position, Vector2(upcoming[i] * 16.0, PitchforkPanicLevel.GROUND_Y))
+
+
+func test_the_furthest_pickup_is_always_past_the_right_edge() -> void:
+	_make()
+	var model: ChaseModel = _level.get_model()
+	var cfg: PitchforkPanicConfig = _level.config as PitchforkPanicConfig
+	var visible_ahead: int = ceili((PitchforkPanicLevel.SCREEN_W - _level.get_zombie_screen_x()) / cfg.step_px)
+	visible_ahead += PitchforkPanicLevel.PICKUP_LOOKAHEAD_MARGIN_STEPS
+	for i: int in 120:
+		var upcoming: Array[int] = _level.get_pickup_trail().upcoming()
+		assert_gt(upcoming.size(), 0)
+		if upcoming.is_empty():
+			return
+		assert_gte(upcoming[upcoming.size() - 1], model.zombie_steps + visible_ahead, "key %d" % i)
+		_type(1)
+
+
+func test_a_collected_node_pops_and_is_freed() -> void:
+	_make()
+	var first: int = _first_pickup()
+	var node: BrainPickup = _pickup_nodes()[0]
+	assert_eq(node.position.x, first * 16.0)
+	_type(first)
+	assert_true(node.is_queued_for_deletion())
+	var pops: Array[BrainPop] = _pops()
+	assert_eq(pops.size(), 1)
+	if pops.size() == 1:
+		assert_gt(pops[0].get_index(), _level.get_node("%Zombie").get_index(), "the pop rises in front")
+		assert_eq(pops[0].position.x, first * 16.0)
+	assert_false(_level.get_pickup_trail().upcoming().has(first))
+
+
+func test_pickups_draw_behind_the_mob_and_the_zombie() -> void:
+	_make()
+	var pickups: Node = _level.get_node("%Pickups")
+	assert_eq(pickups.get_parent(), _level.get_node("%World"))
+	assert_lt(pickups.get_index(), _level.get_node("%Mob").get_index())
+	assert_lt(pickups.get_index(), _level.get_node("%Zombie").get_index())

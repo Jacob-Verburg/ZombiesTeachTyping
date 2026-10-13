@@ -84,6 +84,9 @@ centered = false
 [node name="World" type="Node2D" parent="."]
 unique_name_in_owner = true
 
+[node name="Pickups" type="Node2D" parent="World"]
+unique_name_in_owner = true
+
 [node name="Mob" type="Node2D" parent="World"]
 unique_name_in_owner = true
 

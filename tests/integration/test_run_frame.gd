@@ -1980,14 +1980,56 @@ func test_pitchfork_types_the_paragraph_one_step_per_key() -> void:
 	assert_ne(first, first.to_lower())
 	_send_char(frame, first.to_lower())
 	assert_eq(level.get_model().zombie_steps, 0)
-	for i: int in 25:
+	# Story 8.4: the first brain pickup is at most 30 steps in, well inside the passage (no join Space).
+	var first_pickup: int = level.get_pickup_trail().upcoming()[0]
+	assert_lt(first_pickup, passage.length())
+	for i: int in first_pickup:
 		assert_true(_send_char(frame, passage[i]))
 		assert_eq(level.get_model().zombie_steps, i + 1, "one step per correct key, in the key's call")
 		if i == 0:
 			assert_eq(data.get_used_passages(), [_current_passage_id(frame)] as Array[String],
 					"saved at the first key")
+		if i == first_pickup - 2:
+			assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), "0", "one key before the pickup")
 	assert_eq(data.get_used_passages(), [_current_passage_id(frame)] as Array[String], "saved once")
-	assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), "0", "no brains in this story")
+	assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), "5", "the pickup's key updates the counter")
+
+
+func test_pitchfork_caught_run_keeps_the_pickup_brains() -> void:
+	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
+	var before: int = data.get_brains()
+	var frame: RunFrameScript = _start_pitchfork(data)
+	var level: PitchforkPanicLevel = frame.get_level() as PitchforkPanicLevel
+	var passage: String = frame.get_session().get_current_target()
+	var first_pickup: int = level.get_pickup_trail().upcoming()[0]
+	for i: int in first_pickup:
+		assert_true(_send_char(frame, passage[i]))
+	assert_eq(level.get_brains_earned(), 5)
+	var model: ChaseModel = level.get_model()
+	model.mob_steps = float(model.zombie_steps) - 0.001
+	level._process(1.0 / 60.0)
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_result().end_reason, GameConstants.END_REASON_CAUGHT)
+	assert_eq(_result().brains, 5)
+	assert_eq(_result().bonus_brains, 0)
+	assert_eq(data.get_brains(), before + 5, "the wallet grew by the pickup brains")
+
+
+func test_pitchfork_timer_run_keeps_the_pickup_brains() -> void:
+	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
+	var frame: RunFrameScript = _start_pitchfork(data)
+	var level: PitchforkPanicLevel = frame.get_level() as PitchforkPanicLevel
+	var passage: String = frame.get_session().get_current_target()
+	var first_pickup: int = level.get_pickup_trail().upcoming()[0]
+	for i: int in first_pickup:
+		assert_true(_send_char(frame, passage[i]))
+	frame._process(frame.get_duration() + 0.01)
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_result().end_reason, GameConstants.END_REASON_TIMER)
+	assert_eq(_result().brains, 5)
+	assert_eq(_result().bonus_brains, 0)
 
 
 func test_pitchfork_caught_run_ends_as_caught_and_unlocks_nothing() -> void:

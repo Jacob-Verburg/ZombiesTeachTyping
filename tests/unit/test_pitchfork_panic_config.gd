@@ -1,5 +1,5 @@
 extends GutTest
-## PitchforkPanicConfig (Story 8.3): the shipped .tres validates and holds the GDD numbers; each bad
+## PitchforkPanicConfig (Stories 8.3, 8.4): the shipped .tres validates and holds the GDD numbers; each bad
 ## number is rejected with its own message.
 
 const PATH: String = "res://data/levels/pitchfork_panic.tres"
@@ -30,6 +30,9 @@ func test_shipped_config_validates_with_the_spec_numbers() -> void:
 	assert_eq(config.zombie_screen_x_frac, 0.6)
 	assert_eq(config.mob_visible_gap_steps, 20.0)
 	assert_eq(config.step_time_s, 0.1)
+	assert_eq(config.pickup_min_steps, 10)
+	assert_eq(config.pickup_max_steps, 30)
+	assert_eq(config.brains_per_pickup, 5)
 
 
 func test_default_config_is_rejected() -> void:
@@ -44,6 +47,7 @@ func test_bad_numbers_are_rejected_with_their_message() -> void:
 		["mob_accel_wpm_eq", INF, "mob_accel_wpm_eq"],
 		["mob_accel_every_s", 0.0, "mob_accel_every_s"],
 		["step_px", 0.0, "step_px"],
+		["step_px", 0.001, "step_px must be at least 1"],
 		["zombie_screen_x_frac", 1.0, "zombie_screen_x_frac"],
 		["zombie_screen_x_frac", 0.0, "zombie_screen_x_frac"],
 		["mob_visible_gap_steps", 0.0, "mob_visible_gap_steps"],
@@ -53,6 +57,9 @@ func test_bad_numbers_are_rejected_with_their_message() -> void:
 		["case_sensitive", false, "case_sensitive"],
 		["space_is_input", false, "space_is_input"],
 		["paragraphs", null, "paragraphs"],
+		["pickup_min_steps", 0, "pickup_min_steps must be at least 1"],
+		["pickup_max_steps", 9, "pickup_max_steps must not be below pickup_min_steps"],
+		["brains_per_pickup", 0, "brains_per_pickup must be at least 1"],
 	]
 	for c: Array in cases:
 		var config: PitchforkPanicConfig = _shipped()
