@@ -127,10 +127,9 @@ const SFX_IDS: Array[StringName] = [&"sfx_ui_click", &"sfx_wrong_key", &"sfx_bra
 		&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04",
 		&"sfx_zombie_spawn", &"sfx_tomato_throw", &"sfx_tomato_hit", &"sfx_melt",
 		&"sfx_unlock_jingle",
-		# Story 8.4: plays the brain bonk WAV as a placeholder until Story 8.6 delivers its own file.
-		&"sfx_brain_pickup"]
+		&"sfx_brain_pickup", &"sfx_dust_cloud", &"sfx_escape"]
 const VOICE_IDS: Array[StringName] = [&"vo_brainsss"]
-const MUSIC_IDS: Array[StringName] = [&"mus_menu", &"mus_zombie_run", &"mus_horde_rush"]
+const MUSIC_IDS: Array[StringName] = [&"mus_menu", &"mus_zombie_run", &"mus_horde_rush", &"mus_pitchfork_panic"]
 ## -1 dBFS as a 16-bit sample value.
 const PEAK_LIMIT: int = 29204
 ## "Silence" for the leading-silence check: about -60 dBFS.
@@ -284,3 +283,12 @@ func test_crossfade_and_duck_defaults_are_neutral() -> void:
 func test_chalk_scratch_is_never_throttled() -> void:
 	# One scratch per report row must survive a frame hitch that shows several rows at once.
 	assert_eq(_library().get_cue(&"sfx_chalk_scratch").min_interval_s, 0.0)
+
+
+## Story 8.6: the brain pickup has its own file now, not the Zombie Run bonk.
+func test_brain_pickup_has_its_own_sound() -> void:
+	var library: AudioLibrary = _library()
+	var pickup: AudioStream = library.get_cue(&"sfx_brain_pickup").stream
+	assert_not_null(pickup)
+	assert_ne(pickup, library.get_cue(&"sfx_brain_bonk").stream)
+	assert_eq(pickup.resource_path, "res://assets/audio/sfx/sfx_brain_pickup.wav")

@@ -1,30 +1,41 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" uid="uid://dmp5v10tvccvo" path="res://scripts/levels/pitchfork_panic/pitchfork_panic_level.gd" id="1_script"]
 [ext_resource type="Resource" path="res://data/levels/pitchfork_panic.tres" id="2_config"]
 [ext_resource type="PackedScene" path="res://scenes/characters/player_zombie.tscn" id="3_zombie"]
-[ext_resource type="Script" path="res://scripts/levels/zombie_run/sunny_village_backdrop.gd" id="5_backdrop"]
-[ext_resource type="Texture2D" uid="uid://dismikogh8rev" path="res://assets/sprites/backdrops/sunny_village_green/clouds.png" id="6_clouds"]
-[ext_resource type="Texture2D" uid="uid://bl6nefl11kyyl" path="res://assets/sprites/backdrops/sunny_village_green/far.png" id="7_far"]
-[ext_resource type="Texture2D" uid="uid://dgk04f862v6y7" path="res://assets/sprites/backdrops/sunny_village_green/near.png" id="8_near"]
-[ext_resource type="Texture2D" uid="uid://cb3evvrjrd6k8" path="res://assets/sprites/backdrops/sunny_village_green/ground_strip.png" id="9_ground"]
-[ext_resource type="Texture2D" uid="uid://do5uyod3aor0i" path="res://assets/sprites/characters/villager/villager_wave.png" id="10_villager"]
-
+[ext_resource type="Script" uid="uid://p7qqijx42407" path="res://scripts/levels/zombie_run/sunny_village_backdrop.gd" id="5_backdrop"]
+[ext_resource type="Texture2D" uid="uid://c6ehwih2xa7g2" path="res://assets/sprites/backdrops/moonlit_village/clouds.png" id="6_clouds"]
+[ext_resource type="Texture2D" uid="uid://2p77ki765j38" path="res://assets/sprites/backdrops/moonlit_village/far.png" id="7_far"]
+[ext_resource type="Texture2D" uid="uid://bqrexulht1la7" path="res://assets/sprites/backdrops/moonlit_village/near.png" id="8_near"]
+[ext_resource type="Texture2D" uid="uid://ydn85bxwbxa2" path="res://assets/sprites/backdrops/moonlit_village/ground_strip.png" id="9_ground"]
+[ext_resource type="Texture2D" uid="uid://b0cox3uep3sah" path="res://assets/sprites/backdrops/moonlit_village/moon.png" id="10_moon"]
 [ext_resource type="Script" uid="uid://41q6f4m6rfde" path="res://scripts/levels/pitchfork_panic/escape_bush.gd" id="11_bush"]
 [ext_resource type="Script" uid="uid://cta6dxhxc0wj2" path="res://scripts/levels/pitchfork_panic/dust_cloud.gd" id="12_dust"]
 [ext_resource type="Script" uid="uid://c6qvuswu3vpv6" path="res://scripts/levels/pitchfork_panic/dizzy_stars.gd" id="13_stars"]
+[ext_resource type="PackedScene" path="res://scenes/levels/pitchfork_panic/chase_mob.tscn" id="14_mob"]
+[ext_resource type="Texture2D" uid="uid://c3j7jeef4fs41" path="res://assets/sprites/props/mob_hint.png" id="15_hint"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_mob"]
-atlas = ExtResource("10_villager")
+[sub_resource type="AtlasTexture" id="AtlasTexture_hint_0"]
+atlas = ExtResource("15_hint")
 region = Rect2(0, 0, 32, 32)
 
-[sub_resource type="Gradient" id="Gradient_glow"]
-colors = PackedColorArray(1, 0.5, 0.1, 1, 1, 0.5, 0.1, 0)
+[sub_resource type="AtlasTexture" id="AtlasTexture_hint_1"]
+atlas = ExtResource("15_hint")
+region = Rect2(32, 0, 32, 32)
 
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_glow"]
-gradient = SubResource("Gradient_glow")
-fill_from = Vector2(0, 0)
-fill_to = Vector2(1, 0)
+[sub_resource type="SpriteFrames" id="SpriteFrames_hint"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hint_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hint_1")
+}],
+"loop": true,
+"name": &"mob_hint",
+"speed": 8.0
+}]
 
 [node name="PitchforkPanicLevel" type="Node2D"]
 script = ExtResource("1_script")
@@ -38,7 +49,12 @@ script = ExtResource("5_backdrop")
 offset_right = 640.0
 offset_bottom = 192.0
 mouse_filter = 2
-color = Color(0.49411765, 0.78431374, 0.8901961, 1)
+color = Color(0.16862745, 0.11372549, 0.24705882, 1)
+
+[node name="Moon" type="Sprite2D" parent="Backdrop"]
+position = Vector2(500, 18)
+texture = ExtResource("10_moon")
+centered = false
 
 [node name="Clouds" type="Node2D" parent="Backdrop"]
 
@@ -91,21 +107,8 @@ unique_name_in_owner = true
 [node name="Pickups" type="Node2D" parent="World"]
 unique_name_in_owner = true
 
-[node name="Mob" type="Node2D" parent="World"]
+[node name="Mob" parent="World" instance=ExtResource("14_mob")]
 unique_name_in_owner = true
-
-[node name="Figure" type="Sprite2D" parent="World/Mob"]
-modulate = Color(0.25, 0.2, 0.3, 1)
-position = Vector2(0, -16)
-texture = SubResource("AtlasTexture_mob")
-
-[node name="Torch" type="ColorRect" parent="World/Mob"]
-offset_left = 10.0
-offset_top = -30.0
-offset_right = 14.0
-offset_bottom = -22.0
-mouse_filter = 2
-color = Color(1, 0.55, 0.1, 1)
 
 [node name="Zombie" parent="World" instance=ExtResource("3_zombie")]
 unique_name_in_owner = true
@@ -125,15 +128,14 @@ unique_name_in_owner = true
 visible = false
 script = ExtResource("13_stars")
 
-[node name="MobGlow" type="TextureRect" parent="."]
+[node name="MobHint" type="AnimatedSprite2D" parent="."]
 unique_name_in_owner = true
 visible = false
-modulate = Color(1, 1, 1, 0)
-offset_right = 48.0
-offset_bottom = 256.0
-mouse_filter = 2
-texture = SubResource("GradientTexture2D_glow")
-expand_mode = 1
+position = Vector2(-32, 161)
+sprite_frames = SubResource("SpriteFrames_hint")
+animation = &"mob_hint"
+autoplay = "mob_hint"
+centered = false
 
 [node name="EndLabel" type="Label" parent="."]
 unique_name_in_owner = true

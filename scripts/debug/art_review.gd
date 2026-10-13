@@ -4,11 +4,14 @@ extends Control
 ## never instanced by the Router, no menu button, no autoload. Run it directly:
 ##   "/c/Program Files/Godot/Godot.exe" --path . res://scenes/debug/art_review.tscn
 ## (or the Godot MCP run_project with that scene). Shows, at 640x360 with the project's stretch and
-## Nearest filter: the 32-color palette strip, each animation at 1x and 3x (PAGE_SIZE per page), a type
+## Nearest filter: the 32-color palette strip, each animation at 1x and 3x (up to PAGE_SIZE per page), a type
 ## specimen in the project font at 16/24/32 px, and a footer with the window scale and background.
 ## Story 3.6 adds the Zombie Run set (hop, hug, dance, poof, party walk, brain block, bonk, brain pop);
 ## props are 16x16 frames (an animation's "size", default FRAME). Story 6.6 adds the Horde Rush set
-## (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat).
+## (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat). Story 8.6 adds the
+## Pitchfork Panic set (the four mob runs, the zombie's dazed sit, the dizzy star, the mob hint, and the 48x48
+## dust cloud and escape bush). A page holds up to PAGE_SIZE animations, fewer when wide 48 px columns would
+## run off the 640 px view; the type specimen hides on a page whose 3x sprites reach down to it.
 ## B cycles the plain background (palette colors only), N the animation page, Esc quits. F3/F5/F8/F9 are left alone (the
 ## debug overlay, added by the Router in debug runs, owns them).
 
@@ -38,6 +41,15 @@ const MELT_FPS: float = 10.0
 const FARMER_THROW_FPS: float = 12.0
 const TOMATO_FPS: float = 10.0
 const SPLAT_FPS: float = 12.0
+## Story 8.6: the mob runs at 10 fps, the dazed sit loops at 8, the dust cloud is tween-stepped at 10 fps in the
+## game, the bush rustle is tween-stepped (8 here), the star twinkle and the mob hint loop at 8.
+const MOB_RUN_FPS: float = 10.0
+const DAZED_FPS: float = 8.0
+const DUST_FPS: float = 10.0
+const BUSH_FPS: float = 8.0
+const STAR_FPS: float = 8.0
+const HINT_FPS: float = 8.0
+const EFFECT_FRAME: int = 48
 const ANIMATIONS: Array[Dictionary] = [
 	{"name": "idle", "path": "res://assets/sprites/characters/zombie/zombie_idle.png", "frames": 2, "fps": IDLE_FPS},
 	{"name": "walk", "path": "res://assets/sprites/characters/zombie/zombie_walk.png", "frames": 4, "fps": WALK_FPS},
@@ -58,8 +70,17 @@ const ANIMATIONS: Array[Dictionary] = [
 	{"name": "farmer_throw", "path": "res://assets/sprites/characters/farmer/farmer_throw.png", "frames": 3, "fps": FARMER_THROW_FPS},
 	{"name": "tomato_fly", "path": "res://assets/sprites/props/tomato_fly.png", "frames": 2, "fps": TOMATO_FPS, "size": PROP_FRAME},
 	{"name": "tomato_splat", "path": "res://assets/sprites/props/tomato_splat.png", "frames": 3, "fps": SPLAT_FPS, "size": PROP_FRAME},
+	{"name": "mob_pitch", "path": "res://assets/sprites/characters/mob/mob_pitch_run.png", "frames": 4, "fps": MOB_RUN_FPS},
+	{"name": "mob_pitch_alt", "path": "res://assets/sprites/characters/mob/mob_pitch_alt_run.png", "frames": 4, "fps": MOB_RUN_FPS},
+	{"name": "mob_torch", "path": "res://assets/sprites/characters/mob/mob_torch_run.png", "frames": 4, "fps": MOB_RUN_FPS},
+	{"name": "mob_torch_alt", "path": "res://assets/sprites/characters/mob/mob_torch_alt_run.png", "frames": 4, "fps": MOB_RUN_FPS},
+	{"name": "dazed", "path": "res://assets/sprites/characters/zombie/zombie_dazed.png", "frames": 2, "fps": DAZED_FPS},
+	{"name": "dizzy_star", "path": "res://assets/sprites/props/dizzy_star.png", "frames": 2, "fps": STAR_FPS, "size": PROP_FRAME},
+	{"name": "mob_hint", "path": "res://assets/sprites/props/mob_hint.png", "frames": 2, "fps": HINT_FPS},
+	{"name": "dust_cloud", "path": "res://assets/sprites/props/dust_cloud.png", "frames": 4, "fps": DUST_FPS, "size": EFFECT_FRAME},
+	{"name": "escape_bush", "path": "res://assets/sprites/props/escape_bush.png", "frames": 3, "fps": BUSH_FPS, "size": EFFECT_FRAME},
 ]
-## Animations shown at once (one row of columns); N shows the next page.
+## Most animations shown at once (one row of columns); N shows the next page.
 const PAGE_SIZE: int = 4
 ## [name, background, text color]; palette colors only (DESIGN.md -> Colors).
 const BACKGROUNDS: Array[Array] = [
@@ -92,6 +113,11 @@ var _swatches: Array[Color] = []
 var _labels: Array[Label] = []
 var _background_index: int = 0
 var _pages: Array[Control] = []
+## The animation names on each page, in page order.
+var _page_names: Array[Array] = []
+## Per page: whether a 3x sprite reaches down to the specimen.
+var _page_tall: Array[bool] = []
+var _specimen_labels: Array[Label] = []
 var _page_index: int = 0
 
 
@@ -163,8 +189,8 @@ func page_index() -> int:
 ## The animation names on the shown page.
 func page_animations() -> Array[String]:
 	var names: Array[String] = []
-	for i: int in range(_page_index * PAGE_SIZE, mini((_page_index + 1) * PAGE_SIZE, ANIMATIONS.size())):
-		names.append(ANIMATIONS[i]["name"])
+	if _page_index < _page_names.size():
+		names.assign(_page_names[_page_index])
 	return names
 
 
@@ -184,6 +210,9 @@ func _cycle_background() -> void:
 
 func _refresh() -> void:
 	%Background.color = background_color()
+	var tall: bool = _page_index < _page_tall.size() and _page_tall[_page_index]
+	for label: Label in _specimen_labels:
+		label.visible = not tall
 	var text_color: Color = BACKGROUNDS[_background_index][2]
 	for label: Label in _labels:
 		label.add_theme_color_override("font_color", text_color)
@@ -213,28 +242,42 @@ func _build_palette_strip() -> void:
 
 
 func _build_animations() -> void:
+	var x: int = 0
 	for i: int in ANIMATIONS.size():
-		if i % PAGE_SIZE == 0:
+		var spec: Dictionary = ANIMATIONS[i]
+		var anim_name: String = spec["name"]
+		var frame_px: int = spec.get("size", FRAME)
+		var column: int = column_width(frame_px)
+		if _pages.is_empty() or _page_names.back().size() == PAGE_SIZE or x + column > VIEWPORT.x:
 			var page: Control = Control.new()
 			page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			page.visible = _pages.is_empty()
 			add_child(page)
 			_pages.append(page)
-		var spec: Dictionary = ANIMATIONS[i]
-		var anim_name: String = spec["name"]
-		var frame_px: int = spec.get("size", FRAME)
+			_page_names.append([])
+			_page_tall.append(false)
+			x = MARGIN
+		_page_names.back().append(anim_name)
+		if ANIM_Y + frame_px * DETAIL_SCALE > SPECIMEN_Y:
+			_page_tall[_page_tall.size() - 1] = true
 		var sheet: Texture2D = load(spec["path"]) as Texture2D
 		if sheet == null:
 			push_error("ArtReview: cannot load %s" % spec["path"])
+			x += column
 			continue
 		var frames: SpriteFrames = build_frames(sheet, spec["frames"], spec["fps"], anim_name, frame_px)
 		_animations[anim_name] = frames
 		var page_node: Control = _pages.back()
-		var x: int = MARGIN + (i % PAGE_SIZE) * ANIM_COLUMN
 		_add_label("%s %d fps" % [anim_name, roundi(spec["fps"])], SMALL_FONT, Vector2(x, ANIM_LABEL_Y), page_node)
 		# 1x sits on the 3x sprite's ground line, so the two rows can be compared.
 		_add_sprite(page_node, frames, anim_name, Vector2(x, ANIM_Y + frame_px * (DETAIL_SCALE - 1)), 1)
 		_add_sprite(page_node, frames, anim_name, Vector2(x + frame_px + 8, ANIM_Y), DETAIL_SCALE)
+		x += column
+
+
+## A column's width: the 1x and 3x sprites side by side, at least ANIM_COLUMN.
+static func column_width(frame_px: int) -> int:
+	return maxi(ANIM_COLUMN, frame_px * (1 + DETAIL_SCALE) + 16)
 
 
 func _add_sprite(parent: Node, frames: SpriteFrames, anim_name: String, at: Vector2, scale_factor: int) -> void:
@@ -251,7 +294,7 @@ func _build_specimen() -> void:
 	var y: int = SPECIMEN_Y
 	for line: Array in SPECIMEN:
 		var size: int = line[0]
-		_add_label(line[1], size, Vector2(MARGIN, y))
+		_specimen_labels.append(_add_label(line[1], size, Vector2(MARGIN, y)))
 		y += size + SPECIMEN_GAP
 
 

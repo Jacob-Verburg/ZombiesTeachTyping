@@ -1,6 +1,6 @@
 class_name PitchforkPanicLevel
 extends LevelBase
-## Pitchfork Panic (Stories 8.3, 8.4, 8.5): the chase. Every correct key moves the zombie one step away from the mob
+## Pitchfork Panic (Stories 8.3, 8.4, 8.5, 8.6): the chase. Every correct key moves the zombie one step away from the mob
 ## (ChaseModel.step(), the logical position, in the key's own call); the mob advances by run time in
 ## _process(). The text is a paragraph dealt exactly as in the Test text level (ParagraphSource); the level
 ## draws none of it.
@@ -14,9 +14,12 @@ extends LevelBase
 ## 640 px width every frame. Nothing else ever tweens the zombie's position, except the escape dive (below),
 ## where the camera stops and only the zombie node runs off into the bush.
 ##
-## The mob lives in world coordinates at mob_steps * step_px, so it scrolls with %World. It is on screen
-## whenever the gap is under mob_visible_gap_steps; otherwise %MobGlow, a strip on the left edge, warns that
-## it is coming (a left-to-right orange gradient whose alpha rises as the gap falls).
+## The mob (ChaseMob, Story 8.6) lives in world coordinates at mob_steps * step_px, so it scrolls with %World;
+## its origin is the front member's feet and the other three trail behind within 58 px. It is on screen
+## whenever the gap is under mob_visible_gap_steps; otherwise %MobHint, torch flames and pitchfork tips
+## poking in from the left screen edge, warns that it is coming: it slides in by whole px as the gap closes
+## from HINT_START_GAP_STEPS to mob_visible_gap_steps (no alpha), and hides while the mob itself shows. The
+## mob runs from on_run_started() and freezes on its frame in on_run_ending().
 ##
 ## Time: _process() does nothing until on_run_started() and after on_run_ending(); the tree pause (PAUSED,
 ## COUNTDOWN) stops it, so the mob freezes for free. A frame is capped at MAX_FRAME_S (a longer hitch is
@@ -27,8 +30,9 @@ extends LevelBase
 ## get_end_bonus(escaped) adds escape_bonus on top of the config's completion_bonus. The level processes
 ## before RunFrame (PROCESS_PRIORITY), so a catch in the clock's last frame ends the run as caught.
 ## on_run_ending() stops the chase, hides the pickups left on the path and starts the outro, returning its
-## length: caught = a dust cloud over the zombie and the mob (caught_dust_s), the zombie dazed with circling
-## stars and "Got you!" (caught_dazed_s), then a fade to night on a CanvasLayer over the HUD (caught_fade_s);
+## length: caught = a dust cloud over the zombie and the mob (caught_dust_s), the zombie sitting dazed
+## (PlayerZombie.sit_dazed(); a tilt and drop only if its sheet is missing) with circling stars and "Got
+## you!" (caught_dazed_s), then a fade to night on a CanvasLayer over the HUD (caught_fade_s);
 ## escaped = the zombie hops into a bush ahead and vanishes (escape_dive_s), then "Escaped!"
 ## (escape_label_s). The outro is visuals only: one node-bound tween chain, nothing awaits, the result was
 ## decided before it starts, and freeing the level mid-outro leaves nothing running. The mob stays where it
@@ -43,20 +47,23 @@ extends LevelBase
 ## zombie so each one exists before it scrolls in. The pop is added to %World itself, after the zombie, so
 ## it rises in front of it (Smuck's layout call). Nothing time-based collects anything.
 ##
-## Placeholder art (replaced by Story 8.6): Sunny Village Green as the backdrop, the mob is one dark
-## villager frame with an orange torch; the dust cloud, dizzy stars and bush are code-drawn (DustCloud,
-## DizzyStars, EscapeBush). No new art files.
+## The look (Story 8.6, FR74): the Moonlit Village, driven by the SunnyVillageBackdrop script with the same
+## four layers over a night Sky, plus a static Moon outside the layers (the script never moves it). The dust
+## cloud, the dizzy stars and the bush are sprite sheets stepped by frames and whole px; no pixel art is
+## scaled or rotated in the outros (the hop into the bush is a position tween).
 ##
 ## Randomness: the run RNG's first randi() seeds the paragraph source's child RNG (unchanged from 8.3, so a
 ## seed deals the same text), its second seeds the pickup trail's child RNG; after create_target_source the
 ## run RNG is never drawn again. The chase itself draws nothing.
 ##
 ## Sounds: the play_sfx seam (like ZombieRunLevel); _ready() points it at AudioManager.play_sfx unless a test
-## assigned a recorder before add_child.
+## assigned a recorder before add_child. sfx_brain_pickup per pickup; sfx_dust_cloud when the caught outro
+## starts and sfx_escape when the escape dive starts, both inside on_run_ending()'s own call behind its
+## repeat guard (once per run, never from a tween callback). RunFrame plays the chase loop from music_id.
 
 ## Feet line in playfield px, the same as Zombie Run so the HUD band stays clear. Layout, not a GDD number.
 const GROUND_Y: float = 192.0
-## Half the placeholder mob's width (one villager-size figure). Layout, not a GDD number.
+## Half the front mob member's 32 px frame: the mob's rect reaches this far ahead of its origin. Layout.
 const MOB_HALF_WIDTH_PX: float = 16.0
 ## The playfield's width in px; the camera fraction is taken from it.
 const SCREEN_W: float = 640.0
@@ -64,15 +71,19 @@ const SCREEN_W: float = 640.0
 const MAX_FRAME_S: float = 0.5
 ## Longest single integration slice. Robustness, not a GDD number.
 const MAX_STEP_S: float = 1.0 / 30.0
-## The glow starts this many steps out and reaches full strength at mob_visible_gap_steps (look values).
-const GLOW_START_GAP_STEPS: float = 32.0
-## The glow's strongest alpha (look value).
-const GLOW_MAX_ALPHA: float = 0.6
+## The hint starts sliding in this many steps out and is fully in at mob_visible_gap_steps (look value).
+const HINT_START_GAP_STEPS: float = 32.0
+## The hint sprite's width: at strength 0 it sits just off the left edge (x -HINT_W). Layout value.
+const HINT_W: float = 32.0
+## The hint's bottom row (sheet row 30) sits on the feet line, like a character's soles. Layout value.
+const HINT_FEET_ROW: float = 31.0
 ## Below RunFrame's default 0, so the mob moves and the catch is checked before RunFrame's timer each frame.
 const PROCESS_PRIORITY: int = -1
 ## Pickup nodes are placed this many steps past the right screen edge. Layout, not a GDD number.
 const PICKUP_LOOKAHEAD_MARGIN_STEPS: int = 2
 const SFX_PICKUP: StringName = &"sfx_brain_pickup"
+const SFX_DUST_CLOUD: StringName = &"sfx_dust_cloud"
+const SFX_ESCAPE: StringName = &"sfx_escape"
 const PICKUP_SCENE: PackedScene = preload("res://scenes/levels/pitchfork_panic/brain_pickup.tscn")
 ## The caught outro's label (EXPERIENCE.md string table).
 const TEXT_CAUGHT: String = "Got you!"
@@ -86,11 +97,15 @@ const ESCAPE_RUN_SHARE: float = 0.8
 const ESCAPE_HOP_PX: float = 10.0
 ## The end label's top edge in playfield px. Layout, not a GDD number.
 const END_LABEL_Y: float = 100.0
-## The dazed pose: the zombie tilts this many degrees and drops this many px (placeholder for a sit frame).
+## The fallback dazed pose when the zombie has no dazed sheet: it tilts this many degrees and drops this many
+## px. With the sheet it sits (sit_dazed()) and is never rotated.
 const DAZED_TILT_DEG: float = -12.0
 const DAZED_DROP_PX: float = 2.0
-## The stars circle this many px above the zombie's feet (over its head). Layout value.
-const STARS_ABOVE_FEET_PX: float = 34.0
+## The stars circle this many px above the zombie's feet: just above the dazed head (its crown is 22 px above
+## the feet, the dazed anchor's row 9). Layout value.
+const STARS_ABOVE_FEET_PX: float = 26.0
+## Without the dazed sheet the zombie stays upright (head about 30 px up), so the stars sit higher.
+const STARS_ABOVE_TILT_PX: float = 34.0
 
 ## Plays a sound effect by id. _ready() points it at AudioManager.play_sfx unless a test assigned a recorder
 ## before add_child.
@@ -113,13 +128,17 @@ var _ending_reason: StringName = &""
 var _outro_length: float = 0.0
 ## The outro's node-bound tween chain (null before an outro starts).
 var _outro_tween: Tween
+## The hint's current strength (0 = off screen, 1 = fully in); 0 while the mob shows.
+var _hint_strength: float = 0.0
 
 @onready var _zombie: PlayerZombie = %Zombie
 @onready var _world: Node2D = %World
 @onready var _backdrop: SunnyVillageBackdrop = %Backdrop
 @onready var _mob: Node2D = %Mob
+## The mob as a ChaseMob (null if %Mob is a plain Node2D: it still positions, it just has no run frames).
+@onready var _chase_mob: ChaseMob = _mob as ChaseMob
 @onready var _pickups: Node2D = %Pickups
-@onready var _glow: TextureRect = %MobGlow
+@onready var _hint: AnimatedSprite2D = %MobHint
 @onready var _dust: DustCloud = %DustCloud
 @onready var _stars: DizzyStars = %DizzyStars
 @onready var _bush: EscapeBush = %EscapeBush
@@ -139,6 +158,9 @@ func _ready() -> void:
 	_mob.position.y = GROUND_Y
 	_set_zombie_x(0.0)
 	_mob.visible = false
+	if _hint != null:
+		_hint.position = Vector2(-HINT_W, GROUND_Y - HINT_FEET_ROW)
+		_hint.visible = false
 
 
 ## Builds the paragraph source, the chase model and the pickup trail. A broken config or no text at all returns null, so
@@ -173,6 +195,8 @@ func create_target_source(rng: RandomNumberGenerator) -> TargetSource:
 func on_run_started() -> void:
 	_running = true
 	_zombie.play_idle()
+	if _chase_mob != null:
+		_chase_mob.run()
 	if _paragraphs != null:
 		used_passages_changed.emit(_paragraphs.get_used_ids())
 
@@ -205,6 +229,10 @@ func on_run_ending(reason: StringName) -> float:
 	_running = false
 	if _walk_tween != null and _walk_tween.is_valid():
 		_walk_tween.kill()
+	if _hint != null:
+		_hint.visible = false
+	if _chase_mob != null:
+		_chase_mob.freeze()
 	if _zombie != null:
 		_zombie.play_idle()
 	if _pickups != null:
@@ -266,8 +294,10 @@ func _process(delta: float) -> void:
 		end_requested.emit(GameConstants.END_REASON_CAUGHT)
 
 
-## Caught: the dust cloud covers the zombie and the mob, then the dazed beat, then the fade to night.
+## Caught: the dust cloud covers the zombie (the mob's trailing members stand beside it), then the dazed beat, then the fade to night.
 func _play_caught() -> void:
+	if play_sfx.is_valid():
+		play_sfx.call(SFX_DUST_CLOUD)
 	_dust.position = Vector2(_zombie.position.x, GROUND_Y)
 	_dust.play(_cfg.caught_dust_s)
 	_outro_tween = create_tween()
@@ -277,19 +307,24 @@ func _play_caught() -> void:
 	_outro_tween.tween_property(_fade, "modulate:a", 1.0, _cfg.caught_fade_s)
 
 
-## The dazed beat: no cloud, the zombie tilted and lowered with stars over its head, "Got you!" above it.
+## The dazed beat: no cloud, the zombie sitting dazed (or tilted and lowered without the sheet) with stars
+## just above its head, "Got you!" above it.
 func _show_dazed() -> void:
 	_dust.visible = false
-	_zombie.play_idle()
-	_zombie.rotation_degrees = DAZED_TILT_DEG
-	_zombie.position.y = GROUND_Y + DAZED_DROP_PX
-	_stars.position = Vector2(_zombie.position.x, GROUND_Y - STARS_ABOVE_FEET_PX)
+	if not _zombie.sit_dazed():
+		_zombie.play_idle()
+		_zombie.rotation_degrees = DAZED_TILT_DEG
+		_zombie.position.y = GROUND_Y + DAZED_DROP_PX
+	var stars_up: float = STARS_ABOVE_FEET_PX if _zombie.is_dazed() else STARS_ABOVE_TILT_PX
+	_stars.position = Vector2(_zombie.position.x, GROUND_Y - stars_up)
 	_stars.start()
 	_show_end_label(TEXT_CAUGHT, _world.position.x + _zombie.position.x)
 
 
 ## Escaped: the camera stops; the zombie hops forward into the bush and vanishes, then "Escaped!".
 func _play_escape() -> void:
+	if play_sfx.is_valid():
+		play_sfx.call(SFX_ESCAPE)
 	var bush_x: float = _zombie.position.x + ESCAPE_BUSH_AHEAD_PX
 	_bush.position = Vector2(bush_x, GROUND_Y)
 	_bush.visible = true
@@ -335,10 +370,17 @@ func get_zombie_screen_x() -> float:
 	return _cfg.zombie_screen_x_frac * SCREEN_W
 
 
-## The mob's rect in screen px (the placeholder figure's width, its feet on GROUND_Y).
+## The whole mob's rect in screen px: from the back member's frame (get_back_px() behind the origin) to the
+## front member's frame, 32 px tall with its feet on GROUND_Y.
 func get_mob_screen_rect() -> Rect2:
 	var x: float = _mob.global_position.x
-	return Rect2(x - MOB_HALF_WIDTH_PX, GROUND_Y - 32.0, MOB_HALF_WIDTH_PX * 2.0, 32.0)
+	var back: float = _chase_mob.get_back_px() if _chase_mob != null else MOB_HALF_WIDTH_PX
+	return Rect2(x - back, GROUND_Y - 32.0, back + MOB_HALF_WIDTH_PX, 32.0)
+
+
+## The mob hint's strength: 0 when off screen (or while the mob shows), 1 fully in. For tests.
+func get_mob_hint_strength() -> float:
+	return _hint_strength
 
 
 ## Moves the zombie and the camera together (see the class doc). One float argument, for tween_method.
@@ -410,7 +452,7 @@ func _clear_pickup_nodes() -> void:
 			pop.queue_free()
 
 
-## Places the mob and the glow from the logical gap, once per frame and per key.
+## Places the mob and the hint from the logical gap, once per frame and per key.
 func _update_views() -> void:
 	if _model == null or _cfg == null:
 		return
@@ -418,8 +460,10 @@ func _update_views() -> void:
 	var gap: float = _model.gap()
 	var mob_visible: bool = gap < _cfg.mob_visible_gap_steps
 	_mob.visible = mob_visible
-	_glow.visible = not mob_visible
+	_hint_strength = 0.0
 	if not mob_visible:
-		var span: float = maxf(GLOW_START_GAP_STEPS - _cfg.mob_visible_gap_steps, 0.001)
-		var strength: float = clampf((GLOW_START_GAP_STEPS - gap) / span, 0.0, 1.0)
-		_glow.modulate.a = strength * GLOW_MAX_ALPHA
+		var span: float = maxf(HINT_START_GAP_STEPS - _cfg.mob_visible_gap_steps, 0.001)
+		_hint_strength = clampf((HINT_START_GAP_STEPS - gap) / span, 0.0, 1.0)
+	if _hint != null:
+		_hint.position.x = roundf(lerpf(-HINT_W, 0.0, _hint_strength))
+		_hint.visible = _hint.position.x > -HINT_W

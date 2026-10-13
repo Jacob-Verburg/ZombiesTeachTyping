@@ -661,3 +661,69 @@ func test_melt_without_melt_frames_returns_null() -> void:
 	assert_null(zombie.melt(0.6))
 	assert_false(zombie.is_melting())
 	assert_eq(_body(zombie).animation, PlayerZombie.ANIM_WALK, "left as it was")
+
+
+# --- dazed (Story 8.6) ---------------------------------------------------------------------------
+
+func test_dazed_animation_loops_two_frames_at_8_fps() -> void:
+	var frames: SpriteFrames = _body(_zombie()).sprite_frames
+	assert_true(frames.has_animation(PlayerZombie.ANIM_DAZED))
+	assert_eq(frames.get_frame_count(PlayerZombie.ANIM_DAZED), 2)
+	assert_eq(frames.get_animation_speed(PlayerZombie.ANIM_DAZED), 8.0)
+	assert_true(frames.get_animation_loop(PlayerZombie.ANIM_DAZED))
+
+
+func test_sit_dazed_plays_dazed_and_blocks_idle_and_walk() -> void:
+	var zombie: PlayerZombie = _still_zombie()
+	var body: AnimatedSprite2D = _body(zombie)
+	zombie.play_walk()
+	assert_true(zombie.sit_dazed())
+	assert_true(zombie.is_dazed())
+	assert_eq(body.animation, PlayerZombie.ANIM_DAZED)
+	assert_true(body.is_playing())
+	zombie.play_idle()
+	zombie.play_walk()
+	assert_eq(body.animation, PlayerZombie.ANIM_DAZED, "still dazed")
+
+
+func test_sit_dazed_cuts_a_hop_hug_dance_and_flash() -> void:
+	var zombie: PlayerZombie = _still_zombie()
+	var body: AnimatedSprite2D = _body(zombie)
+	var rest: Vector2 = body.position
+	zombie.set_flashing(true)
+	zombie.hop(0.4, 12.0)
+	zombie.hug(0.4)
+	zombie.get_hop_tween().custom_step(0.1)
+	zombie.sit_dazed()
+	assert_false(zombie.is_hopping())
+	assert_false(zombie.is_hugging())
+	assert_false(zombie.is_flashing())
+	assert_eq(body.position, rest, "back at rest")
+	assert_eq(body.animation, PlayerZombie.ANIM_DAZED)
+	zombie.dance(0.4)
+	assert_eq(body.animation, PlayerZombie.ANIM_DAZED, "a dance cannot replace the sit")
+	zombie.hop(0.4, 12.0)
+	zombie.hug(0.4)
+	assert_eq(body.animation, PlayerZombie.ANIM_DAZED, "one-shots cannot replace the sit")
+
+
+func test_sit_dazed_cuts_a_running_dance() -> void:
+	var zombie: PlayerZombie = _still_zombie()
+	var body: AnimatedSprite2D = _body(zombie)
+	zombie.dance(1.0)
+	zombie.get_dance_tween().custom_step(0.1)
+	zombie.sit_dazed()
+	assert_false(zombie.is_dancing())
+	assert_false(body.flip_h)
+	assert_eq(body.position.y, REST_Y)
+	assert_eq(body.animation, PlayerZombie.ANIM_DAZED)
+
+
+func test_sit_dazed_without_dazed_frames_returns_false_and_changes_nothing() -> void:
+	var zombie: PlayerZombie = _stripped_zombie([PlayerZombie.ANIM_DAZED])
+	zombie.play_walk()
+	assert_false(zombie.sit_dazed())
+	assert_false(zombie.is_dazed())
+	assert_eq(_body(zombie).animation, PlayerZombie.ANIM_WALK, "left as it was")
+	zombie.play_idle()
+	assert_eq(_body(zombie).animation, PlayerZombie.ANIM_IDLE, "play_*() still work")

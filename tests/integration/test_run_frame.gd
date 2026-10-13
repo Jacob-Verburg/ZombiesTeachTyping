@@ -1401,6 +1401,15 @@ func test_zombie_run_asks_for_its_music_once_at_start() -> void:
 	assert_eq(_music, [&"mus_zombie_run"] as Array[StringName], "the loop plays on through the dance")
 
 
+## Story 8.6: Pitchfork Panic's config names the chase loop, so RunFrame asks for it once at the start.
+func test_pitchfork_panic_asks_for_its_chase_loop_once_at_start() -> void:
+	var frame: RunFrameScript = _start({"level_id": &"pitchfork_panic", "seed": 42})
+	assert_eq(_music, [&"mus_pitchfork_panic"] as Array[StringName])
+	_type_correct(frame)
+	frame._process(1.0)
+	assert_eq(_music, [&"mus_pitchfork_panic"] as Array[StringName], "asked once")
+
+
 func test_test_level_never_asks_for_music() -> void:
 	var frame: RunFrameScript = _start_pausable(_fake_player_data())
 	_type_correct(frame)

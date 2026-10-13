@@ -11,7 +11,11 @@ extends SceneTree
 ## Story 6.6 adds the Horde Rush sounds (sfx_zombie_spawn, sfx_tomato_throw, sfx_tomato_hit, sfx_melt) and
 ## the march loop mus_horde_rush, rendered by its own path (_render_march) so the MVP loops never change.
 ## Story 6.8 adds sfx_unlock_jingle (the level unlock moment's "New!" badge thump).
-## Encode only the new loop:
+## Story 8.6 adds the Pitchfork Panic sounds (sfx_brain_pickup, which used to borrow the bonk;
+## sfx_dust_cloud; sfx_escape) and the chase loop mus_pitchfork_panic, rendered by its own path (_render_chase).
+## Encode only that loop:
+##   uv run --with soundfile tools/encode_ogg.py <dir>/mus_pitchfork_panic.wav assets/audio/music/mus_pitchfork_panic.ogg
+## And for Horde Rush, encode only its loop:
 ##   uv run --with soundfile tools/encode_ogg.py <dir>/mus_horde_rush.wav assets/audio/music/mus_horde_rush.ogg
 
 const MIX_RATE: int = 44100
@@ -113,6 +117,10 @@ func _init() -> void:
 		_save_sfx(_melt(), SFX_DIR + "sfx_melt.wav"),
 		_save_music(_horde_rush_music(), music_dir.path_join("mus_horde_rush.wav")),
 		_save_sfx(_unlock_jingle(), SFX_DIR + "sfx_unlock_jingle.wav"),
+		_save_sfx(_brain_pickup(), SFX_DIR + "sfx_brain_pickup.wav"),
+		_save_sfx(_dust_cloud(), SFX_DIR + "sfx_dust_cloud.wav"),
+		_save_sfx(_escape(), SFX_DIR + "sfx_escape.wav"),
+		_save_music(_pitchfork_panic_music(), music_dir.path_join("mus_pitchfork_panic.wav")),
 	]
 	# Non-zero exit on any failure, so a bad path or cwd doesn't look like success.
 	quit(0 if errors.all(func(err: Error) -> bool: return err == OK) else 1)
@@ -443,6 +451,209 @@ func _poly_blep(phase: float, dt: float) -> float:
 
 
 # --- Music ---------------------------------------------------------------------------------------
+
+
+
+# --- Pitchfork Panic (Story 8.6) -------------------------------------------------------------------
+
+
+## About 0.26 s: a brain pickup, a bright quick "schlorp-pop": a slurpy band-passed noise and tone rising
+## 380 -> 1500 Hz, then a little pop falling 1300 -> 700 Hz. Up and bright, unlike the bonk's falling knock.
+func _brain_pickup() -> PackedFloat32Array:
+	var count: int = _n(0.26)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(5801)
+	var slurp: Biquad = Biquad.new()
+	var phase: float = 0.0
+	var pop_phase: float = 0.0
+	var slurp_end: float = 0.14
+	for i: int in count:
+		var t: float = _t(i)
+		if t < slurp_end:
+			var u: float = t / slurp_end
+			var freq: float = lerpf(380.0, 1500.0, u * u)
+			slurp.set_bandpass(freq * 1.6, 2.5, MIX_RATE)
+			phase += freq / MIX_RATE
+			var envelope: float = minf(1.0, t / 0.01) * (0.6 + 0.4 * u)
+			out[i] = (sin(TAU * phase) * 0.7 + slurp.process(rng.randf_range(-1.0, 1.0)) * 1.4) * envelope
+		else:
+			var tp: float = t - slurp_end
+			pop_phase += lerpf(700.0, 1300.0, exp(-tp * 40.0)) / MIX_RATE
+			out[i] = sin(TAU * pop_phase) * exp(-tp * 30.0) * minf(1.0, tp / 0.002)
+	return out
+
+
+## About 1.2 s: the caught dust cloud, a cartoon scuffle: a choppy low-passed noise tumble, four soft bonks,
+## then a slide-whistle drop 1100 -> 300 Hz. Funny, never a hit or a cry.
+func _dust_cloud() -> PackedFloat32Array:
+	var count: int = _n(1.2)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(5802)
+	var tumble: Biquad = Biquad.new()
+	tumble.set_lowpass(1800.0, 0.9, MIX_RATE)
+	var tumble_end: float = 0.8
+	for i: int in _n(tumble_end):
+		var t: float = _t(i)
+		var chop: float = 0.45 + 0.55 * absf(sin(TAU * 7.0 * t + sin(TAU * 2.3 * t)))
+		var envelope: float = minf(1.0, t / 0.02) * minf(1.0, (tumble_end - t) / 0.15)
+		out[i] = tumble.process(rng.randf_range(-1.0, 1.0)) * chop * envelope * 1.6
+	for bonk: Vector2 in [Vector2(0.08, 330.0), Vector2(0.27, 420.0), Vector2(0.43, 290.0), Vector2(0.62, 380.0)]:
+		_mix(out, _n(bonk.x), _scaled(_soft_bonk(bonk.y), 0.7))
+	var whistle_start: float = 0.72
+	var phase: float = 0.0
+	for i: int in range(_n(whistle_start), count):
+		var t: float = _t(i) - whistle_start
+		var u: float = t / (1.2 - whistle_start)
+		phase += lerpf(1100.0, 300.0, pow(u, 0.7)) / MIX_RATE
+		out[i] += sin(TAU * phase) * minf(1.0, t / 0.01) * pow(1.0 - u, 0.6) * 0.55
+	return out
+
+
+## A soft cartoon "bonk": a sine dropping from 1.8x `freq` to `freq`, 120 ms.
+func _soft_bonk(freq: float) -> PackedFloat32Array:
+	var count: int = _n(0.12)
+	var out: PackedFloat32Array = _zeros(count)
+	var phase: float = 0.0
+	for i: int in count:
+		var t: float = _t(i)
+		phase += lerpf(freq, freq * 1.8, exp(-t * 50.0)) / MIX_RATE
+		out[i] = sin(TAU * phase) * exp(-t * 28.0) * minf(1.0, t / 0.002)
+	return out
+
+
+## About 1.0 s: the escape dive, a leafy rustle (choppy high band-passed noise) into a rising "whee" whistle
+## 420 -> 1650 Hz with a happy vibrato. Feels like a win.
+func _escape() -> PackedFloat32Array:
+	var count: int = _n(1.0)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(5803)
+	var leaves: Biquad = Biquad.new()
+	leaves.set_bandpass(3200.0, 1.1, MIX_RATE)
+	var rustle_end: float = 0.5
+	for i: int in _n(rustle_end):
+		var t: float = _t(i)
+		var chop: float = 0.3 + 0.7 * maxf(0.0, sin(TAU * 17.0 * t))
+		var envelope: float = minf(1.0, t / 0.015) * minf(1.0, (rustle_end - t) / 0.12)
+		out[i] = leaves.process(rng.randf_range(-1.0, 1.0)) * chop * envelope * 1.5
+	var whee_start: float = 0.32
+	var phase: float = 0.0
+	for i: int in range(_n(whee_start), count):
+		var t: float = _t(i) - whee_start
+		var u: float = t / (1.0 - whee_start)
+		var freq: float = lerpf(420.0, 1650.0, sqrt(u)) * (1.0 + 0.025 * sin(TAU * 7.0 * t))
+		phase += freq / MIX_RATE
+		out[i] += sin(TAU * phase) * minf(1.0, t / 0.03) * minf(1.0, (1.0 - u) * 5.0) * 0.6
+	return out
+
+
+## The Pitchfork Panic chase loop (Story 8.6): a goofy "panic" galop, E minor with a G major middle,
+## 168 bpm, 48 bars (about 69 s). Oom-pah tuba on every beat, a running marimba tune in eighths that a kazoo
+## doubles from the second pass, busy hats and a snare roll back to the top. Silly chase, never scary. Its
+## own render path (_render_chase), so _render_song, _render_march and their loops never change.
+func _pitchfork_panic_music() -> PackedFloat32Array:
+	var section_a: Array[String] = ["Em", "B", "Em", "B", "Am", "Em", "B", "Em"]
+	var section_b: Array[String] = ["G", "D", "G", "D", "C", "G", "D", "B"]
+	var scale: Array = [64, 66, 67, 69, 71, 72, 74, 76, 78, 79, 81]
+	var tune_a: Array = _chase_tune(5811, section_a, scale)
+	var tune_b: Array = _chase_tune(5812, section_b, scale)
+	var form: Array[int] = [0, 0, 1, 0, 1, 0]
+	return _render_chase(168.0, form, [section_a, section_b], [tune_a, tune_b])
+
+
+## MIDI notes of a chase chord (root position, around middle C).
+func _chase_chord(chord_name: String) -> Array[int]:
+	match chord_name:
+		"B":
+			return [59, 63, 66]
+		"Am":
+			return [57, 60, 64]
+		"G":
+			return [55, 59, 62]
+		"D":
+			return [62, 66, 69]
+		"C":
+			return [60, 64, 67]
+		_:
+			return [64, 67, 71] # Em
+
+
+## An 8-bar running tune: eight eighths a bar, scale steps in one direction that bounce off the range, the
+## first eighth of each bar snapped to a chord tone (an octave up); now and then a rest or a repeated note so
+## it scurries rather than drones. The last bar holds the root.
+func _chase_tune(seed_value: int, chords: Array[String], scale: Array) -> Array:
+	var rng: RandomNumberGenerator = _rng(seed_value)
+	var tune: Array = []
+	var index: int = 4
+	var direction: int = 1
+	for bar: int in chords.size():
+		var notes: Array = []
+		var tones: Array[int] = []
+		for tone: int in _chase_chord(chords[bar]):
+			tones.append(tone + 12)
+		if bar == chords.size() - 1:
+			notes.append([0, tones[0], 2])
+			notes.append([4, tones[0], 2])
+			tune.append(notes)
+			continue
+		for eighth: int in 8:
+			if eighth == 0:
+				index = _nearest_index(scale, _nearest_chord_tone(scale[index], tones))
+			elif rng.randf() < 0.12:
+				continue
+			elif rng.randf() < 0.8:
+				index += direction
+				if index <= 0 or index >= scale.size() - 1:
+					index = clampi(index, 0, scale.size() - 1)
+					direction = -direction
+			notes.append([eighth, scale[index], 1])
+			if rng.randf() < 0.15:
+				direction = -direction
+		tune.append(notes)
+	return tune
+
+
+## Renders the chase into one buffer, wrapped at the end like _render_song (the tails wrap, though the kazoo
+## is off on pass 1 so the loop point changes texture; accepted at the audio gate): tuba on every
+## beat (root, fifth), marimba chord stabs on the off-beats, the running marimba tune, the kazoo doubling it
+## from pass 2, kick and snare, hats on every eighth, and a snare roll in the last bar.
+func _render_chase(bpm: float, form: Array[int], sections: Array, tunes: Array) -> PackedFloat32Array:
+	var eighth_s: float = 30.0 / bpm
+	var bar_s: float = eighth_s * 8.0
+	var bars: int = form.size() * 8
+	var out: PackedFloat32Array = _zeros(_n(bar_s * bars))
+	var rng: RandomNumberGenerator = _rng(5810)
+	var bar_index: int = 0
+	for pass_index: int in form.size():
+		var chords: Array[String] = sections[form[pass_index]]
+		var tune: Array = tunes[form[pass_index]]
+		for bar: int in 8:
+			var bar_start: float = bar_index * bar_s
+			var tones: Array[int] = _chase_chord(chords[bar])
+			var root: int = tones[0] - 24
+			for beat: int in 4:
+				var at_s: float = bar_start + beat * 2 * eighth_s
+				var bass: int = root if beat % 2 == 0 else root + 7
+				_mix_wrapped(out, _n(at_s), _scaled(_tuba(_midi(bass), 0.2), 0.8))
+				for tone: int in tones:
+					_mix_wrapped(out, _n(at_s + eighth_s), _scaled(_marimba(_midi(tone), 0.12), 0.1))
+			for eighth: int in 8:
+				var at: int = _n(bar_start + eighth * eighth_s)
+				if eighth == 0 or eighth == 4:
+					_mix_wrapped(out, at, _scaled(_kick(), 0.55))
+				if eighth == 2 or eighth == 6:
+					_mix_wrapped(out, at, _scaled(_snare(rng), 0.28))
+				_mix_wrapped(out, at, _scaled(_hat(rng), 0.06 if eighth % 2 == 0 else 0.09))
+			if bar_index == bars - 1:
+				for k: int in 16:
+					_mix_wrapped(out, _n(bar_start + k * eighth_s * 0.5), _scaled(_snare(rng), 0.05 + 0.018 * k))
+			for note: Array in tune[bar]:
+				var length_s: float = note[2] * eighth_s
+				var at_note: int = _n(bar_start + note[0] * eighth_s)
+				_mix_wrapped(out, at_note, _scaled(_marimba(_midi(note[1]), length_s + 0.08), 0.32))
+				if pass_index >= 1:
+					_mix_wrapped(out, at_note, _scaled(_kazoo(_midi(note[1] - 12), length_s * 0.9), 0.18))
+			bar_index += 1
+	return out
 
 
 ## The menu loop (title, menu, Closet, gift, report card): light and bouncy, C major, 120 bpm,

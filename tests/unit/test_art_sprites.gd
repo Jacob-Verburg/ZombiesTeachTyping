@@ -2,11 +2,13 @@ extends GutTest
 ## Prototype sprite sheets (Story 1.9, NFR13), the Professor Zombie (Story 2.9), the party-hat zombie
 ## (Story 3.3), the Story 3.6 Zombie Run set (hop, hug, dance, poof, party walk, brain block, brain
 ## pop, down-arrow), the Story 4.3 cosmetics (Pumpkin hat overlay, Cute ghost idle) and the Story 6.6
-## Horde Rush set (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat): size,
+## Horde Rush set (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat) and the
+## Story 8.6 Pitchfork Panic set (the four mob runs, the zombie's dazed sit, the dizzy star, the mob hint,
+## the dust cloud and the escape bush): size,
 ## hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty distinct frames on one ground
 ## line, and pixel-crisp import settings.
 ## Read from the committed PNG bytes (Image.load_from_file), so import state doesn't matter.
-## Frame size per sheet: characters (and the poof) 32x32, props 16x16 (style sheet section 3).
+## Frame size per sheet: characters (and the poof) 32x32, props 16x16, effects 48x48 (style sheet section 3).
 
 const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const FRAME: int = 32
@@ -14,6 +16,31 @@ const PROP_FRAME: int = 16
 const ZOMBIE_DIR: String = "res://assets/sprites/characters/zombie/"
 const PROPS_DIR: String = "res://assets/sprites/props/"
 const FARMER_DIR: String = "res://assets/sprites/characters/farmer/"
+const MOB_DIR: String = "res://assets/sprites/characters/mob/"
+const EFFECT_FRAME: int = 48
+const MOB_PITCH_PATH: String = MOB_DIR + "mob_pitch_run.png"
+const MOB_PITCH_ALT_PATH: String = MOB_DIR + "mob_pitch_alt_run.png"
+const MOB_TORCH_PATH: String = MOB_DIR + "mob_torch_run.png"
+const MOB_TORCH_ALT_PATH: String = MOB_DIR + "mob_torch_alt_run.png"
+## Story 8.6: each mob recolour -> its base (a clothes-only legend swap).
+const MOB_RECOLOURS: Dictionary[String, String] = {
+	MOB_PITCH_ALT_PATH: MOB_PITCH_PATH,
+	MOB_TORCH_ALT_PATH: MOB_TORCH_PATH,
+}
+const DAZED_PATH: String = ZOMBIE_DIR + "zombie_dazed.png"
+const DIZZY_STAR_PATH: String = PROPS_DIR + "dizzy_star.png"
+const MOB_HINT_PATH: String = PROPS_DIR + "mob_hint.png"
+const DUST_CLOUD_PATH: String = PROPS_DIR + "dust_cloud.png"
+const ESCAPE_BUSH_PATH: String = PROPS_DIR + "escape_bush.png"
+## Story 8.6 sheets: never stamp red or candy-yellow (the stars are parchment: candy-yellow is focus only).
+const PITCHFORK_PANIC_SHEETS: Array[String] = [
+	MOB_PITCH_PATH, MOB_PITCH_ALT_PATH, MOB_TORCH_PATH, MOB_TORCH_ALT_PATH, DAZED_PATH, DIZZY_STAR_PATH,
+	MOB_HINT_PATH, DUST_CLOUD_PATH, ESCAPE_BUSH_PATH,
+]
+## The dizzy stars are small next to the 32 px zombie.
+const DIZZY_STAR_MAX_WIDTH: int = 8
+## Effects (48x48) stand on this row, like the characters on row 30.
+const EFFECT_GROUND_ROW: int = 46
 const WALK_PATH: String = ZOMBIE_DIR + "zombie_walk.png"
 const FLASH_PATH: String = ZOMBIE_DIR + "zombie_flash.png"
 const MELT_PATH: String = ZOMBIE_DIR + "zombie_melt.png"
@@ -44,6 +71,12 @@ const SHEETS: Dictionary[String, int] = {
 	FARMER_DIR + "farmer_idle.png": 2,
 	FARMER_DIR + "farmer_walk.png": 4,
 	FARMER_DIR + "farmer_throw.png": 3,
+	MOB_PITCH_PATH: 4,
+	MOB_PITCH_ALT_PATH: 4,
+	MOB_TORCH_PATH: 4,
+	MOB_TORCH_ALT_PATH: 4,
+	DAZED_PATH: 2,
+	MOB_HINT_PATH: 2,
 }
 ## Prop sheet path -> frame count (PROP_FRAME x PROP_FRAME frames).
 const PROP_SHEETS: Dictionary[String, int] = {
@@ -52,6 +85,12 @@ const PROP_SHEETS: Dictionary[String, int] = {
 	PROPS_DIR + "brain_pop.png": 2,
 	TOMATO_FLY_PATH: 2,
 	TOMATO_SPLAT_PATH: 3,
+	DIZZY_STAR_PATH: 2,
+}
+## Effect sheet path -> frame count (EFFECT_FRAME x EFFECT_FRAME frames), Story 8.6.
+const EFFECT_SHEETS: Dictionary[String, int] = {
+	DUST_CLOUD_PATH: 4,
+	ESCAPE_BUSH_PATH: 3,
 }
 const HAT_PUMPKIN_PATH: String = "res://assets/sprites/cosmetics/hats/hat_pumpkin.png"
 const PET_GHOST_PATH: String = "res://assets/sprites/cosmetics/pets/pet_cute_ghost_idle.png"
@@ -92,6 +131,8 @@ const WOOD_DARK: String = "5a3218"
 const STAMP_RED: String = "b02a25"
 const ZOMBIE_GREEN_BRIGHT: String = "b8f27c"
 const BAT_PURPLE: String = "7a4bb3"
+const ART_GRASS: String = "4e9a34"
+const PARCHMENT: String = "f6e7c1"
 ## The Farmer legend in tools/gen_horde_rush_art.gd: ink, both skins, parchment-shade, wood-light, wood-dark,
 ## chalk, stone, ink-muted.
 const FARMER_COLOURS: Array[String] = [INK, ART_SKIN_LIGHT, ART_SKIN_DARK, "d9bc84", "c08447", WOOD_DARK, CHALK, STONE, "4e4757"]
@@ -119,10 +160,11 @@ func _name(path: String) -> String:
 	return path.get_file().get_basename()
 
 
-## Animation sheets (characters and props) -> frame count.
+## Animation sheets (characters, props and effects) -> frame count.
 func _animation_sheets() -> Dictionary[String, int]:
 	var counts: Dictionary[String, int] = SHEETS.duplicate()
 	counts.merge(PROP_SHEETS)
+	counts.merge(EFFECT_SHEETS)
 	return counts
 
 
@@ -139,6 +181,8 @@ func _frame_counts(with_overlays: bool) -> Dictionary[String, int]:
 func _size(path: String) -> int:
 	if OVERLAYS.has(path):
 		return OVERLAYS[path]
+	if EFFECT_SHEETS.has(path):
+		return EFFECT_FRAME
 	return PROP_FRAME if PROP_SHEETS.has(path) else FRAME
 
 
@@ -233,7 +277,7 @@ func test_overlays_exist_one_frame() -> void:
 
 func test_hard_alpha_and_palette_only() -> void:
 	var sheets: Dictionary[String, Image] = _valid_sheets(true)
-	assert_eq(sheets.size(), SHEETS.size() + PROP_SHEETS.size() + OVERLAYS.size())
+	assert_eq(sheets.size(), SHEETS.size() + PROP_SHEETS.size() + EFFECT_SHEETS.size() + OVERLAYS.size())
 	for path: String in sheets:
 		var image: Image = sheets[path]
 		var bad: Array[String] = []
@@ -294,11 +338,12 @@ func test_frames_not_empty_distinct_and_grounded() -> void:
 						"%s frames %d and %d identical" % [_name(path), frame, other])
 
 
-## Characters (and the poof) stand on sheet row 30: Body sits at (-16, -31) in every scene.
+## Characters (and the poof) stand on sheet row 30: Body sits at (-16, -31) in every scene. The mob hint is
+## a prop hanging at the screen edge, not a character (test_mob_hint_fits_its_frame).
 func test_characters_stand_on_row_30() -> void:
 	var sheets: Dictionary[String, Image] = _valid_sheets()
 	for path: String in SHEETS:
-		if not sheets.has(path) or path.contains("/professor/"):
+		if not sheets.has(path) or path.contains("/professor/") or path == MOB_HINT_PATH:
 			continue
 		assert_eq(_lowest_opaque_row(sheets[path], 0, FRAME), 30, "%s soles row" % _name(path))
 
@@ -309,7 +354,7 @@ func test_characters_stand_on_row_30() -> void:
 ## props pumpkin. The flash is the zombie recoloured to pumpkin (test_flash_is_a_recoloured_walk).
 func test_right_color_ramps_used() -> void:
 	var sheets: Dictionary[String, Image] = _valid_sheets(true)
-	assert_eq(sheets.size(), SHEETS.size() + PROP_SHEETS.size() + OVERLAYS.size())
+	assert_eq(sheets.size(), SHEETS.size() + PROP_SHEETS.size() + EFFECT_SHEETS.size() + OVERLAYS.size())
 	for path: String in sheets:
 		var colors: Dictionary[String, bool] = _colors(sheets[path])
 		assert_true(colors.has(INK), "%s has no ink" % _name(path))
@@ -325,6 +370,17 @@ func test_right_color_ramps_used() -> void:
 			assert_true(colors.has(PUMPKIN_LIGHT), "%s has no pumpkin-light" % _name(path))
 		elif path == FLASH_PATH:
 			assert_true(colors.has(PUMPKIN), "flash has no pumpkin")
+		elif path == DUST_CLOUD_PATH:
+			assert_true(colors.has(CHALK), "dust cloud has no chalk")
+			assert_true(colors.has(STONE_LIGHT), "dust cloud has no stone-light")
+		elif path == ESCAPE_BUSH_PATH:
+			assert_true(colors.has(ART_GRASS), "bush has no art-grass")
+			assert_true(colors.has(BAT_PURPLE) or colors.has(PUMPKIN), "bush has no berries")
+		elif path == DIZZY_STAR_PATH:
+			assert_true(colors.has(PARCHMENT), "dizzy star has no parchment")
+		elif path == MOB_HINT_PATH:
+			assert_true(colors.has(PUMPKIN), "mob hint has no flame")
+			assert_true(colors.has(STONE_LIGHT), "mob hint has no tines")
 		elif PROP_SHEETS.has(path):
 			assert_true(colors.has(BRAIN_PINK), "%s has no art-brain-pink" % _name(path))
 			assert_true(colors.has(BRAIN_SHADE), "%s has no art-brain-shade" % _name(path))
@@ -339,6 +395,7 @@ func test_import_settings_lossless_no_mipmaps() -> void:
 	var paths: Array[String] = [PALETTE_PATH]
 	paths.append_array(SHEETS.keys())
 	paths.append_array(PROP_SHEETS.keys())
+	paths.append_array(EFFECT_SHEETS.keys())
 	paths.append_array(OVERLAYS.keys())
 	for path: String in paths:
 		var config: ConfigFile = ConfigFile.new()
@@ -554,3 +611,91 @@ func test_tomato_is_small() -> void:
 		return
 	for frame: int in PROP_SHEETS[TOMATO_FLY_PATH]:
 		assert_between(_opaque_width(image, frame, PROP_FRAME), 1, TOMATO_MAX_WIDTH, "tomato frame %d width" % frame)
+
+
+## Story 8.6: each mob recolour is its base with a clothes-only legend swap: the same alpha mask and the
+## same ink pixels in every frame, the skin unchanged, and something (the clothes) recoloured.
+func test_mob_recolours_keep_their_base_mask_and_ink() -> void:
+	for alt_path: String in MOB_RECOLOURS:
+		var base: Image = _load(MOB_RECOLOURS[alt_path])
+		var alt: Image = _load(alt_path)
+		if base == null or alt == null or base.get_size() != alt.get_size():
+			fail_test("%s or its base missing or different sizes" % _name(alt_path))
+			continue
+		var bad: Array[String] = []
+		var changed: int = 0
+		for y: int in base.get_height():
+			for x: int in base.get_width():
+				var b: Color = base.get_pixel(x, y)
+				var a: Color = alt.get_pixel(x, y)
+				if (b.a8 == 255) != (a.a8 == 255):
+					bad.append("(%d,%d) mask" % [x, y])
+				elif b.a8 == 255 and (b.to_html(false) == INK) != (a.to_html(false) == INK):
+					bad.append("(%d,%d) ink" % [x, y])
+				elif b.a8 == 255 and b.to_html(false) in [ART_SKIN_LIGHT, ART_SKIN_DARK] and a != b:
+					bad.append("(%d,%d) skin" % [x, y])
+				elif b.a8 == 255 and a != b:
+					changed += 1
+		assert_eq(bad.size(), 0, "%s: %s" % [_name(alt_path), ", ".join(bad.slice(0, 10))])
+		assert_gt(changed, 0, "%s recolours its clothes" % _name(alt_path))
+
+
+## The mob are humans in pyjamas: skin only art-skin-light/-dark, and no zombie green or the zombie's
+## bat-purple shirt anywhere on them.
+func test_mob_are_humans_never_zombie_coloured() -> void:
+	for path: String in [MOB_PITCH_PATH, MOB_PITCH_ALT_PATH, MOB_TORCH_PATH, MOB_TORCH_ALT_PATH]:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		assert_true(colors.has(ART_SKIN_LIGHT), "%s has art-skin-light" % _name(path))
+		for hex: String in [ZOMBIE_GREEN, ZOMBIE_GREEN_BRIGHT, ZOMBIE_GREEN_DARK, BAT_PURPLE]:
+			assert_false(colors.has(hex), "%s uses %s" % [_name(path), hex])
+
+
+func test_pitchfork_panic_sheets_never_use_stamp_red_or_candy_yellow() -> void:
+	for path: String in PITCHFORK_PANIC_SHEETS:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		assert_false(colors.has(STAMP_RED), "%s: no stamp-red" % _name(path))
+		assert_false(colors.has(CANDY_YELLOW), "%s: no candy-yellow" % _name(path))
+
+
+func test_dizzy_star_is_small() -> void:
+	var image: Image = _load(DIZZY_STAR_PATH)
+	assert_not_null(image)
+	if image == null:
+		return
+	for frame: int in PROP_SHEETS[DIZZY_STAR_PATH]:
+		assert_between(_opaque_width(image, frame, PROP_FRAME), 1, DIZZY_STAR_MAX_WIDTH,
+				"star frame %d width" % frame)
+
+
+## The dust cloud and the bush stand on row 46 in every frame (the level puts their origin on the ground).
+func test_effects_stand_on_row_46() -> void:
+	for path: String in EFFECT_SHEETS:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		for frame: int in EFFECT_SHEETS[path]:
+			assert_eq(_lowest_opaque_row(image, frame, EFFECT_FRAME), EFFECT_GROUND_ROW,
+					"%s frame %d ground row" % [_name(path), frame])
+
+
+## The mob hint fits its 32 px frame inside the 1 px margin, its handles on row 30 (the level puts its
+## bottom on the ground line).
+func test_mob_hint_fits_its_frame() -> void:
+	var image: Image = _load(MOB_HINT_PATH)
+	assert_not_null(image)
+	if image == null:
+		return
+	for frame: int in SHEETS[MOB_HINT_PATH]:
+		var used: Rect2i = image.get_region(Rect2i(frame * FRAME, 0, FRAME, FRAME)).get_used_rect()
+		assert_true(used.position.y >= 1, "hint frame %d top margin" % frame)
+		assert_true(used.end.x <= FRAME - 1, "hint frame %d right margin" % frame)
+		assert_eq(used.end.y, FRAME - 1, "hint frame %d stands on row 30" % frame)

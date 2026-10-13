@@ -6,6 +6,9 @@ extends GutTest
 ## the second child RNG, collected in the key's own call (brains, signal, sound), their nodes on the path.
 ## Story 8.5: the two hooks (escaped at the clock, +25 escape bonus) and both outros by beats. Keys go
 ## through a real TypingSession wired like RunFrame; _process() is called with fixed deltas, never real time.
+## Story 8.6: the ChaseMob (frozen until the run starts, frozen again at its end, its whole-mob rect), the mob
+## hint (whole-px slide, no alpha), the dazed sit (with the tilt fallback), the outro sounds, the sprite
+## ending nodes (frames and whole px, scale ONE throughout) and the static moon.
 ## Outro beats are driven with Tween.custom_step() on the level's outro tween (get_outro_tween()), so they are
 ## deterministic and fast; the tree's own frames add only a few real milliseconds on top.
 
@@ -193,7 +196,9 @@ func test_mob_is_on_screen_for_gaps_under_20_and_off_it_at_30() -> void:
 		var rect: Rect2 = _level.get_mob_screen_rect()
 		assert_true(rect.position.x >= 0.0 and rect.end.x <= 640.0, "gap %s rect %s" % [gap, rect])
 		assert_true((_level.get_node("%Mob") as Node2D).visible, "gap %s shows the mob" % gap)
-		assert_false((_level.get_node("%MobGlow") as Control).visible, "gap %s hides the glow" % gap)
+		assert_false((_level.get_node("%MobHint") as CanvasItem).visible, "gap %s hides the hint" % gap)
+		var mob_x: float = (_level.get_node("%Mob") as Node2D).global_position.x
+		assert_almost_eq(rect.position.x, mob_x - float(ChaseMob.get_back_px()), 1e-4, "gap %s: the rect starts at the back member" % gap)
 	# Written-out oracles: gap 15 puts the mob's feet at screen x 144, gap 20 at 64.
 	_set_gap(15.0)
 	assert_eq((_level.get_node("%Mob") as Node2D).global_position.x, 144.0)
@@ -202,24 +207,31 @@ func test_mob_is_on_screen_for_gaps_under_20_and_off_it_at_30() -> void:
 	assert_true(far.end.x <= 0.0 or far.position.x >= 640.0, "gap 30 is off screen: %s" % far)
 
 
-func test_glow_shows_only_while_the_mob_is_off_screen_and_rises_as_it_closes() -> void:
+func test_hint_slides_in_by_whole_px_while_the_mob_is_off_screen() -> void:
 	_make()
 	_type(1)
-	var glow: TextureRect = _level.get_node("%MobGlow")
+	var hint: AnimatedSprite2D = _level.get_node("%MobHint")
 	_set_gap(40.0)
-	assert_true(glow.visible)
-	assert_eq(glow.modulate.a, 0.0)
+	assert_eq(_level.get_mob_hint_strength(), 0.0)
+	assert_false(hint.visible, "gap 40: nothing yet")
 	_set_gap(26.0)
-	var middle: float = glow.modulate.a
-	_set_gap(20.0)
-	var close: float = glow.modulate.a
-	assert_true(glow.visible)
+	var middle: float = _level.get_mob_hint_strength()
+	assert_true(hint.visible)
 	assert_gt(middle, 0.0)
-	assert_gt(close, middle)
-	assert_almost_eq(close, 0.6, 1e-6)
-	assert_eq(glow.mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	assert_lt(middle, 1.0)
+	assert_eq(hint.position.x, roundf(hint.position.x), "whole px")
+	assert_lt(hint.position.x, 0.0, "partly off the left edge")
+	var middle_x: float = hint.position.x
+	_set_gap(20.0)
+	assert_eq(_level.get_mob_hint_strength(), 1.0)
+	assert_eq(hint.position.x, 0.0, "fully in at gap 20")
+	assert_gt(hint.position.x, middle_x)
+	assert_eq(hint.modulate, Color.WHITE, "no alpha")
+	assert_eq(hint.position.y + PitchforkPanicLevel.HINT_FEET_ROW, PitchforkPanicLevel.GROUND_Y)
+	assert_false(hint.get_parent() == _level.get_node("%World"), "screen space")
 	_set_gap(19.0)
-	assert_false(glow.visible)
+	assert_false(hint.visible, "the mob itself shows")
+	assert_eq(_level.get_mob_hint_strength(), 0.0)
 
 
 func test_caught_emits_the_ending_exactly_once() -> void:
@@ -257,7 +269,7 @@ func test_a_hitch_advances_the_mob_by_at_most_the_frame_cap() -> void:
 func test_the_level_pauses_with_the_tree() -> void:
 	_make()
 	assert_eq(_level.process_mode, Node.PROCESS_MODE_INHERIT)
-	assert_eq((_level.get_node("%MobGlow") as Control).process_mode, Node.PROCESS_MODE_INHERIT)
+	assert_eq((_level.get_node("%MobHint") as Node).process_mode, Node.PROCESS_MODE_INHERIT)
 	assert_true(_level.can_process(), "runs while the tree runs")
 	get_tree().paused = true
 	var paused_can_process: bool = _level.can_process()
@@ -510,7 +522,12 @@ func test_caught_outro_by_beats() -> void:
 	assert_true(label.visible)
 	assert_eq(label.text, "Got you!")
 	assert_eq(fade.modulate.a, 0.0)
-	assert_ne(zombie.rotation_degrees, 0.0, "dazed tilt")
+	assert_true((zombie as PlayerZombie).is_dazed(), "sitting dazed")
+	assert_eq(zombie.rotation_degrees, 0.0, "never a rotation of pixel art")
+	assert_eq(zombie.position.y, PitchforkPanicLevel.GROUND_Y)
+	var stars: Node2D = _level.get_node("%DizzyStars")
+	assert_eq(stars.position.x, zombie.position.x)
+	assert_lt(stars.position.y, PitchforkPanicLevel.GROUND_Y - 22.0, "above the dazed crown")
 	tween.custom_step(1.3)
 	assert_gt(fade.modulate.a, 0.5, "t=2.9: fading to night")
 	assert_true(zombie.is_inside_tree())
@@ -616,16 +633,35 @@ func test_freeing_the_level_mid_outro_stops_everything() -> void:
 	assert_false(dust.is_valid())
 
 
-func test_dust_cloud_hides_itself_after_play() -> void:
+func test_dust_cloud_steps_frames_by_whole_px_and_hides_after_play() -> void:
 	var cloud: DustCloud = DustCloud.new()
 	add_child_autofree(cloud)
 	cloud.position.x = 40.0
 	cloud.play(0.5)
 	assert_true(cloud.visible)
+	var frames_seen: Dictionary[int, bool] = {}
+	for i: int in 5:
+		cloud.get_tween().custom_step(0.09)
+		frames_seen[cloud.get_frame()] = true
+		assert_eq(cloud.scale, Vector2.ONE, "never scaled")
+		assert_eq(cloud.rotation, 0.0)
+		assert_eq(cloud.position.x, roundf(cloud.position.x), "whole px")
+		assert_between(cloud.position.x, 40.0 - DustCloud.JITTER_PX, 40.0 + DustCloud.JITTER_PX)
+	assert_gt(frames_seen.size(), 1, "the frames step")
 	cloud.get_tween().custom_step(0.6)
 	assert_false(cloud.visible)
 	assert_eq(cloud.scale, Vector2.ONE)
-	assert_eq(cloud.position.x, 40.0)
+	assert_eq(cloud.position.x, 40.0, "ends at its base x")
+
+
+func test_dust_cloud_sprite_is_the_sheet_standing_on_the_origin() -> void:
+	var cloud: DustCloud = DustCloud.new()
+	add_child_autofree(cloud)
+	var sprite: AnimatedSprite2D = cloud.get_node("Sprite")
+	assert_not_null(sprite.sprite_frames)
+	assert_eq(sprite.sprite_frames.get_frame_count(DustCloud.ANIM), 4)
+	assert_eq(sprite.position, Vector2(-24.0, -47.0))
+	assert_false(sprite.centered)
 
 
 func test_dizzy_stars_orbit_while_shown_and_stop_hides() -> void:
@@ -634,18 +670,120 @@ func test_dizzy_stars_orbit_while_shown_and_stop_hides() -> void:
 	add_child_autofree(stars)
 	stars.start()
 	assert_true(stars.visible)
+	assert_eq(stars.get_stars().size(), 3)
 	stars._process(0.25)
 	assert_almost_eq(stars.get_angle(), TAU * 0.25, 1e-4)
+	for star: AnimatedSprite2D in stars.get_stars():
+		assert_eq(star.position, star.position.round(), "whole px")
+		assert_eq(star.scale, Vector2.ONE)
 	stars.stop()
 	assert_false(stars.visible)
 	assert_false(stars.is_processing())
 
 
-func test_escape_bush_rustle_ends_at_scale_1() -> void:
+func test_escape_bush_rustles_by_frames_and_ends_on_the_still_frame() -> void:
 	var bush: EscapeBush = EscapeBush.new()
 	add_child_autofree(bush)
+	bush.position.x = 12.0
+	assert_eq(bush.get_frame(), 0, "still before the dive")
 	bush.rustle(0.3)
 	bush.get_tween().custom_step(0.1)
-	assert_ne(bush.scale, Vector2.ONE)
+	assert_true(bush.get_frame() in [1, 2], "rustling")
+	assert_eq(bush.scale, Vector2.ONE, "never squashed")
 	bush.get_tween().custom_step(0.3)
+	assert_eq(bush.get_frame(), 0, "ends on the still frame")
 	assert_eq(bush.scale, Vector2.ONE)
+	assert_eq(bush.position.x, 12.0, "at its base x")
+
+
+
+# --- Story 8.6 ---
+
+func test_the_mob_is_a_chase_mob_frozen_until_the_run_and_after_it() -> void:
+	_make()
+	var mob: ChaseMob = _level.get_node("%Mob") as ChaseMob
+	assert_not_null(mob, "%Mob is a ChaseMob")
+	assert_eq(mob.get_parent(), _level.get_node("%World"))
+	assert_gt(_level.get_node("%Zombie").get_index(), mob.get_index(), "the zombie draws over the mob")
+	assert_gt(mob.get_index(), _level.get_node("%Pickups").get_index(), "the mob draws over the pickups")
+	for member: AnimatedSprite2D in mob.get_members():
+		assert_false(member.is_playing(), "frozen before on_run_started")
+	_type(1)
+	for member: AnimatedSprite2D in mob.get_members():
+		assert_true(member.is_playing(), "running after on_run_started")
+	_level.on_run_ending(&"caught")
+	for member: AnimatedSprite2D in mob.get_members():
+		assert_false(member.is_playing(), "frozen after on_run_ending")
+
+
+func test_dazed_without_the_sheet_falls_back_to_the_tilt() -> void:
+	_make()
+	_type(3)
+	var zombie: PlayerZombie = _level.get_node("%Zombie")
+	var body: AnimatedSprite2D = zombie.get_node("Body")
+	var frames: SpriteFrames = body.sprite_frames.duplicate() as SpriteFrames
+	frames.remove_animation(PlayerZombie.ANIM_DAZED)
+	body.sprite_frames = frames
+	_level.on_run_ending(&"caught")
+	_level.get_outro_tween().custom_step(1.6)
+	assert_false(zombie.is_dazed())
+	assert_eq(zombie.rotation_degrees, PitchforkPanicLevel.DAZED_TILT_DEG)
+	assert_eq(zombie.position.y, PitchforkPanicLevel.GROUND_Y + PitchforkPanicLevel.DAZED_DROP_PX)
+
+
+## The stars sit just above the dazed head: the dazed anchor's crown (feet row 31 minus its row) plus a little.
+func test_stars_sit_just_above_the_dazed_crown() -> void:
+	var anchors: SpriteAnchors = load("res://data/anchors/zombie_anchors.tres") as SpriteAnchors
+	var crown_above_feet: float = 31.0 - anchors.get_head(PlayerZombie.ANIM_DAZED, 0).y
+	assert_gt(PitchforkPanicLevel.STARS_ABOVE_FEET_PX, crown_above_feet)
+	assert_lte(PitchforkPanicLevel.STARS_ABOVE_FEET_PX, crown_above_feet + 8.0)
+
+
+func test_caught_plays_the_dust_cloud_sound_once() -> void:
+	_make()
+	_type(3)
+	_sfx.clear()
+	_level.on_run_ending(&"caught")
+	_level.on_run_ending(&"caught")
+	_level.get_outro_tween().custom_step(5.0)
+	assert_eq(_sfx, [PitchforkPanicLevel.SFX_DUST_CLOUD] as Array[StringName])
+	assert_eq(PitchforkPanicLevel.SFX_DUST_CLOUD, &"sfx_dust_cloud")
+
+
+func test_escaped_plays_the_escape_sound_once() -> void:
+	_make()
+	_type(3)
+	_sfx.clear()
+	_level.on_run_ending(&"escaped")
+	_level.on_run_ending(&"caught")
+	_level.get_outro_tween().custom_step(5.0)
+	assert_eq(_sfx, [PitchforkPanicLevel.SFX_ESCAPE] as Array[StringName])
+	assert_eq(PitchforkPanicLevel.SFX_ESCAPE, &"sfx_escape")
+
+
+func test_an_unknown_ending_plays_no_sound() -> void:
+	_make()
+	_type(3)
+	_sfx.clear()
+	_level.on_run_ending(&"quit")
+	assert_eq(_sfx.size(), 0)
+
+
+func test_the_pickup_sound_id_is_unchanged() -> void:
+	assert_eq(PitchforkPanicLevel.SFX_PICKUP, &"sfx_brain_pickup")
+
+
+func test_the_moonlit_backdrop_and_a_static_moon() -> void:
+	_make()
+	var backdrop: SunnyVillageBackdrop = _level.get_node("%Backdrop")
+	assert_eq((backdrop.get_node("Sky") as ColorRect).color, Color("#2B1D3F"), "a night sky")
+	var ground: Sprite2D = backdrop.get_node("Ground/A")
+	assert_eq(ground.texture.resource_path, "res://assets/sprites/backdrops/moonlit_village/ground_strip.png")
+	var moon: Sprite2D = backdrop.get_node("Moon")
+	var moon_at: Vector2 = moon.global_position
+	assert_false(moon.centered)
+	assert_lt(moon_at.x + 48.0, 600.0, "clear of the pause button corner")
+	_type(10)
+	_level._walk_tween.custom_step(1.0)
+	assert_ne(backdrop.get_layer_offset(SunnyVillageBackdrop.LAYER_GROUND), 0.0, "the street scrolled")
+	assert_eq(moon.global_position, moon_at, "the moon stays put")

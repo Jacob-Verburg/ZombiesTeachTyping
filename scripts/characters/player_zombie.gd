@@ -28,6 +28,10 @@ extends Node2D
 ## Melt (Story 6.6, a Horde Rush copy's final hit): melt() cuts the hop, hug, dance and flash and steps the
 ## melt frames with a node-bound tween across the given time, holding the last (a small puddle). Once
 ## melting, the copy stays melted: every play_*() does nothing. Returns null without a melt animation.
+## Dazed (Story 8.6, Pitchfork Panic's caught outro): sit_dazed() cuts the hop, hug, dance and flash and loops
+## the dazed frames (sitting, swirly eyes); from then on play_idle(), play_walk() and the one-shots do
+## nothing, like the melt. Without a dazed animation it returns false and changes nothing (the level falls
+## back to a tilt). Zombie Run, Horde Rush, the menu and the Closet never call it.
 
 const ANIM_IDLE: StringName = &"idle"
 const ANIM_WALK: StringName = &"walk"
@@ -36,6 +40,7 @@ const ANIM_HOP: StringName = &"hop"
 const ANIM_HUG: StringName = &"hug"
 const ANIM_FLASH: StringName = &"flash"
 const ANIM_MELT: StringName = &"melt"
+const ANIM_DAZED: StringName = &"dazed"
 ## Character sprite size (art standard, NFR13); the level derives the hop height from it.
 const SIZE_PX: float = 32.0
 ## Hug lean (look value, not a GDD number): how far Body leans forward at the middle of the hug.
@@ -58,6 +63,8 @@ var _flashing: bool = false
 ## Set by melt(), never cleared: a melted copy does not get up again.
 var _melting: bool = false
 var _melt_tween: Tween
+## Set by sit_dazed(), never cleared: the caught zombie stays sitting for the rest of the outro.
+var _dazed: bool = false
 
 @onready var _body: AnimatedSprite2D = $Body
 
@@ -120,6 +127,26 @@ func melt(duration_s: float) -> Tween:
 
 func is_melting() -> bool:
 	return _melting
+
+
+## Sits down dazed: cuts the hop, the hug, the dance and the flash and loops the dazed frames; every later
+## play_*() and one-shot does nothing. Returns false, changing nothing, without a dazed animation.
+func sit_dazed() -> bool:
+	if _melting or not _has_animation(ANIM_DAZED):
+		return false
+	_dazed = true
+	stop_hug()
+	stop_hop()
+	_kill_dance()
+	_reset_dance()
+	_flashing = false
+	_body.stop()
+	_body.play(ANIM_DAZED)
+	return true
+
+
+func is_dazed() -> bool:
+	return _dazed
 
 
 ## The current melt tween (null before melt()). For tests.
@@ -281,12 +308,12 @@ func _kill_dance() -> void:
 
 
 ## Restarts only when the animation changes, so calling it every frame keeps the loop smooth. Does
-## nothing while a hop, hug or dance owns the animation, or once melting. Walk <-> flash keeps the frame
+## nothing while a hop, hug or dance owns the animation, or once melting or dazed. Walk <-> flash keeps the frame
 ## and its progress, so the legs never jump.
 func _play(anim: StringName) -> void:
 	if _body.sprite_frames == null or not _body.sprite_frames.has_animation(anim):
 		return
-	if _melting or is_hopping() or is_hugging() or is_dancing():
+	if _melting or _dazed or is_hopping() or is_hugging() or is_dancing():
 		return
 	if _body.animation != anim or not _body.is_playing():
 		var swap: bool = _is_walk_pair(_body.animation) and _is_walk_pair(anim)
@@ -303,7 +330,7 @@ func _is_walk_pair(anim: StringName) -> bool:
 
 ## Starts a one-shot (or the dance) from its first frame, if the SpriteFrames has it.
 func _play_action(anim: StringName) -> void:
-	if _melting or not _has_animation(anim):
+	if _melting or _dazed or not _has_animation(anim):
 		return
 	_body.stop()
 	_body.play(anim)

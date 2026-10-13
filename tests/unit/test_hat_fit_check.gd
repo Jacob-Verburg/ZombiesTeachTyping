@@ -1,6 +1,6 @@
 extends GutTest
-## The hat & pet fit check (Story 4.3, debug-only): instantiates headless, builds 28 hat cells (26 zombie
-## frames: idle 2 + walk 4 + hop 3 + hug 3 + dance 4 + flash 4 + melt 6, + 2 professor frames) at 1x and 3x on stopped sprites, cycles hats, pets and backgrounds with
+## The hat & pet fit check (Story 4.3, debug-only): instantiates headless, builds 30 hat cells (28 zombie
+## frames: idle 2 + walk 4 + hop 3 + hug 3 + dance 4 + flash 4 + melt 6 + dazed 2, + 2 professor frames) at 1x and 3x on stopped sprites, cycles hats, pets and backgrounds with
 ## the shipped catalogue and an empty one, stacks the professor's mortarboard on the hat, and wears for
 ## real through an injected PlayerData on a temp save (never the live one).
 
@@ -8,7 +8,7 @@ const FitCheckScene: PackedScene = preload("res://scenes/debug/hat_fit_check.tsc
 const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
 const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
 const TEST_DIR: String = "user://test_hat_fit_check/"
-const CELLS_PER_SCALE: int = 28
+const CELLS_PER_SCALE: int = 30
 
 var _player: PlayerDataScript
 

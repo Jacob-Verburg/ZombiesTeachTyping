@@ -19,7 +19,10 @@ Stories that make final art and wait for that approval:
   boot splash; see section 7).
 - **Epic 6:** done in Story 6.6 (Horde Rush: the Farmhouse field and house, the Farmer, the tomato and
   its splat, the zombie's flash and melt; see section 3).
-- Later epics (8, 9, 10) reuse these rules for their characters, hats, pets and backdrops.
+- **Epic 8:** done in Story 8.6 (Pitchfork Panic: the Moonlit Village, the four-member mob from two
+  recoloured bases, the mob hint, the dust cloud, the escape bush, the dizzy star and the zombie's dazed
+  sit; see section 3).
+- Later epics (9, 10) reuse these rules for their characters, hats, pets and backdrops.
 
 Before its final-art story, any story may use **placeholder art**: plain shapes in palette colors.
 
@@ -74,8 +77,9 @@ the UI. It is never in a sprite and not in the palette file.
 
 **Sizes:** characters **32×32**, brutes **48×48**, tiles **16×16** (px, authored 1:1 at the 640×360
 viewport). Props (the brain block, the brain pop, the down-arrow) use the tile size, 16×16; the villager's
-poof is a character-size effect, 32×32, drawn from the feet like the characters. No 48×48 sprite exists
-yet.
+poof is a character-size effect, 32×32, drawn from the feet like the characters. **Effects** (Story 8.6:
+the dust cloud and the escape bush) are **48×48**, the brute size, drawn from the bottom centre with their
+ground on row 46 (*tested*), so they can cover the zombie and the front mob member together at the catch.
 
 **Rules** (*tested* in `tests/unit/test_art_sprites.gd`; the wording here matches the test; rule 5 is the exception):
 
@@ -125,6 +129,13 @@ animations and are exempt from the frame count only; every pixel rule applies to
 | farmer `throw` (6.6) | 3 | 32×32 | 12 | once: wind-up, release, follow-through |
 | `tomato_fly` (6.6) | 2 | 16×16 | 10 | loop while it flies (at most 8 px wide) |
 | `tomato_splat` (6.6) | 3 | 16×16 | 12 | once (frames stepped by the splat's tween), then freed |
+| mob `pitch_run`, `pitch_alt_run` (8.6) | 4 | 32×32 | 10 | loop (base A, a pitchfork held straight up; and its clothes recolour) |
+| mob `torch_run`, `torch_alt_run` (8.6) | 4 | 32×32 | 10 | loop (base B, the torch flame changes shape every frame; and its recolour) |
+| zombie `dazed` (8.6) | 2 | 32×32 | 8 | loop while dazed (sitting, swirly eyes; the head sways 1 px) |
+| `dizzy_star` (8.6) | 2 | 16×16 | 8 | twinkle; three copies orbit in code (parchment, at most 8 px wide) |
+| `mob_hint` (8.6) | 2 | 32×32 | 8 | loop at the left screen edge (pitchfork tips and torches poking in) |
+| `dust_cloud` (8.6) | 4 | 48×48 | 10 (stepped by its tween) | loops for `caught_dust_s`, then hidden |
+| `escape_bush` (8.6) | 3 | 48×48 | stepped by its tween | frame 0 still; frames 1–2 rustle |
 
 **Hats** (Story 4.3) are 32×32 one-frame overlays whose **seat** (the bottom-centre of the brim) is pixel
 (16, 30): the lowest opaque row is row 30 and the opaque columns are centred on column 16 (*tested*). Row
@@ -163,6 +174,19 @@ house's first 8 px), so a copy never camouflages (*tested* in `test_art_backdrop
 `parchment-shade` with `wood-light` furrows (not wood: the zombie's trousers are wood, so they would sink
 into wood soil).
 
+**Moonlit Village backdrop** (Story 8.6, Pitchfork Panic; `assets/sprites/backdrops/moonlit_village/`): the
+same four parallax layers and layout as Sunny Village Green (`clouds.png` night clouds and chalk stars,
+`far.png` dusk hills with `ink-muted` houses, a church and a windmill with `pumpkin-light` windows and
+friendly bats, `near.png` the village street front: cottages behind a stone garden wall, a lamp post and
+jack-o'-lanterns, `ground_tiles.png` cobble, mossy cobble, cracked cobble and a puddle, `ground_strip.png`),
+driven by the same `SunnyVillageBackdrop` script over a `night` sky, plus a static `moon.png` (48×48, the
+only place `art-moon` appears, *tested*). The same backdrop rules apply (outline-exempt, hard alpha,
+palette, no `candy-yellow`/`stamp-red`, 640 px seams wrap), plus the **night readability band**
+(*tested*): in `near.png` rows 160–191, where the characters' bodies pass, are fully opaque and use none of
+`ink`, `night`, `zombie-green`, `zombie-green-bright`, `bat-purple`, `art-brain-pink` or `art-brain-shade`,
+and neither do the ground strip's top 4 rows, so the ink outline, the zombie and the brains never get lost
+against the dark. Stars stay below y 44 (the pause button corner).
+
 **Import settings:** Lossless compression (`compress/mode=0`), no mipmaps (*tested*). Filtering is the
 project default, Nearest; do not set a per-file filter.
 
@@ -175,7 +199,7 @@ screen for legibility.
 **How sprites are made:** code-authored pixel art. Each frame is an ASCII map in
 `tools/gen_art_prototypes.gd` (the prototypes), `tools/gen_zombie_run_art.gd` (Story 3.6, which reads
 the palette, legends and approved maps from the first), `tools/gen_cosmetics_art.gd` (Story 4.3) or
-`tools/gen_horde_rush_art.gd` (Story 6.6), one character per pixel, a legend from
+`tools/gen_horde_rush_art.gd` (Story 6.6) or `tools/gen_pitchfork_panic_art.gd` (Story 8.6), one character per pixel, a legend from
 character to palette **name**, written to PNG by running the tool headless and then `--import`. The
 backdrop is drawn by the same tool from shapes at fixed positions (no randomness). Never hand-edit a
 PNG. Commit the PNGs and `.import` files.
@@ -221,7 +245,10 @@ The sprites are drawn so that later art can be made by reuse (GDD → Reuse):
 - **The zombie's flash = the walk recoloured** (Story 6.6): a legend swap only (skin and shirt to the
   pumpkin ramp), the same alpha mask and ink (*tested*), so its anchors equal the walk's. A hit never
   tints at runtime (a tint makes off-palette pixels).
-- **The mob = 2 base sprites, recolored.**
+- **The mob = 2 base sprites, recolored** (Story 8.6): base A (a pitchfork, held straight up) and base B
+  (a torch), each with one clothes recolour: a legend swap of the cap and pyjamas only, the same alpha mask,
+  the same `ink` and the same skin (*tested*). Skin is `art-skin-light`/`art-skin-dark` only, never zombie
+  green or the zombie's `bat-purple` (*tested*). Every chase setting reuses the same four runs.
 - **Hats anchor to a head point.** Story 4.3 set the anchors: one head point per frame of every animation
   (the top-centre of the crown), in `data/anchors/` (`zombie_anchors.tres`, `professor_anchors.tres`),
   measured from the sheets by `tools/gen_sprite_anchors.gd` and re-measured by

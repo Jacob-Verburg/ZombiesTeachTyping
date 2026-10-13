@@ -49,7 +49,8 @@ func test_scene_builds_animations_within_limits() -> void:
 	var animations: Dictionary[String, SpriteFrames] = sut.get_animations()
 	assert_eq_deep(animations.keys(), ["idle", "walk", "wave", "party_idle", "hop", "hug", "dance", "poof",
 			"party_walk", "block_idle", "block_bonk", "brain_pop", "flash", "melt", "farmer_idle", "farmer_walk",
-			"farmer_throw", "tomato_fly", "tomato_splat"])
+			"farmer_throw", "tomato_fly", "tomato_splat", "mob_pitch", "mob_pitch_alt", "mob_torch", "mob_torch_alt",
+			"dazed", "dizzy_star", "mob_hint", "dust_cloud", "escape_bush"])
 	for spec: Dictionary in ArtReviewScript.ANIMATIONS:
 		var first: AtlasTexture = animations[spec["name"]].get_frame_texture(spec["name"], 0) as AtlasTexture
 		assert_not_null(first.atlas, "%s sheet texture loaded" % spec["name"])
@@ -115,7 +116,7 @@ func test_story_3_6_animation_speeds() -> void:
 
 func test_pages_cycle_and_wrap() -> void:
 	var sut: ArtReviewScript = _make()
-	assert_eq(sut.page_count(), 5)
+	assert_eq(sut.page_count(), 8)
 	assert_eq(sut.page_index(), 0)
 	assert_eq_deep(sut.page_animations(), ["idle", "walk", "wave", "party_idle"])
 	sut._next_page()
@@ -125,6 +126,27 @@ func test_pages_cycle_and_wrap() -> void:
 	sut._next_page()
 	assert_eq_deep(sut.page_animations(), ["flash", "melt", "farmer_idle", "farmer_walk"])
 	sut._next_page()
-	assert_eq_deep(sut.page_animations(), ["farmer_throw", "tomato_fly", "tomato_splat"])
+	assert_eq_deep(sut.page_animations(), ["farmer_throw", "tomato_fly", "tomato_splat", "mob_pitch"])
+	sut._next_page()
+	assert_eq_deep(sut.page_animations(), ["mob_pitch_alt", "mob_torch", "mob_torch_alt", "dazed"])
+	sut._next_page()
+	# The 48 px effects take wide columns, so the bush starts its own page.
+	assert_eq_deep(sut.page_animations(), ["dizzy_star", "mob_hint", "dust_cloud"])
+	sut._next_page()
+	assert_eq_deep(sut.page_animations(), ["escape_bush"])
 	sut._next_page()
 	assert_eq(sut.page_index(), 0, "wraps")
+
+
+## Story 8.6: the mob runs at 10 fps (4 frames), the effects are 48 px frames, and a wide column still fits
+## the 640 px view.
+func test_story_8_6_animations() -> void:
+	var sut: ArtReviewScript = _make()
+	var animations: Dictionary[String, SpriteFrames] = sut.get_animations()
+	for anim_name: String in ["mob_pitch", "mob_pitch_alt", "mob_torch", "mob_torch_alt"]:
+		assert_eq(animations[anim_name].get_animation_speed(anim_name), 10.0, anim_name)
+		assert_eq(animations[anim_name].get_frame_count(anim_name), 4, anim_name)
+	for anim_name: String in ["dust_cloud", "escape_bush"]:
+		var atlas: AtlasTexture = animations[anim_name].get_frame_texture(anim_name, 1) as AtlasTexture
+		assert_eq(atlas.region, Rect2(48, 0, 48, 48), anim_name)
+	assert_true(ArtReviewScript.MARGIN + ArtReviewScript.column_width(48) <= ArtReviewScript.VIEWPORT.x)

@@ -19,7 +19,7 @@ func test_shipped_config_validates_with_the_spec_numbers() -> void:
 	assert_true(config.space_is_input)
 	assert_eq(config.target_mode, LevelConfig.TargetMode.PARAGRAPH)
 	assert_eq(config.completion_bonus, 10)
-	assert_eq(config.music_id, &"")
+	assert_eq(config.music_id, &"mus_pitchfork_panic", "the chase loop (Story 8.6)")
 	assert_not_null(config.paragraphs)
 	assert_not_null(config.tier_word_pools)
 	assert_eq(config.start_gap_steps, 15.0)

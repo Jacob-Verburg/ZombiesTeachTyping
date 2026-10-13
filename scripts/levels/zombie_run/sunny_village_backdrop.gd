@@ -1,7 +1,10 @@
 class_name SunnyVillageBackdrop
 extends Node2D
 ## The Sunny Village Green backdrop (Story 3.6, FR37): a static sky and four parallax layers behind
-## Zombie Run's %World, drawn in this order: clouds, far hills, near village, ground strip.
+## Zombie Run's %World, drawn in this order: clouds, far hills, near village, ground strip. Story 8.6:
+## Pitchfork Panic reuses it as is for the Moonlit Village (only the textures and the Sky colour differ, plus a
+## static Moon child outside the four layers, which this script never moves). The name stays until Epic 10
+## generalises it for the other settings.
 ##
 ## Each layer is a Node2D holding two Sprite2D copies of the same 640 px wide texture side by side (copy A
 ## at local x 0, copy B at PERIOD; centered = false, no region, no repeat flags). scroll_to() places the
@@ -53,7 +56,7 @@ func _ready() -> void:
 			if sprite == null or sprite.texture == null:
 				missing.append("%s/%s" % [layer_name, copy.name])
 	if not missing.is_empty():
-		Log.warn(&"level", "sunny village backdrop is missing %s" % ", ".join(missing))
+		Log.warn(&"level", "%s backdrop is missing %s" % [owner.name if owner != null else name, ", ".join(missing)])
 
 
 ## Places every layer for the camera's world x (the world x at the screen's left edge).

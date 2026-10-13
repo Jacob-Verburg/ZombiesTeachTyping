@@ -7,11 +7,16 @@ extends GutTest
 ## badge use the theme's 9-slice variations).
 ## Story 6.6: the Horde Rush scenes are walked too, and its level and tomato have no ColorRect left (the field,
 ## the house and the tomato are sprites).
+## Story 8.6: the Pitchfork Panic scenes are walked too; the level has no gradient, no torch rect and only the
+## Sky and Fade ColorRects (both palette night), and its scripts draw no shapes (the endings are sprites).
 
 const SCENE_DIRS: Array[String] = [
 	"res://scenes/ui/", "res://scenes/screens/", "res://scenes/run/", "res://scenes/levels/zombie_run/",
-	"res://scenes/levels/horde_rush/",
+	"res://scenes/levels/horde_rush/", "res://scenes/levels/pitchfork_panic/",
 ]
+const PITCHFORK_LEVEL: String = "res://scenes/levels/pitchfork_panic/pitchfork_panic_level.tscn"
+const PITCHFORK_SCRIPT_DIR: String = "res://scripts/levels/pitchfork_panic/"
+const NIGHT_COLOR_TEXT: String = "color = Color(0.16862745, 0.11372549, 0.24705882, 1)"
 const HORDE_RUSH_ART_SCENES: Array[String] = [
 	"res://scenes/levels/horde_rush/horde_rush_level.tscn", "res://scenes/levels/horde_rush/tomato.tscn",
 ]
@@ -68,3 +73,25 @@ func test_horde_rush_has_no_placeholder_rects() -> void:
 		var text: String = FileAccess.get_file_as_string(path)
 		assert_ne(text, "", "%s found" % path)
 		assert_false(text.contains("ColorRect"), "%s still has a ColorRect" % path)
+
+
+
+func test_pitchfork_panic_has_no_placeholder_art() -> void:
+	var text: String = FileAccess.get_file_as_string(PITCHFORK_LEVEL)
+	assert_ne(text, "", "level scene found")
+	assert_false(text.contains("GradientTexture2D"), "no gradient glow")
+	assert_false(text.contains("Gradient"), "no gradient")
+	assert_false(text.contains("name=\"Torch\""), "no torch rect")
+	assert_eq(text.count("type=\"ColorRect\""), 2, "only Sky and Fade")
+	assert_true(text.contains("[node name=\"Sky\" type=\"ColorRect\""))
+	assert_true(text.contains("[node name=\"Fade\" type=\"ColorRect\""))
+	assert_eq(text.count(NIGHT_COLOR_TEXT), 2, "both palette night")
+
+
+func test_pitchfork_panic_scripts_draw_no_shapes() -> void:
+	var paths: Array[String] = _files(PITCHFORK_SCRIPT_DIR, "gd")
+	assert_gt(paths.size(), 5, "scripts found")
+	for path: String in paths:
+		var text: String = FileAccess.get_file_as_string(path)
+		for call: String in FORBIDDEN_DRAW_CALLS:
+			assert_false(text.contains(call + "("), "%s calls %s" % [path, call])

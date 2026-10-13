@@ -103,6 +103,7 @@
 
 - Art gate approved by Smuck (palette, Press Start 2P, zombie idle/walk, villager wave, style sheet). The 8–12 fps rule stands, including 8 fps for 2-frame idles; no slower-idle exception.
 - On `night` and `chalkboard` backgrounds the ink outline (#1E1428) is barely distinct from the backdrop; characters read by their fills. Accepted at the gate. Revisit in Story 3.6 / 8.6 (night levels) if characters get lost against dark scenery.
+  - Resolved in 8.6: the Moonlit Village has a tested night readability band (near.png rows 160-191 opaque and free of ink, night, the zombie greens, bat-purple and the brain pinks; the ground strip top likewise), so characters stand on stone and cobble, not on night; Gate 2 approved.
 - ~~Brute size class: 48×48 is recorded in the style sheet, but "Horde Rush copies = player sprite scaled" gives uneven pixels at 1.5×. Story 6.3 decides between redrawn 48×48 brutes and an integer scale.~~ Decided in 6.3: per-class `sprite_scale` in `horde_rush.tres` (small 1.0, medium 1.25, brute 1.5 of the 32 px sprite); integer 2× is ruled out (64 px is taller than a 44 px lane); redrawn 48 px brutes are not needed yet since no brute spawns before Epic 7 (band 3–5). The 1.25 medium was checked at 3× (`screenshots/6-3/size-classes-3x.png`): slightly uneven pixels, reads clearly as bigger, kept. Story 6.6 owns the final art and hat fit on scaled classes.
   - Resolved in 6.6: the scaled classes keep the player sprite (no redraw); a test checks that on 1.25 and 1.5 copies the hat slot's seat is the body's per-frame head point under the copy's transform through every frame of walk, flash, melt, idle and dance, and `screenshots/6-6/gate2-hat-medium-3x.png` / `gate2-hat-brute-3x.png` show the Pumpkin hat on the crown (Gate 2 approved).
 - `process/fix_alpha_border=true` (Godot default) is on in the sprite `.import` files. It only changes the RGB of fully transparent pixels and is harmless with hard alpha and Nearest; untested.
@@ -671,17 +672,21 @@
 - Completion bonus: `completion_bonus = 0` in `pitchfork_panic.tres`. RunFrame still adds one bonus for every recorded end reason; 8.5 must split it into +10 for any finished run and +25 more for Escaped!. Resolved in 8.5: `completion_bonus = 10`, `escape_bonus = 25` through the new `LevelBase.get_end_bonus(reason)` hook.
 - The 300 s ending is RunFrame's timer (`timer`, not `escaped`). 8.5 owns turning it into the Escaped! ending (set `duration_s` to 0 and let the level emit `escaped`, or end it before the timer). `caught` is an interim ending too (no outro, no dust cloud, no "Got you!"). Resolved in 8.5: RunFrame asks the new `LevelBase.get_timer_end_reason()` (escaped for Pitchfork Panic), so the HUD keeps counting down; the caught outro (dust cloud, dazed + "Got you!", fade) and the escape outro (bush dive + "Escaped!") are in.
 - Past 20 steps the mob is off screen and only `%MobGlow` (an orange gradient strip, 48 px) hints at it. Whether a fast typist needs a stronger cue (an arrow, a distance number) is a playtest call for 8.7.
+  - Changed in 8.6: `%MobGlow` is replaced by `%MobHint` (torch and pitchfork tips sliding in by whole px, gap 32 -> 20). Whether a fast typist needs a stronger cue is still a playtest call for 8.7.
 - The sprite chases the logical step through a 0.1 s walk tween, while the mob is placed from the logical gap. Each key restarts the tween from the sprite's unfinished x, so at keys `d` seconds apart (d < 0.1 s) the sprite settles about 16·(0.1 − d)/d px behind the logical x: none at 10 keys/s or slower, 16 px at 20 keys/s, 64 px in a 50 keys/s burst. The mob's screen x (and `get_mob_screen_rect()`) is off by the same amount until the sprite catches up. Visual only; the gap and the catch use the model. (Corrected in code review; first written as "at most one step".)
 - Placeholder art: Sunny Village Green and a dark villager frame as the mob. Moonlit Village, mob sprites, dust cloud and music are 8.6. `%MobGlow` is a plain gradient there too.
+  - Resolved in 8.6: Moonlit Village backdrop, the four-member mob from two recoloured bases, the mob hint (no gradient), sprite endings and the chase loop; Gate 1, Gate 2 and the Audio gate approved.
 - `caps lock hint`, AltGr and dead keys (8.2 notes) still open for the Pitchfork playtest (8.7).
 - Night outlines (story-1-9 note): the ink outline is barely distinct on night backdrops. The chase uses Sunny Village Green as placeholder, so it doesn't show yet; check it when 8.6 moves Pitchfork Panic to Moonlit Village.
+  - Resolved in 8.6: see the night readability band above; checked on the real RunFrame (checklist item 1, 9).
 - The Smuck layout verdict on the chase screenshots (`screenshots/8-3/`) was requested in chat. Resolved in code review (2026-10-13): "approved".
 
 ## Deferred from: code review of 8-3-chase-movement-mob-and-camera (2026-10-13)
 
 - Mob is hidden at gaps 20–24 while it would still be on screen (x 64 at gap 20, half out at 24), so it pops out instead of walking off the left edge. AC 6/7 specify this; revisit with 8.6's mob art.
 - Mob sprite overlaps the zombie for gaps under 2 steps (both ~32 px wide, centred), while the catch fires only at gap 0. Placeholder catch visuals; 8.5/8.6. Resolved in 8.5 for the catch itself: the dust cloud covers both at the catch spot (the near-miss overlap at gaps under 2 remains until 8.6's mob art).
-- `PitchforkPanicConfig.validate()` checks fields only one at a time. `mob_visible_gap_steps × step_px` beyond the left edge would hide both the mob and the glow, and `mob_visible_gap_steps ≥ GLOW_START_GAP_STEPS` (32, a level constant) makes the glow permanently transparent. Shipped values are safe; check the combinations when 8.7 tunes.
+  - 8.6: the mob art is in; the front member still overlaps the zombie at gaps under 2 steps (the catch is at 0). Accepted at Gate 2; the dust cloud covers the catch itself.
+- `PitchforkPanicConfig.validate()` checks fields only one at a time. `mob_visible_gap_steps × step_px` beyond the left edge would hide both the mob and the glow, and `mob_visible_gap_steps ≥ HINT_START_GAP_STEPS` (32, a level constant) means the hint never appears. Shipped values are safe; check the combinations when 8.7 tunes.
 - `MAX_FRAME_S` drops anything over 0.5 s per frame, while RunFrame's clock counts it in full, so under a sustained frame rate below 2 FPS the mob's `elapsed_s` lags the run clock and the mob stays slower than tuned.
 - `LevelRegistry.get_scene()` ignores `available`, so a Coming soon level with a scene (Pitchfork Panic now) can run from any RUN payload; only the menu card guards it. Pre-existing registry design.
 - `ChaseModel` computes `_valid` once in `_init` but reads the config live in `advance()`; mutating the shared `pitchfork_panic.tres` afterwards (e.g. `mob_accel_every_s = 0`) gives NaN and no catch. Hardening only.
@@ -689,10 +694,12 @@
 ## Deferred from: dev of story 8-4 (2026-10-13)
 
 - `sfx_brain_pickup` plays the brain bonk WAV (`sfx_brain_bonk.wav`) as a placeholder. 8.6 adds the real pickup file, points the cue at it and credits it in `CREDITS.md`.
+  - Resolved in 8.6: `sfx_brain_pickup.wav` (a bright "schlorp-pop", tools/gen_audio.gd), the cue points at it, one CREDITS.md row; a test checks it is not the bonk stream.
 - No "Brainsss" voice line on a pickup (Zombie Run rolls 20% per brain, Horde Rush asks on every arrival). Not in 8.4's ACs; a roll would need a third child RNG drawn after the pickup one. Playtest call for 8.7.
 - Logic leads: the pickup is collected on the key that reaches its step, so when typing fast the brain pops a little before the lagging sprite reaches it (see the 8.3 walk-tween note above).
 - Pickups left on the path when the run ends stay where they are. 8.5's ending visuals decide whether to hide them. Resolved in 8.5: `on_run_ending` hides `%Pickups`; pops already rising finish on their own.
 - Readability: the brain art (`brain_pop.png`, about 8×6 visible px in a 16×16 frame, lifted 2 px) is small, and on Sunny Village Green it sits against the fence line, so it reads more "by the fence" than "on the path". Smuck approved the layout for placeholder art; revisit size and placement with 8.6's Moonlit Village art.
+  - Checked in 8.6 (Gate 2, checklist item 5): the pickup reads on the cobbles in colour; in grayscale it is a small mid-grey block. Accepted as is (pink in colour, the pop and the counter confirm it); kid playtest 8.7.
 - Layout change at Smuck's visual gate: the `BrainPop` is added to `%World` after the zombie (in front of it), not to `%Pickups`, so the rise is visible; the story spec had it under the pickup's parent, where the zombie hid it.
 - Seed 42 (the debug and test seed) puts its first pickup at step 29, so nothing is on screen at the start; the screenshots use seed 58 for two pickups on screen at once. No change needed; noted for anyone checking by eye.
 
@@ -703,10 +710,13 @@
 ## Deferred from: dev of story 8-5 (2026-10-13)
 
 - Placeholder ending visuals: the dust cloud (`DustCloud`), dizzy stars (`DizzyStars`) and bush (`EscapeBush`) are code-drawn. 8.6 replaces them with style-sheet sprites and may give the zombie a real sit/dazed frame (the dazed pose is now a -12 degree tilt and a 2 px drop of the zombie node).
+  - Resolved in 8.6: sprite sheets (dust_cloud 4f and escape_bush 3f at 48x48, dizzy_star 2f) stepped by frames and whole px, and the zombie's `dazed` sit (`PlayerZombie.sit_dazed()`); the tilt is only a fallback when the sheet is missing. No scale or rotation of pixel art remains in the outros.
 - No ending sounds (dust-cloud thump, escape cheer) until 8.6.
+  - Resolved in 8.6: `sfx_dust_cloud` (caught) and `sfx_escape` (escape), played once inside on_run_ending()'s call; Audio gate approved.
 - One bush for every setting; hedge/gate variants arrive with the chase settings (Epic 10.4).
 - The report card shows one "+35 bonus" line for an escape, not "+10" and "+25" separately; the "Escaped!" moment carries the win. Revisit if playtest kids don't connect the bonus to escaping.
 - The dust cloud (about 56x36 px) and the stars (3.5 px radius) are small at 1x on the 640x360 playfield; they read in the screenshots but check them with 8.6's art and on the kid playtest (8.7).
+  - Resolved in 8.6: the dust cloud is a 48x48 effect frame covering the zombie and the front mob member; the stars are 7 px parchment sprites; both approved at Gate 2. Kid playtest (8.7) still the final word.
 - `EndLabel` is 320 px wide (offsets 160-480), centred by the level from its own size; "Got you!" follows the zombie's screen x, so a zombie far right (not possible while the camera holds it at 60%) would clamp it inside the playfield.
 
 ## Deferred from: code review of 8-5-caught-and-escaped-endings (2026-10-13)
@@ -714,3 +724,28 @@
 - Level instance reuse: `_ending_reason`, `_outro_length` and the zombie's tilt/visibility are not reset in `create_target_source`; unreachable while retry builds a fresh scene.
 - Outro durations of 0 collapse the outro to a frame and huge values stall the report card; `validate()` has no minimum or maximum beyond `>= 0` and finite.
 - Test fragility in 8.5 tests: literal timings in `test_run_frame.gd` and a two-frame wait plus manual `free()` in the mid-outro free test.
+
+## Deferred from: dev of story 8-6 (2026-10-13)
+
+- `SunnyVillageBackdrop` now drives both Sunny Village Green and the Moonlit Village (only textures, the Sky colour
+  and a static Moon child differ). Rename/generalise it (e.g. `ParallaxBackdrop`) when Epic 10.2/10.4 add the
+  other settings; Zombie Run untouched for now.
+- The mob still pops in at gap 20 rather than walking on from the left edge (8.3 AC); the hint covers the
+  approach. Revisit if the 8.7 playtest finds the pop-in jarring.
+- Accepted at Gate 1: the busy cobble grout (2 px wood-dark lines read slightly brick-like), the zombie and the
+  stone wall being close in grayscale (the ink outline separates them), the subtle bush rustle.
+- The jack-o'-lanterns sit on two window sills instead of the wall top: a lantern on the wall top (bottom row 159)
+  lines up just over the zombie's crown (row 162) at some scroll offsets and would read as a hat.
+- The dizzy stars orbit at head height (STARS_ABOVE_FEET_PX 26), so a worn hat overlaps them for part of the
+  orbit; approved at Gate 2 with the pumpkin hat on.
+- `SheetFrames.build()` (new) loads with `load()`, not `preload`, so a missing sheet warns instead of failing to
+  parse; the three ending nodes and `ChaseMob` share the warn-once rule.
+- Gate captures were made with scratch scripts under `tools/_scratch_8_6/` (deleted); the real `user://save.json`
+  hash was identical before and after.
+
+
+## Deferred from: code review of 8-6-moonlit-village-mob-and-chase-music (2026-10-13)
+
+- Parallax clouds draw over the static moon at some scroll offsets; approved at Gate 1 screenshots (offsets 0 and 320).
+- Pitchfork Panic level tests use literal `custom_step` timings and poke the private `_walk_tween`; already flagged in the 8.5 review.
+- Mob skin test only asserts zombie-green and bat-purple are absent, not that skin is limited to `art-skin-light`/`art-skin-dark`.

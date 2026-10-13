@@ -7,6 +7,9 @@ extends GutTest
 ## Story 6.6 adds the Farmhouse layers (Horde Rush): static, never tiled (so no seam test), the same
 ## palette/alpha/colour rules, no zombie green in the lanes (a copy must never camouflage) and a doorway
 ## per lane on the farmhouse's field edge.
+## Story 8.6 adds the Moonlit Village (Pitchfork Panic): the Sunny Village rules plus art-moon on the moon
+## only, seamless cobble tiles, and the night readability band (near.png rows 160-191 opaque and free of the
+## characters' colours, and so is the ground strip's top).
 
 const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const DIR: String = "res://assets/sprites/backdrops/sunny_village_green/"
@@ -363,3 +366,206 @@ func test_farmhouse_import_settings_lossless_no_mipmaps() -> void:
 			continue
 		assert_eq(config.get_value("params", "compress/mode", -1), 0, "%s compress/mode" % file)
 		assert_eq(config.get_value("params", "mipmaps/generate", true), false, "%s mipmaps" % file)
+
+
+# --- Moonlit Village (Story 8.6, Pitchfork Panic) ---
+
+const MOON_DIR: String = "res://assets/sprites/backdrops/moonlit_village/"
+const MOON_FILE: String = "moon.png"
+const MOON_SIZE: int = 48
+const ART_MOON: String = "fff3b0"
+const PUMPKIN_LIGHT: String = "ffa94a"
+## The night readability band (Story 8.6 Dev Notes): near.png rows 160-191 fully opaque, and neither those
+## rows nor the ground strip's top rows use a colour the characters rely on to stand out (ink, night, the
+## zombie's greens and bat-purple shirt, the brain pinks).
+const NIGHT_BAND_TOP: int = 160
+const NIGHT_STRIP_ROWS: int = 4
+const NIGHT_BAND_FORBIDDEN: Array[String] = [
+	"1e1428", "2b1d3f", "6cc24a", "b8f27c", "7a4bb3", "f29ab8", "c9607f",
+]
+## Ground tiles the walking path (the strip's top row) may use: plain and cracked cobble.
+const MOON_PATH_TILES: Array[int] = [0, 2]
+
+
+func _load_moon(file: String) -> Image:
+	var path: String = MOON_DIR + file
+	if not FileAccess.file_exists(path):
+		return null
+	return Image.load_from_file(ProjectSettings.globalize_path(path))
+
+
+func _moon_files() -> Array[String]:
+	var files: Array[String] = LAYERS.duplicate()
+	files.append_array([TILES, STRIP, MOON_FILE])
+	return files
+
+
+## Shared check: every pixel hard alpha and on the palette. Returns the problems (empty when clean).
+func _alpha_palette_problems(image: Image) -> Array[String]:
+	var bad: Array[String] = []
+	for y: int in image.get_height():
+		for x: int in image.get_width():
+			var color: Color = image.get_pixel(x, y)
+			if color.a8 != 0 and color.a8 != 255:
+				bad.append("(%d,%d) alpha %d" % [x, y, color.a8])
+			elif color.a8 == 255 and not _palette.has(color.to_html(false)):
+				bad.append("(%d,%d) rgb %s off palette" % [x, y, color.to_html(false)])
+	return bad
+
+
+## Shared check: the rows where x 0 and the last column differ in opacity (empty when the layer wraps).
+func _seam_mismatch_rows(image: Image) -> Array[int]:
+	var bad: Array[int] = []
+	var last: int = image.get_width() - 1
+	for y: int in image.get_height():
+		if (image.get_pixel(0, y).a8 == 255) != (image.get_pixel(last, y).a8 == 255):
+			bad.append(y)
+	return bad
+
+
+## Shared check: Lossless, no mipmaps.
+func _assert_pixel_crisp_import(path: String) -> void:
+	var config: ConfigFile = ConfigFile.new()
+	var err: Error = config.load(path + ".import")
+	assert_eq(err, OK, "%s.import missing" % path)
+	if err != OK:
+		return
+	assert_eq(config.get_value("params", "compress/mode", -1), 0, "%s compress/mode" % path)
+	assert_eq(config.get_value("params", "mipmaps/generate", true), false, "%s mipmaps" % path)
+
+
+func test_moonlit_files_exist_at_their_size() -> void:
+	for file: String in LAYERS:
+		var image: Image = _load_moon(file)
+		assert_not_null(image, "%s missing" % file)
+		if image != null:
+			assert_eq(image.get_size(), Vector2i(PERIOD, PLAYFIELD_GROUND_Y), "%s size" % file)
+	var strip: Image = _load_moon(STRIP)
+	assert_not_null(strip)
+	if strip != null:
+		assert_eq(strip.get_size(), Vector2i(PERIOD, STRIP_H))
+	var tiles: Image = _load_moon(TILES)
+	assert_not_null(tiles)
+	if tiles != null:
+		assert_eq(tiles.get_size(), Vector2i(4 * TILE, TILE), "cobble, moss, crack and puddle")
+	var moon: Image = _load_moon(MOON_FILE)
+	assert_not_null(moon)
+	if moon != null:
+		assert_eq(moon.get_size(), Vector2i(MOON_SIZE, MOON_SIZE))
+
+
+func test_moonlit_hard_alpha_and_palette_only() -> void:
+	for file: String in _moon_files():
+		var image: Image = _load_moon(file)
+		if image == null:
+			fail_test("%s missing" % file)
+			continue
+		var bad: Array[String] = _alpha_palette_problems(image)
+		assert_eq(bad.size(), 0, "%s: %s" % [file, ", ".join(bad.slice(0, 10))])
+
+
+## Candy-yellow is focus only, stamp-red the stamp only, art-moon the moon only.
+func test_moonlit_reserved_colours() -> void:
+	for file: String in _moon_files():
+		var image: Image = _load_moon(file)
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		assert_false(colors.has(CANDY_YELLOW), "%s uses candy-yellow" % file)
+		assert_false(colors.has(STAMP_RED), "%s uses stamp-red" % file)
+		if file == MOON_FILE:
+			assert_true(colors.has(ART_MOON), "the moon is art-moon")
+		else:
+			assert_false(colors.has(ART_MOON), "%s uses art-moon" % file)
+
+
+func test_moonlit_seam_rows_match_and_features_cross() -> void:
+	for file: String in [LAYERS[0], LAYERS[1], LAYERS[2], STRIP]:
+		var image: Image = _load_moon(file)
+		if image == null or image.get_width() != PERIOD:
+			fail_test("%s missing" % file)
+			continue
+		var bad: Array[int] = _seam_mismatch_rows(image)
+		assert_eq(bad.size(), 0, "%s seam rows %s" % [file, bad.slice(0, 10)])
+		var crossing: int = 0
+		for y: int in image.get_height():
+			if image.get_pixel(0, y).a8 == 255 and image.get_pixel(PERIOD - 1, y).a8 == 255:
+				crossing += 1
+		assert_gt(crossing, 0, "%s has something across the seam" % file)
+
+
+## Every tile repeats seamlessly with itself: left column = right column, top row = bottom row.
+func test_moonlit_tiles_are_seamless() -> void:
+	var tiles: Image = _load_moon(TILES)
+	if tiles == null:
+		fail_test("tiles missing")
+		return
+	for tile: int in tiles.get_width() / TILE:
+		for i: int in TILE:
+			assert_eq(tiles.get_pixel(tile * TILE, i), tiles.get_pixel(tile * TILE + TILE - 1, i),
+					"tile %d row %d left/right edge" % [tile, i])
+			assert_eq(tiles.get_pixel(tile * TILE + i, 0), tiles.get_pixel(tile * TILE + i, TILE - 1),
+					"tile %d column %d top/bottom edge" % [tile, i])
+
+
+## Each 16 x 16 cell of the strip is one tile, the top row (the walking path) only plain or cracked cobble,
+## and every tile is used.
+func test_moonlit_strip_is_built_from_the_tiles() -> void:
+	var tiles: Image = _load_moon(TILES)
+	var strip: Image = _load_moon(STRIP)
+	if tiles == null or strip == null:
+		fail_test("tiles or strip missing")
+		return
+	var tile_bytes: Array[PackedByteArray] = []
+	for tile: int in tiles.get_width() / TILE:
+		tile_bytes.append(tiles.get_region(Rect2i(tile * TILE, 0, TILE, TILE)).get_data())
+	var used: Dictionary[int, bool] = {}
+	for row: int in STRIP_H / TILE:
+		for col: int in PERIOD / TILE:
+			var cell: PackedByteArray = strip.get_region(Rect2i(col * TILE, row * TILE, TILE, TILE)).get_data()
+			var index: int = tile_bytes.find(cell)
+			assert_ne(index, -1, "cell (%d,%d) is a tile" % [col, row])
+			used[index] = true
+			if row == 0:
+				assert_true(index in MOON_PATH_TILES, "path cell %d is cobble (tile %d)" % [col, index])
+	assert_eq(used.size(), tile_bytes.size(), "every tile is used")
+
+
+## The night readability band: near.png rows 160-191 fully opaque and free of the characters' colours, and
+## the ground strip's top rows free of them too (so the ink outline, the zombie and the brains stand out).
+func test_moonlit_night_readability_band() -> void:
+	var near: Image = _load_moon("near.png")
+	var strip: Image = _load_moon(STRIP)
+	if near == null or strip == null:
+		fail_test("near or strip missing")
+		return
+	var holes: int = 0
+	for y: int in range(NIGHT_BAND_TOP, PLAYFIELD_GROUND_Y):
+		for x: int in PERIOD:
+			if near.get_pixel(x, y).a8 != 255:
+				holes += 1
+	assert_eq(holes, 0, "near.png rows 160-191 are fully opaque")
+	var band: Dictionary[String, bool] = _colors(near, NIGHT_BAND_TOP, PLAYFIELD_GROUND_Y - 1)
+	var path: Dictionary[String, bool] = _colors(strip, 0, NIGHT_STRIP_ROWS - 1)
+	for hex: String in NIGHT_BAND_FORBIDDEN:
+		assert_false(band.has(hex), "near.png band uses %s" % hex)
+		assert_false(path.has(hex), "ground strip top rows use %s" % hex)
+
+
+## DESIGN.md's cute-Halloween dressing: jack-o'-lanterns, lit windows, friendly bats.
+func test_moonlit_carries_the_halloween_dressing() -> void:
+	var near_img: Image = _load_moon("near.png")
+	var far_img: Image = _load_moon("far.png")
+	if near_img == null or far_img == null:
+		fail_test("moonlit layers missing")
+		return
+	var near: Dictionary[String, bool] = _colors(near_img)
+	var far: Dictionary[String, bool] = _colors(far_img)
+	assert_true(near.has(PUMPKIN), "a jack-o'-lantern on the wall")
+	assert_true(near.has(PUMPKIN_LIGHT) and far.has(PUMPKIN_LIGHT), "lit pumpkin-light windows")
+	assert_true(far.has(BAT_PURPLE), "friendly bats over the hills")
+
+
+func test_moonlit_import_settings_lossless_no_mipmaps() -> void:
+	for file: String in _moon_files():
+		_assert_pixel_crisp_import(MOON_DIR + file)

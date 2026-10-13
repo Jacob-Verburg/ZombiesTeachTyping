@@ -19,6 +19,7 @@ const SETS: Dictionary[String, Dictionary] = {
 		&"dance": ZOMBIE_DIR + "zombie_dance.png",
 		&"flash": ZOMBIE_DIR + "zombie_flash.png",
 		&"melt": ZOMBIE_DIR + "zombie_melt.png",
+		&"dazed": ZOMBIE_DIR + "zombie_dazed.png",
 	},
 	"res://data/anchors/professor_anchors.tres": {
 		&"point": PROFESSOR_DIR + "professor_point.png",

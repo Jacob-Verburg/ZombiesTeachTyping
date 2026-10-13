@@ -23,7 +23,8 @@ const HAT_SLOT_SCENE: PackedScene = preload("res://scenes/cosmetics/hat_slot.tsc
 const PET_SLOT_SCENE: PackedScene = preload("res://scenes/cosmetics/pet_slot.tscn")
 const ZOMBIE_ANCHORS: SpriteAnchors = preload("res://data/anchors/zombie_anchors.tres")
 ## The player zombie's animations in show order.
-const ZOMBIE_ANIMATIONS: Array[StringName] = [&"idle", &"walk", &"hop", &"hug", &"dance", &"flash", &"melt"]
+const ZOMBIE_ANIMATIONS: Array[StringName] = [&"idle", &"walk", &"hop", &"hug", &"dance", &"flash", &"melt",
+		&"dazed"]
 const PROFESSOR_ANIMATION: StringName = &"point"
 const FRAME: int = 32
 const DETAIL_SCALE: int = 3
