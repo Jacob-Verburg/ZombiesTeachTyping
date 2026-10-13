@@ -138,8 +138,13 @@ func test_shipped_registry_menu_levels() -> void:
 	assert_true(root is LevelBase, "Horde Rush's root is a LevelBase")
 	root.free()
 	var pitchfork: LevelEntry = registry.get_entry(&"pitchfork_panic")
-	assert_null(pitchfork.scene, "Pitchfork Panic has no scene yet")
-	assert_null(registry.get_scene(&"pitchfork_panic"), "Pitchfork Panic has no scene to run")
+	# Story 8.3: it has its level scene (reachable from the debug jump); the card stays Coming soon until 8.7.
+	assert_not_null(pitchfork.scene, "Pitchfork Panic has its level scene")
+	assert_false(pitchfork.available, "Pitchfork Panic is still Coming soon")
+	assert_eq(registry.get_scene(&"pitchfork_panic"), pitchfork.scene, "get_scene serves it while Coming soon")
+	var pitchfork_root: Node = pitchfork.scene.instantiate()
+	assert_true(pitchfork_root is LevelBase, "Pitchfork Panic's root is a LevelBase")
+	pitchfork_root.free()
 	var menu_ids: Array[StringName] = []
 	for entry: LevelEntry in registry.menu_entries():
 		menu_ids.append(entry.id)

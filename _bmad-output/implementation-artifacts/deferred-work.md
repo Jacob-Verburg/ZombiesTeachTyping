@@ -663,5 +663,25 @@
 ## Deferred from: code review of 8-2-paragraph-target-mode (2026-10-09)
 
 - Layout assumes a monospace font: `ParagraphLayout.LINE_CHARS = 12` is a character count while the HUD measures pixel widths. Wide glyphs ("W", "M", "@") could overflow the 288 px line if the font is proportional. Verify against the shipped font in 8.6/8.7.
-- Quitting a paragraph level before the first correct key saves nothing, so the same seed and used list re-deal the same first passage. Benign; 8.3 (Pitchfork Panic) should emit at the same point.
+- Quitting a paragraph level before the first correct key saves nothing, so the same seed and used list re-deal the same first passage. Benign; 8.3 (Pitchfork Panic) should emit at the same point. Handled for Pitchfork Panic in 8.3 (`on_run_started` emits the list, the same point as the Test text level); the Test text level itself keeps the behaviour.
 - Space marker shakes with line 1 while it sits on line 2 (already noted above; spec-mandated parent).
+
+## Deferred from: dev of story 8-3 (2026-10-13)
+
+- Completion bonus: `completion_bonus = 0` in `pitchfork_panic.tres`. RunFrame still adds one bonus for every recorded end reason; 8.5 must split it into +10 for any finished run and +25 more for Escaped!.
+- The 300 s ending is RunFrame's timer (`timer`, not `escaped`). 8.5 owns turning it into the Escaped! ending (set `duration_s` to 0 and let the level emit `escaped`, or end it before the timer). `caught` is an interim ending too (no outro, no dust cloud, no "Got you!").
+- Past 20 steps the mob is off screen and only `%MobGlow` (an orange gradient strip, 48 px) hints at it. Whether a fast typist needs a stronger cue (an arrow, a distance number) is a playtest call for 8.7.
+- The sprite chases the logical step through a 0.1 s walk tween, while the mob is placed from the logical gap. Each key restarts the tween from the sprite's unfinished x, so at keys `d` seconds apart (d < 0.1 s) the sprite settles about 16·(0.1 − d)/d px behind the logical x: none at 10 keys/s or slower, 16 px at 20 keys/s, 64 px in a 50 keys/s burst. The mob's screen x (and `get_mob_screen_rect()`) is off by the same amount until the sprite catches up. Visual only; the gap and the catch use the model. (Corrected in code review; first written as "at most one step".)
+- Placeholder art: Sunny Village Green and a dark villager frame as the mob. Moonlit Village, mob sprites, dust cloud and music are 8.6. `%MobGlow` is a plain gradient there too.
+- `caps lock hint`, AltGr and dead keys (8.2 notes) still open for the Pitchfork playtest (8.7).
+- Night outlines (story-1-9 note): the ink outline is barely distinct on night backdrops. The chase uses Sunny Village Green as placeholder, so it doesn't show yet; check it when 8.6 moves Pitchfork Panic to Moonlit Village.
+- The Smuck layout verdict on the chase screenshots (`screenshots/8-3/`) was requested in chat. Resolved in code review (2026-10-13): "approved".
+
+## Deferred from: code review of 8-3-chase-movement-mob-and-camera (2026-10-13)
+
+- Mob is hidden at gaps 20–24 while it would still be on screen (x 64 at gap 20, half out at 24), so it pops out instead of walking off the left edge. AC 6/7 specify this; revisit with 8.6's mob art.
+- Mob sprite overlaps the zombie for gaps under 2 steps (both ~32 px wide, centred), while the catch fires only at gap 0. Placeholder catch visuals; 8.5/8.6.
+- `PitchforkPanicConfig.validate()` checks fields only one at a time. `mob_visible_gap_steps × step_px` beyond the left edge would hide both the mob and the glow, and `mob_visible_gap_steps ≥ GLOW_START_GAP_STEPS` (32, a level constant) makes the glow permanently transparent. Shipped values are safe; check the combinations when 8.7 tunes.
+- `MAX_FRAME_S` drops anything over 0.5 s per frame, while RunFrame's clock counts it in full, so under a sustained frame rate below 2 FPS the mob's `elapsed_s` lags the run clock and the mob stays slower than tuned.
+- `LevelRegistry.get_scene()` ignores `available`, so a Coming soon level with a scene (Pitchfork Panic now) can run from any RUN payload; only the menu card guards it. Pre-existing registry design.
+- `ChaseModel` computes `_valid` once in `_init` but reads the config live in `advance()`; mutating the shared `pitchfork_panic.tres` afterwards (e.g. `mob_accel_every_s = 0`) gives NaN and no catch. Hardening only.

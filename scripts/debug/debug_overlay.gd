@@ -26,6 +26,7 @@ extends CanvasLayer
 ## Story 8.2: "Test text" (the paragraph test level) joins %JumpRow after "Test words". The run line truncates
 ## each shown target to TARGET_SHOWN_CHARS (a passage is up to 400 characters) and shows @<cursor> after the
 ## current one.
+## Story 8.3: "Pitchfork" (the chase level, still Coming soon on the menu) closes %JumpRow after "Horde Rush".
 ## Story 6.8: "Unlock all" / "Relock all" on %JumpRow2 follow the same rules (mouse-only, main menu only).
 ## They call PlayerData.debug_set_all_unlocked(true / false) (every locked level opened with its unlock
 ## moment unseen and its "New!" badge on, or every unlock cleared), then reload the main menu so the moment
@@ -94,6 +95,7 @@ func _ready() -> void:
 	%JumpWordLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_word_level"}))
 	%JumpParagraphLevelButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"test_paragraph_level"}))
 	%JumpHordeRushButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"horde_rush"}))
+	%JumpPitchforkButton.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"pitchfork_panic"}))
 	%JumpGiftButton.pressed.connect(_jump.bind(Router.Screen.WELCOME_GIFT, {}))
 	%JumpKeyboardTestButton.pressed.connect(_jump.bind(Router.Screen.KEYBOARD_TEST, {}))
 	%UnlockAllButton.pressed.connect(_set_all_unlocked.bind(true))
@@ -350,7 +352,7 @@ static func _shown_target(target: String) -> String:
 func _refresh_jumps() -> void:
 	var on_menu: bool = _on_main_menu()
 	for button: Button in [%JumpTestLevelButton, %JumpWordLevelButton, %JumpParagraphLevelButton,
-			%JumpHordeRushButton, %JumpGiftButton, %JumpKeyboardTestButton, %UnlockAllButton, %RelockAllButton]:
+			%JumpHordeRushButton, %JumpPitchforkButton, %JumpGiftButton, %JumpKeyboardTestButton, %UnlockAllButton, %RelockAllButton]:
 		button.disabled = not on_menu
 
 

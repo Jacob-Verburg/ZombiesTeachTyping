@@ -1,5 +1,5 @@
 # generated: 2026-09-27 12:21
-# last_updated: 2026-10-09
+# last_updated: 2026-10-13
 # project: zombies-teach-typing
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-09-27 12:21
-last_updated: 2026-10-09
+last_updated: 2026-10-13
 project: zombies-teach-typing
 project_key: NOKEY
 tracking_system: file-system
@@ -116,7 +116,7 @@ development_status:
   epic-8: in-progress
   8-1-paragraphs-and-sentence-generator: done
   8-2-paragraph-target-mode: done
-  8-3-chase-movement-mob-and-camera: backlog
+  8-3-chase-movement-mob-and-camera: done
   8-4-brain-pickups-on-the-path: backlog
   8-5-caught-and-escaped-endings: backlog
   8-6-moonlit-village-mob-and-chase-music: backlog

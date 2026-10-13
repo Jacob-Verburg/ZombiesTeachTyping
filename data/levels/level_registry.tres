@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LevelRegistry" load_steps=16 format=3]
+[gd_resource type="Resource" script_class="LevelRegistry" load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/level_registry.gd" id="1_registry"]
 [ext_resource type="Script" path="res://scripts/resources/level_entry.gd" id="2_entry"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/levels/test_level/test_word_level.tscn" id="8_test_word_level"]
 [ext_resource type="PackedScene" path="res://scenes/levels/horde_rush/horde_rush_level.tscn" id="9_horde_rush"]
 [ext_resource type="PackedScene" path="res://scenes/levels/test_level/test_paragraph_level.tscn" id="10_test_paragraph_level"]
+[ext_resource type="PackedScene" path="res://scenes/levels/pitchfork_panic/pitchfork_panic_level.tscn" id="11_pitchfork_panic"]
 
 [sub_resource type="Resource" id="Resource_zombie_run"]
 script = ExtResource("2_entry")
@@ -34,6 +35,7 @@ unlocked_by = &"zombie_run"
 script = ExtResource("2_entry")
 id = &"pitchfork_panic"
 display_name = "Pitchfork Panic"
+scene = ExtResource("11_pitchfork_panic")
 debug_only = false
 available = false
 card_picture = ExtResource("7_card_pitchfork_panic")

@@ -1955,3 +1955,73 @@ func test_letter_and_word_runs_do_not_peek_for_the_hud() -> void:
 	assert_eq(frame._next_target(), "", "word mode never asks for the next target")
 	var letters: RunFrameScript = _start({"level_id": &"test_level", "seed": 42})
 	assert_eq(letters._next_target(), "")
+
+
+# --- Pitchfork Panic (Story 8.3): the chase level through a real RunFrame -----------
+
+func _start_pitchfork(data: PlayerDataScript) -> RunFrameScript:
+	var frame: RunFrameScript = _make({"level_id": &"pitchfork_panic", "seed": 42}, null, data)
+	add_child_autofree(frame)
+	return frame
+
+
+func test_pitchfork_types_the_paragraph_one_step_per_key() -> void:
+	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
+	var frame: RunFrameScript = _start_pitchfork(data)
+	var level: PitchforkPanicLevel = frame.get_level() as PitchforkPanicLevel
+	assert_not_null(level)
+	assert_eq(level.get_pool_label(), "tier_3")
+	var passage: String = frame.get_session().get_current_target()
+	assert_eq(_hud_text(frame, "%TargetLabel"), passage.substr(0, ParagraphLayout.wrap(passage)[1]),
+			"the HUD shows the paragraph")
+	assert_eq(data.get_used_passages(), [] as Array[String], "nothing saved before the first key")
+	# A capital typed as lowercase is wrong and does not step.
+	var first: String = passage[0]
+	assert_ne(first, first.to_lower())
+	_send_char(frame, first.to_lower())
+	assert_eq(level.get_model().zombie_steps, 0)
+	for i: int in 25:
+		assert_true(_send_char(frame, passage[i]))
+		assert_eq(level.get_model().zombie_steps, i + 1, "one step per correct key, in the key's call")
+		if i == 0:
+			assert_eq(data.get_used_passages(), [_current_passage_id(frame)] as Array[String],
+					"saved at the first key")
+	assert_eq(data.get_used_passages(), [_current_passage_id(frame)] as Array[String], "saved once")
+	assert_eq(_hud_text(frame, "%BrainCounter/%CountLabel"), "0", "no brains in this story")
+
+
+func test_pitchfork_caught_run_ends_as_caught_and_unlocks_nothing() -> void:
+	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
+	var frame: RunFrameScript = _start_pitchfork(data)
+	var level: PitchforkPanicLevel = frame.get_level() as PitchforkPanicLevel
+	var passage: String = frame.get_session().get_current_target()
+	_send_char(frame, passage[0])
+	var model: ChaseModel = level.get_model()
+	model.mob_steps = float(model.zombie_steps) - 0.001
+	level._process(1.0 / 60.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_nav.size(), 1)
+	assert_eq(_result().end_reason, GameConstants.END_REASON_CAUGHT)
+	for id: StringName in [&"horde_rush", &"pitchfork_panic"]:
+		assert_false(data.get_unlock_state(id)["unlocked"], "%s stays locked" % id)
+
+func test_pitchfork_catch_in_the_timers_last_frame_ends_as_caught() -> void:
+	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
+	var frame: RunFrameScript = _start_pitchfork(data)
+	var level: PitchforkPanicLevel = frame.get_level() as PitchforkPanicLevel
+	assert_lt(level.process_priority, frame.process_priority, "the level processes before RunFrame")
+	var passage: String = frame.get_session().get_current_target()
+	_send_char(frame, passage[0])
+	frame._process(frame.get_duration() - 0.01)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.RUNNING)
+	var model: ChaseModel = level.get_model()
+	model.mob_steps = float(model.zombie_steps) - 0.001
+	# The mob reaches the zombie in the frame that also reaches duration_s; engine order runs the level first.
+	level._process(0.02)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING, "caught before RunFrame's timer check")
+	frame._process(0.02)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_nav.size(), 1)
+	assert_eq(_result().end_reason, GameConstants.END_REASON_CAUGHT)

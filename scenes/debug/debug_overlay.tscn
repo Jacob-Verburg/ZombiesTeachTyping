@@ -94,6 +94,13 @@ focus_mode = 0
 theme_override_font_sizes/font_size = 8
 text = "Horde Rush"
 
+[node name="JumpPitchforkButton" type="Button" parent="Panel/Box/JumpRow"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 8
+text = "Pitchfork"
+
 [node name="JumpRow2" type="HBoxContainer" parent="Panel/Box"]
 unique_name_in_owner = true
 layout_mode = 2

@@ -508,7 +508,8 @@ func test_run_worst_survives_the_run_and_shows() -> void:
 func _jump_buttons(sut: OverlayScript) -> Array[Control]:
 	return [
 		sut.get_node("%JumpTestLevelButton") as Control, sut.get_node("%JumpWordLevelButton") as Control,
-		sut.get_node("%JumpParagraphLevelButton") as Control, sut.get_node("%JumpHordeRushButton") as Control, sut.get_node("%JumpGiftButton") as Control,
+		sut.get_node("%JumpParagraphLevelButton") as Control, sut.get_node("%JumpHordeRushButton") as Control, sut.get_node("%JumpPitchforkButton") as Control,
+		sut.get_node("%JumpGiftButton") as Control,
 		sut.get_node("%JumpKeyboardTestButton") as Control,
 	]
 
@@ -525,7 +526,7 @@ func test_jump_buttons_exist_and_never_take_focus() -> void:
 		assert_not_null(button)
 		assert_eq(button.focus_mode, Control.FOCUS_NONE, str(button.name))
 		texts.append(button.text)
-	assert_eq(texts, ["Test level", "Test words", "Test text", "Horde Rush", "Welcome gift", "Keyboard test", "Unlock all",
+	assert_eq(texts, ["Test level", "Test words", "Test text", "Horde Rush", "Pitchfork", "Welcome gift", "Keyboard test", "Unlock all",
 			"Relock all"] as Array[String])
 
 
@@ -540,6 +541,7 @@ func test_jump_buttons_navigate_from_the_main_menu() -> void:
 		[Router.Screen.RUN, {"level_id": &"test_word_level"}],
 		[Router.Screen.RUN, {"level_id": &"test_paragraph_level"}],
 		[Router.Screen.RUN, {"level_id": &"horde_rush"}],
+		[Router.Screen.RUN, {"level_id": &"pitchfork_panic"}],
 		[Router.Screen.WELCOME_GIFT, {}],
 		[Router.Screen.KEYBOARD_TEST, {}],
 	])
@@ -550,7 +552,7 @@ func test_jump_buttons_sit_on_two_rows() -> void:
 	var sut: OverlayScript = _make()
 	var rows: Dictionary[String, String] = {
 		"JumpTestLevelButton": "JumpRow", "JumpWordLevelButton": "JumpRow", "JumpParagraphLevelButton": "JumpRow",
-		"JumpHordeRushButton": "JumpRow",
+		"JumpHordeRushButton": "JumpRow", "JumpPitchforkButton": "JumpRow",
 		"JumpGiftButton": "JumpRow2", "JumpKeyboardTestButton": "JumpRow2",
 		"UnlockAllButton": "JumpRow2", "RelockAllButton": "JumpRow2",
 	}

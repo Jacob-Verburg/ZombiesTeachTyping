@@ -1,0 +1,252 @@
+extends GutTest
+## Pitchfork Panic level (Story 8.3): the paragraph source, one correct key = one logical step in the
+## key's own call, the mob advancing only between on_run_started and on_run_ending, the camera that keeps the
+## zombie at 60% of the width every frame, the mob's screen rect and the left-edge glow, the interim caught
+## ending (once), the used-passage hand-up, the frame cap, and the neutral brains. Keys go through a real
+## TypingSession wired like RunFrame; _process() is called with fixed deltas, never real time.
+
+const LevelScene: PackedScene = preload("res://scenes/levels/pitchfork_panic/pitchfork_panic_level.tscn")
+const STEP: float = 1.0 / 60.0
+const ZOMBIE_SCREEN_X: float = 384.0
+
+var _level: PitchforkPanicLevel
+var _source: TargetSource
+var _session: TypingSession
+
+
+func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> PitchforkPanicLevel:
+	_level = LevelScene.instantiate() as PitchforkPanicLevel
+	if tweak.is_valid():
+		var cfg: PitchforkPanicConfig = (_level.config as PitchforkPanicConfig).duplicate(true)
+		tweak.call(cfg)
+		_level.config = cfg
+	add_child_autofree(_level)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = rng_seed
+	_source = _level.create_target_source(rng)
+	if _source != null:
+		_session = TypingSession.new(_source, _level.get_level_config())
+		_session.run_started.connect(_level.on_run_started)
+		_session.char_accepted.connect(_level.on_char_accepted)
+		_session.char_rejected.connect(_level.on_char_rejected)
+		_session.target_completed.connect(_level.on_target_completed)
+	return _level
+
+
+## Types the next `count` correct characters of the passage.
+func _type(count: int) -> void:
+	for i: int in count:
+		var c: String = _session.get_current_target()[_session.get_cursor()]
+		assert_eq(_session.judge(c), TypingSession.Verdict.CORRECT)
+
+
+## Sets the logical gap by moving the mob (the model is public state on purpose, for tests and sims).
+func _set_gap(gap: float) -> void:
+	var model: ChaseModel = _level.get_model()
+	model.mob_steps = float(model.zombie_steps) - gap
+	_level._update_views()
+
+
+func test_source_is_a_paragraph_source_and_the_level_never_draws_text() -> void:
+	_make()
+	assert_true(_source is ParagraphSource)
+	assert_ne(_source.current(), "")
+	assert_eq(_level.get_pool_label(), (_source as ParagraphSource).get_pool_label())
+	assert_eq(_level.get_brains_earned(), 0)
+
+
+func test_broken_config_gives_null_and_an_error() -> void:
+	_make(42, func(cfg: PitchforkPanicConfig) -> void: cfg.start_gap_steps = 0.0)
+	assert_null(_source)
+	assert_push_error_count(1)
+
+
+func test_missing_paragraphs_gives_null_and_an_error() -> void:
+	_make(42, func(cfg: PitchforkPanicConfig) -> void: cfg.paragraphs = null)
+	assert_null(_source)
+	assert_push_error_count(1)
+
+
+func test_one_correct_key_is_one_step_in_the_same_call() -> void:
+	_make()
+	var seen: Array[int] = []
+	_session.char_accepted.connect(func(_e: String, _i: int) -> void: seen.append(_level.get_model().zombie_steps))
+	var model: ChaseModel = _level.get_model()
+	assert_eq(model.zombie_steps, 0)
+	_type(3)
+	assert_eq(model.zombie_steps, 3)
+	# The level's own handler runs first (connected first), so each call already saw its step.
+	assert_eq(seen, [1, 2, 3] as Array[int])
+	assert_eq(model.gap(), 18.0)
+
+
+func test_capitals_punctuation_and_spaces_all_step_and_wrong_keys_do_not() -> void:
+	_make()
+	var text: String = _session.get_current_target()
+	var head: String = text.substr(0, 80)
+	assert_ne(head, "")
+	var has_capital: bool = head != head.to_lower()
+	var has_space: bool = head.contains(" ")
+	assert_true(has_capital and has_space, "the first 80 characters hold a capital and a space")
+	_type(head.length())
+	assert_eq(_level.get_model().zombie_steps, head.length())
+	var before: int = _level.get_model().zombie_steps
+	var expected: String = _session.get_current_target()[_session.get_cursor()]
+	var wrong: String = "~" if expected != "~" else "^"
+	assert_eq(_session.judge(wrong), TypingSession.Verdict.WRONG)
+	assert_eq(_level.get_model().zombie_steps, before)
+	# A capital typed as lowercase is wrong (case sensitive).
+	var capital_at: int = -1
+	for i: int in range(_session.get_cursor(), text.length()):
+		if text[i] != text[i].to_lower():
+			capital_at = i
+			break
+	assert_gt(capital_at, -1, "the passage has a capital ahead")
+	_type(capital_at - _session.get_cursor())
+	var steps: int = _level.get_model().zombie_steps
+	assert_eq(_session.judge(text[capital_at].to_lower()), TypingSession.Verdict.WRONG)
+	assert_eq(_level.get_model().zombie_steps, steps)
+
+
+func test_process_does_nothing_before_the_run_starts_and_freezes_after() -> void:
+	_make()
+	var model: ChaseModel = _level.get_model()
+	for i: int in 120:
+		_level._process(STEP)
+	assert_eq(model.elapsed_s, 0.0, "time before the first key never counts")
+	_type(1)
+	for i: int in 60:
+		_level._process(STEP)
+	assert_almost_eq(model.elapsed_s, 1.0, 1e-6)
+	_level.on_run_ending(&"timer")
+	var frozen: float = model.mob_steps
+	for i: int in 60:
+		_level._process(STEP)
+	assert_eq(model.mob_steps, frozen)
+	# A key judged after the end moves nothing.
+	_level.on_char_accepted("x", 5)
+	assert_eq(model.zombie_steps, 1)
+
+
+func test_run_ending_returns_no_outro_and_brains_stay_zero() -> void:
+	_make()
+	watch_signals(_level)
+	_type(2)
+	assert_eq(_level.on_run_ending(&"timer"), 0.0)
+	assert_eq(_level.get_brains_earned(), 0)
+	assert_signal_not_emitted(_level, "brains_earned_changed")
+
+
+func test_zombie_stays_at_60_percent_of_the_width_every_frame() -> void:
+	_make()
+	var zombie: Node2D = _level.get_node("%Zombie")
+	var backdrop: SunnyVillageBackdrop = _level.get_node("%Backdrop")
+	assert_almost_eq(zombie.global_position.x, ZOMBIE_SCREEN_X, 0.001, "first frame")
+	assert_eq(_level.get_zombie_screen_x(), ZOMBIE_SCREEN_X)
+	for i: int in 30:
+		_type(1)
+		_level._process(STEP)
+		# Mid-tween: step the walk by hand (the tween is node-bound and the test does not wait for frames).
+		var tween: Tween = _level._walk_tween
+		assert_not_null(tween)
+		if tween != null and tween.is_valid():
+			tween.custom_step(0.03)
+		assert_almost_eq(zombie.global_position.x, ZOMBIE_SCREEN_X, 0.001, "key %d" % i)
+		var x: float = zombie.position.x
+		assert_eq(backdrop.get_layer_offset(SunnyVillageBackdrop.LAYER_GROUND),
+				fposmod(roundf(x - ZOMBIE_SCREEN_X), 640.0))
+		assert_eq(zombie.global_position.y, PitchforkPanicLevel.GROUND_Y)
+	# The sprite chases the logical position and arrives.
+	var tween_done: Tween = _level._walk_tween
+	tween_done.custom_step(1.0)
+	assert_almost_eq(zombie.position.x, 30.0 * 16.0, 0.001)
+	assert_almost_eq(zombie.global_position.x, ZOMBIE_SCREEN_X, 0.001)
+
+
+func test_mob_is_on_screen_for_gaps_under_20_and_off_it_at_30() -> void:
+	_make()
+	_type(1)
+	# The sprite chases the logical step; finish the walk so the camera has caught up with the model.
+	_level._walk_tween.custom_step(1.0)
+	for gap: float in [1.0, 5.0, 10.0, 15.0, 19.0, 19.9]:
+		_set_gap(gap)
+		var rect: Rect2 = _level.get_mob_screen_rect()
+		assert_true(rect.position.x >= 0.0 and rect.end.x <= 640.0, "gap %s rect %s" % [gap, rect])
+		assert_true((_level.get_node("%Mob") as Node2D).visible, "gap %s shows the mob" % gap)
+		assert_false((_level.get_node("%MobGlow") as Control).visible, "gap %s hides the glow" % gap)
+	# Written-out oracles: gap 15 puts the mob's feet at screen x 144, gap 20 at 64.
+	_set_gap(15.0)
+	assert_eq((_level.get_node("%Mob") as Node2D).global_position.x, 144.0)
+	_set_gap(30.0)
+	var far: Rect2 = _level.get_mob_screen_rect()
+	assert_true(far.end.x <= 0.0 or far.position.x >= 640.0, "gap 30 is off screen: %s" % far)
+
+
+func test_glow_shows_only_while_the_mob_is_off_screen_and_rises_as_it_closes() -> void:
+	_make()
+	_type(1)
+	var glow: TextureRect = _level.get_node("%MobGlow")
+	_set_gap(40.0)
+	assert_true(glow.visible)
+	assert_eq(glow.modulate.a, 0.0)
+	_set_gap(26.0)
+	var middle: float = glow.modulate.a
+	_set_gap(20.0)
+	var close: float = glow.modulate.a
+	assert_true(glow.visible)
+	assert_gt(middle, 0.0)
+	assert_gt(close, middle)
+	assert_almost_eq(close, 0.6, 1e-6)
+	assert_eq(glow.mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	_set_gap(19.0)
+	assert_false(glow.visible)
+
+
+func test_caught_emits_the_ending_exactly_once() -> void:
+	_make()
+	_type(1)
+	watch_signals(_level)
+	_set_gap(0.01)
+	_level._process(STEP)
+	_level._process(STEP)
+	_level._process(STEP)
+	assert_signal_emit_count(_level, "end_requested", 1)
+	assert_signal_emitted_with_parameters(_level, "end_requested", [GameConstants.END_REASON_CAUGHT])
+
+
+func test_used_passages_are_handed_up_at_the_start_and_on_each_completion() -> void:
+	_make()
+	watch_signals(_level)
+	_type(1)
+	assert_signal_emit_count(_level, "used_passages_changed", 1)
+	var ids: Array = get_signal_parameters(_level, "used_passages_changed", 0)[0]
+	assert_true(ids.has((_source as ParagraphSource).get_current_id()), "the current passage is in the list")
+	_level.on_target_completed("x")
+	assert_signal_emit_count(_level, "used_passages_changed", 2)
+
+
+func test_a_hitch_advances_the_mob_by_at_most_the_frame_cap() -> void:
+	_make()
+	_type(1)
+	_level._process(10.0)
+	assert_almost_eq(_level.get_model().elapsed_s, PitchforkPanicLevel.MAX_FRAME_S, 1e-6)
+	_level._process(NAN)
+	assert_almost_eq(_level.get_model().elapsed_s, PitchforkPanicLevel.MAX_FRAME_S, 1e-6)
+
+
+func test_the_level_pauses_with_the_tree() -> void:
+	_make()
+	assert_eq(_level.process_mode, Node.PROCESS_MODE_INHERIT)
+	assert_eq((_level.get_node("%MobGlow") as Control).process_mode, Node.PROCESS_MODE_INHERIT)
+	assert_true(_level.can_process(), "runs while the tree runs")
+	get_tree().paused = true
+	var paused_can_process: bool = _level.can_process()
+	get_tree().paused = false
+	assert_false(paused_can_process, "frozen while the tree is paused (PAUSED, COUNTDOWN)")
+
+
+func test_same_seed_deals_the_same_text() -> void:
+	_make(7)
+	var first: String = _source.current()
+	_make(7)
+	assert_eq(_source.current(), first)
