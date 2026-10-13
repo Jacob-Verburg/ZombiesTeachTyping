@@ -668,8 +668,8 @@
 
 ## Deferred from: dev of story 8-3 (2026-10-13)
 
-- Completion bonus: `completion_bonus = 0` in `pitchfork_panic.tres`. RunFrame still adds one bonus for every recorded end reason; 8.5 must split it into +10 for any finished run and +25 more for Escaped!.
-- The 300 s ending is RunFrame's timer (`timer`, not `escaped`). 8.5 owns turning it into the Escaped! ending (set `duration_s` to 0 and let the level emit `escaped`, or end it before the timer). `caught` is an interim ending too (no outro, no dust cloud, no "Got you!").
+- Completion bonus: `completion_bonus = 0` in `pitchfork_panic.tres`. RunFrame still adds one bonus for every recorded end reason; 8.5 must split it into +10 for any finished run and +25 more for Escaped!. Resolved in 8.5: `completion_bonus = 10`, `escape_bonus = 25` through the new `LevelBase.get_end_bonus(reason)` hook.
+- The 300 s ending is RunFrame's timer (`timer`, not `escaped`). 8.5 owns turning it into the Escaped! ending (set `duration_s` to 0 and let the level emit `escaped`, or end it before the timer). `caught` is an interim ending too (no outro, no dust cloud, no "Got you!"). Resolved in 8.5: RunFrame asks the new `LevelBase.get_timer_end_reason()` (escaped for Pitchfork Panic), so the HUD keeps counting down; the caught outro (dust cloud, dazed + "Got you!", fade) and the escape outro (bush dive + "Escaped!") are in.
 - Past 20 steps the mob is off screen and only `%MobGlow` (an orange gradient strip, 48 px) hints at it. Whether a fast typist needs a stronger cue (an arrow, a distance number) is a playtest call for 8.7.
 - The sprite chases the logical step through a 0.1 s walk tween, while the mob is placed from the logical gap. Each key restarts the tween from the sprite's unfinished x, so at keys `d` seconds apart (d < 0.1 s) the sprite settles about 16·(0.1 − d)/d px behind the logical x: none at 10 keys/s or slower, 16 px at 20 keys/s, 64 px in a 50 keys/s burst. The mob's screen x (and `get_mob_screen_rect()`) is off by the same amount until the sprite catches up. Visual only; the gap and the catch use the model. (Corrected in code review; first written as "at most one step".)
 - Placeholder art: Sunny Village Green and a dark villager frame as the mob. Moonlit Village, mob sprites, dust cloud and music are 8.6. `%MobGlow` is a plain gradient there too.
@@ -680,7 +680,7 @@
 ## Deferred from: code review of 8-3-chase-movement-mob-and-camera (2026-10-13)
 
 - Mob is hidden at gaps 20–24 while it would still be on screen (x 64 at gap 20, half out at 24), so it pops out instead of walking off the left edge. AC 6/7 specify this; revisit with 8.6's mob art.
-- Mob sprite overlaps the zombie for gaps under 2 steps (both ~32 px wide, centred), while the catch fires only at gap 0. Placeholder catch visuals; 8.5/8.6.
+- Mob sprite overlaps the zombie for gaps under 2 steps (both ~32 px wide, centred), while the catch fires only at gap 0. Placeholder catch visuals; 8.5/8.6. Resolved in 8.5 for the catch itself: the dust cloud covers both at the catch spot (the near-miss overlap at gaps under 2 remains until 8.6's mob art).
 - `PitchforkPanicConfig.validate()` checks fields only one at a time. `mob_visible_gap_steps × step_px` beyond the left edge would hide both the mob and the glow, and `mob_visible_gap_steps ≥ GLOW_START_GAP_STEPS` (32, a level constant) makes the glow permanently transparent. Shipped values are safe; check the combinations when 8.7 tunes.
 - `MAX_FRAME_S` drops anything over 0.5 s per frame, while RunFrame's clock counts it in full, so under a sustained frame rate below 2 FPS the mob's `elapsed_s` lags the run clock and the mob stays slower than tuned.
 - `LevelRegistry.get_scene()` ignores `available`, so a Coming soon level with a scene (Pitchfork Panic now) can run from any RUN payload; only the menu card guards it. Pre-existing registry design.
@@ -691,7 +691,7 @@
 - `sfx_brain_pickup` plays the brain bonk WAV (`sfx_brain_bonk.wav`) as a placeholder. 8.6 adds the real pickup file, points the cue at it and credits it in `CREDITS.md`.
 - No "Brainsss" voice line on a pickup (Zombie Run rolls 20% per brain, Horde Rush asks on every arrival). Not in 8.4's ACs; a roll would need a third child RNG drawn after the pickup one. Playtest call for 8.7.
 - Logic leads: the pickup is collected on the key that reaches its step, so when typing fast the brain pops a little before the lagging sprite reaches it (see the 8.3 walk-tween note above).
-- Pickups left on the path when the run ends stay where they are. 8.5's ending visuals decide whether to hide them.
+- Pickups left on the path when the run ends stay where they are. 8.5's ending visuals decide whether to hide them. Resolved in 8.5: `on_run_ending` hides `%Pickups`; pops already rising finish on their own.
 - Readability: the brain art (`brain_pop.png`, about 8×6 visible px in a 16×16 frame, lifted 2 px) is small, and on Sunny Village Green it sits against the fence line, so it reads more "by the fence" than "on the path". Smuck approved the layout for placeholder art; revisit size and placement with 8.6's Moonlit Village art.
 - Layout change at Smuck's visual gate: the `BrainPop` is added to `%World` after the zombie (in front of it), not to `%Pickups`, so the rise is visible; the story spec had it under the pickup's parent, where the zombie hid it.
 - Seed 42 (the debug and test seed) puts its first pickup at step 29, so nothing is on screen at the start; the screenshots use seed 58 for two pickups on screen at once. No change needed; noted for anyone checking by eye.
@@ -699,3 +699,18 @@
 ## Deferred from: code review of story 8-4-brain-pickups-on-the-path (2026-10-13)
 
 - The pickup lookahead margin (`PICKUP_LOOKAHEAD_MARGIN_STEPS`, 2 steps) is not tied to the sprite's walk lag. At a high typing speed the sprite can trail the logical step by more than the margin, so a node could appear inside the view. Revisit with 8.5/8.6 visuals.
+
+## Deferred from: dev of story 8-5 (2026-10-13)
+
+- Placeholder ending visuals: the dust cloud (`DustCloud`), dizzy stars (`DizzyStars`) and bush (`EscapeBush`) are code-drawn. 8.6 replaces them with style-sheet sprites and may give the zombie a real sit/dazed frame (the dazed pose is now a -12 degree tilt and a 2 px drop of the zombie node).
+- No ending sounds (dust-cloud thump, escape cheer) until 8.6.
+- One bush for every setting; hedge/gate variants arrive with the chase settings (Epic 10.4).
+- The report card shows one "+35 bonus" line for an escape, not "+10" and "+25" separately; the "Escaped!" moment carries the win. Revisit if playtest kids don't connect the bonus to escaping.
+- The dust cloud (about 56x36 px) and the stars (3.5 px radius) are small at 1x on the 640x360 playfield; they read in the screenshots but check them with 8.6's art and on the kid playtest (8.7).
+- `EndLabel` is 320 px wide (offsets 160-480), centred by the level from its own size; "Got you!" follows the zombie's screen x, so a zombie far right (not possible while the camera holds it at 60%) would clamp it inside the playfield.
+
+## Deferred from: code review of 8-5-caught-and-escaped-endings (2026-10-13)
+
+- Level instance reuse: `_ending_reason`, `_outro_length` and the zombie's tilt/visibility are not reset in `create_target_source`; unreachable while retry builds a fresh scene.
+- Outro durations of 0 collapse the outro to a frame and huge values stall the report card; `validate()` has no minimum or maximum beyond `>= 0` and finite.
+- Test fragility in 8.5 tests: literal timings in `test_run_frame.gd` and a two-frame wait plus manual `free()` in the mid-outro free test.

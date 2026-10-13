@@ -1020,6 +1020,8 @@ func test_lazily_uses_the_shipped_registry() -> void:
 	sut.record_run(_result(&"zombie_run", 50))
 	assert_true(sut.get_unlock_state(&"horde_rush")["unlocked"], "the shipped chain: Zombie Run opens Horde Rush")
 	assert_false(sut.get_unlock_state(&"pitchfork_panic")["unlocked"])
+	sut.record_run(_result(&"horde_rush", 50))
+	assert_true(sut.get_unlock_state(&"pitchfork_panic")["unlocked"], "a Horde Rush timer run opens Pitchfork Panic (FR79)")
 
 
 # --- used passages (Story 8.2) ---------------------------------------------------

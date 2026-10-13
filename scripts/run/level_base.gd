@@ -21,8 +21,9 @@ extends Node2D
 ##   each correct key: on_char_accepted(expected, index)
 ##   a word's (or paragraph's) last correct letter: on_char_accepted(expected, index) -> on_target_completed(target)
 ##   each wrong key: on_char_rejected(expected, typed) (also before the first correct key; never starts the run)
-##   end: clock reaches duration_s (RunFrame) or end_requested(reason) -> on_run_ending(reason) -> RunFrame reads
-##     get_brains_earned(), builds and records the RunResult -> outro wait -> report card
+##   end: clock reaches duration_s (RunFrame asks get_timer_end_reason()) or end_requested(reason)
+##     -> on_run_ending(reason) -> RunFrame reads get_brains_earned() and get_end_bonus(reason), builds and
+##     records the RunResult -> outro wait -> report card
 
 ## Emitted by the level to end the run early (one of GameConstants.END_REASON_*). RunFrame honours
 ## it only while the run is RUNNING. Declared here, emitted only by subclasses.
@@ -118,6 +119,18 @@ func on_target_completed(_target: String) -> void:
 ## before the report card (0.0 = none).
 func on_run_ending(_reason: StringName) -> float:
 	return 0.0
+
+
+## The end reason RunFrame records when the run clock reaches duration_s (or the debug F6 end). Pitchfork
+## Panic returns escaped (Story 8.5). Must be one of GameConstants.END_REASON_*.
+func get_timer_end_reason() -> StringName:
+	return GameConstants.END_REASON_TIMER
+
+
+## Bonus brains on top of LevelConfig.completion_bonus for a recorded run that ended with `reason`.
+## Pitchfork Panic's Escaped! (+25, Story 8.5). Read by RunFrame when it builds the RunResult.
+func get_end_bonus(_reason: StringName) -> int:
+	return 0
 
 
 ## Read by RunFrame when it builds the RunResult: brains earned in this run, without any bonus.

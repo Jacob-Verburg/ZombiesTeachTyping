@@ -1957,7 +1957,7 @@ func test_letter_and_word_runs_do_not_peek_for_the_hud() -> void:
 	assert_eq(letters._next_target(), "")
 
 
-# --- Pitchfork Panic (Story 8.3): the chase level through a real RunFrame -----------
+# --- Pitchfork Panic (Stories 8.3-8.5): the chase level through a real RunFrame -----------
 
 func _start_pitchfork(data: PlayerDataScript) -> RunFrameScript:
 	var frame: RunFrameScript = _make({"level_id": &"pitchfork_panic", "seed": 42}, null, data)
@@ -2008,16 +2008,19 @@ func test_pitchfork_caught_run_keeps_the_pickup_brains() -> void:
 	var model: ChaseModel = level.get_model()
 	model.mob_steps = float(model.zombie_steps) - 0.001
 	level._process(1.0 / 60.0)
-	frame._process(1.0)
+	frame._process(2.9)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING, "the 3.0 s caught outro is still playing")
+	frame._process(0.2)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_result().end_reason, GameConstants.END_REASON_CAUGHT)
 	assert_eq(_result().brains, 5)
-	assert_eq(_result().bonus_brains, 0)
-	assert_eq(data.get_brains(), before + 5, "the wallet grew by the pickup brains")
+	assert_eq(_result().bonus_brains, 10, "the finished-run bonus only")
+	assert_eq(data.get_brains(), before + 5 + 10, "the wallet grew by the pickup brains and the bonus")
 
 
-func test_pitchfork_timer_run_keeps_the_pickup_brains() -> void:
+func test_pitchfork_escaped_run_keeps_the_pickup_brains_and_gets_35() -> void:
 	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
+	var before: int = data.get_brains()
 	var frame: RunFrameScript = _start_pitchfork(data)
 	var level: PitchforkPanicLevel = frame.get_level() as PitchforkPanicLevel
 	var passage: String = frame.get_session().get_current_target()
@@ -2025,11 +2028,21 @@ func test_pitchfork_timer_run_keeps_the_pickup_brains() -> void:
 	for i: int in first_pickup:
 		assert_true(_send_char(frame, passage[i]))
 	frame._process(frame.get_duration() + 0.01)
-	frame._process(1.0)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	frame._process(2.4)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING, "the 2.5 s escape outro is still playing")
+	frame._process(0.2)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
-	assert_eq(_result().end_reason, GameConstants.END_REASON_TIMER)
+	assert_eq(_result().end_reason, GameConstants.END_REASON_ESCAPED)
 	assert_eq(_result().brains, 5)
-	assert_eq(_result().bonus_brains, 0)
+	assert_eq(_result().bonus_brains, 35, "+10 finished run, +25 escaped")
+	assert_eq(_result().duration_s, 300.0, "clamped to the clock")
+	assert_eq(data.get_brains(), before + 5 + 35)
+	var history: Array = data.save_service.get_active_profile()["run_history"]
+	assert_eq(history.size(), 1)
+	assert_eq(history[0]["end_reason"], "escaped")
+	for id: StringName in [&"horde_rush", &"pitchfork_panic"]:
+		assert_false(data.get_unlock_state(id)["unlocked"], "%s stays locked" % id)
 
 
 func test_pitchfork_caught_run_ends_as_caught_and_unlocks_nothing() -> void:
@@ -2042,12 +2055,13 @@ func test_pitchfork_caught_run_ends_as_caught_and_unlocks_nothing() -> void:
 	model.mob_steps = float(model.zombie_steps) - 0.001
 	level._process(1.0 / 60.0)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
-	frame._process(1.0)
+	frame._process(3.1)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_nav.size(), 1)
 	assert_eq(_result().end_reason, GameConstants.END_REASON_CAUGHT)
 	for id: StringName in [&"horde_rush", &"pitchfork_panic"]:
 		assert_false(data.get_unlock_state(id)["unlocked"], "%s stays locked" % id)
+
 
 func test_pitchfork_catch_in_the_timers_last_frame_ends_as_caught() -> void:
 	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
@@ -2064,6 +2078,66 @@ func test_pitchfork_catch_in_the_timers_last_frame_ends_as_caught() -> void:
 	level._process(0.02)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING, "caught before RunFrame's timer check")
 	frame._process(0.02)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	frame._process(3.1)
 	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
 	assert_eq(_nav.size(), 1)
 	assert_eq(_result().end_reason, GameConstants.END_REASON_CAUGHT)
+	assert_eq(_result().bonus_brains, 10, "a catch never gets the escape bonus")
+
+
+func test_pitchfork_debug_end_run_ends_as_escaped() -> void:
+	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
+	var frame: RunFrameScript = _make({"level_id": &"pitchfork_panic", "seed": 42}, null, data)
+	frame.is_debug_build = func() -> bool: return true
+	add_child_autofree(frame)
+	_send_char(frame, frame.get_session().get_current_target()[0])
+	frame._process(4.0)
+	assert_true(frame.debug_end_run())
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	frame._process(2.6)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.DONE)
+	assert_eq(_result().end_reason, GameConstants.END_REASON_ESCAPED)
+	assert_eq(_result().bonus_brains, 35)
+	assert_eq(_result().duration_s, 4.0, "the elapsed time so far")
+
+
+func test_pitchfork_quit_keeps_the_pickup_brains_without_a_bonus() -> void:
+	var data: PlayerDataScript = _paragraph_player_data([] as Array[String])
+	var before: int = data.get_brains()
+	var frame: RunFrameScript = _start_pitchfork(data)
+	var level: PitchforkPanicLevel = frame.get_level() as PitchforkPanicLevel
+	var passage: String = frame.get_session().get_current_target()
+	var first_pickup: int = level.get_pickup_trail().upcoming()[0]
+	for i: int in first_pickup:
+		assert_true(_send_char(frame, passage[i]))
+	assert_eq(level.get_brains_earned(), 5)
+	frame._unhandled_input(_esc())
+	_panel(frame).emit_signal("quit_chosen")
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]], "back to the menu, no report card")
+	assert_eq(data.get_brains(), before + 5, "pickup brains kept, no bonus (FR13)")
+	assert_eq(data.save_service.get_active_profile()["run_history"].size(), 0, "a quit records nothing")
+
+
+func test_a_bad_timer_end_reason_records_timer_and_logs() -> void:
+	var node: LevelBase = (load("res://scenes/levels/test_level/test_level.tscn") as PackedScene).instantiate()
+	var config: LevelConfig = node.config
+	node.set_script(load("res://tests/fixtures/levels/bad_end_reason_level.gd"))
+	node.config = config
+	var packed: PackedScene = PackedScene.new()
+	packed.pack(node)
+	node.free()
+	var registry: LevelRegistry = LevelRegistry.new()
+	var entry: LevelEntry = LevelEntry.new()
+	entry.id = &"bad_end"
+	entry.scene = packed
+	registry.entries = [entry]
+	var frame: RunFrameScript = _make({"level_id": &"bad_end", "seed": 42}, registry, _fake_player_data())
+	add_child_autofree(frame)
+	assert_eq(frame.get_level().get_timer_end_reason(), &"bogus")
+	_type_correct(frame)
+	frame._process(frame.get_duration() + 0.01)
+	assert_eq(frame.get_state(), RunFrameScript.RunState.ENDING)
+	assert_push_error_count(1)
+	frame._process(1.0)
+	assert_eq(_result().end_reason, GameConstants.END_REASON_TIMER, "a bad label never loses the run")

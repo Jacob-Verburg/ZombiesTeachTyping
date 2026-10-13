@@ -1,5 +1,5 @@
 extends GutTest
-## PitchforkPanicConfig (Stories 8.3, 8.4): the shipped .tres validates and holds the GDD numbers; each bad
+## PitchforkPanicConfig (Stories 8.3, 8.4, 8.5): the shipped .tres validates and holds the GDD numbers; each bad
 ## number is rejected with its own message.
 
 const PATH: String = "res://data/levels/pitchfork_panic.tres"
@@ -18,7 +18,7 @@ func test_shipped_config_validates_with_the_spec_numbers() -> void:
 	assert_true(config.case_sensitive)
 	assert_true(config.space_is_input)
 	assert_eq(config.target_mode, LevelConfig.TargetMode.PARAGRAPH)
-	assert_eq(config.completion_bonus, 0)
+	assert_eq(config.completion_bonus, 10)
 	assert_eq(config.music_id, &"")
 	assert_not_null(config.paragraphs)
 	assert_not_null(config.tier_word_pools)
@@ -33,6 +33,12 @@ func test_shipped_config_validates_with_the_spec_numbers() -> void:
 	assert_eq(config.pickup_min_steps, 10)
 	assert_eq(config.pickup_max_steps, 30)
 	assert_eq(config.brains_per_pickup, 5)
+	assert_eq(config.escape_bonus, 25)
+	assert_eq(config.caught_dust_s, 1.5)
+	assert_eq(config.caught_dazed_s, 1.0)
+	assert_eq(config.caught_fade_s, 0.5)
+	assert_eq(config.escape_dive_s, 1.5)
+	assert_eq(config.escape_label_s, 1.0)
 
 
 func test_default_config_is_rejected() -> void:
@@ -60,6 +66,17 @@ func test_bad_numbers_are_rejected_with_their_message() -> void:
 		["pickup_min_steps", 0, "pickup_min_steps must be at least 1"],
 		["pickup_max_steps", 9, "pickup_max_steps must not be below pickup_min_steps"],
 		["brains_per_pickup", 0, "brains_per_pickup must be at least 1"],
+		["escape_bonus", -1, "escape_bonus must not be negative"],
+		["caught_dust_s", -0.1, "caught_dust_s must be finite and not negative"],
+		["caught_dust_s", INF, "caught_dust_s must be finite and not negative"],
+		["caught_dazed_s", -0.1, "caught_dazed_s must be finite and not negative"],
+		["caught_dazed_s", INF, "caught_dazed_s must be finite and not negative"],
+		["caught_fade_s", -0.1, "caught_fade_s must be finite and not negative"],
+		["caught_fade_s", INF, "caught_fade_s must be finite and not negative"],
+		["escape_dive_s", -0.1, "escape_dive_s must be finite and not negative"],
+		["escape_dive_s", INF, "escape_dive_s must be finite and not negative"],
+		["escape_label_s", -0.1, "escape_label_s must be finite and not negative"],
+		["escape_label_s", NAN, "escape_label_s must be finite and not negative"],
 	]
 	for c: Array in cases:
 		var config: PitchforkPanicConfig = _shipped()

@@ -4,8 +4,10 @@ extends GutTest
 ## zombie at 60% of the width every frame, the mob's screen rect and the left-edge glow, the interim caught
 ## ending (once), the used-passage hand-up, the frame cap. Story 8.4: brain pickups placed by distance from
 ## the second child RNG, collected in the key's own call (brains, signal, sound), their nodes on the path.
-## Keys go through a real TypingSession wired like RunFrame; _process() is called with fixed deltas, never
-## real time.
+## Story 8.5: the two hooks (escaped at the clock, +25 escape bonus) and both outros by beats. Keys go
+## through a real TypingSession wired like RunFrame; _process() is called with fixed deltas, never real time.
+## Outro beats are driven with Tween.custom_step() on the level's outro tween (get_outro_tween()), so they are
+## deterministic and fast; the tree's own frames add only a few real milliseconds on top.
 
 const LevelScene: PackedScene = preload("res://scenes/levels/pitchfork_panic/pitchfork_panic_level.tscn")
 const STEP: float = 1.0 / 60.0
@@ -137,10 +139,22 @@ func test_process_does_nothing_before_the_run_starts_and_freezes_after() -> void
 	assert_eq(model.zombie_steps, 1)
 
 
-func test_run_ending_returns_no_outro() -> void:
+func test_run_ending_returns_each_outro_length_once() -> void:
 	_make()
 	_type(2)
-	assert_eq(_level.on_run_ending(&"timer"), 0.0)
+	assert_almost_eq(_level.on_run_ending(&"caught"), 1.5 + 1.0 + 0.5, 1e-6)
+	var tween: Tween = _level.get_outro_tween()
+	assert_almost_eq(_level.on_run_ending(&"caught"), 3.0, 1e-6, "a repeat returns the same")
+	assert_almost_eq(_level.on_run_ending(&"escaped"), 3.0, 1e-6, "a repeat with another reason too")
+	assert_same(_level.get_outro_tween(), tween, "a repeat call does not restart the outro")
+	_make()
+	_type(2)
+	assert_almost_eq(_level.on_run_ending(&"escaped"), 1.5 + 1.0, 1e-6)
+	_make()
+	_type(2)
+	assert_eq(_level.on_run_ending(&"timer"), 0.0, "an unknown reason has no outro")
+	assert_null(_level.get_outro_tween())
+	assert_almost_eq(_level.on_run_ending(&"caught"), 3.0, 1e-6, "an unknown reason does not block a real one")
 
 
 func test_zombie_stays_at_60_percent_of_the_width_every_frame() -> void:
@@ -448,3 +462,190 @@ func test_pickups_draw_behind_the_mob_and_the_zombie() -> void:
 	assert_eq(pickups.get_parent(), _level.get_node("%World"))
 	assert_lt(pickups.get_index(), _level.get_node("%Mob").get_index())
 	assert_lt(pickups.get_index(), _level.get_node("%Zombie").get_index())
+
+
+# --- Story 8.5: endings ---
+
+
+func test_the_clock_ends_the_run_as_escaped_with_a_25_bonus() -> void:
+	_make()
+	assert_eq(_level.get_timer_end_reason(), GameConstants.END_REASON_ESCAPED)
+	assert_eq(_level.get_end_bonus(&"escaped"), 25)
+	assert_eq(_level.get_end_bonus(&"caught"), 0)
+	assert_eq(_level.get_end_bonus(&"timer"), 0)
+
+
+func test_hooks_and_ending_are_safe_without_a_config() -> void:
+	_level = LevelScene.instantiate() as PitchforkPanicLevel
+	_level.config = null
+	_level.play_sfx = func(_id: StringName) -> void: pass
+	add_child_autofree(_level)
+	assert_push_error_count(1)
+	assert_eq(_level.get_timer_end_reason(), GameConstants.END_REASON_ESCAPED)
+	assert_eq(_level.get_end_bonus(&"escaped"), 0)
+	assert_eq(_level.on_run_ending(&"caught"), 0.0)
+
+
+func _visible(unique: String) -> bool:
+	return (_level.get_node(unique) as CanvasItem).visible
+
+
+func test_caught_outro_by_beats() -> void:
+	_make()
+	_type(3)
+	var label: Label = _level.get_node("%EndLabel")
+	var fade: ColorRect = _level.get_node("%Fade")
+	var zombie: Node2D = _level.get_node("%Zombie")
+	assert_false(_visible("%DustCloud"))
+	_level.on_run_ending(&"caught")
+	var tween: Tween = _level.get_outro_tween()
+	tween.custom_step(0.1)
+	assert_true(_visible("%DustCloud"), "t=0.1: the cloud covers the scuffle")
+	assert_eq((_level.get_node("%DustCloud") as Node2D).position.x, zombie.position.x, "on the zombie")
+	assert_false(label.visible)
+	assert_false(_visible("%DizzyStars"))
+	tween.custom_step(1.5)
+	assert_false(_visible("%DustCloud"), "t=1.6: the cloud is gone")
+	assert_true(_visible("%DizzyStars"))
+	assert_true(label.visible)
+	assert_eq(label.text, "Got you!")
+	assert_eq(fade.modulate.a, 0.0)
+	assert_ne(zombie.rotation_degrees, 0.0, "dazed tilt")
+	tween.custom_step(1.3)
+	assert_gt(fade.modulate.a, 0.5, "t=2.9: fading to night")
+	assert_true(zombie.is_inside_tree())
+	assert_true(zombie.visible)
+	tween.custom_step(0.2)
+	assert_almost_eq(fade.modulate.a, 1.0, 1e-6)
+
+
+func test_the_fade_covers_the_hud_band_in_night() -> void:
+	_make()
+	var layer: CanvasLayer = _level.get_node("FadeLayer")
+	assert_eq(layer.layer, 10, "over the HUD, under Router's 100")
+	var fade: ColorRect = _level.get_node("%Fade")
+	assert_eq(fade.color, Color("#2B1D3F"))
+	assert_eq(fade.mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	assert_eq(fade.size, Vector2(640.0, 360.0))
+
+
+func test_end_label_is_candy_yellow_with_an_ink_outline_and_readable() -> void:
+	_make()
+	var label: Label = _level.get_node("%EndLabel")
+	assert_eq(label.get_theme_color(&"font_color"), Color("#FFD23F"))
+	assert_eq(label.get_theme_color(&"font_outline_color"), Color("#1E1428"))
+	assert_gte(label.get_theme_font_size(&"font_size"), 16)
+	assert_eq(label.mouse_filter, Control.MOUSE_FILTER_IGNORE)
+
+
+func test_got_you_stays_inside_the_playfield() -> void:
+	_make()
+	_type(3)
+	_level.on_run_ending(&"caught")
+	_level.get_outro_tween().custom_step(1.6)
+	var label: Label = _level.get_node("%EndLabel")
+	assert_gte(label.position.x, 0.0)
+	assert_lte(label.position.x + label.size.x, PitchforkPanicLevel.SCREEN_W)
+	var centre: float = label.position.x + label.size.x / 2.0
+	var zombie_screen_x: float = (_level.get_node("%Zombie") as Node2D).global_position.x
+	assert_almost_eq(centre, zombie_screen_x, 1.0, "centred over the zombie")
+
+
+func test_escape_outro_by_beats_with_the_camera_stopped() -> void:
+	_make()
+	_type(3)
+	var world: Node2D = _level.get_node("%World")
+	var zombie: Node2D = _level.get_node("%Zombie")
+	var label: Label = _level.get_node("%EndLabel")
+	var world_x: float = world.position.x
+	var start_x: float = zombie.position.x
+	_level.on_run_ending(&"escaped")
+	var tween: Tween = _level.get_outro_tween()
+	tween.custom_step(0.1)
+	assert_true(_visible("%EscapeBush"), "t=0.1: the bush is there")
+	assert_true(zombie.visible)
+	assert_gt(zombie.position.x, start_x, "running at the bush")
+	var bush: Node2D = _level.get_node("%EscapeBush")
+	assert_almost_eq(bush.position.x, start_x + PitchforkPanicLevel.ESCAPE_BUSH_AHEAD_PX, 1e-3)
+	assert_false(label.visible)
+	tween.custom_step(1.5)
+	assert_false(zombie.visible, "t=1.6: into the bush")
+	assert_true(label.visible)
+	assert_eq(label.text, "Escaped!")
+	assert_almost_eq(label.position.x + label.size.x / 2.0, 320.0, 1.0)
+	assert_eq(world.position.x, world_x, "the camera stopped for the dive")
+	assert_eq((_level.get_node("%Fade") as ColorRect).modulate.a, 0.0, "no fade: the Router fades next")
+
+
+func test_endings_hide_the_pickups_and_keep_the_brains() -> void:
+	for reason: StringName in [&"caught", &"escaped"]:
+		_make()
+		var first: int = _first_pickup()
+		_type(first)
+		assert_eq(_level.get_brains_earned(), 5)
+		_level.on_run_ending(reason)
+		assert_false(_visible("%Pickups"), "%s: pickups left on the path disappear" % reason)
+		assert_eq(_level.get_brains_earned(), 5)
+		_level.on_char_accepted("x", 999)
+		assert_eq(_level.get_model().zombie_steps, first, "%s: keys after the end move nothing" % reason)
+
+
+func test_endings_draw_in_front_of_the_mob_and_the_zombie() -> void:
+	_make()
+	var zombie_index: int = _level.get_node("%Zombie").get_index()
+	for unique: String in ["%EscapeBush", "%DustCloud", "%DizzyStars"]:
+		var node: Node = _level.get_node(unique)
+		assert_eq(node.get_parent(), _level.get_node("%World"), unique)
+		assert_gt(node.get_index(), zombie_index, unique)
+		assert_false((node as CanvasItem).visible, "%s starts hidden" % unique)
+
+
+func test_freeing_the_level_mid_outro_stops_everything() -> void:
+	_make()
+	_type(3)
+	_level.on_run_ending(&"caught")
+	var tween: Tween = _level.get_outro_tween()
+	tween.custom_step(0.5)
+	var dust: Tween = (_level.get_node("%DustCloud") as DustCloud).get_tween()
+	remove_child(_level)
+	_level.free()
+	# A tween whose bound node is gone is killed on its next tree step.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_false(tween.is_valid(), "the outro died with the level")
+	assert_false(dust.is_valid())
+
+
+func test_dust_cloud_hides_itself_after_play() -> void:
+	var cloud: DustCloud = DustCloud.new()
+	add_child_autofree(cloud)
+	cloud.position.x = 40.0
+	cloud.play(0.5)
+	assert_true(cloud.visible)
+	cloud.get_tween().custom_step(0.6)
+	assert_false(cloud.visible)
+	assert_eq(cloud.scale, Vector2.ONE)
+	assert_eq(cloud.position.x, 40.0)
+
+
+func test_dizzy_stars_orbit_while_shown_and_stop_hides() -> void:
+	var stars: DizzyStars = DizzyStars.new()
+	stars.visible = false
+	add_child_autofree(stars)
+	stars.start()
+	assert_true(stars.visible)
+	stars._process(0.25)
+	assert_almost_eq(stars.get_angle(), TAU * 0.25, 1e-4)
+	stars.stop()
+	assert_false(stars.visible)
+	assert_false(stars.is_processing())
+
+
+func test_escape_bush_rustle_ends_at_scale_1() -> void:
+	var bush: EscapeBush = EscapeBush.new()
+	add_child_autofree(bush)
+	bush.rustle(0.3)
+	bush.get_tween().custom_step(0.1)
+	assert_ne(bush.scale, Vector2.ONE)
+	bush.get_tween().custom_step(0.3)
+	assert_eq(bush.scale, Vector2.ONE)

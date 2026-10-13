@@ -1,6 +1,6 @@
 class_name PitchforkPanicConfig
 extends LevelConfig
-## Pitchfork Panic's own tuning numbers (Story 8.3 chase, Story 8.4 brain pickups), on top of the shared
+## Pitchfork Panic's own tuning numbers (Story 8.3 chase, Story 8.4 brain pickups, Story 8.5 endings), on top of the shared
 ## LevelConfig fields. A
 ## PitchforkPanicConfig is a LevelConfig, so RunFrame, TypingInput and the HUD read it unchanged. Real
 ## values live in data/levels/pitchfork_panic.tres; the defaults here are neutral. The one number that is
@@ -28,6 +28,18 @@ extends LevelConfig
 @export var pickup_max_steps: int = 0
 ## FR72: brains one pickup pays.
 @export var brains_per_pickup: int = 0
+## FR73: brains added on top of completion_bonus when the zombie escapes (the clock reaches duration_s).
+@export var escape_bonus: int = 0
+## FR73: seconds the dust cloud covers the zombie and the mob after a catch.
+@export var caught_dust_s: float = 0.0
+## FR73: seconds the zombie sits dazed with stars and "Got you!" after the dust cloud.
+@export var caught_dazed_s: float = 0.0
+## FR73: seconds the screen takes to fade to night after the dazed beat.
+@export var caught_fade_s: float = 0.0
+## FR73: seconds the zombie takes to dive into the bush when it escapes.
+@export var escape_dive_s: float = 0.0
+## Look value (the GDD gives none): seconds "Escaped!" shows before the report card.
+@export var escape_label_s: float = 0.0
 
 
 ## Empty when the numbers can run a level; otherwise the first problem found.
@@ -67,4 +79,14 @@ func validate() -> String:
 		return "pickup_max_steps must not be below pickup_min_steps"
 	if brains_per_pickup < 1:
 		return "brains_per_pickup must be at least 1"
+	if escape_bonus < 0:
+		return "escape_bonus must not be negative"
+	var times: Dictionary[String, float] = {
+		"caught_dust_s": caught_dust_s, "caught_dazed_s": caught_dazed_s, "caught_fade_s": caught_fade_s,
+		"escape_dive_s": escape_dive_s, "escape_label_s": escape_label_s,
+	}
+	for key: String in times:
+		var value: float = times[key]
+		if not (value >= 0.0 and is_finite(value)):
+			return "%s must be finite and not negative" % key
 	return ""

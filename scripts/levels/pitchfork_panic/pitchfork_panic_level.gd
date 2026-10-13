@@ -1,6 +1,6 @@
 class_name PitchforkPanicLevel
 extends LevelBase
-## Pitchfork Panic (Stories 8.3, 8.4): the chase. Every correct key moves the zombie one step away from the mob
+## Pitchfork Panic (Stories 8.3, 8.4, 8.5): the chase. Every correct key moves the zombie one step away from the mob
 ## (ChaseModel.step(), the logical position, in the key's own call); the mob advances by run time in
 ## _process(). The text is a paragraph dealt exactly as in the Test text level (ParagraphSource); the level
 ## draws none of it.
@@ -11,7 +11,8 @@ extends LevelBase
 ##
 ## Camera without Camera2D (same technique as Zombie Run): the level scrolls %World, and _set_zombie_x()
 ## moves the zombie, the world and the backdrop in one call, so the zombie is at zombie_screen_x_frac of the
-## 640 px width every frame. Nothing else ever tweens the zombie's position.
+## 640 px width every frame. Nothing else ever tweens the zombie's position, except the escape dive (below),
+## where the camera stops and only the zombie node runs off into the bush.
 ##
 ## The mob lives in world coordinates at mob_steps * step_px, so it scrolls with %World. It is on screen
 ## whenever the gap is under mob_visible_gap_steps; otherwise %MobGlow, a strip on the left edge, warns that
@@ -21,10 +22,17 @@ extends LevelBase
 ## COUNTDOWN) stops it, so the mob freezes for free. A frame is capped at MAX_FRAME_S (a longer hitch is
 ## dropped, never paid as a burst) and split into equal steps of at most MAX_STEP_S.
 ##
-## Interim endings (replaced by Story 8.5): when the mob catches the zombie the level emits
-## end_requested(&"caught") once and on_run_ending() returns 0.0 (no outro). A run that reaches duration_s
-## still ends through RunFrame's timer. The level processes before RunFrame (PROCESS_PRIORITY), so a catch
-## in the timer's last frame ends the run as caught, not timer.
+## Endings (Story 8.5, FR73): when the mob catches the zombie the level emits end_requested(&"caught") once.
+## When RunFrame's clock reaches duration_s it asks get_timer_end_reason(), which is escaped here, and
+## get_end_bonus(escaped) adds escape_bonus on top of the config's completion_bonus. The level processes
+## before RunFrame (PROCESS_PRIORITY), so a catch in the clock's last frame ends the run as caught.
+## on_run_ending() stops the chase, hides the pickups left on the path and starts the outro, returning its
+## length: caught = a dust cloud over the zombie and the mob (caught_dust_s), the zombie dazed with circling
+## stars and "Got you!" (caught_dazed_s), then a fade to night on a CanvasLayer over the HUD (caught_fade_s);
+## escaped = the zombie hops into a bush ahead and vanishes (escape_dive_s), then "Escaped!"
+## (escape_label_s). The outro is visuals only: one node-bound tween chain, nothing awaits, the result was
+## decided before it starts, and freeing the level mid-outro leaves nothing running. The mob stays where it
+## froze.
 ##
 ## Brain pickups (Story 8.4, FR72): a PickupTrail places pickups by distance on the path (min to max steps
 ## apart). When a correct key raises zombie_steps to a pickup's step it is collected in that key's call,
@@ -36,7 +44,8 @@ extends LevelBase
 ## it rises in front of it (Smuck's layout call). Nothing time-based collects anything.
 ##
 ## Placeholder art (replaced by Story 8.6): Sunny Village Green as the backdrop, the mob is one dark
-## villager frame with an orange torch. No new art files.
+## villager frame with an orange torch; the dust cloud, dizzy stars and bush are code-drawn (DustCloud,
+## DizzyStars, EscapeBush). No new art files.
 ##
 ## Randomness: the run RNG's first randi() seeds the paragraph source's child RNG (unchanged from 8.3, so a
 ## seed deals the same text), its second seeds the pickup trail's child RNG; after create_target_source the
@@ -65,6 +74,23 @@ const PROCESS_PRIORITY: int = -1
 const PICKUP_LOOKAHEAD_MARGIN_STEPS: int = 2
 const SFX_PICKUP: StringName = &"sfx_brain_pickup"
 const PICKUP_SCENE: PackedScene = preload("res://scenes/levels/pitchfork_panic/brain_pickup.tscn")
+## The caught outro's label (EXPERIENCE.md string table).
+const TEXT_CAUGHT: String = "Got you!"
+## The escape outro's label (EXPERIENCE.md string table).
+const TEXT_ESCAPED: String = "Escaped!"
+## The bush stands this far ahead of the zombie when it escapes. Layout, not a GDD number.
+const ESCAPE_BUSH_AHEAD_PX: float = 48.0
+## Share of escape_dive_s spent running to the bush; for the rest the bush rustles with the zombie inside.
+const ESCAPE_RUN_SHARE: float = 0.8
+## Height of the hop into the bush in px (look value).
+const ESCAPE_HOP_PX: float = 10.0
+## The end label's top edge in playfield px. Layout, not a GDD number.
+const END_LABEL_Y: float = 100.0
+## The dazed pose: the zombie tilts this many degrees and drops this many px (placeholder for a sit frame).
+const DAZED_TILT_DEG: float = -12.0
+const DAZED_DROP_PX: float = 2.0
+## The stars circle this many px above the zombie's feet (over its head). Layout value.
+const STARS_ABOVE_FEET_PX: float = 34.0
 
 ## Plays a sound effect by id. _ready() points it at AudioManager.play_sfx unless a test assigned a recorder
 ## before add_child.
@@ -81,6 +107,12 @@ var _brains: int = 0
 var _pickup_nodes: Dictionary[int, BrainPickup] = {}
 ## The sprite's single walk tween; every correct key kills and restarts it.
 var _walk_tween: Tween
+## The reason on_run_ending() was first called with (&"" before the run ends); a repeat call starts nothing.
+var _ending_reason: StringName = &""
+## The outro length on_run_ending() returned.
+var _outro_length: float = 0.0
+## The outro's node-bound tween chain (null before an outro starts).
+var _outro_tween: Tween
 
 @onready var _zombie: PlayerZombie = %Zombie
 @onready var _world: Node2D = %World
@@ -88,6 +120,11 @@ var _walk_tween: Tween
 @onready var _mob: Node2D = %Mob
 @onready var _pickups: Node2D = %Pickups
 @onready var _glow: TextureRect = %MobGlow
+@onready var _dust: DustCloud = %DustCloud
+@onready var _stars: DizzyStars = %DizzyStars
+@onready var _bush: EscapeBush = %EscapeBush
+@onready var _end_label: Label = %EndLabel
+@onready var _fade: ColorRect = %Fade
 
 
 func _ready() -> void:
@@ -159,15 +196,51 @@ func on_target_completed(_target: String) -> void:
 		used_passages_changed.emit(_paragraphs.get_used_ids())
 
 
-## Interim ending (Story 8.5 replaces it): the camera stays put, the zombie idles, no outro. Pickups left
-## on the path stay where they are.
-func on_run_ending(_reason: StringName) -> float:
+## Stops the chase, hides the pickups left on the path and starts the outro for `reason` (see the class
+## doc). Returns its length: caught_dust_s + caught_dazed_s + caught_fade_s for caught, escape_dive_s +
+## escape_label_s for escaped, 0.0 for anything else. A second call starts nothing and returns the same.
+func on_run_ending(reason: StringName) -> float:
+	if _ending_reason != &"":
+		return _outro_length
 	_running = false
 	if _walk_tween != null and _walk_tween.is_valid():
 		_walk_tween.kill()
 	if _zombie != null:
 		_zombie.play_idle()
-	return 0.0
+	if _pickups != null:
+		_pickups.visible = false
+	var known: bool = reason == GameConstants.END_REASON_CAUGHT or reason == GameConstants.END_REASON_ESCAPED
+	if _cfg == null or not known:
+		return 0.0
+	if _zombie == null or _dust == null or _stars == null or _bush == null or _end_label == null or _fade == null:
+		Log.error(&"level", "pitchfork panic level is missing an outro node; skipping the outro")
+		return 0.0
+	_ending_reason = reason
+	match reason:
+		GameConstants.END_REASON_CAUGHT:
+			_play_caught()
+			_outro_length = _cfg.caught_dust_s + _cfg.caught_dazed_s + _cfg.caught_fade_s
+		GameConstants.END_REASON_ESCAPED:
+			_play_escape()
+			_outro_length = _cfg.escape_dive_s + _cfg.escape_label_s
+	return _outro_length
+
+
+## RunFrame's clock ending the run means the zombie got away (FR73).
+func get_timer_end_reason() -> StringName:
+	return GameConstants.END_REASON_ESCAPED
+
+
+## escape_bonus for an escaped run (FR73, +25), else 0; 0 without a config.
+func get_end_bonus(reason: StringName) -> int:
+	if _cfg == null or reason != GameConstants.END_REASON_ESCAPED:
+		return 0
+	return _cfg.escape_bonus
+
+
+## The outro's tween chain, for tests (custom_step); null before an outro starts.
+func get_outro_tween() -> Tween:
+	return _outro_tween
 
 
 ## The brains from pickups collected this run.
@@ -191,6 +264,58 @@ func _process(delta: float) -> void:
 		_caught_emitted = true
 		_running = false
 		end_requested.emit(GameConstants.END_REASON_CAUGHT)
+
+
+## Caught: the dust cloud covers the zombie and the mob, then the dazed beat, then the fade to night.
+func _play_caught() -> void:
+	_dust.position = Vector2(_zombie.position.x, GROUND_Y)
+	_dust.play(_cfg.caught_dust_s)
+	_outro_tween = create_tween()
+	_outro_tween.tween_interval(_cfg.caught_dust_s)
+	_outro_tween.tween_callback(_show_dazed)
+	_outro_tween.tween_interval(_cfg.caught_dazed_s)
+	_outro_tween.tween_property(_fade, "modulate:a", 1.0, _cfg.caught_fade_s)
+
+
+## The dazed beat: no cloud, the zombie tilted and lowered with stars over its head, "Got you!" above it.
+func _show_dazed() -> void:
+	_dust.visible = false
+	_zombie.play_idle()
+	_zombie.rotation_degrees = DAZED_TILT_DEG
+	_zombie.position.y = GROUND_Y + DAZED_DROP_PX
+	_stars.position = Vector2(_zombie.position.x, GROUND_Y - STARS_ABOVE_FEET_PX)
+	_stars.start()
+	_show_end_label(TEXT_CAUGHT, _world.position.x + _zombie.position.x)
+
+
+## Escaped: the camera stops; the zombie hops forward into the bush and vanishes, then "Escaped!".
+func _play_escape() -> void:
+	var bush_x: float = _zombie.position.x + ESCAPE_BUSH_AHEAD_PX
+	_bush.position = Vector2(bush_x, GROUND_Y)
+	_bush.visible = true
+	var run_s: float = _cfg.escape_dive_s * ESCAPE_RUN_SHARE
+	_zombie.play_walk()
+	_zombie.hop(run_s, ESCAPE_HOP_PX)
+	_outro_tween = create_tween()
+	_outro_tween.tween_property(_zombie, "position:x", bush_x, run_s)
+	_outro_tween.tween_callback(_vanish_into_bush)
+	_outro_tween.tween_interval(_cfg.escape_dive_s - run_s)
+	_outro_tween.tween_callback(_show_end_label.bind(TEXT_ESCAPED, SCREEN_W / 2.0))
+
+
+## The zombie reaches the bush: gone, and the bush rustles for the rest of the dive.
+func _vanish_into_bush() -> void:
+	_zombie.stop_hop()
+	_zombie.visible = false
+	_bush.rustle(_cfg.escape_dive_s * (1.0 - ESCAPE_RUN_SHARE))
+
+
+## Shows `text` centred on screen x `centre_x`, kept inside the playfield.
+func _show_end_label(text: String, centre_x: float) -> void:
+	_end_label.text = text
+	var width: float = _end_label.size.x
+	_end_label.position = Vector2(clampf(centre_x - width / 2.0, 0.0, SCREEN_W - width), END_LABEL_Y)
+	_end_label.visible = true
 
 
 ## The chase model (for tests and the headless sim); null before create_target_source succeeds.

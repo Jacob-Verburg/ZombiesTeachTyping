@@ -8,7 +8,9 @@ extends Control
 ## only then is the tree unpaused; Quit to Menu commits the level's brains and records nothing.
 ## A finished run is built and saved through PlayerData.record_run (2.8) on entering ENDING, so closing the
 ## game during the outro loses nothing; DONE only opens the report card. A completed run adds the level
-## config's completion_bonus as the RunResult's bonus (Story 3.5); Quit to Menu never does.
+## config's completion_bonus plus the level's get_end_bonus(reason) as the RunResult's bonus (Stories 3.5,
+## 8.5); Quit to Menu never does. When the clock (or the debug F6) ends a run, the level's
+## get_timer_end_reason() names the reason (timer by default, escaped for Pitchfork Panic).
 ## Debug hooks (Story 2.10): the overlay reads the plain getters, pins a replay seed in the debug_seed
 ## static and ends a run with debug_end_run(); both are gated by the is_debug_build seam.
 ## Ambience (the groans, Story 3.7) is on exactly while RUNNING, switched through the set_ambience seam.
@@ -167,7 +169,7 @@ func _process(delta: float) -> void:
 	match _state:
 		RunState.RUNNING:
 			if _duration > 0.0 and _clock.get_elapsed() >= _duration:
-				_end_run(GameConstants.END_REASON_TIMER)
+				_end_run(_clock_end_reason())
 		RunState.ENDING:
 			_outro_left -= delta
 			if _outro_left <= 0.0:
@@ -211,7 +213,7 @@ func debug_end_run() -> bool:
 	if not is_debug_build.call() or _state != RunState.RUNNING or _quitting:
 		Log.debug(&"run", "debug end run refused in %s" % RunState.keys()[_state])
 		return false
-	_end_run(GameConstants.END_REASON_TIMER)
+	_end_run(_clock_end_reason())
 	return true
 
 
@@ -432,6 +434,18 @@ func _after_resume() -> void:
 	%Hud.set_caps_hint(false)
 
 
+## The reason a clock-ended run records: the level's get_timer_end_reason(). A value that is not one of
+## the END_REASON_* constants is logged and recorded as timer, so a bad label never loses a run (NFR16).
+func _clock_end_reason() -> StringName:
+	var reason: StringName = _level.get_timer_end_reason()
+	if reason not in [
+			GameConstants.END_REASON_TIMER, GameConstants.END_REASON_CAUGHT,
+			GameConstants.END_REASON_ESCAPED]:
+		Log.error(&"run", "level %s gave unknown timer end reason '%s'" % [_level_id, reason])
+		return GameConstants.END_REASON_TIMER
+	return reason
+
+
 func _end_run(reason: StringName) -> void:
 	_end_reason = reason
 	_set_state(RunState.ENDING)
@@ -441,12 +455,14 @@ func _end_run(reason: StringName) -> void:
 ## result changes during the outro. Saved now, not at DONE, so a close during the outro keeps the run.
 func _record_result() -> void:
 	var duration: float = _clock.get_elapsed()
-	# A no-timer level (duration <= 0) only ends on "timer" through the debug F6: keep the elapsed time.
-	if _end_reason == GameConstants.END_REASON_TIMER and _duration > 0.0:
+	# A clock-ended run never records more than duration_s (a run ended earlier is already under it). A
+	# no-timer level (duration <= 0) only ends on the clock through the debug F6: keep the elapsed time.
+	if _duration > 0.0:
 		duration = minf(duration, _duration)
+	var bonus: int = _completion_bonus + maxi(0, _level.get_end_bonus(_end_reason))
 	_result = RunResult.create(
 		_level_id, int(Time.get_unix_time_from_system()), duration, _session.get_keys_typed(),
-		_session.get_errors(), _session.get_per_key(), _level.get_brains_earned(), _completion_bonus,
+		_session.get_errors(), _session.get_per_key(), _level.get_brains_earned(), bonus,
 		_level.get_pool_label(), _end_reason, _session.get_implied_spaces())
 	Log.info(&"run", "ended level=%s reason=%s wpm=%d bonus=%d" % [
 		_result.level_id, _result.end_reason, _result.wpm, _result.bonus_brains])
