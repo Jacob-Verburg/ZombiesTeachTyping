@@ -794,3 +794,19 @@
 
 - The brute lane-0 Horde Rush test ignores `Body` scale/rotation and uses only the lowest walk crown row; the 18 px cap in `test_art_sprites.gd` is the real guard. Tighten if `player_zombie.tscn`'s Body transform is changed.
 - `HatSlot.show_item` does not check `is_available`, and `ClosetItemTile._apply_art` assigns the texture to its hidden `Art` rect for locked tiles. Harmless today (unavailable hats cannot be equipped or seen); revisit in Story 9.3 when the 8 hats go on sale.
+
+
+## Deferred from: dev of story 9-2 (2026-10-14)
+
+- The 8 new pets have their idle sheets, `pet_frames` and Closet icons but stay `is_available = false`: Story 9.3 switches the full catalogue on (with its save-compatibility check). Until then their tiles are Locked ("?", "Coming soon") and the fit check's E warns "could not buy" on them (correct; documented in `hat_fit_check.gd`).
+- Like `HatSlot` (9.1 review), `PetSlot.show_item` does not check `is_available`, and the Closet tile assigns the icon to its hidden `Art` rect when Locked. Harmless today (an unavailable pet can't be equipped or previewed, pinned by `test_focusing_an_unavailable_pet_with_art_never_previews_it`); revisit in 9.3.
+- Blink rate: with 2-6 frames at 8-12 fps an idle loop lasts at most 0.75 s, so the Black cat, Crow and Floating eyeball blink about twice a second. Raised at Gate 1; Smuck approved all 8 as drawn. If it reads twitchy in the kid playtest, swap the blink for another motion or allow a longer idle (needs a style-sheet rule change: more frames or duration multipliers).
+- Closet icon centring: the story assumed every pet's frame 0 has an even width ("by construction"). The cats' frame 0 is 17 px wide (tail A stops short of the part's edge), so `test_pet_icons_are_centred` checks "exact along an even side, within 1 px along an odd one" both ways instead of "exact across". Make the cat's frame 0 even (and tighten the test) if a 1 px shift ever shows in the grid.
+- The fit check's menu view reads the main menu's `Zombie` and `PetSlot` positions from `main_menu.tscn`'s SceneState by node name; renaming either node makes the view warn and skip (`test_menu_and_report_views_stand_at_the_scene_spacings` then fails).
+- Pets only have an `idle`; reactions (happy on a correct key, walk) remain out of scope.
+- Gate captures were made with scratch scripts outside the repo (a per-item catalogue copy with the pets available, a temp-dir PlayerData injected into every slot); the real `user://save.json` hash was identical before and after both gates.
+
+## Deferred from: code review of 9-2-eight-new-pets (2026-10-14)
+
+- Closet/focus tests only exercise unavailable pets; add an available-pet preview test (`PetSlot.is_showing()` per new pet) in Story 9.3.
+- Black cat blink only removes the eye glint rather than closing the eyes; cosmetic, approved at Gate 1.

@@ -5,8 +5,8 @@ extends GutTest
 ## Horde Rush set (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat) and the
 ## Story 8.6 Pitchfork Panic set (the four mob runs, the zombie's dazed sit, the dizzy star, the mob hint,
 ## the dust cloud and the escape bush) and the Story 9.1 hats (Witch, Bunny ears, Santa, Leprechaun, Heart
-## headband, Top hat, Pirate, Crown): size,
-## hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty distinct frames on one ground
+## headband, Top hat, Pirate, Crown) and the Story 9.2 pets (Black cat, Spider, Orange cat, Bat, Crow,
+## Wolf-dog, Floating eyeball, Brain buddy): size, hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty distinct frames on one ground
 ## line, and pixel-crisp import settings.
 ## Read from the committed PNG bytes (Image.load_from_file), so import state doesn't matter.
 ## Frame size per sheet: characters (and the poof) 32x32, props 16x16, effects 48x48 (style sheet section 3).
@@ -67,6 +67,14 @@ const SHEETS: Dictionary[String, int] = {
 	"res://assets/sprites/characters/villager/villager_poof.png": 4,
 	"res://assets/sprites/characters/party_zombie/party_zombie_walk.png": 4,
 	PET_GHOST_PATH: 4,
+	PET_BLACK_CAT_PATH: 4,
+	PET_SPIDER_PATH: 4,
+	PET_ORANGE_CAT_PATH: 4,
+	PET_BAT_PATH: 4,
+	PET_CROW_PATH: 4,
+	PET_WOLF_DOG_PATH: 4,
+	PET_EYEBALL_PATH: 4,
+	PET_BRAIN_BUDDY_PATH: 4,
 	FLASH_PATH: 4,
 	MELT_PATH: 6,
 	FARMER_DIR + "farmer_idle.png": 2,
@@ -103,7 +111,28 @@ const HAT_HEART_HEADBAND_PATH: String = HATS_DIR + "hat_heart_headband.png"
 const HAT_TOP_HAT_PATH: String = HATS_DIR + "hat_top_hat.png"
 const HAT_PIRATE_PATH: String = HATS_DIR + "hat_pirate.png"
 const HAT_CROWN_PATH: String = HATS_DIR + "hat_crown.png"
-const PET_GHOST_PATH: String = "res://assets/sprites/cosmetics/pets/pet_cute_ghost_idle.png"
+const PETS_DIR: String = "res://assets/sprites/cosmetics/pets/"
+const PET_GHOST_PATH: String = PETS_DIR + "pet_cute_ghost_idle.png"
+const PET_BLACK_CAT_PATH: String = PETS_DIR + "pet_black_cat_idle.png"
+const PET_SPIDER_PATH: String = PETS_DIR + "pet_spider_idle.png"
+const PET_ORANGE_CAT_PATH: String = PETS_DIR + "pet_orange_cat_idle.png"
+const PET_BAT_PATH: String = PETS_DIR + "pet_bat_idle.png"
+const PET_CROW_PATH: String = PETS_DIR + "pet_crow_idle.png"
+const PET_WOLF_DOG_PATH: String = PETS_DIR + "pet_wolf_dog_idle.png"
+const PET_EYEBALL_PATH: String = PETS_DIR + "pet_eyeball_idle.png"
+const PET_BRAIN_BUDDY_PATH: String = PETS_DIR + "pet_brain_buddy_idle.png"
+## Pets (Stories 4.3, 9.2): idle sheets drawn like characters (soles on row 30, in SHEETS).
+const PETS: Array[String] = [
+	PET_GHOST_PATH, PET_BLACK_CAT_PATH, PET_SPIDER_PATH, PET_ORANGE_CAT_PATH, PET_BAT_PATH, PET_CROW_PATH,
+	PET_WOLF_DOG_PATH, PET_EYEBALL_PATH, PET_BRAIN_BUDDY_PATH,
+]
+## Story 9.2: a pet is never shorter than this in any frame, so it doesn't vanish on the HUD cushion at 1x.
+const PET_MIN_HEIGHT: int = 12
+## Story 9.2: nor taller than this, so it reads as a pet beside the 32 px zombie (about 30 tall).
+const PET_MAX_HEIGHT: int = 22
+## Story 9.2: nor wider than this, so it keeps a gap inside its 32 px frame (the menu's pet frame starts 4 px
+## right of the zombie's, test_main_menu.gd).
+const PET_MAX_WIDTH: int = 28
 const PARTY_ZOMBIE_PATH: String = "res://assets/sprites/characters/party_zombie/party_zombie_idle.png"
 const PARTY_ZOMBIE_WALK_PATH: String = "res://assets/sprites/characters/party_zombie/party_zombie_walk.png"
 const POOF_PATH: String = "res://assets/sprites/characters/villager/villager_poof.png"
@@ -145,6 +174,18 @@ const HAT_COLOURS: Dictionary[String, Array] = {
 	HAT_PIRATE_PATH: [INK_MUTED, PUMPKIN_LIGHT, CHALK],
 	HAT_CROWN_PATH: [PUMPKIN_LIGHT, PUMPKIN, CHALK, BAT_PURPLE, BRAIN_PINK],
 }
+## Stories 4.3, 9.2: each pet's signature colours (besides ink), so a legend slip shows up here.
+const PET_COLOURS: Dictionary[String, Array] = {
+	PET_GHOST_PATH: [CHALK, STONE_LIGHT, BRAIN_PINK],
+	PET_BLACK_CAT_PATH: [INK_MUTED, DUSK, CHALK, BRAIN_PINK],
+	PET_SPIDER_PATH: [BAT_PURPLE, DUSK, CHALK, BRAIN_PINK],
+	PET_ORANGE_CAT_PATH: [PUMPKIN, WOOD, WOOD_LIGHT, CHALK, BRAIN_PINK],
+	PET_BAT_PATH: [BAT_PURPLE, DUSK, CHALK, BRAIN_PINK],
+	PET_CROW_PATH: [INK_MUTED, STONE, PUMPKIN_LIGHT, CHALK],
+	PET_WOLF_DOG_PATH: [STONE_LIGHT, STONE, CHALK, BRAIN_PINK],
+	PET_EYEBALL_PATH: [CHALK, STONE_LIGHT, ZOMBIE_GREEN, BAT_PURPLE, BRAIN_PINK],
+	PET_BRAIN_BUDDY_PATH: [BRAIN_PINK, BRAIN_SHADE, ZOMBIE_GREEN],
+}
 ## The party-hat zombie walk changes the legs only: rows above this are the idle frame's pixels.
 const PARTY_LEGS_TOP: int = 24
 ## The poof (and every frame of it) is never wider than the 24 px tag (ZombieRunTarget.HALF_WIDTH).
@@ -164,6 +205,8 @@ const CANDY_YELLOW: String = "ffd23f"
 const PUMPKIN: String = "f07a1c"
 const PUMPKIN_LIGHT: String = "ffa94a"
 const WOOD_DARK: String = "5a3218"
+const WOOD: String = "8a5228"
+const WOOD_LIGHT: String = "c08447"
 const STAMP_RED: String = "b02a25"
 const ZOMBIE_GREEN_BRIGHT: String = "b8f27c"
 const BAT_PURPLE: String = "7a4bb3"
@@ -389,7 +432,7 @@ func test_characters_stand_on_row_30() -> void:
 
 
 ## The professor is the player zombie in a gown, so his sheet uses the zombie greens. Overlays: ink only.
-## Pets (Story 4.3): the Cute ghost is chalk with an ink outline.
+## Pets: their own signature colours (PET_COLOURS, test_right_color_ramps_used).
 ## The poof is a white dust cloud; the props are cartoon brain pink (the bonk ends grey), the tomato
 ## props pumpkin. The flash is the zombie recoloured to pumpkin (test_flash_is_a_recoloured_walk).
 func test_right_color_ramps_used() -> void:
@@ -403,8 +446,9 @@ func test_right_color_ramps_used() -> void:
 		if path == POOF_PATH:
 			assert_true(colors.has(CHALK), "poof has no chalk fill")
 			assert_true(colors.has(STONE_LIGHT), "poof has no stone-light shade")
-		elif path.contains("/cosmetics/pets/"):
-			assert_true(colors.has(CHALK), "%s has no chalk" % _name(path))
+		elif PETS.has(path):
+			for hex: String in PET_COLOURS[path]:
+				assert_true(colors.has(hex), "%s uses %s" % [_name(path), hex])
 		elif path == TOMATO_FLY_PATH or path == TOMATO_SPLAT_PATH:
 			assert_true(colors.has(PUMPKIN), "%s has no pumpkin" % _name(path))
 			assert_true(colors.has(PUMPKIN_LIGHT), "%s has no pumpkin-light" % _name(path))
@@ -598,15 +642,77 @@ func test_pumpkin_hat_colours() -> void:
 		assert_true(colors.has(hex), "pumpkin hat uses %s" % hex)
 
 
-## The Cute ghost reads as a pet beside a 32 px zombie: 16-20 px tall in every frame.
-func test_ghost_is_pet_sized() -> void:
-	var image: Image = _load(PET_GHOST_PATH)
-	assert_not_null(image)
-	if image == null:
+## Story 9.2: every pet reads as a pet beside a 32 px zombie and keeps a gap in its frame: every frame is
+## PET_MIN_HEIGHT-PET_MAX_HEIGHT tall and at most PET_MAX_WIDTH wide.
+func test_pets_are_pet_sized() -> void:
+	for path: String in PETS:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null or not SHEETS.has(path):
+			continue
+		for frame: int in SHEETS[path]:
+			var used: Rect2i = image.get_region(Rect2i(frame * FRAME, 0, FRAME, FRAME)).get_used_rect()
+			assert_between(used.size.y, PET_MIN_HEIGHT, PET_MAX_HEIGHT, "%s frame %d height" % [_name(path), frame])
+			assert_true(used.size.x <= PET_MAX_WIDTH, "%s frame %d width %d" % [_name(path), frame, used.size.x])
+
+
+## Story 9.2: every pet sheet in the folder is a listed pet, an animation sheet (so every rule above covers
+## it) and has its signature colours; every listed pet has colours.
+func test_every_pet_sheet_is_listed() -> void:
+	var files: PackedStringArray = DirAccess.get_files_at(PETS_DIR)
+	var found: int = 0
+	for file: String in files:
+		if file.get_extension() != "png":
+			continue
+		found += 1
+		assert_has(PETS, PETS_DIR + file, "%s is in PETS" % file)
+		assert_true(SHEETS.has(PETS_DIR + file), "%s is in SHEETS" % file)
+	assert_eq(found, PETS.size(), "one sheet per listed pet")
+	for path: String in PETS:
+		assert_true(PET_COLOURS.has(path), "%s has signature colours" % _name(path))
+
+
+## Story 9.2: pets never use the focus, stamp or moon colours (style sheet section 2).
+func test_pets_never_use_reserved_colours() -> void:
+	for path: String in PETS:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		assert_false(colors.has(CANDY_YELLOW), "%s: no candy-yellow" % _name(path))
+		assert_false(colors.has(STAMP_RED), "%s: no stamp-red" % _name(path))
+		assert_false(colors.has(ART_MOON), "%s: no art-moon" % _name(path))
+
+
+## Story 9.2: the Orange cat is the Black cat's maps recoloured: the same alpha mask and ink in every frame
+## but its last (the ear flick), and none of the Black cat's fur left.
+func test_orange_cat_is_a_recoloured_black_cat() -> void:
+	var black: Image = _load(PET_BLACK_CAT_PATH)
+	var orange: Image = _load(PET_ORANGE_CAT_PATH)
+	if black == null or orange == null or black.get_size() != orange.get_size():
+		fail_test("cat sheets missing or different sizes")
 		return
-	for frame: int in SHEETS[PET_GHOST_PATH]:
-		var used: Rect2i = image.get_region(Rect2i(frame * FRAME, 0, FRAME, FRAME)).get_used_rect()
-		assert_between(used.size.y, 16, 20, "ghost frame %d height" % frame)
+	var bad: Array[String] = []
+	for y: int in FRAME:
+		for x: int in 3 * FRAME:
+			var b: Color = black.get_pixel(x, y)
+			var o: Color = orange.get_pixel(x, y)
+			if (b.a8 == 255) != (o.a8 == 255):
+				bad.append("(%d,%d) mask" % [x, y])
+			elif b.a8 == 255 and (b.to_html(false) == INK) != (o.to_html(false) == INK):
+				bad.append("(%d,%d) ink" % [x, y])
+	assert_eq(bad.size(), 0, ", ".join(bad.slice(0, 10)))
+	# The ear-flick frame: the same mask as the Black cat's last frame except in the ear rows.
+	var flick: Array[String] = []
+	for y: int in FRAME:
+		for x: int in range(3 * FRAME, 4 * FRAME):
+			if (black.get_pixel(x, y).a8 == 255) != (orange.get_pixel(x, y).a8 == 255) and (y < 13 or y > 15):
+				flick.append("(%d,%d)" % [x, y])
+	assert_eq(flick.size(), 0, "ear flick differs outside the ear rows: " + ", ".join(flick.slice(0, 10)))
+	var colors: Dictionary[String, bool] = _colors(orange)
+	assert_false(colors.has(INK_MUTED), "orange cat: no ink-muted fur")
+	assert_false(colors.has(DUSK), "orange cat: no dusk shade")
 
 
 ## Story 6.6: the flash is the walk with a legend swap only: the same alpha mask and the same ink pixels

@@ -242,8 +242,8 @@ func test_shipped_economy_config() -> void:
 	assert_eq((economy as EconomyConfig).welcome_bonus, 100)
 
 
-## Story 4.3: the MVP items carry their art; the Epic 9 items still have none. Story 4.4: the MVP items
-## have a 32x32 Closet icon; the Epic 9 items have none (their tiles are Locked and show "?").
+## Story 4.3: the MVP items carry their art. Story 4.4: a 32x32 Closet icon. Stories 9.1, 9.2: every hat and
+## every pet has its art too, available or not (an unavailable tile is Locked and shows "?" until 9.3).
 func test_shipped_mvp_items_have_art() -> void:
 	var catalogue: Catalogue = _shipped()
 	var hat: CosmeticItem = catalogue.get_item(&"hat_pumpkin")
@@ -257,7 +257,7 @@ func test_shipped_mvp_items_have_art() -> void:
 	if hat.icon != null and pet.icon != null:
 		assert_eq(hat.icon.get_size(), Vector2(32, 32))
 		assert_eq(pet.icon.get_size(), Vector2(32, 32))
-	# Story 9.1: every hat has its art (available or not); the unavailable pets get theirs in 9.2.
+	# Story 9.1: every hat has its art (available or not); Story 9.2: every pet too.
 	for item: CosmeticItem in catalogue.items_for_slot(CosmeticItem.Slot.HAT):
 		assert_not_null(item.overlay, "%s has an overlay" % item.id)
 		assert_not_null(item.icon, "%s has a Closet icon" % item.id)
@@ -265,10 +265,13 @@ func test_shipped_mvp_items_have_art() -> void:
 			assert_eq(item.overlay.get_size(), Vector2(32, 32), "%s overlay size" % item.id)
 			assert_eq(item.icon.get_size(), Vector2(32, 32), "%s icon size" % item.id)
 	for item: CosmeticItem in catalogue.items_for_slot(CosmeticItem.Slot.PET):
-		if not item.is_available:
-			assert_null(item.icon, "%s has no icon yet (Story 9.2)" % item.id)
-			assert_null(item.overlay, "%s has no art yet (Story 9.2)" % item.id)
-			assert_null(item.pet_frames, "%s has no art yet (Story 9.2)" % item.id)
+		assert_not_null(item.pet_frames, "%s has pet frames" % item.id)
+		if item.pet_frames != null:
+			assert_true(item.pet_frames.has_animation(&"idle"), "%s has an idle" % item.id)
+		assert_not_null(item.icon, "%s has a Closet icon" % item.id)
+		if item.icon != null:
+			assert_eq(item.icon.get_size(), Vector2(32, 32), "%s icon size" % item.id)
+		assert_null(item.overlay, "%s is a pet, no overlay" % item.id)
 
 
 ## Story 5.0 (4.4 deferral "the pumpkin sits low"): a hat's Closet icon is its overlay cropped to the opaque
@@ -287,3 +290,25 @@ func test_hat_icons_are_centred() -> void:
 		assert_eq(Rect2i(icon.region), hat.overlay.get_image().get_used_rect(), "%s cropped to the opaque pixels" % id)
 		assert_eq(icon.get_size(), Vector2(32, 32), "%s icon size" % id)
 		assert_eq(icon.margin.position * 2.0 + icon.region.size, Vector2(32, 32), "%s centred both ways" % id)
+
+
+## Story 9.2: a pet's Closet icon is its idle sheet's frame 0 cropped to the opaque pixels and padded back
+## to 32 x 32, centred: exactly along an even side, within 1 px along an odd one (an odd extent can't centre
+## in 32: the ghost is 19 tall, the cats' frame 0 is 17 wide), so all 9 pet tiles line up.
+func test_pet_icons_are_centred() -> void:
+	for id: StringName in PET_IDS:
+		var pet: CosmeticItem = load("res://data/cosmetics/%s.tres" % id) as CosmeticItem
+		assert_not_null(pet, String(id))
+		if pet == null:
+			continue
+		var icon: AtlasTexture = pet.icon as AtlasTexture
+		assert_not_null(icon, "%s: an AtlasTexture of the idle sheet" % id)
+		if icon == null or icon.atlas == null:
+			continue
+		assert_eq(icon.atlas.resource_path, "res://assets/sprites/cosmetics/pets/%s_idle.png" % id, "%s atlas" % id)
+		var frame_0: Image = icon.atlas.get_image().get_region(Rect2i(0, 0, 32, 32))
+		assert_eq(Rect2i(icon.region), frame_0.get_used_rect(), "%s cropped to frame 0's opaque pixels" % id)
+		assert_eq(icon.get_size(), Vector2(32, 32), "%s icon size" % id)
+		var off: Vector2 = (icon.margin.position * 2.0 + icon.region.size - Vector2(32, 32)).abs()
+		assert_eq(off.x, fmod(icon.region.size.x, 2.0), "%s centred across" % id)
+		assert_eq(off.y, fmod(icon.region.size.y, 2.0), "%s centred down" % id)

@@ -5,7 +5,9 @@ extends GutTest
 ## its sprite_scale and a detail cell at sprite_scale x 3. Cycles hats, pets and backgrounds with the shipped
 ## catalogue, an all-hats copy (every hat given its own overlay PNG, so the cycle is tested apart from the
 ## data wiring) and an empty one, stacks the professor's mortarboard on the hat, and wears for real through
-## an injected PlayerData on a temp save (never the live one).
+## an injected PlayerData on a temp save (never the live one). Story 9.2: the pet cycle over an all-pets copy
+## (every pet given frames from its own idle PNG), and the menu and report card views (a stopped zombie and
+## the professor, each wearing the hat, the pet at the scene's own spacing).
 
 const FitCheckScene: PackedScene = preload("res://scenes/debug/hat_fit_check.tscn")
 const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
@@ -18,6 +20,19 @@ const HORDE_CONFIG: HordeRushConfig = preload("res://data/levels/horde_rush.tres
 ## The catalogue's hats in grid order (Story 9.1: the pumpkin and the eight new ones).
 const GRID_HATS: Array[StringName] = [&"hat_pumpkin", &"hat_witch", &"hat_bunny_ears", &"hat_santa",
 		&"hat_leprechaun", &"hat_heart_headband", &"hat_top_hat", &"hat_pirate", &"hat_crown"]
+## The catalogue's pets in grid order (Story 9.2: the ghost and the eight new ones).
+const GRID_PETS: Array[StringName] = [&"pet_cute_ghost", &"pet_black_cat", &"pet_spider", &"pet_orange_cat",
+		&"pet_bat", &"pet_crow", &"pet_wolf_dog", &"pet_eyeball", &"pet_brain_buddy"]
+const CATALOGUE: Catalogue = preload("res://data/cosmetics/catalogue.tres")
+const PETS_DIR: String = "res://assets/sprites/cosmetics/pets/"
+## The main menu's pet spacing (main_menu.tscn: Zombie at (48, 284), PetSlot at (84, 284)).
+const MENU_PET_OFFSET: Vector2 = Vector2(36, 0)
+## The professor's %PetSlot position (professor_zombie.tscn).
+const PROFESSOR_PET_OFFSET: Vector2 = Vector2(60, 30)
+## Hat slots beyond the cells: the menu view's zombie and the report card view's professor.
+const VIEW_HAT_SLOTS: int = 2
+## Pet slots: the cushion at 1x and 3x, the menu view's and the professor's.
+const PET_SLOTS: int = 4
 
 var _player: PlayerDataScript
 
@@ -62,6 +77,28 @@ func _all_cell_count() -> int:
 ## 5 frame columns a page (HatFitCheck.PAGE_SIZE), then the size-class page.
 func _expected_pages() -> int:
 	return ceili(float(FRAME_CELLS_PER_SCALE) / HatFitCheck.PAGE_SIZE) + 1
+
+
+## A per-item copy of the shipped catalogue (a deep duplicate would share the items) whose every pet plays
+## its own idle PNG (4 frames at 8 fps), so the pet cycle is tested apart from the .tres wiring.
+func _all_pets_catalogue() -> Catalogue:
+	var copy: Catalogue = Catalogue.new()
+	var items: Array[CosmeticItem] = []
+	for item: CosmeticItem in CATALOGUE.items:
+		var dup: CosmeticItem = item.duplicate() as CosmeticItem
+		if dup.slot == CosmeticItem.Slot.PET:
+			var sheet: Texture2D = load(PETS_DIR + String(dup.id) + "_idle.png") as Texture2D
+			var frames: SpriteFrames = SpriteFrames.new()
+			frames.add_animation(&"idle")
+			for i: int in (sheet.get_width() / 32 if sheet != null else 0):
+				var atlas: AtlasTexture = AtlasTexture.new()
+				atlas.atlas = sheet
+				atlas.region = Rect2(i * 32, 0, 32, 32)
+				frames.add_frame(&"idle", atlas)
+			dup.pet_frames = frames
+		items.append(dup)
+	copy.items = items
+	return copy
 
 
 func _cycle_to_none(check: HatFitCheck) -> int:
@@ -147,7 +184,7 @@ func test_hat_cycle_visits_every_catalogue_hat_in_grid_order() -> void:
 func test_every_hat_slot_follows_its_frame_and_ignores_player_data() -> void:
 	var check: HatFitCheck = _make()
 	var slots: Array[HatSlot] = check.get_hat_slots()
-	assert_eq(slots.size(), _all_cell_count())
+	assert_eq(slots.size(), _all_cell_count() + VIEW_HAT_SLOTS)
 	for slot: HatSlot in slots:
 		assert_false(slot.follow_equipped)
 		assert_eq(slot.position, slot.anchors.get_head(slot.sprite.animation, slot.sprite.frame))
@@ -159,6 +196,7 @@ func test_starts_on_the_pumpkin_and_the_ghost() -> void:
 	assert_eq(check.current_pet().id, &"pet_cute_ghost")
 	for slot: HatSlot in check.get_hat_slots():
 		assert_eq(slot.get_item_id(), &"hat_pumpkin")
+	assert_eq(check.get_pet_slots().size(), PET_SLOTS)
 	for slot: PetSlot in check.get_pet_slots():
 		assert_eq(slot.get_item_id(), &"pet_cute_ghost")
 
@@ -262,3 +300,61 @@ func test_e_wears_for_real_and_none_unequips() -> void:
 	assert_eq(_player.get_equipped(CosmeticItem.SLOT_PET), &"")
 	assert_true(_player.owns(&"hat_pumpkin"), "unequip keeps it owned")
 	assert_push_error_count(0)
+
+
+## Story 9.2: the pet cycle visits exactly the catalogue's pets in grid order, then none, and every pet slot
+## (the cushion at both scales and both views) shows the current pet.
+func test_pet_cycle_visits_every_catalogue_pet_in_grid_order() -> void:
+	var check: HatFitCheck = _make(_all_pets_catalogue())
+	var visited: Array[StringName] = []
+	while check.current_pet() != null and visited.size() < 100:
+		visited.append(check.current_pet().id)
+		assert_eq(check.get_pet_slots().size(), PET_SLOTS)
+		for slot: PetSlot in check.get_pet_slots():
+			assert_false(slot.follow_equipped)
+			assert_eq(slot.get_item_id(), check.current_pet().id, "every slot shows %s" % check.current_pet().id)
+			assert_true(slot.is_showing(), "%s is shown" % check.current_pet().id)
+		check.cycle_pet()
+	assert_eq(visited, GRID_PETS)
+	assert_null(check.current_pet(), "then none")
+	for slot: PetSlot in check.get_pet_slots():
+		assert_false(slot.is_showing(), "none hides every pet slot")
+	check.cycle_pet()
+	assert_eq(check.current_pet().id, &"pet_cute_ghost", "and round again")
+	assert_push_error_count(0)
+	assert_push_warning_count(0)
+
+
+## Story 9.2: the menu view is a stopped player zombie on idle 0 wearing the hat, its pet at the menu's
+## spacing; the report card view is the professor on point 0 wearing the hat, the pet in his own %PetSlot.
+func test_menu_and_report_views_stand_at_the_scene_spacings() -> void:
+	var check: HatFitCheck = _make(_all_pets_catalogue())
+	var zombie: PlayerZombie = check.get_menu_zombie()
+	var professor: ProfessorZombie = check.get_report_professor()
+	assert_not_null(zombie, "menu view built")
+	assert_not_null(professor, "report card view built")
+	if zombie == null or professor == null:
+		return
+	var slots: Array[PetSlot] = check.get_pet_slots()
+	var menu_pet: PetSlot = slots[PET_SLOTS - 2]
+	var report_pet: PetSlot = slots[PET_SLOTS - 1]
+	assert_eq(menu_pet.position - zombie.position, MENU_PET_OFFSET, "menu spacing")
+	assert_eq(report_pet, professor.get_node("%PetSlot"), "the professor's own pet slot")
+	assert_eq(report_pet.position, PROFESSOR_PET_OFFSET, "report card spacing")
+	assert_eq(report_pet.global_position - professor.global_position, PROFESSOR_PET_OFFSET)
+	var zombie_body: AnimatedSprite2D = zombie.get_node("Body")
+	var professor_body: AnimatedSprite2D = professor.get_node("Body")
+	assert_false(zombie_body.is_playing(), "the zombie is stopped")
+	assert_eq([zombie_body.animation, zombie_body.frame], [&"idle", 0])
+	assert_false(professor_body.is_playing(), "the professor is stopped")
+	assert_eq([professor_body.animation, professor_body.frame], [&"point", 0])
+	var zombie_hat: HatSlot = zombie.get_node("%HatSlot")
+	var professor_hat: HatSlot = professor.get_node("%HatSlot")
+	for i: int in GRID_HATS.size() + 1:
+		var hat_id: StringName = &"" if check.current_hat() == null else check.current_hat().id
+		assert_eq(zombie_hat.get_item_id(), hat_id, "the zombie wears %s" % hat_id)
+		assert_eq(professor_hat.get_item_id(), hat_id, "the professor wears %s" % hat_id)
+		check.cycle_hat()
+	var pet_id: StringName = check.current_pet().id
+	assert_eq(menu_pet.get_item_id(), pet_id)
+	assert_eq(report_pet.get_item_id(), pet_id)

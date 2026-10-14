@@ -24,7 +24,9 @@ Stories that make final art and wait for that approval:
   sit; see section 3).
 - **Epic 9:** Story 9.1 (the eight remaining hats: Witch, Bunny ears, Santa, Leprechaun, Heart headband,
   Top hat, Pirate, Crown; see section 3).
-- Later epics (9, 10) reuse these rules for their characters, hats, pets and backdrops (Epic 9 has begun: see above).
+- **Epic 9:** Story 9.2 (the eight remaining pets: Black cat, Spider, Orange cat, Bat, Crow, Wolf-dog,
+  Floating eyeball, Brain buddy; see section 3).
+- Later art (the rest of Epic 9, Epic 10) reuses these rules for its characters, hats, pets and backdrops.
 
 Before its final-art story, any story may use **placeholder art**: plain shapes in palette colors.
 
@@ -123,6 +125,14 @@ animations and are exempt from the frame count only; every pixel rule applies to
 | `professor_mortarboard.png` | overlay | 32×32 | – | drawn at the body's origin |
 | `down_arrow.png` (3.6) | overlay | 16×16 | – | the active target's arrow; the bob is code |
 | pet `cute_ghost` `idle` (4.3) | 4 | 32×32 | 8 | loop (the float: a 1 px body bob and a wavy tail) |
+| pet `black_cat` `idle` (9.2) | 4 | 32×32 | 8 | loop (the tail sways left, up, right; a blink) |
+| pet `spider` `idle` (9.2) | 4 | 32×32 | 8 | loop (a 1 px body bob; the front feet tap) |
+| pet `orange_cat` `idle` (9.2) | 4 | 32×32 | 8 | loop (the Black cat's maps recoloured; an ear flick instead of the blink) |
+| pet `bat` `idle` (9.2) | 4 | 32×32 | 10 | loop (wings up, mid, down, mid over a 1 px bob; hovers over its shadow) |
+| pet `crow` `idle` (9.2) | 4 | 32×32 | 8 | loop (a 1 px squat, a blink, a tail flick) |
+| pet `wolf_dog` `idle` (9.2) | 4 | 32×32 | 10 | loop (the tail wags; the tongue pants) |
+| pet `eyeball` `idle` (9.2) | 4 | 32×32 | 8 | loop (tiny wings flap over a 1 px bob; a happy blink; hovers over its shadow) |
+| pet `brain_buddy` `idle` (9.2) | 4 | 32×32 | 8 | loop (walks in place: one foot lifts as the body bobs) |
 | `hat_pumpkin.png` (4.3) | overlay | 32×32 | – | seat on row 30 at x 16 |
 | `hat_witch.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
 | `hat_bunny_ears.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
@@ -158,9 +168,17 @@ centred, so a map is drawn at its own even width. **Height cap (Story 9.1):** no
 **18 px** above its seat (top opaque row ≥ 12, *tested*): a brute copy (1.5×) in Horde Rush lane 0 has its
 crown at about y 29, so a taller hat would leave the top of the screen (`test_horde_rush_level.gd` ties the
 cap to the real lane, scale and anchors). Hats never use `candy-yellow`, `stamp-red` or `art-moon`
-(*tested*). **Pets** are 32×32 sheets drawn from
-the feet like the characters (soles on row 30; a float is drawn in the frames without moving the lowest
-row). Paths: `assets/sprites/cosmetics/hats/hat_<name>.png`, `assets/sprites/cosmetics/pets/pet_<name>_idle.png`;
+(*tested*). **Pets** (Stories 4.3, 9.2) are 32×32 sheets drawn from the feet like the characters: the soles
+on **row 30 in every frame** (*tested*), so an idle moves the body (a bob, a blink, a wag, a flap) and never
+the lowest row, and `PetSlot`'s (−16, −31) offset puts the feet on the slot. A floater (the Bat, the Floating
+eyeball) keeps a 10 px `ink` shadow dash on row 30 and hovers 1–3 px above it; the ghost's wisp tail touches
+row 30. **Size (Story 9.2):** every frame is **12–22 px tall** and **at most 28 px wide** (opaque extents,
+*tested*): a pet must read beside the 32 px zombie (about 30 tall) without rivalling it, never vanish on the
+HUD cushion at 1×, and keep a gap inside its frame (on the menu the pet's frame starts 4 px right of the
+zombie's). Pets never use `candy-yellow`, `stamp-red` or `art-moon` (*tested*); each has its own signature
+colours (*tested*). Dark pets (Black cat, Crow) keep a lighter fill inside the ink outline, and thin parts
+(legs, tails) are filled, not ink-only, so they still read on `night` and the chalkboard. The **Closet icon**
+is idle frame 0 cropped to its opaque pixels and padded back to 32×32, centred (exact along an even side; within 1 px along an odd one), like the hats (*tested* in `test_catalogue.gd`). Paths: `assets/sprites/cosmetics/hats/hat_<name>.png`, `assets/sprites/cosmetics/pets/pet_<name>_idle.png`;
 made by `tools/gen_cosmetics_art.gd`.
 
 Hop and hug are drawn **grounded** (the soles stay on row 30): the zombie's hop and hug tweens move the
@@ -245,6 +263,11 @@ From NFR10 and `DESIGN.md` → Do's and Don'ts:
   Tattered clothes are clean stepped edges.
 - **No skull and crossbones** (or any other bones) on pirate things: a pirate hat carries a star, diamond or
   an anchor badge (Story 9.1).
+- **Pets are friendly cartoons** (Story 9.2): big round or dot eyes, smiles, no teeth, fangs, claws, drool,
+  blood, veins or bones. The Floating eyeball is a one-eyed creature with cheeks and a smile, never a body
+  part (no veins, no red, no stalk); the Wolf-dog is a puppy (soft floppy ears, a pink tongue, no snarl); the
+  Spider has a round body, short chunky legs and a smile; the Brain buddy is the game's cartoon brain (the
+  brain-block pink with a shade fissure), not anatomy.
 - **Defeat is melting, dust or stars**, never injury.
 - **Stamp red** (#B02A25) only on the "New best!" stamp and the toggle slash. Never an error color,
   never level art; red-ish props (thrown tomatoes) are pumpkin.

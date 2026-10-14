@@ -146,6 +146,20 @@ func test_a_shipped_unavailable_hat_with_an_icon_stays_hidden() -> void:
 	assert_true((_node(tile, "%Question") as CanvasItem).visible, "the ? shows")
 
 
+## Story 9.2: the same for the Epic 9 pets, which now carry their icons too.
+func test_a_shipped_unavailable_pet_with_an_icon_stays_hidden() -> void:
+	for id: String in ["pet_black_cat", "pet_spider", "pet_orange_cat", "pet_bat", "pet_crow", "pet_wolf_dog",
+			"pet_eyeball", "pet_brain_buddy"]:
+		var pet: CosmeticItem = load("res://data/cosmetics/%s.tres" % id) as CosmeticItem
+		assert_not_null(pet.icon, "%s has its icon" % id)
+		assert_false(pet.is_available, "%s not switched on before Story 9.3" % id)
+		assert_eq(ClosetItemTile.state_for(pet, 999, false, &""), ClosetItemTile.State.LOCKED, id)
+		var tile: ClosetItemTile = _tile(pet, ClosetItemTile.State.BUY)
+		assert_eq(tile.get_state(), ClosetItemTile.State.LOCKED, id)
+		assert_false((_node(tile, "%Art") as Control).visible, "%s: the icon stays hidden" % id)
+		assert_true((_node(tile, "%Question") as CanvasItem).visible, "%s: the ? shows" % id)
+
+
 func test_an_unavailable_item_can_never_show_another_state() -> void:
 	var tile: ClosetItemTile = _tile(_item(&"hat_test", 100, false), ClosetItemTile.State.WEARING)
 	assert_eq(tile.get_state(), ClosetItemTile.State.LOCKED)

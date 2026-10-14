@@ -10,14 +10,17 @@ extends Control
 ## size classes (small, medium, brute), each a walk frame 0 cell at the class's sprite_scale and a detail
 ## cell at sprite_scale x DETAIL_SCALE (scales read from horde_config, never literals), the hat following
 ## the anchors like every other cell. Below: the chosen pet's idle on a HUD-size
-## parchment cushion at 1x, and at 3x beside it. Every slot here has follow_equipped = false and shows only
-## what this scene gives it.
+## parchment cushion at 1x, and at 3x beside it. Story 9.2 adds two 1x views beside them, to judge a pet's
+## scale against the characters it stands next to: a stopped player zombie (idle 0) wearing the chosen hat
+## with the pet at the main menu's spacing (read from main_menu.tscn), and the real Professor Zombie wearing
+## it with the pet in his own %PetSlot (the report card's spacing). Every slot here has
+## follow_equipped = false and shows only what this scene gives it.
 ## Keys: H cycles the hat (every catalogue hat with an overlay, then none), P the pet the same way, B the
 ## background (the places a hat appears), N the page, Esc quits. E wears for real: it gives the live
 ## PlayerData each shown item's price, buys it (unless owned) and equips it, or unequips a "none" slot. The
 ## only way to wear something before the Crypt Closet (4.4); it lives here because this scene is debug-only.
-## E only wears available items: on an unavailable one (the Epic 9 hats before Story 9.3 switches the full
-## catalogue on) buy_item returns UNAVAILABLE and this warns "could not buy". That is correct; don't
+## E only wears available items: on an unavailable one (the Epic 9 hats and pets before Story 9.3 switches
+## the full catalogue on) buy_item returns UNAVAILABLE and this warns "could not buy". That is correct; don't
 ## "fix" PlayerData for it.
 ## F3/F5/F8/F9 are left alone (the debug overlay owns them).
 ## Seams (tests assign them before add_child): player_data and the exported catalogue and horde_config.
@@ -56,6 +59,13 @@ const FONT_SIZE: int = 16
 const CUSHION_RECT: Rect2 = Rect2(16, 232, 48, 48)
 const CUSHION_FEET: Vector2 = Vector2(24, 36)
 const PET_3X_FEET: Vector2 = Vector2(176, 296)
+## Story 9.2: the menu view (1x): the zombie's feet here; the pet stands at the main menu's own spacing, its
+## PetSlot position minus its Zombie position in MENU_SCENE_PATH (read from the scene, never a literal).
+const MENU_VIEW_FEET: Vector2 = Vector2(264, 290)
+const MENU_SCENE_PATH: String = "res://scenes/screens/main_menu.tscn"
+## Story 9.2: the report card view (1x): the professor's origin here (his soles on y 290, level with the
+## menu view's); his own %PetSlot gives the spacing.
+const REPORT_VIEW_ORIGIN: Vector2 = Vector2(340, 260)
 const FOOTER_Y: int = 300
 const FOOTER_STEP: int = 20
 ## The size-class page (Story 9.1): one column per class, wide enough for a 4.5x brute detail cell (144
@@ -81,6 +91,10 @@ var _cells: Array[AnimatedSprite2D] = []
 var _size_cells: Array[AnimatedSprite2D] = []
 var _hat_slots: Array[HatSlot] = []
 var _pet_slots: Array[PetSlot] = []
+## Story 9.2: the menu view's zombie and the report card view's professor (null when not built).
+var _menu_zombie: PlayerZombie = null
+var _report_professor: ProfessorZombie = null
+var _page_zero_views: Array[Node2D] = []  # the menu and report views show on the first page only
 var _pages: Array[Control] = []
 var _page_index: int = 0
 var _labels: Array[Label] = []
@@ -150,6 +164,16 @@ func get_pet_slots() -> Array[PetSlot]:
 	return _pet_slots
 
 
+## Story 9.2: the menu view's stopped player zombie (null if the menu's positions could not be read).
+func get_menu_zombie() -> PlayerZombie:
+	return _menu_zombie
+
+
+## Story 9.2: the report card view's professor (his %PetSlot is the last pet slot).
+func get_report_professor() -> ProfessorZombie:
+	return _report_professor
+
+
 ## The shown hat (null = none).
 func current_hat() -> CosmeticItem:
 	return _hats[_hat_index]
@@ -191,6 +215,8 @@ func next_page() -> void:
 	_page_index = (_page_index + 1) % _pages.size()
 	for i: int in _pages.size():
 		_pages[i].visible = i == _page_index
+	for view: Node2D in _page_zero_views:
+		view.visible = _page_index == 0
 	_refresh()
 
 
@@ -345,6 +371,74 @@ func _build_pet() -> void:
 		slot.scale = Vector2(scale_factor, scale_factor)
 		add_child(slot)
 		_pet_slots.append(slot)
+	_build_menu_view()
+	_build_report_view()
+
+
+## Story 9.2: a stopped player zombie (idle 0) wearing the chosen hat, the pet at the main menu's spacing.
+func _build_menu_view() -> void:
+	var offset: Variant = _menu_pet_offset()
+	if offset == null:
+		Log.warn(&"cosmetics", "fit check: no Zombie/PetSlot positions in %s, no menu view" % MENU_SCENE_PATH)
+		return
+	_menu_zombie = PLAYER_ZOMBIE_SCENE.instantiate() as PlayerZombie
+	_menu_zombie.position = MENU_VIEW_FEET
+	var body: AnimatedSprite2D = _menu_zombie.get_node("Body")
+	body.autoplay = ""
+	body.animation = &"idle"
+	body.frame = 0
+	var hat: HatSlot = _menu_zombie.get_node("%HatSlot")
+	hat.follow_equipped = false
+	_hat_slots.append(hat)
+	add_child(_menu_zombie)
+	_page_zero_views.append(_menu_zombie)
+	var pet: PetSlot = PET_SLOT_SCENE.instantiate() as PetSlot
+	pet.follow_equipped = false
+	pet.position = MENU_VIEW_FEET + (offset as Vector2)
+	add_child(pet)
+	_page_zero_views.append(pet)
+	_pet_slots.append(pet)
+
+
+## Story 9.2: the real Professor Zombie stopped on point 0, wearing the chosen hat, the pet in his own
+## %PetSlot (the report card's spacing).
+func _build_report_view() -> void:
+	_report_professor = PROFESSOR_SCENE.instantiate() as ProfessorZombie
+	_report_professor.position = REPORT_VIEW_ORIGIN
+	var body: AnimatedSprite2D = _report_professor.get_node("Body")
+	body.autoplay = ""
+	body.animation = PROFESSOR_ANIMATION
+	body.frame = 0
+	var hat: HatSlot = _report_professor.get_node("%HatSlot")
+	hat.follow_equipped = false
+	_hat_slots.append(hat)
+	var pet: PetSlot = _report_professor.get_node("%PetSlot")
+	pet.follow_equipped = false
+	_pet_slots.append(pet)
+	add_child(_report_professor)
+	_page_zero_views.append(_report_professor)
+
+
+## The main menu's pet offset from its zombie (PetSlot position minus Zombie position, both children of the
+## menu's root), read from the scene's state without instancing the menu; null if either is missing.
+func _menu_pet_offset() -> Variant:
+	var scene: PackedScene = load(MENU_SCENE_PATH) as PackedScene
+	if scene == null:
+		return null
+	var state: SceneState = scene.get_state()
+	var positions: Dictionary[String, Vector2] = {}
+	var found: Dictionary[String, bool] = {}
+	for i: int in state.get_node_count():
+		var node_name: String = state.get_node_name(i)
+		if not (node_name in ["Zombie", "PetSlot"]) or state.get_node_path(i, true) != NodePath("."):
+			continue
+		found[node_name] = true  # a node saved at (0, 0) has no `position` property
+		for j: int in state.get_node_property_count(i):
+			if state.get_node_property_name(i, j) == &"position":
+				positions[node_name] = state.get_node_property_value(i, j)
+	if not found.has("Zombie") or not found.has("PetSlot"):
+		return null
+	return positions.get("PetSlot", Vector2.ZERO) - positions.get("Zombie", Vector2.ZERO)
 
 
 func _show_hat() -> void:

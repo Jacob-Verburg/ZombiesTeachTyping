@@ -1,13 +1,17 @@
 extends GutTest
 ## PetSlot (Story 4.3): the worn pet from an injected PlayerData on a temp save and a code-built catalogue
 ## (equip, unequip, the slot filter, profile_replaced, the _exit_tree disconnect), the warn-once-and-hide
-## rules (NFR16), the follow_equipped = false preview hook, and the shipped Cute ghost's frames.
+## rules (NFR16), the follow_equipped = false preview hook, and every shipped pet's frames (Stories 4.3, 9.2).
 ## The live save is never touched.
 
 const PetSlotScene: PackedScene = preload("res://scenes/cosmetics/pet_slot.tscn")
 const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
 const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
-const GHOST_PATH: String = "res://data/cosmetics/pet_cute_ghost.tres"
+const CATALOGUE_PATH: String = "res://data/cosmetics/catalogue.tres"
+const PETS_DIR: String = "res://assets/sprites/cosmetics/pets/"
+## Style sheet section 3: a pet idle plays at 8-12 fps (every frame at duration 1.0).
+const PET_MIN_FPS: float = 8.0
+const PET_MAX_FPS: float = 12.0
 const TEST_DIR: String = "user://test_pet_slot/"
 
 var _player: PlayerDataScript
@@ -239,19 +243,66 @@ func test_inherits_process_mode() -> void:
 	assert_eq(_sprite(slot).process_mode, Node.PROCESS_MODE_INHERIT)
 
 
-func test_shipped_cute_ghost_frames() -> void:
-	var ghost: CosmeticItem = load(GHOST_PATH) as CosmeticItem
-	assert_not_null(ghost)
-	if ghost == null:
+## Stories 4.3, 9.2: every shipped pet with frames plays a looping idle from its own sheet: one frame per
+## 32 px of the sheet, each a Rect2(i * 32, 0, 32, 32) region at duration 1.0, PET_MIN_FPS-PET_MAX_FPS.
+## The Cute ghost always has its frames.
+func test_shipped_pet_frames() -> void:
+	var catalogue: Catalogue = load(CATALOGUE_PATH) as Catalogue
+	assert_not_null(catalogue)
+	if catalogue == null:
 		return
-	var frames: SpriteFrames = ghost.pet_frames
-	assert_not_null(frames)
-	if frames == null:
-		return
-	assert_true(frames.has_animation(&"idle"))
-	assert_eq(frames.get_frame_count(&"idle"), 4)
-	assert_eq(frames.get_animation_speed(&"idle"), 8.0)
-	assert_true(frames.get_animation_loop(&"idle"))
-	for i: int in 4:
-		var atlas: AtlasTexture = frames.get_frame_texture(&"idle", i) as AtlasTexture
-		assert_eq(atlas.region, Rect2(i * 32, 0, 32, 32), "frame %d region" % i)
+	var with_frames: int = 0
+	for item: CosmeticItem in catalogue.items:
+		if item.slot != CosmeticItem.Slot.PET:
+			continue
+		if item.id == &"pet_cute_ghost":
+			assert_not_null(item.pet_frames, "the Cute ghost has frames")
+			if item.pet_frames != null and item.pet_frames.has_animation(&"idle"):
+				assert_eq(item.pet_frames.get_frame_count(&"idle"), 4, "ghost frame count")
+				assert_eq(item.pet_frames.get_animation_speed(&"idle"), 8.0, "ghost speed")
+		var frames: SpriteFrames = item.pet_frames
+		if frames == null:
+			continue
+		with_frames += 1
+		assert_true(frames.has_animation(&"idle"), "%s idle" % item.id)
+		if not frames.has_animation(&"idle"):
+			continue
+		assert_true(frames.get_animation_loop(&"idle"), "%s loops" % item.id)
+		assert_between(frames.get_animation_speed(&"idle"), PET_MIN_FPS, PET_MAX_FPS, "%s fps" % item.id)
+		var sheet_path: String = PETS_DIR + String(item.id) + "_idle.png"
+		var sheet: Texture2D = load(sheet_path) as Texture2D
+		assert_not_null(sheet, "%s sheet %s" % [item.id, sheet_path])
+		if sheet == null:
+			continue
+		assert_eq(frames.get_frame_count(&"idle"), sheet.get_width() / 32, "%s frame count" % item.id)
+		for i: int in frames.get_frame_count(&"idle"):
+			var atlas: AtlasTexture = frames.get_frame_texture(&"idle", i) as AtlasTexture
+			assert_not_null(atlas, "%s frame %d is an AtlasTexture" % [item.id, i])
+			if atlas == null:
+				continue
+			assert_eq(atlas.atlas, sheet, "%s frame %d atlas" % [item.id, i])
+			assert_eq(atlas.region, Rect2(i * 32, 0, 32, 32), "%s frame %d region" % [item.id, i])
+			assert_eq(frames.get_frame_duration(&"idle", i), 1.0, "%s frame %d duration" % [item.id, i])
+	assert_gt(with_frames, 0, "at least the Cute ghost")
+
+
+## Story 9.2 (AC 6, "fits every slot"): every shipped pet's idle frames are 32 x 32 AtlasTexture regions of a
+## sheet exactly 32 px high, so the frame-rect layout tests (test_hud.gd, test_report_card.gd,
+## test_main_menu.gd), written for a 32 x 32 frame, hold for every pet.
+func test_every_shipped_pet_frame_is_a_32px_cell() -> void:
+	var catalogue: Catalogue = load(CATALOGUE_PATH) as Catalogue
+	var pets: int = 0
+	for item: CosmeticItem in catalogue.items_for_slot(CosmeticItem.Slot.PET):
+		pets += 1
+		assert_not_null(item.pet_frames, "%s has frames" % item.id)
+		if item.pet_frames == null or not item.pet_frames.has_animation(&"idle"):
+			continue
+		for i: int in item.pet_frames.get_frame_count(&"idle"):
+			var atlas: AtlasTexture = item.pet_frames.get_frame_texture(&"idle", i) as AtlasTexture
+			assert_not_null(atlas, "%s frame %d" % [item.id, i])
+			if atlas == null or atlas.atlas == null:
+				continue
+			assert_eq(atlas.atlas.get_height(), 32, "%s sheet height" % item.id)
+			assert_eq(atlas.region.size, Vector2(32, 32), "%s frame %d size" % [item.id, i])
+			assert_eq(atlas.get_size(), Vector2(32, 32), "%s frame %d drawn size" % [item.id, i])
+	assert_eq(pets, 9, "all nine pets")

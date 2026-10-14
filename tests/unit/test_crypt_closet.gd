@@ -425,6 +425,26 @@ func test_focusing_a_locked_tile_shows_the_equipped_items_quietly() -> void:
 	assert_push_warning_count(0, "no slot ever warns because of the Closet")
 
 
+## Story 9.2: the Epic 9 pets carry their art now, but the preview still never shows an unavailable pet:
+## focusing one keeps the equipped pet (the ghost here).
+func test_focusing_an_unavailable_pet_with_art_never_previews_it() -> void:
+	_player.add_brains(100)
+	_player.buy_item(SHIPPED.get_item(&"pet_cute_ghost"))
+	_player.equip(&"pet_cute_ghost")
+	_make()
+	var checked: int = 0
+	for tile: ClosetItemTile in _closet.get_tiles():
+		var item: CosmeticItem = SHIPPED.get_item(tile.get_item_id())
+		if item.slot != CosmeticItem.Slot.PET or item.is_available:
+			continue
+		assert_not_null(item.pet_frames, "%s has its art" % item.id)
+		tile.grab_focus()
+		assert_eq(_pet_slot().get_item_id(), &"pet_cute_ghost", "%s is not previewed" % item.id)
+		checked += 1
+	assert_eq(checked, 8, "the eight Epic 9 pets")
+	assert_push_warning_count(0)
+
+
 func test_pet_tile_previews_the_pet_and_keeps_the_hat() -> void:
 	_own_pumpkin()
 	_player.equip(&"hat_pumpkin")
