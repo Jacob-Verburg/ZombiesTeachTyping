@@ -5,6 +5,10 @@ extends GutTest
 ## events.
 
 const TileScene: PackedScene = preload("res://scenes/ui/closet_item_tile.tscn")
+## The 16 items Stories 9.1 and 9.2 added (live since Story 9.3).
+const EPIC_9_IDS: Array[String] = ["hat_witch", "hat_bunny_ears", "hat_santa", "hat_leprechaun",
+	"hat_heart_headband", "hat_top_hat", "hat_pirate", "hat_crown", "pet_black_cat", "pet_spider",
+	"pet_orange_cat", "pet_bat", "pet_crow", "pet_wolf_dog", "pet_eyeball", "pet_brain_buddy"]
 
 var _activated: Array[StringName] = []
 
@@ -133,28 +137,29 @@ func test_locked_look() -> void:
 	assert_eq(label.get_theme_color(&"font_color"), ClosetItemTile.CHALK)
 
 
-## Story 9.1: the Epic 9 hats have their icons before 9.3 switches them on; a locked tile still hides
-## them behind "?" so nothing leaks through "Coming soon".
-func test_a_shipped_unavailable_hat_with_an_icon_stays_hidden() -> void:
-	var hat: CosmeticItem = load("res://data/cosmetics/hat_witch.tres") as CosmeticItem
-	assert_not_null(hat.icon, "the witch hat has its icon")
-	assert_false(hat.is_available, "not switched on before Story 9.3")
-	assert_eq(ClosetItemTile.state_for(hat, 999, false, &""), ClosetItemTile.State.LOCKED)
-	var tile: ClosetItemTile = _tile(hat, ClosetItemTile.State.BUY)
-	assert_eq(tile.get_state(), ClosetItemTile.State.LOCKED)
-	assert_false((_node(tile, "%Art") as Control).visible, "the icon stays hidden")
-	assert_true((_node(tile, "%Question") as CanvasItem).visible, "the ? shows")
+## Story 9.3: the Epic 9 hats and pets are live, so each tile shows its own icon, never the "?".
+func test_every_shipped_epic_9_item_shows_its_own_icon() -> void:
+	for id: String in EPIC_9_IDS:
+		var item: CosmeticItem = load("res://data/cosmetics/%s.tres" % id) as CosmeticItem
+		assert_not_null(item.icon, "%s has its icon" % id)
+		assert_true(item.is_available, "%s is live" % id)
+		assert_eq(ClosetItemTile.state_for(item, 999, false, &""), ClosetItemTile.State.BUY, id)
+		var tile: ClosetItemTile = _tile(item, ClosetItemTile.State.BUY)
+		assert_eq(tile.get_state(), ClosetItemTile.State.BUY, id)
+		assert_true((_node(tile, "%Art") as Control).visible, "%s: the icon shows" % id)
+		assert_eq((_node(tile, "%Art") as TextureRect).texture, item.icon, "%s: its own icon" % id)
+		assert_false((_node(tile, "%Question") as CanvasItem).visible, "%s: no ?" % id)
 
 
-## Story 9.2: the same for the Epic 9 pets, which now carry their icons too.
-func test_a_shipped_unavailable_pet_with_an_icon_stays_hidden() -> void:
-	for id: String in ["pet_black_cat", "pet_spider", "pet_orange_cat", "pet_bat", "pet_crow", "pet_wolf_dog",
-			"pet_eyeball", "pet_brain_buddy"]:
-		var pet: CosmeticItem = load("res://data/cosmetics/%s.tres" % id) as CosmeticItem
-		assert_not_null(pet.icon, "%s has its icon" % id)
-		assert_false(pet.is_available, "%s not switched on before Story 9.3" % id)
-		assert_eq(ClosetItemTile.state_for(pet, 999, false, &""), ClosetItemTile.State.LOCKED, id)
-		var tile: ClosetItemTile = _tile(pet, ClosetItemTile.State.BUY)
+## Stories 9.1, 9.2: a locked tile hides even a real icon behind "?" so nothing leaks through "Coming soon".
+## No shipped item is unavailable since Story 9.3, so per-item copies (one hat, one pet) keep it covered.
+func test_an_unavailable_item_with_a_real_icon_stays_hidden() -> void:
+	for id: String in ["hat_witch", "pet_black_cat"]:
+		var item: CosmeticItem = (load("res://data/cosmetics/%s.tres" % id) as CosmeticItem).duplicate() as CosmeticItem
+		item.is_available = false
+		assert_not_null(item.icon, "%s has its icon" % id)
+		assert_eq(ClosetItemTile.state_for(item, 999, false, &""), ClosetItemTile.State.LOCKED, id)
+		var tile: ClosetItemTile = _tile(item, ClosetItemTile.State.BUY)
 		assert_eq(tile.get_state(), ClosetItemTile.State.LOCKED, id)
 		assert_false((_node(tile, "%Art") as Control).visible, "%s: the icon stays hidden" % id)
 		assert_true((_node(tile, "%Question") as CanvasItem).visible, "%s: the ? shows" % id)

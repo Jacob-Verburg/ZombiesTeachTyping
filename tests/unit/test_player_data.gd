@@ -8,6 +8,8 @@ const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
 const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
 const TEST_DIR: String = "user://test_player_data/"
 const FULL_PATH: String = "res://tests/fixtures/saves/save_v1_full.json"
+## Story 9.3: a schema-3 save from before the full catalogue went live (owns and wears the two MVP items).
+const MVP_OWNED_PATH: String = "res://tests/fixtures/saves/save_v3_mvp_owned.json"
 
 var _save: SaveServiceScript = null
 
@@ -789,6 +791,27 @@ func test_set_flag_unknown_name_is_rejected() -> void:
 	assert_signal_not_emitted(sut, "flags_changed")
 	assert_false(sut.get_flag(&"cheat_mode"))
 	assert_push_error("unknown flag", "get_flag logs too")
+
+
+## Story 9.3 (Epic 9 AC 2): a save from before the full catalogue went live (schema 3, and a v1 save that
+## migrates) loads with the shipped catalogue unchanged: same owned list in order, same worn hat and pet,
+## same brains. A new item buys alongside and leaves the old two owned and worn.
+func test_an_mvp_save_loads_unchanged_with_the_full_catalogue() -> void:
+	for path: String in [MVP_OWNED_PATH, FULL_PATH]:
+		_clear()
+		_put_fixture(path)
+		var sut: PlayerDataScript = _make()
+		assert_eq(sut.catalogue, load("res://data/cosmetics/catalogue.tres"), path + ": the shipped catalogue")
+		assert_eq(sut.get_owned_items(), [&"hat_pumpkin", &"pet_cute_ghost"] as Array[StringName], path)
+		assert_eq(sut.get_equipped(&"hat"), &"hat_pumpkin", path)
+		assert_eq(sut.get_equipped(&"pet"), &"pet_cute_ghost", path)
+		assert_eq(sut.get_brains(), 340, path)
+		assert_eq(sut.buy_item(sut.catalogue.get_item(&"hat_santa")), PlayerDataScript.PurchaseResult.OK, path)
+		assert_eq(sut.get_brains(), 140, path)
+		assert_eq(sut.get_owned_items(), [&"hat_pumpkin", &"pet_cute_ghost", &"hat_santa"] as Array[StringName], path)
+		assert_eq(sut.get_equipped(&"hat"), &"hat_pumpkin", path + ": buying does not change what is worn")
+		assert_eq(sut.get_equipped(&"pet"), &"pet_cute_ghost", path)
+	assert_push_warning_count(0)
 
 
 func test_fixture_flags_read_true() -> void:

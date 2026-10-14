@@ -264,18 +264,15 @@ func _shots_report_and_gift() -> void:
 	_unmount_all()
 
 
-## The shipped catalogue with three more row-1/row-2 hats made available (the pumpkin's art), so one Hats
-## page shows all five states: Wearing (pumpkin), Wear (witch, owned), Buy (bunny ears, 100), Can't afford
-## (heart headband, 200, with 150 brains), Locked (the rest).
+## A per-item copy of the shipped catalogue (every item with its own art) with the row-3 hats made
+## unavailable, so one Hats grid shows all five states: Wearing (pumpkin), Wear (witch, owned), Buy (bunny
+## ears, 100), Can't afford (the row-2 hats, 200, with 150 brains), Locked (top hat, pirate hat, crown). Story
+## 9.3: no shipped item is Locked any more, so the copy is the only way to show that state.
 func _five_state_catalogue() -> Catalogue:
 	var catalogue: Catalogue = Catalogue.new()
-	var pumpkin: CosmeticItem = SHIPPED.get_item(&"hat_pumpkin")
 	for source: CosmeticItem in SHIPPED.items:
 		var item: CosmeticItem = source.duplicate() as CosmeticItem
-		if item.id in [&"hat_witch", &"hat_bunny_ears", &"hat_heart_headband"]:
-			item.is_available = true
-			item.overlay = pumpkin.overlay
-			item.icon = pumpkin.icon
+		item.is_available = not (item.id in [&"hat_top_hat", &"hat_pirate", &"hat_crown"])
 		catalogue.items.append(item)
 	return catalogue
 

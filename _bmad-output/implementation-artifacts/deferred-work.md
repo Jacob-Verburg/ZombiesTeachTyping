@@ -783,7 +783,7 @@
 
 ## Deferred from: dev of story 9-1 (2026-10-13)
 
-- The 8 new hats have their overlays and Closet icons but stay `is_available = false`: Story 9.3 switches the full catalogue on (with its save-compatibility check). Until then the fit check's E warns "could not buy" on them (correct; documented in `hat_fit_check.gd`).
+- ~~The 8 new hats have their overlays and Closet icons but stay `is_available = false`: Story 9.3 switches the full catalogue on (with its save-compatibility check). Until then the fit check's E warns "could not buy" on them (correct; documented in `hat_fit_check.gd`).~~ Resolved in 9.3: all 18 items are live; the fit check doc now says E buys any item and warns only on an `is_available = false` one.
 - Fit-check size-class page: on the brute column the witch hat's bent tip comes close to the `brute 1.5` label (debug scene only).
 - `test_horde_rush_level.gd::test_hats_stay_on_screen_on_a_brute_in_lane_0` uses the lowest walk crown row (1), so it would still pass a 19 px rise (top y 0.5); the 18 px cap in `test_art_sprites.gd` is the guard that catches it (mutation pass).
 - `test_stress_copies_cycle_all_three_classes` sorted `StringName`s, which compare by interned pointer: fixed to sort Strings. Other tests that `sort()` a `StringName` array may have the same latent order dependence.
@@ -793,13 +793,13 @@
 ## Deferred from: code review of story-9-1-eight-new-hats (2026-10-13)
 
 - The brute lane-0 Horde Rush test ignores `Body` scale/rotation and uses only the lowest walk crown row; the 18 px cap in `test_art_sprites.gd` is the real guard. Tighten if `player_zombie.tscn`'s Body transform is changed.
-- `HatSlot.show_item` does not check `is_available`, and `ClosetItemTile._apply_art` assigns the texture to its hidden `Art` rect for locked tiles. Harmless today (unavailable hats cannot be equipped or seen); revisit in Story 9.3 when the 8 hats go on sale.
+- ~~`HatSlot.show_item` does not check `is_available`, and `ClosetItemTile._apply_art` assigns the texture to its hidden `Art` rect for locked tiles. Harmless today (unavailable hats cannot be equipped or seen); revisit in Story 9.3 when the 8 hats go on sale.~~ Decided in 9.3: leave it. Every caller already filters (`PlayerData.get_equipped` hides an unavailable id, the Closet previews only `focused.is_available`), and no shipped item is unavailable now; the locked-tile hidden `Art` stays covered by `test_an_unavailable_item_with_a_real_icon_stays_hidden`.
 
 
 ## Deferred from: dev of story 9-2 (2026-10-14)
 
-- The 8 new pets have their idle sheets, `pet_frames` and Closet icons but stay `is_available = false`: Story 9.3 switches the full catalogue on (with its save-compatibility check). Until then their tiles are Locked ("?", "Coming soon") and the fit check's E warns "could not buy" on them (correct; documented in `hat_fit_check.gd`).
-- Like `HatSlot` (9.1 review), `PetSlot.show_item` does not check `is_available`, and the Closet tile assigns the icon to its hidden `Art` rect when Locked. Harmless today (an unavailable pet can't be equipped or previewed, pinned by `test_focusing_an_unavailable_pet_with_art_never_previews_it`); revisit in 9.3.
+- ~~The 8 new pets have their idle sheets, `pet_frames` and Closet icons but stay `is_available = false`: Story 9.3 switches the full catalogue on (with its save-compatibility check). Until then their tiles are Locked ("?", "Coming soon") and the fit check's E warns "could not buy" on them (correct; documented in `hat_fit_check.gd`).~~ Resolved in 9.3: all 18 items are live.
+- ~~Like `HatSlot` (9.1 review), `PetSlot.show_item` does not check `is_available`, and the Closet tile assigns the icon to its hidden `Art` rect when Locked. Harmless today (an unavailable pet can't be equipped or previewed, pinned by `test_focusing_an_unavailable_pet_with_art_never_previews_it`); revisit in 9.3.~~ Decided in 9.3: leave it, as for `HatSlot` (callers filter; the guard test now runs on a catalogue copy with the 8 pets unavailable).
 - Blink rate: with 2-6 frames at 8-12 fps an idle loop lasts at most 0.75 s, so the Black cat, Crow and Floating eyeball blink about twice a second. Raised at Gate 1; Smuck approved all 8 as drawn. If it reads twitchy in the kid playtest, swap the blink for another motion or allow a longer idle (needs a style-sheet rule change: more frames or duration multipliers).
 - Closet icon centring: the story assumed every pet's frame 0 has an even width ("by construction"). The cats' frame 0 is 17 px wide (tail A stops short of the part's edge), so `test_pet_icons_are_centred` checks "exact along an even side, within 1 px along an odd one" both ways instead of "exact across". Make the cat's frame 0 even (and tighten the test) if a 1 px shift ever shows in the grid.
 - The fit check's menu view reads the main menu's `Zombie` and `PetSlot` positions from `main_menu.tscn`'s SceneState by node name; renaming either node makes the view warn and skip (`test_menu_and_report_views_stand_at_the_scene_spacings` then fails).
@@ -808,5 +808,19 @@
 
 ## Deferred from: code review of 9-2-eight-new-pets (2026-10-14)
 
-- Closet/focus tests only exercise unavailable pets; add an available-pet preview test (`PetSlot.is_showing()` per new pet) in Story 9.3.
+- ~~Closet/focus tests only exercise unavailable pets; add an available-pet preview test (`PetSlot.is_showing()` per new pet) in Story 9.3.~~ Resolved in 9.3: `test_focusing_every_shipped_item_previews_it` (every hat and pet, `is_showing()`, the other slot kept).
 - Black cat blink only removes the eye glint rather than closing the eyes; cosmetic, approved at Gate 1.
+
+## Deferred from: dev of story-9.3 (2026-10-14)
+
+- No shipped item is Locked any more, so the Locked / "Coming soon" tile state is covered only on per-item catalogue copies (`_catalogue_with_unavailable` in `test_crypt_closet.gd`, duplicated items in `test_closet_item_tile.gd`, `tools/capture_screens_runner.gd::_five_state_catalogue`). If a future item ships unavailable, `test_shipped_full_catalogue_is_available` fails on purpose: update it with the item.
+- `test_hud.gd` / `test_report_card.gd` still read the live `PlayerData` autoload (deferred 4.3): with the full catalogue live, a new hat or pet worn in the dev machine's real save now shows in those tests. Their 32x32 frame-rect checks hold for every shipped item; check the real save first if one flakes.
+- The committed `screenshots/5-2/18-20-closet-*` captures were made with the old five-state copy (pumpkin art on three hats); not regenerated. A rerun of `tools/capture_screens.gd` will draw each hat's own art and Locked on the row-3 hats.
+- The gate captures were made with scratch scripts outside the repo; the real `user://save.json` hash was identical before and after.
+
+## Deferred from: code review of 9-3-full-catalogue-live (2026-10-14)
+
+- Fixture `save_v3_mvp_owned.json` pins `schema_version` 3; a later schema bump would make it exercise migration instead of the current-schema path.
+- Tests hard-code prices (340 brains, 3600 total, 18 items, 200 brains) and the 3-column grid; a price or layout change breaks them for unrelated reasons.
+- The confirm-prompt regex in `test_plain_words.gd` accepts any lowercase-word name shape; `APPROVED_COPY` is the only per-name gate.
+- `capture_screens_runner.gd::_five_state_catalogue` now yields three Can't-afford and three Locked tiles rather than one each.

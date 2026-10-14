@@ -2,7 +2,8 @@ extends GutTest
 ## Plain words (Story 5.2, NFR9, NFR10, NFR11, NFR16): every player-facing string in the MVP is collected from
 ## the scenes (static `text` of every node under the MVP scene folders), the script copy (HUD prompts, toggle
 ## captions, Closet tile info lines, the confirm question for every live item, the report card, the gift, the
-## storage notice, the conga badge) and the data (live catalogue names, non-debug level names), then:
+## storage notice, the conga badge) and the data (live catalogue names: all 18 since Story 9.3, non-debug
+## level names), then:
 ## (a) each string is approved copy (exact, or a number pattern), so new copy can't ship without being added
 ##     here on purpose (and to EXPERIENCE.md Voice and Tone, the copy contract);
 ## (b) no zombie slang in labels ("Brainsss" lives in voice lines and flavor art only);
@@ -38,13 +39,18 @@ const APPROVED_COPY: Array[String] = [
 	# Crypt Closet
 	"Hats", "Pets", "Coming soon", "Buy", "Wear", "Wearing", "Yes", "No",
 	# Live catalogue items (locked items show no name). A newly live item is added here on purpose.
-	"Pumpkin hat", "Cute ghost",
+	# Story 9.3: the full catalogue (FR75), hats then pets in grid order.
+	"Pumpkin hat", "Witch hat", "Bunny ears", "Santa hat", "Leprechaun hat", "Heart headband", "Top hat",
+	"Pirate hat", "Golden crown",
+	"Cute ghost", "Black cat", "Spider", "Orange cat", "Bat", "Crow", "Wolf-dog", "Floating eyeball",
+	"Brain buddy",
 ]
 ## Numbers and formatted values: counts, "+N", "+N bonus", "Need N more", times, percents, the conga badge,
-## the WPM placeholder (en dash), the confirm question for a live item.
+## the WPM placeholder (en dash), the confirm question for a live item (a word may carry one hyphenated part,
+## "Wolf-dog"; no digits, apostrophes or capitals after the first letter).
 const APPROVED_PATTERNS: Array[String] = [
 	"^\\d+$", "^\\+\\d+$", "^\\+\\d+ bonus$", "^Need \\d+ more$", "^\\d+:\\d\\d$", "^\\d+%$", "^×\\d+$", "^–$",
-	"^Buy the [A-Z][a-z]+( [a-z]+)* for \\d+ brains\\?$",
+	"^Buy the [A-Z][a-z]+(-[a-z]+)?( [a-z]+(-[a-z]+)?)* for \\d+ brains\\?$",
 ]
 const SLANG: String = "(?i)(brains{2,}|bra{2,}i*n|\\bu{2,}h+|\\bgr{2,}|\\bargh+|\\bra{2,}wr|\\bmm{2,}|\\bnom\\b)"
 const TECHNICAL: String = "(?i)(error:|\\bnull\\b|\\bnil\\b|invalid|exception|failed|res://|user://|%s|%d|\\w_\\w|StringName|&\")"
@@ -253,7 +259,8 @@ func test_the_walk_finds_the_copy() -> void:
 	var values: Array[String] = []
 	values.assign(strings.values())
 	for expected: String in ["Click or press any key", "Buy the Pumpkin hat for 100 brains?", "+10 bonus",
-			"×13", "Need 40 more", "Zombie Run", "This browser might forget your brains", "+100", "Caps Lock is on"]:
+			"×13", "Need 40 more", "Zombie Run", "This browser might forget your brains", "+100", "Caps Lock is on",
+			"Buy the Wolf-dog for 300 brains?", "Golden crown"]:
 		assert_has(values, expected, "the walk saw '%s'" % expected)
 
 
@@ -290,3 +297,10 @@ func test_the_rules_bite() -> void:
 	assert_eq(_all_caps_words("QUIT"), ["QUIT"] as Array[String])
 	assert_eq(_all_caps_words("WPM"), [] as Array[String])
 	assert_false(_is_approved("Brainsss"), "a new string is not approved by accident")
+	# Story 9.3: the confirm question allows one hyphenated part per word, and nothing looser.
+	assert_true(_is_approved("Buy the Wolf-dog for 300 brains?"))
+	assert_true(_is_approved("Buy the Floating eyeball for 300 brains?"))
+	for loose: String in ["Buy the New Year's top hat for 300 brains?", "Buy the Hat 2 for 100 brains?",
+			"Buy the Wolf-Dog for 300 brains?", "Buy the Wolf--dog for 300 brains?", "Buy the -dog for 300 brains?",
+			"Buy the Wolf-dog- for 300 brains?"]:
+		assert_false(_is_approved(loose), "too loose: %s" % loose)

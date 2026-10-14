@@ -62,7 +62,7 @@ Microcopy. Brand voice lives in `DESIGN.md` Brand & Style. Every label uses word
 | Report card | "New best!" · "Play Again" · "Menu"; key hints "Enter" / "Esc" beside the buttons `[ASSUMPTION — from mock]`; board heading = the level name, e.g. "Zombie Run" (D16) |
 | Pitchfork Panic endings | "Got you!" · "Escaped!" |
 | Welcome Gift | "Welcome gift!" · "+100" · "Open the Crypt Closet" |
-| Closet tiles | "Coming soon" · "Need N more" · "Buy" · "Wear" · "Wearing" |
+| Closet tiles | "Coming soon" (no shipped item after Story 9.3; the state stays for future items) · "Need N more" · "Buy" · "Wear" · "Wearing" |
 | Closet confirm | "Buy the Pumpkin hat for 100 brains?" · "Yes" · "No" `[ASSUMPTION]` |
 | Level card — Coming soon | "Coming soon" |
 | Level card — Locked (D12, D14) | Focus-only hint: "Finish Zombie Run to open!" / "Finish Horde Rush to open!" `[ASSUMPTION — copy]`. The card itself shows only the padlock; the hint sign hangs below the card while it has focus, so the copy is no longer squeezed onto the card and can grow if needed. |
@@ -256,7 +256,7 @@ Failure / edge paths: quit mid-run → no unlock (step 5); storage not persisten
 ### Flow 2 — Jacob's first Crypt Closet purchase *(derived from GDD M5 and Story 4.5; no developer narration)*
 
 1. After his first completed run's report card, Enter shows the Welcome Gift card: "+100" with one pre-focused button, "Open the Crypt Closet".
-2. The Closet opens: two 3×3 grids. The Pumpkin hat and Cute ghost show price 100; the other 16 tiles are "?" silhouettes marked "Coming soon". Brain counter: his run's brains plus 100.
+2. The Closet opens: two 3×3 grids. The Pumpkin hat and Cute ghost show price 100; the other 16 tiles are "?" silhouettes marked "Coming soon" (the MVP; since Epic 9, Story 9.3, all 18 tiles show their item and price, 100 / 200 / 300 by row). Brain counter: his run's brains plus 100.
 3. The candy-yellow tutorial arrow bobs beside the Pumpkin hat (first affordable item). He arrows to it; the preview zombie tries it on.
 4. Enter → Buy → the confirm prompt; the arrow moves to Yes. Enter.
 5. Purchase jingle; brain counter ticks down by 100; the tile flips to Wear and the arrow points at Wear.

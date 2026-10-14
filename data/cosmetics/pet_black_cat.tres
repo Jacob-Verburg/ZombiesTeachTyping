@@ -51,6 +51,6 @@ display_name = "Black cat"
 slot = 1
 price = 100
 row = 1
-is_available = false
+is_available = true
 icon = SubResource("AtlasTexture_icon")
 pet_frames = SubResource("SpriteFrames_black_cat")

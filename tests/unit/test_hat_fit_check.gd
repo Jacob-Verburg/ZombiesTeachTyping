@@ -302,6 +302,32 @@ func test_e_wears_for_real_and_none_unequips() -> void:
 	assert_push_error_count(0)
 
 
+## Story 9.3: E buys and wears a new shipped item (all live); an unavailable one (none ship) warns "could not
+## buy" and leaves the slot as it was.
+func test_e_wears_a_new_hat_and_warns_on_an_unavailable_one() -> void:
+	var check: HatFitCheck = _make()
+	while check.current_hat() != null and check.current_hat().id != &"hat_witch":
+		check.cycle_hat()
+	check.wear_for_real()
+	assert_eq(_player.get_equipped(CosmeticItem.SLOT_HAT), &"hat_witch", "a live Epic 9 hat wears")
+	assert_push_warning_count(0)
+	var copy: Catalogue = Catalogue.new()
+	for item: CosmeticItem in CATALOGUE.items:
+		var dup: CosmeticItem = item.duplicate() as CosmeticItem
+		dup.is_available = dup.id != &"hat_crown"
+		copy.items.append(dup)
+	var shipped_catalogue: Catalogue = _player.catalogue
+	_player.catalogue = copy
+	var locked: HatFitCheck = _make(copy)
+	while locked.current_hat() != null and locked.current_hat().id != &"hat_crown":
+		locked.cycle_hat()
+	locked.wear_for_real()
+	assert_push_warning("could not buy hat_crown")
+	assert_false(_player.owns(&"hat_crown"))
+	assert_eq(_player.get_equipped(CosmeticItem.SLOT_HAT), &"hat_witch", "unchanged")
+	_player.catalogue = shipped_catalogue
+
+
 ## Story 9.2: the pet cycle visits exactly the catalogue's pets in grid order, then none, and every pet slot
 ## (the cushion at both scales and both views) shows the current pet.
 func test_pet_cycle_visits_every_catalogue_pet_in_grid_order() -> void:

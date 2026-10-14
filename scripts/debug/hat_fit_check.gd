@@ -19,9 +19,9 @@ extends Control
 ## background (the places a hat appears), N the page, Esc quits. E wears for real: it gives the live
 ## PlayerData each shown item's price, buys it (unless owned) and equips it, or unequips a "none" slot. The
 ## only way to wear something before the Crypt Closet (4.4); it lives here because this scene is debug-only.
-## E only wears available items: on an unavailable one (the Epic 9 hats and pets before Story 9.3 switches
-## the full catalogue on) buy_item returns UNAVAILABLE and this warns "could not buy". That is correct; don't
-## "fix" PlayerData for it.
+## E buys and wears any item (all 18 are live since Story 9.3). On an is_available = false item (none ship
+## today) buy_item returns UNAVAILABLE and this warns "could not buy". That is correct; don't "fix"
+## PlayerData for it.
 ## F3/F5/F8/F9 are left alone (the debug overlay owns them).
 ## Seams (tests assign them before add_child): player_data and the exported catalogue and horde_config.
 

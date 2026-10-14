@@ -216,12 +216,33 @@ func test_shipped_hats_come_before_pets() -> void:
 	assert_eq(ids, HAT_IDS + PET_IDS)
 
 
-func test_shipped_only_mvp_items_are_available() -> void:
+## Story 9.3 (FR75): the full catalogue is live, all 18 in grid order.
+func test_shipped_full_catalogue_is_available() -> void:
 	var available: Array[StringName] = []
 	for item: CosmeticItem in _shipped().items:
 		if item.is_available:
 			available.append(item.id)
-	assert_eq(available, [&"hat_pumpkin", &"pet_cute_ghost"] as Array[StringName])
+	assert_eq(available, HAT_IDS + PET_IDS)
+
+
+## Story 9.3: no item goes live without its art: a 32x32 icon, and an overlay (hat) or pet frames with an idle
+## (pet). Guards any future item switched on in data.
+func test_every_available_item_has_its_art() -> void:
+	var checked: int = 0
+	for item: CosmeticItem in _shipped().items:
+		if not item.is_available:
+			continue
+		checked += 1
+		assert_not_null(item.icon, "%s has a Closet icon" % item.id)
+		if item.icon != null:
+			assert_eq(item.icon.get_size(), Vector2(32, 32), "%s icon size" % item.id)
+		if item.slot == CosmeticItem.Slot.HAT:
+			assert_not_null(item.overlay, "%s has an overlay" % item.id)
+		else:
+			assert_not_null(item.pet_frames, "%s has pet frames" % item.id)
+			if item.pet_frames != null:
+				assert_true(item.pet_frames.has_animation(&"idle"), "%s has an idle" % item.id)
+	assert_gt(checked, 0, "the walk found available items")
 
 
 func test_shipped_full_set_costs_3600() -> void:
@@ -243,7 +264,7 @@ func test_shipped_economy_config() -> void:
 
 
 ## Story 4.3: the MVP items carry their art. Story 4.4: a 32x32 Closet icon. Stories 9.1, 9.2: every hat and
-## every pet has its art too, available or not (an unavailable tile is Locked and shows "?" until 9.3).
+## every pet has its art too (all live since Story 9.3).
 func test_shipped_mvp_items_have_art() -> void:
 	var catalogue: Catalogue = _shipped()
 	var hat: CosmeticItem = catalogue.get_item(&"hat_pumpkin")

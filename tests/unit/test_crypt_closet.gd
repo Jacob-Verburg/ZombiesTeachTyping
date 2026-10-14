@@ -85,18 +85,22 @@ func _make(catalogue: Catalogue = null, use_catalogue: bool = false) -> ClosetSc
 	return closet
 
 
-## The shipped catalogue with the Witch hat (hat index 1, row 1) made available with the pumpkin's art.
-func _two_hat_catalogue() -> Catalogue:
+## Story 9.3: a per-item copy of the shipped catalogue with `ids` unavailable and every other item available,
+## so the Locked state stays covered now that no shipped item is Locked. Shallow duplicate(): each copy shares
+## the shipped art but has its own flag, so the preloaded SHIPPED items are never touched.
+func _catalogue_with_unavailable(ids: Array[StringName]) -> Catalogue:
 	var catalogue: Catalogue = Catalogue.new()
-	var pumpkin: CosmeticItem = SHIPPED.get_item(&"hat_pumpkin")
 	for source: CosmeticItem in SHIPPED.items:
 		var item: CosmeticItem = source.duplicate() as CosmeticItem
-		if item.id == &"hat_witch":
-			item.is_available = true
-			item.overlay = pumpkin.overlay
-			item.icon = pumpkin.icon
+		item.is_available = not ids.has(item.id)
 		catalogue.items.append(item)
 	return catalogue
+
+
+## A PlayerData and a Closet that both use `catalogue`.
+func _make_with(catalogue: Catalogue) -> ClosetScript:
+	_player = _make_player_data(catalogue)
+	return _make(catalogue, true)
 
 
 func _tile(id: StringName) -> ClosetItemTile:
@@ -183,30 +187,69 @@ func test_prices_by_row() -> void:
 			assert_eq(label.text, str((i / 3 + 1) * 100), "%s price" % grid[i].get_item_id())
 
 
-func test_fresh_save_shows_cant_afford_and_locked() -> void:
+## Story 9.3: the full catalogue is live, so a fresh save shows all 18 as Can't afford.
+func test_fresh_save_shows_every_tile_cant_afford() -> void:
 	_make()
 	assert_eq(_count(), "0")
 	for tile: ClosetItemTile in _closet.get_tiles():
-		var id: StringName = tile.get_item_id()
-		if id == &"hat_pumpkin" or id == &"pet_cute_ghost":
-			assert_eq(tile.get_state(), ClosetItemTile.State.CANT_AFFORD, String(id))
-		else:
-			assert_eq(tile.get_state(), ClosetItemTile.State.LOCKED, String(id))
+		assert_eq(tile.get_state(), ClosetItemTile.State.CANT_AFFORD, String(tile.get_item_id()))
 	assert_eq(_info(), PackedStringArray(["Pumpkin hat", "Need 100 more"]))
 
 
-func test_with_100_brains_both_mvp_items_are_buy() -> void:
+## The Locked state still works for an unavailable item (FR40), on a copy of the shipped catalogue.
+func test_fresh_save_shows_locked_for_unavailable_items() -> void:
+	_make_with(_catalogue_with_unavailable([&"hat_witch", &"pet_spider"]))
+	for tile: ClosetItemTile in _closet.get_tiles():
+		var id: StringName = tile.get_item_id()
+		if id == &"hat_witch" or id == &"pet_spider":
+			assert_eq(tile.get_state(), ClosetItemTile.State.LOCKED, String(id))
+		else:
+			assert_eq(tile.get_state(), ClosetItemTile.State.CANT_AFFORD, String(id))
+
+
+## Story 9.3 (FR75): the shipped Closet has no Locked tile at any wallet; every tile shows its own icon and its
+## name on the info sign, never "Coming soon".
+func test_shipped_closet_has_no_locked_tile() -> void:
+	for brains: int in [0, 100, 9999]:
+		_player = _make_player_data()
+		_player.add_brains(brains)
+		_make()
+		assert_eq(_closet.get_tiles().size(), 18)
+		for tile: ClosetItemTile in _closet.get_tiles():
+			var item: CosmeticItem = SHIPPED.get_item(tile.get_item_id())
+			var where: String = "%s at %d" % [item.id, brains]
+			assert_true(tile.get_state() in [ClosetItemTile.State.CANT_AFFORD, ClosetItemTile.State.BUY,
+				ClosetItemTile.State.WEAR, ClosetItemTile.State.WEARING], where + ": a live state")
+			assert_true((tile.get_node("%Art") as CanvasItem).visible, where + ": icon shows")
+			assert_eq((tile.get_node("%Art") as TextureRect).texture, item.icon, where + ": its own icon")
+			assert_false((tile.get_node("%Question") as CanvasItem).visible, where + ": no ?")
+			tile.grab_focus()
+			assert_eq(_info()[0], item.display_name, where + ": the info sign names it")
+		remove_child(_closet)
+		_closet.free()
+
+
+func test_with_100_brains_every_row_1_item_is_buy() -> void:
 	_player.add_brains(100)
 	_make()
 	assert_eq(_count(), "100")
-	assert_eq(_tile(&"hat_pumpkin").get_state(), ClosetItemTile.State.BUY)
-	assert_eq(_tile(&"pet_cute_ghost").get_state(), ClosetItemTile.State.BUY)
+	for grid: Array[ClosetItemTile] in [_hats(), _pets()]:
+		for i: int in 9:
+			var tile: ClosetItemTile = grid[i]
+			var id: String = String(tile.get_item_id())
+			if i < 3:
+				assert_eq(tile.get_state(), ClosetItemTile.State.BUY, id)
+				continue
+			assert_eq(tile.get_state(), ClosetItemTile.State.CANT_AFFORD, id)
+			tile.grab_focus()
+			assert_eq(_info()[1], "Need 100 more" if i < 6 else "Need 200 more", id)
+	_hats()[0].grab_focus()
 	assert_eq(_info(), PackedStringArray(["Pumpkin hat", "Buy"]))
 
 
 func test_locked_tile_info_is_a_mystery() -> void:
-	_make()
-	_hats()[1].grab_focus()
+	_make_with(_catalogue_with_unavailable([&"hat_witch"]))
+	_tile(&"hat_witch").grab_focus()
 	assert_eq(_info(), PackedStringArray(["Coming soon", ""]))
 
 
@@ -346,14 +389,13 @@ func test_wear_then_take_off() -> void:
 	assert_eq(_hat_slot().get_item_id(), &"")
 
 
+## Story 9.3: the shipped Witch hat (live, its own art) is the second hat.
 func test_wearing_a_second_hat_flips_the_first_back_to_wear() -> void:
-	var catalogue: Catalogue = _two_hat_catalogue()
-	_player = _make_player_data(catalogue)
 	_player.add_brains(200)
-	_player.buy_item(catalogue.get_item(&"hat_pumpkin"))
-	_player.buy_item(catalogue.get_item(&"hat_witch"))
+	_player.buy_item(SHIPPED.get_item(&"hat_pumpkin"))
+	_player.buy_item(SHIPPED.get_item(&"hat_witch"))
 	_player.equip(&"hat_pumpkin")
-	_make(catalogue, true)
+	_make()
 	assert_eq(_tile(&"hat_pumpkin").get_state(), ClosetItemTile.State.WEARING)
 	assert_eq(_tile(&"hat_witch").get_state(), ClosetItemTile.State.WEAR)
 	_activate(&"hat_witch")
@@ -362,10 +404,49 @@ func test_wearing_a_second_hat_flips_the_first_back_to_wear() -> void:
 	assert_eq(_player.get_equipped(&"hat"), &"hat_witch")
 
 
-func test_locked_and_cant_afford_only_wiggle() -> void:
+## Story 9.3: every shipped item (data-driven, grid order) buys through the prompt, wears and comes off with
+## the existing flow. 3600 brains is exactly the full set. The hats run with no pet worn; the pets run with
+## the pumpkin hat worn, so "the other slot is unchanged" is checked against a real item.
+func test_every_shipped_item_buys_and_wears() -> void:
+	_player.add_brains(3600)
 	_make()
+	var bought: int = 0
+	for tile: ClosetItemTile in _closet.get_tiles():
+		var item: CosmeticItem = SHIPPED.get_item(tile.get_item_id())
+		var slot: StringName = item.slot_key()
+		var other: StringName = CosmeticItem.SLOT_PET if slot == CosmeticItem.SLOT_HAT else CosmeticItem.SLOT_HAT
+		if item.id == &"pet_cute_ghost":
+			_player.equip(&"hat_pumpkin")
+		var other_before: StringName = _player.get_equipped(other)
+		var brains: int = _player.get_brains()
+		assert_eq(tile.get_state(), ClosetItemTile.State.BUY, String(item.id))
+		_activate(item.id)
+		assert_eq((_prompt().get_node("%QuestionLabel") as Label).text,
+				"Buy the %s for %d brains?" % [item.display_name, item.price])
+		(_prompt().get_node("%YesButton") as Button).pressed.emit()
+		bought += 1
+		assert_true(_player.owns(item.id), String(item.id))
+		assert_eq(_player.get_brains(), brains - item.price, "%s: exactly its price" % item.id)
+		assert_eq(_sfx.count(&"sfx_purchase"), bought, "%s: the jingle" % item.id)
+		assert_eq(tile.get_state(), ClosetItemTile.State.WEAR, String(item.id))
+		_activate(item.id)
+		assert_eq(tile.get_state(), ClosetItemTile.State.WEARING, String(item.id))
+		assert_eq(_player.get_equipped(slot), item.id, String(item.id))
+		assert_eq(_player.get_equipped(other), other_before, "%s: the other slot is unchanged" % item.id)
+		_activate(item.id)
+		assert_eq(tile.get_state(), ClosetItemTile.State.WEAR, "%s: taken off" % item.id)
+		assert_eq(_player.get_equipped(slot), &"", "%s: taken off" % item.id)
+	assert_eq(bought, 18)
+	assert_eq(_player.get_owned_items().size(), 18)
+	assert_eq(_player.get_brains(), 0, "the full set costs 3600")
+	assert_push_warning_count(0)
+	assert_push_error_count(0)
+
+
+func test_locked_and_cant_afford_only_wiggle() -> void:
+	_make_with(_catalogue_with_unavailable([&"hat_witch"]))
 	var poor: ClosetItemTile = _tile(&"hat_pumpkin")
-	var locked: ClosetItemTile = _hats()[1]
+	var locked: ClosetItemTile = _tile(&"hat_witch")
 	for tile: ClosetItemTile in [poor, locked]:
 		tile._gui_input(_accept())
 		assert_true(tile.is_wiggling(), String(tile.get_item_id()))
@@ -413,28 +494,38 @@ func test_preview_follows_focus_and_keeps_the_other_slot_equipped() -> void:
 
 
 func test_focusing_a_locked_tile_shows_the_equipped_items_quietly() -> void:
-	_own_pumpkin()
+	var locked: Array[StringName] = [&"hat_witch", &"hat_crown", &"pet_black_cat", &"pet_brain_buddy"]
+	var catalogue: Catalogue = _catalogue_with_unavailable(locked)
+	_player = _make_player_data(catalogue)
+	_player.add_brains(100)
+	_player.buy_item(catalogue.get_item(&"hat_pumpkin"))
 	_player.equip(&"hat_pumpkin")
-	_make()
+	_make(catalogue, true)
+	var checked: int = 0
 	for tile: ClosetItemTile in _closet.get_tiles():
 		if tile.get_state() != ClosetItemTile.State.LOCKED:
 			continue
 		tile.grab_focus()
 		assert_eq(_hat_slot().get_item_id(), &"hat_pumpkin", String(tile.get_item_id()))
 		assert_eq(_pet_slot().get_item_id(), &"", String(tile.get_item_id()))
+		checked += 1
+	assert_eq(checked, locked.size(), "the loop visited every Locked tile (never a vacuous pass)")
 	assert_push_warning_count(0, "no slot ever warns because of the Closet")
 
 
-## Story 9.2: the Epic 9 pets carry their art now, but the preview still never shows an unavailable pet:
-## focusing one keeps the equipped pet (the ghost here).
+## Story 9.2: the Epic 9 pets carry their art, but the preview never shows an unavailable pet: focusing one
+## keeps the equipped pet (the ghost here). Story 9.3: they are live, so a copy makes them unavailable again.
 func test_focusing_an_unavailable_pet_with_art_never_previews_it() -> void:
+	var catalogue: Catalogue = _catalogue_with_unavailable([&"pet_black_cat", &"pet_spider", &"pet_orange_cat",
+		&"pet_bat", &"pet_crow", &"pet_wolf_dog", &"pet_eyeball", &"pet_brain_buddy"])
+	_player = _make_player_data(catalogue)
 	_player.add_brains(100)
-	_player.buy_item(SHIPPED.get_item(&"pet_cute_ghost"))
+	_player.buy_item(catalogue.get_item(&"pet_cute_ghost"))
 	_player.equip(&"pet_cute_ghost")
-	_make()
+	_make(catalogue, true)
 	var checked: int = 0
 	for tile: ClosetItemTile in _closet.get_tiles():
-		var item: CosmeticItem = SHIPPED.get_item(tile.get_item_id())
+		var item: CosmeticItem = catalogue.get_item(tile.get_item_id())
 		if item.slot != CosmeticItem.Slot.PET or item.is_available:
 			continue
 		assert_not_null(item.pet_frames, "%s has its art" % item.id)
@@ -442,6 +533,32 @@ func test_focusing_an_unavailable_pet_with_art_never_previews_it() -> void:
 		assert_eq(_pet_slot().get_item_id(), &"pet_cute_ghost", "%s is not previewed" % item.id)
 		checked += 1
 	assert_eq(checked, 8, "the eight Epic 9 pets")
+	assert_push_warning_count(0)
+
+
+## Story 9.3 (9.2 review deferral): focusing each shipped item previews it in the mirror, with the other slot
+## keeping its worn item, and nothing warns.
+func test_focusing_every_shipped_item_previews_it() -> void:
+	_player.add_brains(200)
+	_player.buy_item(SHIPPED.get_item(&"hat_pumpkin"))
+	_player.buy_item(SHIPPED.get_item(&"pet_cute_ghost"))
+	_player.equip(&"hat_pumpkin")
+	_player.equip(&"pet_cute_ghost")
+	_make()
+	var checked: int = 0
+	for tile: ClosetItemTile in _closet.get_tiles():
+		var id: StringName = tile.get_item_id()
+		tile.grab_focus()
+		if SHIPPED.get_item(id).slot == CosmeticItem.Slot.HAT:
+			assert_eq(_hat_slot().get_item_id(), id, String(id))
+			assert_true(_hat_slot().is_showing(), String(id))
+			assert_eq(_pet_slot().get_item_id(), &"pet_cute_ghost", "%s: the worn pet stays" % id)
+		else:
+			assert_eq(_pet_slot().get_item_id(), id, String(id))
+			assert_true(_pet_slot().is_showing(), String(id))
+			assert_eq(_hat_slot().get_item_id(), &"hat_pumpkin", "%s: the worn hat stays" % id)
+		checked += 1
+	assert_eq(checked, 18)
 	assert_push_warning_count(0)
 
 
@@ -506,6 +623,36 @@ func test_exit_tree_disconnects() -> void:
 	_player.add_brains(100)
 	_player.reset_all()
 	assert_push_error_count(0)
+
+
+# --- Old saves (Story 9.3) -----------------------------------------------------------------------------
+
+## A save from before the full catalogue went live: opening the Closet and leaving with Esc changes nothing
+## and the Closet itself asks for no save.
+func test_an_mvp_save_opens_and_leaves_the_full_closet_unchanged() -> void:
+	var save_path: String = TEST_DIR.path_join("save.json")
+	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
+	file.store_string(FileAccess.get_file_as_string("res://tests/fixtures/saves/save_v3_mvp_owned.json"))
+	file.close()
+	_player = _make_player_data()
+	await wait_process_frames(2)
+	var on_disk: String = FileAccess.get_file_as_string(save_path)
+	var before: int = _save.requests
+	_make()
+	assert_eq(_tile(&"hat_pumpkin").get_state(), ClosetItemTile.State.WEARING)
+	assert_eq(_tile(&"pet_cute_ghost").get_state(), ClosetItemTile.State.WEARING)
+	for tile: ClosetItemTile in _closet.get_tiles():
+		if tile.get_item_id() != &"hat_pumpkin" and tile.get_item_id() != &"pet_cute_ghost":
+			assert_eq(tile.get_state(), ClosetItemTile.State.BUY, "%s: live, and 340 covers any price" % tile.get_item_id())
+	_closet._unhandled_input(_esc())
+	await wait_process_frames(2)
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+	assert_eq(_player.get_owned_items(), [&"hat_pumpkin", &"pet_cute_ghost"] as Array[StringName])
+	assert_eq(_player.get_equipped(&"hat"), &"hat_pumpkin")
+	assert_eq(_player.get_equipped(&"pet"), &"pet_cute_ghost")
+	assert_eq(_player.get_brains(), 340)
+	assert_eq(_save.requests, before, "the Closet asked for no save")
+	assert_eq(FileAccess.get_file_as_string(save_path), on_disk, "nothing written")
 
 
 # --- Focus ---------------------------------------------------------------------------------------------
@@ -819,6 +966,21 @@ func test_tutorial_guides_buy_yes_wear_on_the_pumpkin_hat() -> void:
 	assert_false(_closet.is_tutorial_active())
 
 
+## Story 9.3: with every row-1 item live (and rows 2-3 too at 300), the guided first purchase still points
+## at the first Buy tile in grid order: the Pumpkin hat.
+func test_tutorial_targets_the_pumpkin_hat_with_the_full_catalogue() -> void:
+	for brains: int in [100, 300]:
+		_player = _make_player_data()
+		_player.add_brains(brains)
+		await _make_tutorial()
+		assert_true(_closet.is_tutorial_active(), "%d brains" % brains)
+		assert_eq(_closet._tutorial_target, &"hat_pumpkin", "%d brains" % brains)
+		assert_true(_hats()[0].has_focus(), "%d brains: focus on the pumpkin" % brains)
+		_assert_arrow(HAT_BUY_ARROW, TutorialArrow.Direction.DOWN, "%d brains" % brains)
+		remove_child(_closet)
+		_closet.free()
+
+
 func test_esc_on_the_prompt_puts_the_arrow_back_on_buy() -> void:
 	_player.add_brains(100)
 	await _make_tutorial()
@@ -914,17 +1076,21 @@ func test_an_owned_unworn_item_is_the_wear_target() -> void:
 	_assert_arrow(HAT_BUY_ARROW, TutorialArrow.Direction.DOWN, "wear target")
 
 
+## Story 9.3: every hat is live, so every hat is priced above the wallet to leave the pet the only Buy.
 func test_a_pet_only_affordable_catalogue_points_at_the_pet() -> void:
 	var catalogue: Catalogue = Catalogue.new()
 	for source: CosmeticItem in SHIPPED.items:
 		var item: CosmeticItem = source.duplicate() as CosmeticItem
-		if item.id == &"hat_pumpkin":
-			item.price = 200
+		if item.slot == CosmeticItem.Slot.HAT:
+			item.price = 400
 		catalogue.items.append(item)
 	_player.add_brains(100)
 	await _make_tutorial(catalogue, true)
 	assert_true(_closet.is_tutorial_active())
 	assert_true(_pets()[0].has_focus())
+	assert_eq(_pets()[0].get_state(), ClosetItemTile.State.BUY, "the focused pet is the Buy")
+	for hat: ClosetItemTile in _hats():
+		assert_ne(hat.get_state(), ClosetItemTile.State.BUY, "no hat is a Buy: " + String(hat.get_item_id()))
 	_assert_arrow(PET_BUY_ARROW, TutorialArrow.Direction.DOWN, "pet buy")
 
 

@@ -15,6 +15,6 @@ display_name = "Santa hat"
 slot = 0
 price = 200
 row = 2
-is_available = false
+is_available = true
 icon = SubResource("AtlasTexture_icon")
 overlay = ExtResource("2_overlay")

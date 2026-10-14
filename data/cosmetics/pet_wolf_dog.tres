@@ -51,6 +51,6 @@ display_name = "Wolf-dog"
 slot = 1
 price = 300
 row = 3
-is_available = false
+is_available = true
 icon = SubResource("AtlasTexture_icon")
 pet_frames = SubResource("SpriteFrames_wolf_dog")
