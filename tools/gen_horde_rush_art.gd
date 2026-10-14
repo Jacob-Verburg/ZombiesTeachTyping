@@ -208,7 +208,7 @@ const FARMER_BACK_ARM_ERASE: Array[String] = [
 ]
 
 ## Throw 1 (wind-up): the back arm out behind at chest height, from row 17. The empty hand is where the
-## tomato appears (horde_rush_level.gd: x DEFENDER_X + 12, TOMATO_RISE_PX above the feet).
+## tomato appears (horde_rush_level.gd: x DEFENDER_X + 12, PROJECTILE_RISE_PX above the feet).
 const FARMER_ARM_BACK: Array[String] = [
 	".....................kkkkkkkkk..",
 	".....................kcccccsssk.",

@@ -72,6 +72,7 @@ const HORDE_RUSH_PAIR_SHEETS: Array[String] = [
 const DART_MAX_WIDTH: int = 12
 const DART_MAX_HEIGHT: int = 6
 const BALLOON_MAX_WIDTH: int = 8
+const BALLOON_MAX_HEIGHT: int = 6
 ## Character sheet path -> frame count (FRAME x FRAME frames).
 const SHEETS: Dictionary[String, int] = {
 	"res://assets/sprites/characters/zombie/zombie_idle.png": 2,
@@ -985,3 +986,5 @@ func test_water_balloon_is_small() -> void:
 	for frame: int in PROP_SHEETS[BALLOON_FLY_PATH]:
 		assert_between(_opaque_width(image, frame, PROP_FRAME), 1, BALLOON_MAX_WIDTH,
 				"balloon frame %d width" % frame)
+		assert_between(_opaque_height(image, frame, PROP_FRAME), 1, BALLOON_MAX_HEIGHT,
+				"balloon frame %d height" % frame)

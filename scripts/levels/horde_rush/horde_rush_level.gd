@@ -103,7 +103,7 @@ const ARRIVE_X: float = HOUSE_FRONT_X - SPRITE_HALF_WIDTH_PX
 ## Layout: the defender's feet x, in front of the house wall (mock frame B draws the farmer at 512-532).
 const DEFENDER_X: float = 520.0
 ## Layout: a tomato flies this far above its lane's feet line (chest height).
-const TOMATO_RISE_PX: float = 14.0
+const PROJECTILE_RISE_PX: float = 14.0
 ## Look, the fallback only (a copy without melt frames, NFR16): how wide its squashed puddle spreads, as
 ## a multiple of its class scale.
 const MELT_SPREAD: float = 1.3
@@ -318,9 +318,9 @@ func _reset() -> void:
 	if _effects != null:
 		for effect: Node in _effects.get_children():
 			effect.queue_free()
-	for tomato: Node2D in _projectile_views.values():
-		if is_instance_valid(tomato):
-			tomato.queue_free()
+	for view: Node2D in _projectile_views.values():
+		if is_instance_valid(view):
+			view.queue_free()
 	_projectile_views.clear()
 	_defender_running = false
 	if _defender_sprite != null:
@@ -379,9 +379,9 @@ func on_run_ending(_reason: StringName) -> float:
 	_defender_running = false
 	_stress_floor = 0
 	# The defender's logical projectiles stay as they are: nothing advances them any more.
-	for tomato: Node2D in _projectile_views.values():
-		if is_instance_valid(tomato):
-			tomato.queue_free()
+	for view: Node2D in _projectile_views.values():
+		if is_instance_valid(view):
+			view.queue_free()
 	_projectile_views.clear()
 	for id: int in _views:
 		var flash: Tween = _flash_tweens.get(id) as Tween
@@ -514,13 +514,13 @@ func _logic_step(dt: float) -> void:
 			_defender_sprite.play_throw()
 		_play_sfx(_throw_sfx)
 	for projectile: HordeProjectile in step.landed:
-		var tomato: Node2D = _projectile_views.get(projectile.id) as Node2D
+		var view: Node2D = _projectile_views.get(projectile.id) as Node2D
 		_projectile_views.erase(projectile.id)
-		if tomato != null:
-			tomato.queue_free()
+		if view != null:
+			view.queue_free()
 		if projectile.hit_marcher == null:
 			continue
-		_spawn_splat(_tomato_position(projectile))
+		_spawn_hit_effect(_projectile_position(projectile))
 		if projectile.stopped_marcher:
 			_play_sfx(SFX_MELT)
 			_on_marcher_stopped(projectile.hit_marcher)
@@ -540,9 +540,9 @@ func _update_views() -> void:
 	if _defender == null:
 		return
 	for projectile: HordeProjectile in _defender.get_flying():
-		var tomato: Node2D = _projectile_views.get(projectile.id) as Node2D
-		if tomato != null:
-			tomato.position = _tomato_position(projectile)
+		var view: Node2D = _projectile_views.get(projectile.id) as Node2D
+		if view != null:
+			view.position = _projectile_position(projectile)
 	_update_defender_view()
 	if _defender_sprite != null:
 		if _defender_running:
@@ -559,31 +559,31 @@ func _update_defender_view() -> void:
 
 
 ## Scale 1, so a tomato starts at the defender's hand (the house line) and lands inside the copy it hits.
-func _tomato_position(projectile: HordeProjectile) -> Vector2:
-	return Vector2(march_x(projectile.position), lane_feet_y(projectile.lane) - TOMATO_RISE_PX)
+func _projectile_position(projectile: HordeProjectile) -> Vector2:
+	return Vector2(march_x(projectile.position), lane_feet_y(projectile.lane) - PROJECTILE_RISE_PX)
 
 
 func _add_projectile_view(projectile: HordeProjectile) -> void:
-	var tomato: Node2D = _projectile_scene.instantiate() as Node2D
-	if tomato == null:
+	var view: Node2D = _projectile_scene.instantiate() as Node2D
+	if view == null:
 		# The projectile still flies and lands (logic leads); only its sprite is missing.
 		Log.error(&"level", "horde rush: projectile scene root is not a Node2D")
 		return
-	tomato.position = _tomato_position(projectile)
-	_projectiles.add_child(tomato)
-	_projectile_views[projectile.id] = tomato
+	view.position = _projectile_position(projectile)
+	_projectiles.add_child(view)
+	_projectile_views[projectile.id] = view
 
 
-## A tomato landed on a copy at `at`: a self-freeing splat under %Effects (it never gates anything).
-func _spawn_splat(at: Vector2) -> void:
+## A projectile landed on a copy at `at`: a self-freeing hit effect under %Effects (it never gates anything).
+func _spawn_hit_effect(at: Vector2) -> void:
 	if _effects == null:
 		return
-	var splat: Node2D = _hit_scene.instantiate() as Node2D
-	if splat == null:
+	var effect: Node2D = _hit_scene.instantiate() as Node2D
+	if effect == null:
 		Log.error(&"level", "horde rush: hit scene root is not a Node2D")
 		return
-	splat.position = at
-	_effects.add_child(splat)
+	effect.position = at
+	_effects.add_child(effect)
 
 
 ## A non-final hit: the copy's walk shows its flash frames for hit_flash_s (no tint, no fade: pixel-art

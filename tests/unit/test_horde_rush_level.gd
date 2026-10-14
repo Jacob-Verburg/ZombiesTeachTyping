@@ -516,7 +516,7 @@ func test_a_throw_creates_a_projectile_view_and_landing_frees_it() -> void:
 	assert_eq(_level.get_projectile_view_count(), 1, "thrown in this step")
 	var tomato: Node2D = _level.get_projectile_view(0)
 	assert_eq(tomato.get_parent(), _level.get_node("%Projectiles"))
-	assert_eq(tomato.position, Vector2(_level.march_x(1.0), _level.lane_feet_y(0) - LevelScript.TOMATO_RISE_PX))
+	assert_eq(tomato.position, Vector2(_level.march_x(1.0), _level.lane_feet_y(0) - LevelScript.PROJECTILE_RISE_PX))
 	_steps(0.3)
 	var flying: HordeProjectile = _level.get_defender().get_flying()[0]
 	assert_almost_eq(tomato.position.x, _level.march_x(flying.position), 1e-3, "x from logic")
@@ -929,7 +929,7 @@ func test_a_hit_spawns_one_splat_at_the_landing_point() -> void:
 	var splats: Array[HordeHitEffect] = _splats()
 	assert_eq(splats.size(), 1)
 	var splat: HordeHitEffect = splats[0]
-	assert_eq(splat.position.y, _level.lane_feet_y(0) - LevelScript.TOMATO_RISE_PX, "at the tomato's height")
+	assert_eq(splat.position.y, _level.lane_feet_y(0) - LevelScript.PROJECTILE_RISE_PX, "at the tomato's height")
 	assert_almost_eq(splat.position.x, view.position.x, LevelScript.SPRITE_HALF_WIDTH_PX * 1.25 + 1.0,
 			"on the copy it hit")
 
@@ -1257,7 +1257,12 @@ func _with_defender(defender: Node2D) -> Callable:
 	return func(level: Node) -> void:
 		var old: Node = level.get_node("%Defender")
 		defender.name = "Defender"
+		var own: Array[Node] = defender.get_children()
 		old.replace_by(defender)
+		# replace_by moves the old node's children across: free them so the fixture keeps only its own.
+		for child: Node in defender.get_children():
+			if not own.has(child):
+				child.free()
 		defender.owner = level
 		defender.unique_name_in_owner = true
 		old.free()

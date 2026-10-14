@@ -211,6 +211,12 @@ func test_new_horde_rush_pairs_really_swap() -> void:
 		assert_eq(defender.get_parent(), level.get_node("%Zombies"), "%s defender y-sorts" % theme.id)
 		assert_eq(defender.get_index(), defender_index)
 		assert_eq(defender.position, defender_pos)
+		# Pin the throw/flight numbers so a retune of horde_rush.tres cannot fail a pair-logic test.
+		var pinned: HordeRushConfig = (level.config as HordeRushConfig).duplicate(true) as HordeRushConfig
+		pinned.defender_lane_time_s = 0.6
+		pinned.defender_throw_cooldown_s = 0.8
+		pinned.projectile_cross_time_s = 1.0
+		level.config = pinned
 		add_child_autofree(level)
 		assert_true(level.get_defender_view() is HordeDefenderSprite, "%s defender animates" % theme.id)
 		var rng: RandomNumberGenerator = RandomNumberGenerator.new()

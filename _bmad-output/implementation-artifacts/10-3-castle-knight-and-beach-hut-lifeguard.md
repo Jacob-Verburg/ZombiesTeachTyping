@@ -4,7 +4,7 @@ baseline_commit: bb5f9f8c1e94fd2fe4f2f54ce940f2556187874c
 
 # Story 10.3: Castle + Knight and Beach Hut + Lifeguard
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -98,6 +98,16 @@ so that the siege stays surprising.
   - [x] 12.3 `docs/art-style-sheet.md`: section 1 (Epic 10 Horde Rush pairs done in 10.3), the animation table rows (knight/lifeguard idle/walk/throw, dart/balloon fly and hit), section 3 (a Castle and Beach Hut paragraph: folders, layout, the no-weapon rule, *tested*), "How sprites are made" (the new tool), the `HordeDefenderSprite`/`HordeHitEffect` names.
   - [x] 12.4 `deferred-work.md`: under the 10-1 dev section append "Resolved in 10.3: Horde Rush projectile and SFX per pair (on the defender scene, not `LevelTheme`); non-Farmer defenders animate (`HordeDefenderSprite`)" (never delete history). New "Deferred from: dev of story 10-3" (at least: the copy flash stays pumpkin for every pair; the Horde Rush level card still shows the Farmhouse; per-pair music not used; the registry now eagerly loads three Horde Rush pairs; `HordeHitEffect` fixes 3 frames for every pair; anything accepted at a gate).
   - [x] 12.5 Dev Agent Record, File List, Change Log; `sprint-status.yaml` → `review`.
+
+### Review Findings
+
+- [x] [Review][Patch] (resolved from decision: rename now) Remaining tomato-named internals now hold arbitrary pairs (fixed: level locals, `_projectile_position`, `PROJECTILE_RISE_PX`, `_spawn_hit_effect`, test helper `_defender()`; the `splat` animation/node names in the hit scenes stay, already noted in deferred-work) — `tomato`/`splat` locals, `_tomato_position`, `TOMATO_RISE_PX`, `_spawn_splat` in the level; `splat` animation and `AtlasTexture_splat_*` in hit scenes; `_farmer()` test helper. [scripts/levels/horde_rush/horde_rush_level.gd:1042]
+- [x] [Review][Patch] Water balloon test bounds width only (≤8), not height; a tall frame passes [tests/unit/test_art_sprites.gd:980]
+- [x] [Review][Patch] `test_new_horde_rush_pairs_really_swap` runs on the shipped, un-pinned config (throw delay, flight time); a retune fails it though pair logic is fine. Use `_pinned_config` like the other pair tests [tests/unit/test_level_themes.gd:190]
+- [x] [Review][Patch] `_with_defender` fixture: `replace_by` moves the old Farmer's children onto the replacement (duplicate `Body`; plain `Node2D` gets the Farmer's `Body`). Free the transferred children [tests/unit/test_horde_rush_level.gd:1256]
+- [x] [Review][Defer] `THEME_JUMP_LEVELS` is hard-coded, so a future themed level needs a manual edit; button names `JumpTheme_<id>` are unique only while theme ids are unique across levels [scripts/debug/debug_overlay.gd:64] — deferred, matches spec ("same way as 10.2"); revisit when a third themed level lands
+- [x] [Review][Defer] Pixel-level art rules (cup/point/no weapon/no letter marks) and the lane-floor-not-wood rule have no automated guard, only Gate 1/2 approval [tests/unit/test_art_backdrop.gd] — deferred, matches Farmhouse precedent
+
 
 ## Dev Notes
 

@@ -8,7 +8,7 @@ extends GutTest
 const FarmerScene: PackedScene = preload("res://scenes/levels/horde_rush/farmer.tscn")
 
 
-func _farmer() -> HordeDefenderSprite:
+func _defender() -> HordeDefenderSprite:
 	var farmer: HordeDefenderSprite = FarmerScene.instantiate() as HordeDefenderSprite
 	farmer.process_mode = Node.PROCESS_MODE_DISABLED
 	add_child_autofree(farmer)
@@ -86,14 +86,14 @@ func test_every_defender_brings_its_pair() -> void:
 
 
 func test_origin_is_the_feet_centre() -> void:
-	var body: AnimatedSprite2D = _farmer().get_body()
+	var body: AnimatedSprite2D = _defender().get_body()
 	assert_eq(body.position, Vector2(-16, -31))
 	assert_false(body.centered)
 	assert_eq(body.animation, HordeDefenderSprite.ANIM_IDLE, "idle by default")
 
 
 func test_loops_restart_only_on_change() -> void:
-	var farmer: HordeDefenderSprite = _farmer()
+	var farmer: HordeDefenderSprite = _defender()
 	var body: AnimatedSprite2D = farmer.get_body()
 	farmer.play_walk()
 	assert_eq(body.animation, HordeDefenderSprite.ANIM_WALK)
@@ -105,7 +105,7 @@ func test_loops_restart_only_on_change() -> void:
 
 
 func test_the_throw_blocks_the_loops_until_it_ends() -> void:
-	var farmer: HordeDefenderSprite = _farmer()
+	var farmer: HordeDefenderSprite = _defender()
 	var body: AnimatedSprite2D = farmer.get_body()
 	farmer.play_walk()
 	body.frame = 3
@@ -124,7 +124,7 @@ func test_the_throw_blocks_the_loops_until_it_ends() -> void:
 
 
 func test_a_new_throw_restarts_it() -> void:
-	var farmer: HordeDefenderSprite = _farmer()
+	var farmer: HordeDefenderSprite = _defender()
 	var body: AnimatedSprite2D = farmer.get_body()
 	farmer.play_throw()
 	body.frame = 2
@@ -134,7 +134,7 @@ func test_a_new_throw_restarts_it() -> void:
 
 
 func test_a_loop_ending_never_ends_the_throw_state() -> void:
-	var farmer: HordeDefenderSprite = _farmer()
+	var farmer: HordeDefenderSprite = _defender()
 	var body: AnimatedSprite2D = farmer.get_body()
 	farmer.play_walk()
 	body.animation_finished.emit()

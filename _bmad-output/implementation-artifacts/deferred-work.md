@@ -870,3 +870,8 @@
 - The hit scenes keep the animation name `splat` (copied from `tomato_splat.tscn`), also for the dart hit and the water splash; harmless (the tween steps frames), but the name reads tomato-specific.
 - Web smoke console check: the browser pane buffers only recent messages and the debug log is verbose under the F4 stress hold, so the error-only reads at the end of each 3:00 run covered the tail only (same limit as 10.2).
 - The Lifeguard's far leg uses `stone` (knee-length board shorts' shade) and bare feet are `art-skin-dark` rows in the Farmer's boot rows: chosen to reuse the Farmer's leg maps; passed Gate 1.
+
+## Deferred from: code review of story-10-3 (2026-10-14)
+
+- `THEME_JUMP_LEVELS` in `debug_overlay.gd` is a hard-coded level list, and `JumpTheme_<id>` button names are unique only while theme ids are unique across levels. Revisit when a third themed level lands.
+- Pixel-level art rules (dart cup/point, no weapons, no letter-like marks) and the lane-floor-not-wood rule have no automated guard; they rest on Gate 1/2 approval (same as the Farmhouse).
