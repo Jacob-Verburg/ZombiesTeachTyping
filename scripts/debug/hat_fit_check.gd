@@ -6,15 +6,21 @@ extends Control
 ## Shows the chosen hat on every frame of every player-zombie animation (idle, walk, hop, hug, dance, and
 ## Story 6.6's flash and melt) and
 ## on both Professor Zombie frames (the real professor scene, so the mortarboard stacks on the hat), each
-## at 1x and 3x on a stopped sprite, PAGE_SIZE cells per page. Below: the chosen pet's idle on a HUD-size
+## at 1x and 3x on a stopped sprite, PAGE_SIZE cells per page. Story 9.1 adds a last page: the Horde Rush
+## size classes (small, medium, brute), each a walk frame 0 cell at the class's sprite_scale and a detail
+## cell at sprite_scale x DETAIL_SCALE (scales read from horde_config, never literals), the hat following
+## the anchors like every other cell. Below: the chosen pet's idle on a HUD-size
 ## parchment cushion at 1x, and at 3x beside it. Every slot here has follow_equipped = false and shows only
 ## what this scene gives it.
 ## Keys: H cycles the hat (every catalogue hat with an overlay, then none), P the pet the same way, B the
 ## background (the places a hat appears), N the page, Esc quits. E wears for real: it gives the live
 ## PlayerData each shown item's price, buys it (unless owned) and equips it, or unequips a "none" slot. The
 ## only way to wear something before the Crypt Closet (4.4); it lives here because this scene is debug-only.
+## E only wears available items: on an unavailable one (the Epic 9 hats before Story 9.3 switches the full
+## catalogue on) buy_item returns UNAVAILABLE and this warns "could not buy". That is correct; don't
+## "fix" PlayerData for it.
 ## F3/F5/F8/F9 are left alone (the debug overlay owns them).
-## Seams (tests assign them before add_child): player_data and the exported catalogue.
+## Seams (tests assign them before add_child): player_data and the exported catalogue and horde_config.
 
 const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
 const PLAYER_ZOMBIE_SCENE: PackedScene = preload("res://scenes/characters/player_zombie.tscn")
@@ -52,15 +58,27 @@ const CUSHION_FEET: Vector2 = Vector2(24, 36)
 const PET_3X_FEET: Vector2 = Vector2(176, 296)
 const FOOTER_Y: int = 300
 const FOOTER_STEP: int = 20
+## The size-class page (Story 9.1): one column per class, wide enough for a 4.5x brute detail cell (144
+## px); the scaled cell sits low enough that a tall hat clears the label, the detail cell beside it ends
+## above the pet cushion.
+const SIZE_ANIMATION: StringName = &"walk"
+const SIZE_COLUMN: int = 208
+const SIZE_CELL_Y: int = 64
+const SIZE_DETAIL_X: int = 56
+const SIZE_DETAIL_Y: int = 84
 
 ## Hats and pets to cycle through (data/cosmetics/catalogue.tres, set in the scene).
 @export var catalogue: Catalogue
+## The Horde Rush size classes for the size-class page (data/levels/horde_rush.tres, set in the scene).
+@export var horde_config: HordeRushConfig
 
 ## Test seam: defaults to the PlayerData autoload in _ready. Only E touches it.
 var player_data: PlayerDataScript = null
 
 ## Every cell's stopped sprite (both scales, page order).
 var _cells: Array[AnimatedSprite2D] = []
+## The size-class page's cells (also in _cells): per class, the scaled cell then the detail cell.
+var _size_cells: Array[AnimatedSprite2D] = []
 var _hat_slots: Array[HatSlot] = []
 var _pet_slots: Array[PetSlot] = []
 var _pages: Array[Control] = []
@@ -116,6 +134,12 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Every cell's sprite, both scales, in page order.
 func get_cells() -> Array[AnimatedSprite2D]:
 	return _cells
+
+
+## The size-class page's sprites (Story 9.1), per class in config order: the cell at sprite_scale, then the
+## detail cell at sprite_scale x DETAIL_SCALE. Their holder (parent) carries the scale.
+func get_size_class_cells() -> Array[AnimatedSprite2D]:
+	return _size_cells
 
 
 func get_hat_slots() -> Array[HatSlot]:
@@ -237,6 +261,36 @@ func _build_cells() -> void:
 			else:
 				_add_zombie_cell(holder, zombie_frames, anim, frame)
 			page_node.add_child(holder)
+	_build_size_class_page(zombie_frames)
+
+
+## Story 9.1: the last page, one column per Horde Rush size class (a copy is player_zombie.tscn scaled at
+## the root, so the hat scales with the body).
+func _build_size_class_page(zombie_frames: SpriteFrames) -> void:
+	if horde_config == null or horde_config.size_classes.is_empty() or zombie_frames == null \
+			or not zombie_frames.has_animation(SIZE_ANIMATION):
+		Log.warn(&"cosmetics", "fit check: no horde_config or walk frames, no size-class page")
+		return
+	var page: Control = Control.new()
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.visible = false
+	add_child(page)
+	_pages.append(page)
+	for i: int in horde_config.size_classes.size():
+		var size_class: HordeSizeClass = horde_config.size_classes[i]
+		var x: float = MARGIN + i * SIZE_COLUMN
+		_add_label("%s %s" % [size_class.id, str(size_class.sprite_scale)], Vector2(x, LABEL_Y), page)
+		var cells: Array[Array] = [
+			[Vector2(x, SIZE_CELL_Y), size_class.sprite_scale],
+			[Vector2(x + SIZE_DETAIL_X, SIZE_DETAIL_Y), size_class.sprite_scale * DETAIL_SCALE],
+		]
+		for cell: Array in cells:
+			var holder: Node2D = Node2D.new()
+			holder.position = cell[0]
+			holder.scale = Vector2.ONE * float(cell[1])
+			_add_zombie_cell(holder, zombie_frames, SIZE_ANIMATION, 0)
+			_size_cells.append(_cells.back())
+			page.add_child(holder)
 
 
 ## A stopped player-zombie sprite with a hat slot, set up before add_child.

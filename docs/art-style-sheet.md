@@ -22,7 +22,9 @@ Stories that make final art and wait for that approval:
 - **Epic 8:** done in Story 8.6 (Pitchfork Panic: the Moonlit Village, the four-member mob from two
   recoloured bases, the mob hint, the dust cloud, the escape bush, the dizzy star and the zombie's dazed
   sit; see section 3).
-- Later epics (9, 10) reuse these rules for their characters, hats, pets and backdrops.
+- **Epic 9:** Story 9.1 (the eight remaining hats: Witch, Bunny ears, Santa, Leprechaun, Heart headband,
+  Top hat, Pirate, Crown; see section 3).
+- Later epics (9, 10) reuse these rules for their characters, hats, pets and backdrops (Epic 9 has begun: see above).
 
 Before its final-art story, any story may use **placeholder art**: plain shapes in palette colors.
 
@@ -122,6 +124,14 @@ animations and are exempt from the frame count only; every pixel rule applies to
 | `down_arrow.png` (3.6) | overlay | 16×16 | – | the active target's arrow; the bob is code |
 | pet `cute_ghost` `idle` (4.3) | 4 | 32×32 | 8 | loop (the float: a 1 px body bob and a wavy tail) |
 | `hat_pumpkin.png` (4.3) | overlay | 32×32 | – | seat on row 30 at x 16 |
+| `hat_witch.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
+| `hat_bunny_ears.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
+| `hat_santa.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
+| `hat_leprechaun.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
+| `hat_heart_headband.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
+| `hat_top_hat.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
+| `hat_pirate.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
+| `hat_crown.png` (9.1) | overlay | 32×32 | – | seat on row 30 at x 16 |
 | zombie `flash` (6.6) | 4 | 32×32 | 10 | loop, swapped with `walk` at the same frame (the walk recoloured to pumpkin) |
 | zombie `melt` (6.6) | 6 | 32×32 | tween over `melt_s` (10 at 0.6 s) | once, holds the last (a small puddle) |
 | farmer `idle` (6.6) | 2 | 32×32 | 8 | loop |
@@ -140,7 +150,15 @@ animations and are exempt from the frame count only; every pixel rule applies to
 **Hats** (Story 4.3) are 32×32 one-frame overlays whose **seat** (the bottom-centre of the brim) is pixel
 (16, 30): the lowest opaque row is row 30 and the opaque columns are centred on column 16 (*tested*). Row
 31 stays empty. `HatSlot` sits on the character's per-frame head point and draws the overlay with the seat
-on it, so the brim's bottom ink row overlaps the crown's top ink row. **Pets** are 32×32 sheets drawn from
+on it, so the brim's bottom ink row overlaps the crown's top ink row. A hat is at least 12 px wide (it
+covers the 12 px crown, *tested*) and its opaque width and height are **even** (*tested*): an even width is
+the only way to have extents symmetric about x 16, and an even width and height let the Closet icon (the
+overlay cropped to its opaque pixels) centre exactly in its 32×32 box. The generator places each map
+centred, so a map is drawn at its own even width. **Height cap (Story 9.1):** no hat rises more than
+**18 px** above its seat (top opaque row ≥ 12, *tested*): a brute copy (1.5×) in Horde Rush lane 0 has its
+crown at about y 29, so a taller hat would leave the top of the screen (`test_horde_rush_level.gd` ties the
+cap to the real lane, scale and anchors). Hats never use `candy-yellow`, `stamp-red` or `art-moon`
+(*tested*). **Pets** are 32×32 sheets drawn from
 the feet like the characters (soles on row 30; a float is drawn in the frames without moving the lowest
 row). Paths: `assets/sprites/cosmetics/hats/hat_<name>.png`, `assets/sprites/cosmetics/pets/pet_<name>_idle.png`;
 made by `tools/gen_cosmetics_art.gd`.
@@ -225,6 +243,8 @@ From NFR10 and `DESIGN.md` → Do's and Don'ts:
   charming), never scary (a 6-year-old).
 - **No** gore, blood, wounds, exposed bones or brains, body-part gags, guns or horror lighting.
   Tattered clothes are clean stepped edges.
+- **No skull and crossbones** (or any other bones) on pirate things: a pirate hat carries a star, diamond or
+  an anchor badge (Story 9.1).
 - **Defeat is melting, dust or stars**, never injury.
 - **Stamp red** (#B02A25) only on the "New best!" stamp and the toggle slash. Never an error color,
   never level art; red-ish props (thrown tomatoes) are pumpkin.

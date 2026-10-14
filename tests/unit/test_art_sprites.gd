@@ -4,7 +4,8 @@ extends GutTest
 ## pop, down-arrow), the Story 4.3 cosmetics (Pumpkin hat overlay, Cute ghost idle) and the Story 6.6
 ## Horde Rush set (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat) and the
 ## Story 8.6 Pitchfork Panic set (the four mob runs, the zombie's dazed sit, the dizzy star, the mob hint,
-## the dust cloud and the escape bush): size,
+## the dust cloud and the escape bush) and the Story 9.1 hats (Witch, Bunny ears, Santa, Leprechaun, Heart
+## headband, Top hat, Pirate, Crown): size,
 ## hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty distinct frames on one ground
 ## line, and pixel-crisp import settings.
 ## Read from the committed PNG bytes (Image.load_from_file), so import state doesn't matter.
@@ -92,7 +93,16 @@ const EFFECT_SHEETS: Dictionary[String, int] = {
 	DUST_CLOUD_PATH: 4,
 	ESCAPE_BUSH_PATH: 3,
 }
-const HAT_PUMPKIN_PATH: String = "res://assets/sprites/cosmetics/hats/hat_pumpkin.png"
+const HATS_DIR: String = "res://assets/sprites/cosmetics/hats/"
+const HAT_PUMPKIN_PATH: String = HATS_DIR + "hat_pumpkin.png"
+const HAT_WITCH_PATH: String = HATS_DIR + "hat_witch.png"
+const HAT_BUNNY_EARS_PATH: String = HATS_DIR + "hat_bunny_ears.png"
+const HAT_SANTA_PATH: String = HATS_DIR + "hat_santa.png"
+const HAT_LEPRECHAUN_PATH: String = HATS_DIR + "hat_leprechaun.png"
+const HAT_HEART_HEADBAND_PATH: String = HATS_DIR + "hat_heart_headband.png"
+const HAT_TOP_HAT_PATH: String = HATS_DIR + "hat_top_hat.png"
+const HAT_PIRATE_PATH: String = HATS_DIR + "hat_pirate.png"
+const HAT_CROWN_PATH: String = HATS_DIR + "hat_crown.png"
 const PET_GHOST_PATH: String = "res://assets/sprites/cosmetics/pets/pet_cute_ghost_idle.png"
 const PARTY_ZOMBIE_PATH: String = "res://assets/sprites/characters/party_zombie/party_zombie_idle.png"
 const PARTY_ZOMBIE_WALK_PATH: String = "res://assets/sprites/characters/party_zombie/party_zombie_walk.png"
@@ -105,10 +115,36 @@ const OVERLAYS: Dictionary[String, int] = {
 	"res://assets/sprites/characters/professor/professor_mortarboard.png": FRAME,
 	ARROW_PATH: PROP_FRAME,
 	HAT_PUMPKIN_PATH: FRAME,
+	HAT_WITCH_PATH: FRAME,
+	HAT_BUNNY_EARS_PATH: FRAME,
+	HAT_SANTA_PATH: FRAME,
+	HAT_LEPRECHAUN_PATH: FRAME,
+	HAT_HEART_HEADBAND_PATH: FRAME,
+	HAT_TOP_HAT_PATH: FRAME,
+	HAT_PIRATE_PATH: FRAME,
+	HAT_CROWN_PATH: FRAME,
 }
-## Hats (Story 4.3): one 32x32 frame whose seat (the brim's bottom-centre) is pixel (16, 30).
-const HATS: Array[String] = [HAT_PUMPKIN_PATH]
+## Hats (Stories 4.3, 9.1): one 32x32 frame whose seat (the brim's bottom-centre) is pixel (16, 30).
+const HATS: Array[String] = [
+	HAT_PUMPKIN_PATH, HAT_WITCH_PATH, HAT_BUNNY_EARS_PATH, HAT_SANTA_PATH, HAT_LEPRECHAUN_PATH,
+	HAT_HEART_HEADBAND_PATH, HAT_TOP_HAT_PATH, HAT_PIRATE_PATH, HAT_CROWN_PATH,
+]
 const HAT_SEAT_ROW: int = 30
+## Story 9.1: no hat rises more than this above its seat (top opaque row >= 12). A brute copy (1.5x) in
+## Horde Rush lane 0 has its crown at about y 29, so a taller hat leaves the top of the screen
+## (test_horde_rush_level.gd checks the real geometry).
+const HAT_MAX_RISE: int = 18
+## Story 9.1: each hat's signature colours (besides ink), so a legend slip shows up here.
+const HAT_COLOURS: Dictionary[String, Array] = {
+	HAT_WITCH_PATH: [BAT_PURPLE, DUSK, PUMPKIN, PUMPKIN_LIGHT],
+	HAT_BUNNY_EARS_PATH: [CHALK, STONE_LIGHT, BRAIN_PINK, BRAIN_SHADE],
+	HAT_SANTA_PATH: [BRAIN_SHADE, BRAIN_PINK, CHALK, STONE_LIGHT],
+	HAT_LEPRECHAUN_PATH: [ART_GRASS, ZOMBIE_GREEN_DARK, WOOD_DARK, PUMPKIN_LIGHT],
+	HAT_HEART_HEADBAND_PATH: [BRAIN_PINK, BRAIN_SHADE, CHALK],
+	HAT_TOP_HAT_PATH: [INK_MUTED, STONE, CHALK, PUMPKIN_LIGHT, BRAIN_PINK, ZOMBIE_GREEN_BRIGHT],
+	HAT_PIRATE_PATH: [INK_MUTED, PUMPKIN_LIGHT, CHALK],
+	HAT_CROWN_PATH: [PUMPKIN_LIGHT, PUMPKIN, CHALK, BAT_PURPLE, BRAIN_PINK],
+}
 ## The party-hat zombie walk changes the legs only: rows above this are the idle frame's pixels.
 const PARTY_LEGS_TOP: int = 24
 ## The poof (and every frame of it) is never wider than the 24 px tag (ZombieRunTarget.HALF_WIDTH).
@@ -133,6 +169,10 @@ const ZOMBIE_GREEN_BRIGHT: String = "b8f27c"
 const BAT_PURPLE: String = "7a4bb3"
 const ART_GRASS: String = "4e9a34"
 const PARCHMENT: String = "f6e7c1"
+const DUSK: String = "4a3366"
+const INK_MUTED: String = "4e4757"
+## The style sheet reserves art-moon for the moon (night backdrops).
+const ART_MOON: String = "fff3b0"
 ## The Farmer legend in tools/gen_horde_rush_art.gd: ink, both skins, parchment-shade, wood-light, wood-dark,
 ## chalk, stone, ink-muted.
 const FARMER_COLOURS: Array[String] = [INK, ART_SKIN_LIGHT, ART_SKIN_DARK, "d9bc84", "c08447", WOOD_DARK, CHALK, STONE, "4e4757"]
@@ -501,9 +541,12 @@ func test_hug_reach_stays_in_the_frame() -> void:
 
 
 ## Story 4.3: a hat sits on row 30 (its seat), centred on column 16, and never uses the focus or stamp
-## colours; row 31 is the empty margin.
+## colours; row 31 is the empty margin. Story 9.1: an even opaque width and height (so the Closet icon
+## centres exactly), never art-moon.
 func test_hats_seat_on_row_30_centred() -> void:
 	for path: String in HATS:
+		# Every hat also gets the overlay checks (palette, outline, import settings).
+		assert_true(OVERLAYS.has(path), "%s is in OVERLAYS" % _name(path))
 		var image: Image = _load(path)
 		assert_not_null(image, "%s missing" % path)
 		if image == null:
@@ -512,9 +555,36 @@ func test_hats_seat_on_row_30_centred() -> void:
 		var used: Rect2i = image.get_used_rect()
 		assert_eq(used.position.x + used.end.x, FRAME, "%s centred on x 16" % _name(path))
 		assert_true(used.size.x >= 12, "%s covers the 12 px crown" % _name(path))
+		assert_eq(used.size.x % 2, 0, "%s even width" % _name(path))
+		assert_eq(used.size.y % 2, 0, "%s even height" % _name(path))
 		var colors: Dictionary[String, bool] = _colors(image)
 		assert_false(colors.has(CANDY_YELLOW), "%s: no candy-yellow" % _name(path))
 		assert_false(colors.has(STAMP_RED), "%s: no stamp-red" % _name(path))
+		assert_false(colors.has(ART_MOON), "%s: no art-moon" % _name(path))
+
+
+## Story 9.1: no hat rises more than HAT_MAX_RISE above its seat, so a brute copy in lane 0 keeps it on screen.
+func test_hats_fit_under_the_screen_top() -> void:
+	for path: String in HATS:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		var rise: int = HAT_SEAT_ROW - image.get_used_rect().position.y
+		assert_true(rise <= HAT_MAX_RISE, "%s rises %d > %d" % [_name(path), rise, HAT_MAX_RISE])
+
+
+## Story 9.1: every new hat uses its signature colours.
+func test_new_hat_colours() -> void:
+	for path: String in HAT_COLOURS:
+		assert_has(HATS, path, "%s is a hat" % _name(path))
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		for hex: String in HAT_COLOURS[path]:
+			assert_true(colors.has(hex), "%s uses %s" % [_name(path), hex])
 
 
 ## The pumpkin hat: pumpkin, its highlight, a wood stem and a green leaf.

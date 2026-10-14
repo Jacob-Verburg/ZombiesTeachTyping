@@ -15,10 +15,14 @@ extends GutTest
 ## (the squash stays as the stripped-frames fallback), the hat fit on scaled copies, and the play_sfx seam
 ## (a recorder set before add_child, like the voice).
 ## Story 6.7: the debug stress hold (a floor of marching copies topped up one per frame from STRESS_WORDS).
+## Story 9.1: the hat height cap against the real geometry (a brute copy in lane 0 keeps every hat on screen).
 
 const LevelScene: PackedScene = preload("res://scenes/levels/horde_rush/horde_rush_level.tscn")
 const LevelScript := preload("res://scripts/levels/horde_rush/horde_rush_level.gd")
 const STEP: float = 1.0 / 60.0
+const PlayerZombieScene: PackedScene = preload("res://scenes/characters/player_zombie.tscn")
+## The hat list and the HAT_MAX_RISE cap live with the art tests (Story 9.1).
+const ArtSprites := preload("res://tests/unit/test_art_sprites.gd")
 
 var _level: LevelScript
 var _source: TargetSource
@@ -1105,6 +1109,43 @@ func test_the_hat_sits_on_scaled_copies_in_every_frame() -> void:
 				assert_almost_eq(slot.global_scale.x, expected_scale, 0.001, "the hat scales with the copy")
 
 
+
+# --- hat height cap (Story 9.1) ---------------------------------------------------------------------
+
+## Story 9.1 AC 2: the largest copy in lane 0 keeps a hat of the HAT_MAX_RISE cap, and every shipped hat, on
+## screen (its top at y >= 0). Data-driven (the largest sprite_scale in horde_rush.tres, the walk crown in
+## the anchors, Body's offset in player_zombie.tscn, the level's lane 0 feet), so a scale, lane or anchor
+## change that would push a hat off the top fails here and not on screen.
+func test_hats_stay_on_screen_on_a_brute_in_lane_0() -> void:
+	_make()
+	var config: HordeRushConfig = load("res://data/levels/horde_rush.tres") as HordeRushConfig
+	var max_scale: float = 0.0
+	for size_class: HordeSizeClass in config.size_classes:
+		max_scale = maxf(max_scale, size_class.sprite_scale)
+	assert_gt(max_scale, 1.0, "the brute is the largest class")
+	var anchors: SpriteAnchors = load("res://data/anchors/zombie_anchors.tres") as SpriteAnchors
+	assert_true(anchors.head.has(&"walk"), "the walk head points exist")
+	var crown_row: float = INF
+	for point: Vector2 in anchors.head.get(&"walk", PackedVector2Array()):
+		crown_row = minf(crown_row, point.y)
+	assert_lt(crown_row, INF, "the walk head points are not empty")
+	var zombie: Node2D = PlayerZombieScene.instantiate() as Node2D
+	var body_y: float = (zombie.get_node("Body") as Node2D).position.y
+	zombie.free()
+	var crown_y: float = _level.lane_feet_y(0) + max_scale * (body_y + crown_row)
+	var cap_top: float = crown_y - max_scale * ArtSprites.HAT_MAX_RISE
+	assert_true(cap_top >= 0.0, "a %d px rise on a %.2fx copy in lane 0 tops out at y %.1f" % [
+			ArtSprites.HAT_MAX_RISE, max_scale, cap_top])
+	for path: String in ArtSprites.HATS:
+		var image: Image = Image.load_from_file(ProjectSettings.globalize_path(path))
+		assert_not_null(image, path)
+		if image == null:
+			continue
+		var rise: int = ArtSprites.HAT_SEAT_ROW - image.get_used_rect().position.y
+		var top: float = crown_y - max_scale * rise
+		assert_true(top >= 0.0, "%s tops out at y %.1f" % [path.get_file(), top])
+
+
 # --- debug stress hold (Story 6.7) ----------------------------------------------------------------
 
 func _start_stress(count: int) -> void:
@@ -1138,12 +1179,14 @@ func test_the_stress_hold_tops_up_to_the_floor() -> void:
 func test_stress_copies_cycle_all_three_classes() -> void:
 	_start_stress(6)
 	_steps(0.2)
-	var classes: Array[StringName] = []
+	# Strings, not StringNames: StringName sorts by its interned pointer, not alphabetically (Story 9.1 saw
+	# the order flip when another test script was preloaded).
+	var classes: Array[String] = []
 	for marcher: HordeMarcher in _level.get_field().get_marching():
-		if not classes.has(marcher.size_class.id):
-			classes.append(marcher.size_class.id)
+		if not classes.has(String(marcher.size_class.id)):
+			classes.append(String(marcher.size_class.id))
 	classes.sort()
-	assert_eq(classes, [&"brute", &"medium", &"small"] as Array[StringName])
+	assert_eq(classes, ["brute", "medium", "small"] as Array[String])
 	for word: String in LevelScript.STRESS_WORDS:
 		assert_between(word.length(), 3, 6, word)
 

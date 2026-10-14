@@ -257,22 +257,33 @@ func test_shipped_mvp_items_have_art() -> void:
 	if hat.icon != null and pet.icon != null:
 		assert_eq(hat.icon.get_size(), Vector2(32, 32))
 		assert_eq(pet.icon.get_size(), Vector2(32, 32))
-	for item: CosmeticItem in catalogue.items:
+	# Story 9.1: every hat has its art (available or not); the unavailable pets get theirs in 9.2.
+	for item: CosmeticItem in catalogue.items_for_slot(CosmeticItem.Slot.HAT):
+		assert_not_null(item.overlay, "%s has an overlay" % item.id)
+		assert_not_null(item.icon, "%s has a Closet icon" % item.id)
+		if item.overlay != null and item.icon != null:
+			assert_eq(item.overlay.get_size(), Vector2(32, 32), "%s overlay size" % item.id)
+			assert_eq(item.icon.get_size(), Vector2(32, 32), "%s icon size" % item.id)
+	for item: CosmeticItem in catalogue.items_for_slot(CosmeticItem.Slot.PET):
 		if not item.is_available:
-			assert_null(item.icon, "%s has no icon yet (Epic 9)" % item.id)
-			assert_null(item.overlay, "%s has no art yet (Epic 9)" % item.id)
-			assert_null(item.pet_frames, "%s has no art yet (Epic 9)" % item.id)
+			assert_null(item.icon, "%s has no icon yet (Story 9.2)" % item.id)
+			assert_null(item.overlay, "%s has no art yet (Story 9.2)" % item.id)
+			assert_null(item.pet_frames, "%s has no art yet (Story 9.2)" % item.id)
 
 
-## Story 5.0 (4.4 deferral "the pumpkin sits low"): the hat's Closet icon is its overlay cropped to the opaque
-## pixels and padded back to 32 x 32, so the tile shows it centred.
-func test_pumpkin_icon_is_centred() -> void:
-	var hat: CosmeticItem = load("res://data/cosmetics/hat_pumpkin.tres") as CosmeticItem
-	var icon: AtlasTexture = hat.icon as AtlasTexture
-	assert_not_null(icon, "an AtlasTexture of the overlay")
-	if icon == null:
-		return
-	assert_eq(icon.atlas, hat.overlay)
-	assert_eq(Rect2i(icon.region), hat.overlay.get_image().get_used_rect(), "cropped to the opaque pixels")
-	assert_eq(icon.get_size(), Vector2(32, 32))
-	assert_eq(icon.margin.position * 2.0 + icon.region.size, Vector2(32, 32), "centred both ways")
+## Story 5.0 (4.4 deferral "the pumpkin sits low"): a hat's Closet icon is its overlay cropped to the opaque
+## pixels and padded back to 32 x 32, so the tile shows it centred. Story 9.1: every hat, not only the pumpkin.
+func test_hat_icons_are_centred() -> void:
+	for id: StringName in HAT_IDS:
+		var hat: CosmeticItem = load("res://data/cosmetics/%s.tres" % id) as CosmeticItem
+		assert_not_null(hat, String(id))
+		if hat == null:
+			continue
+		var icon: AtlasTexture = hat.icon as AtlasTexture
+		assert_not_null(icon, "%s: an AtlasTexture of the overlay" % id)
+		if icon == null or hat.overlay == null:
+			continue
+		assert_eq(icon.atlas, hat.overlay, "%s atlas" % id)
+		assert_eq(Rect2i(icon.region), hat.overlay.get_image().get_used_rect(), "%s cropped to the opaque pixels" % id)
+		assert_eq(icon.get_size(), Vector2(32, 32), "%s icon size" % id)
+		assert_eq(icon.margin.position * 2.0 + icon.region.size, Vector2(32, 32), "%s centred both ways" % id)

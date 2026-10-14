@@ -780,3 +780,17 @@
 - Cross-check of the sim against the real level covers one WPM, one seed and the caught path, with a +-3 s closed-form tolerance. Widen when the sim is next touched.
 - Economy parity vs Zombie Run is only guarded at 5/10/20 WPM, not for escaping typists (37+ WPM).
 - `test_level_unlocks` registry `.duplicate(true)` may not isolate external-resource entries from the shipped registry; verify when next touched.
+
+## Deferred from: dev of story 9-1 (2026-10-13)
+
+- The 8 new hats have their overlays and Closet icons but stay `is_available = false`: Story 9.3 switches the full catalogue on (with its save-compatibility check). Until then the fit check's E warns "could not buy" on them (correct; documented in `hat_fit_check.gd`).
+- Fit-check size-class page: on the brute column the witch hat's bent tip comes close to the `brute 1.5` label (debug scene only).
+- `test_horde_rush_level.gd::test_hats_stay_on_screen_on_a_brute_in_lane_0` uses the lowest walk crown row (1), so it would still pass a 19 px rise (top y 0.5); the 18 px cap in `test_art_sprites.gd` is the guard that catches it (mutation pass).
+- `test_stress_copies_cycle_all_three_classes` sorted `StringName`s, which compare by interned pointer: fixed to sort Strings. Other tests that `sort()` a `StringName` array may have the same latent order dependence.
+- Gate captures were made with scratch scripts outside the repo; the real `user://save.json` hash was identical before and after both gates.
+
+
+## Deferred from: code review of story-9-1-eight-new-hats (2026-10-13)
+
+- The brute lane-0 Horde Rush test ignores `Body` scale/rotation and uses only the lowest walk crown row; the 18 px cap in `test_art_sprites.gd` is the real guard. Tighten if `player_zombie.tscn`'s Body transform is changed.
+- `HatSlot.show_item` does not check `is_available`, and `ClosetItemTile._apply_art` assigns the texture to its hidden `Art` rect for locked tiles. Harmless today (unavailable hats cannot be equipped or seen); revisit in Story 9.3 when the 8 hats go on sale.

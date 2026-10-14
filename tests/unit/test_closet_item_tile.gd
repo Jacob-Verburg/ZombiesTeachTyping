@@ -133,6 +133,19 @@ func test_locked_look() -> void:
 	assert_eq(label.get_theme_color(&"font_color"), ClosetItemTile.CHALK)
 
 
+## Story 9.1: the Epic 9 hats have their icons before 9.3 switches them on; a locked tile still hides
+## them behind "?" so nothing leaks through "Coming soon".
+func test_a_shipped_unavailable_hat_with_an_icon_stays_hidden() -> void:
+	var hat: CosmeticItem = load("res://data/cosmetics/hat_witch.tres") as CosmeticItem
+	assert_not_null(hat.icon, "the witch hat has its icon")
+	assert_false(hat.is_available, "not switched on before Story 9.3")
+	assert_eq(ClosetItemTile.state_for(hat, 999, false, &""), ClosetItemTile.State.LOCKED)
+	var tile: ClosetItemTile = _tile(hat, ClosetItemTile.State.BUY)
+	assert_eq(tile.get_state(), ClosetItemTile.State.LOCKED)
+	assert_false((_node(tile, "%Art") as Control).visible, "the icon stays hidden")
+	assert_true((_node(tile, "%Question") as CanvasItem).visible, "the ? shows")
+
+
 func test_an_unavailable_item_can_never_show_another_state() -> void:
 	var tile: ClosetItemTile = _tile(_item(&"hat_test", 100, false), ClosetItemTile.State.WEARING)
 	assert_eq(tile.get_state(), ClosetItemTile.State.LOCKED)
