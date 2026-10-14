@@ -34,6 +34,9 @@ extends Node
 ## Used passages (Story 8.2, FR68): get_used_passages / set_used_passages read and write the profile's
 ## used_passages, the paragraph ids already shown; RunFrame forwards the level's list, so this is its only
 ## writer. Generated tier 1-2 text is never tracked.
+## Last themes (Story 10.1, FR76): get_last_theme / set_last_theme read and write the profile's
+## last_themes, {level_id: theme_id}, the look each level last started in. RunFrame reads it to pick a
+## different theme and writes the pick at run start, so this is its only writer. No signal: nothing listens.
 
 enum PurchaseResult { OK, NOT_ENOUGH_BRAINS, ALREADY_OWNED, UNAVAILABLE }
 
@@ -364,6 +367,30 @@ func set_used_passages(ids: Array[String]) -> void:
 		return
 	_profile()["used_passages"] = clean.duplicate()
 	used_passages_changed.emit()
+	save_service.request_save()
+
+
+## The theme `level_id` last started in; &"" when none is saved (a missing key, a non-Dictionary
+## last_themes or a non-String value all read as none).
+func get_last_theme(level_id: StringName) -> StringName:
+	var stored: Variant = _profile().get("last_themes")
+	if not stored is Dictionary:
+		return &""
+	var value: Variant = (stored as Dictionary).get(String(level_id))
+	if not value is String:
+		return &""
+	return StringName(value as String)
+
+
+## Stores `theme_id` as the theme `level_id` last started in (as Strings). An empty level id or an unchanged
+## value does nothing; otherwise it writes and requests a save.
+func set_last_theme(level_id: StringName, theme_id: StringName) -> void:
+	if level_id == &"" or get_last_theme(level_id) == theme_id:
+		return
+	var profile: Dictionary = _profile()
+	if not profile.get("last_themes") is Dictionary:
+		profile["last_themes"] = {}
+	(profile["last_themes"] as Dictionary)[String(level_id)] = String(theme_id)
 	save_service.request_save()
 
 

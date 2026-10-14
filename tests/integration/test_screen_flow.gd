@@ -8,6 +8,7 @@ extends GutTest
 ## recorder seams before add_child: the real save is never written.
 ## MAIN_MENU gets a temp-dir PlayerData too: since Story 6.8 it writes unlock state (mark_unlock_seen /
 ## mark_level_chosen), which must never reach the real save.
+## RUN gets a temp-dir PlayerData too: since Story 10.1 a started level saves its theme as the level's last one.
 
 const FLOW_BUTTONS: Dictionary = {
 	"MAIN_MENU": ["%ClosetButton"],
@@ -67,6 +68,7 @@ func _instance(screen: Router.Screen) -> Control:
 	node.process_mode = Node.PROCESS_MODE_DISABLED
 	if screen == Router.Screen.RUN:
 		node.set("navigate", _record)
+		node.set("player_data", _temp_player_data())
 	if screen == Router.Screen.MAIN_MENU:
 		node.set("player_data", _temp_player_data())
 	if screen == Router.Screen.WELCOME_GIFT:

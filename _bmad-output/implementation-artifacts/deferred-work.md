@@ -820,7 +820,24 @@
 
 ## Deferred from: code review of 9-3-full-catalogue-live (2026-10-14)
 
-- Fixture `save_v3_mvp_owned.json` pins `schema_version` 3; a later schema bump would make it exercise migration instead of the current-schema path.
+- ~~Fixture `save_v3_mvp_owned.json` pins `schema_version` 3; a later schema bump would make it exercise migration instead of the current-schema path.~~ Happened in 10.1 (schema v4): it is now a v3 migration input; its tests pass unchanged and nothing needed current-schema coverage from it.
 - Tests hard-code prices (340 brains, 3600 total, 18 items, 200 brains) and the 3-column grid; a price or layout change breaks them for unrelated reasons.
 - The confirm-prompt regex in `test_plain_words.gd` accepts any lowercase-word name shape; `APPROVED_COPY` is the only per-name gate.
 - `capture_screens_runner.gd::_five_state_catalogue` now yields three Can't-afford and three Locked tiles rather than one each.
+
+## Deferred from: dev of story 10-1 (2026-10-14)
+
+- `SunnyVillageBackdrop` still names one look but drives both the Sunny Village Green and the Moonlit Village theme scenes (and the test fixture backdrop). Rename it (e.g. `ParallaxBackdrop`, ~6 test files) when 10.2 adds a third parallax look.
+- Per-theme dive props for Pitchfork Panic (`EscapeBush`, `DustCloud`, `DizzyStars` stay in the level scene) are left to 10.4; Horde Rush's projectile scene and throw/hit SFX (the tomato consts in `horde_rush_level.gd`) are left to 10.3, which extends `LevelTheme`.
+- Theme slots are swapped only before the level enters the tree (`LevelBase._swap_slot`); a theme part that has to change mid-run would need a different mechanism.
+- A non-`HordeFarmer` defender paces with no animations (`_farmer` null); a 10.3 defender that wants idle/walk/throw needs the same API or an interface.
+- `test_screen_flow.gd` instanced RUN on the live `PlayerData` autoload; harmless until runs wrote at start. Since 10.1 RunFrame saves the last theme at run start, so the test now injects a temp PlayerData (first full suite run of this story wrote the dev machine's real save; restored byte-identical, see the story's Debug Log). Any new test that starts a real level through RunFrame must inject `player_data`.
+- The themed test fixture (`tests/fixtures/levels/test_themed_level.tscn`) adds its `%Backdrop` after the test level's labels, so a theme backdrop would draw over them; harmless for tests, never shipped.
+
+## Deferred from: code review of story-10-1-random-theme-rotation (2026-10-14)
+
+- `_swap_slot` copies only position, not z_index/scale/modulate/visible/groups of the replaced slot.
+- Horde Rush theme with a null defender warns every run; revisit when a backdrop-only theme is added (AC5 mandates the warning today).
+- `LevelRegistry.validate()` does not check `music_id` exists, defender presence per level, or backdrop root type.
+- Junk entries in an existing `last_themes` dict persist; `set_last_theme` does not guard an empty profile.
+- Registry eagerly loads all theme backdrops for all levels; revisit as themes grow in 10.2–10.4.

@@ -2157,3 +2157,167 @@ func test_a_bad_timer_end_reason_records_timer_and_logs() -> void:
 	assert_push_error_count(1)
 	frame._process(1.0)
 	assert_eq(_result().end_reason, GameConstants.END_REASON_TIMER, "a bad label never loses the run")
+
+
+
+# --- themes (Story 10.1, FR76) -----------------------------------------------------
+
+const ThemedTestLevel: PackedScene = preload("res://tests/fixtures/levels/test_themed_level.tscn")
+const ThemeBackdropA: PackedScene = preload("res://tests/fixtures/levels/test_backdrop.tscn")
+const ThemeBackdropB: PackedScene = preload("res://tests/fixtures/levels/test_defender.tscn")
+const ZombieRunLevelScene: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_level.tscn")
+
+
+func _level_theme(id: StringName, backdrop: PackedScene, music_id: StringName = &"") -> LevelTheme:
+	var theme: LevelTheme = LevelTheme.new()
+	theme.id = id
+	theme.backdrop = backdrop
+	theme.music_id = music_id
+	return theme
+
+
+## A registry whose test_level is the themed test level (test_level plus a %Backdrop) with `themes`.
+func _themed_registry(themes: Array[LevelTheme], scene: PackedScene = ThemedTestLevel) -> LevelRegistry:
+	var entry: LevelEntry = LevelEntry.new()
+	entry.id = &"test_level"
+	entry.scene = scene
+	entry.debug_only = true
+	entry.themes = themes
+	var registry: LevelRegistry = LevelRegistry.new()
+	registry.entries = [entry]
+	return registry
+
+
+func _two_themes() -> Array[LevelTheme]:
+	return [_level_theme(&"a", ThemeBackdropA), _level_theme(&"b", ThemeBackdropB)] as Array[LevelTheme]
+
+
+func _themed_run(payload: Dictionary, registry: LevelRegistry, data: PlayerDataScript) -> RunFrameScript:
+	var frame: RunFrameScript = _make(payload, registry, data)
+	add_child_autofree(frame)
+	return frame
+
+
+func _themed_targets(frame: RunFrameScript, count: int) -> Array[String]:
+	var out: Array[String] = []
+	for i: int in count:
+		out.append(_type_correct(frame))
+	return out
+
+
+func test_theme_never_repeats_the_last_and_is_saved() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var registry: LevelRegistry = _themed_registry(_two_themes())
+	data.set_last_theme(&"test_level", &"a")
+	var first: RunFrameScript = _themed_run({"level_id": &"test_level", "seed": 1}, registry, data)
+	assert_eq(first.get_theme_id(), &"b", "last was a, so b")
+	assert_eq(first.get_level().theme_id, &"b", "the level got the theme")
+	assert_eq(first.get_level().get_node("%Backdrop").scene_file_path, ThemeBackdropB.resource_path)
+	assert_eq(data.get_last_theme(&"test_level"), &"b", "saved at start")
+	var second: RunFrameScript = _themed_run({"level_id": &"test_level", "seed": 1}, registry, data)
+	assert_eq(second.get_theme_id(), &"a", "the third run goes back to a")
+	assert_eq(data.get_last_theme(&"test_level"), &"a")
+	assert_push_warning_count(0)
+	assert_eq(_nav, [], "no failed-load navigation")
+
+
+func test_payload_theme_forces_it() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	data.set_last_theme(&"test_level", &"b")
+	var frame: RunFrameScript = _themed_run({"level_id": &"test_level", "seed": 1, "theme": &"b"}, _themed_registry(_two_themes()), data)
+	assert_eq(frame.get_theme_id(), &"b", "forced even when it was the last")
+	var by_string: RunFrameScript = _themed_run({"level_id": &"test_level", "seed": 1, "theme": "a"}, _themed_registry(_two_themes()), data)
+	assert_eq(by_string.get_theme_id(), &"a", "a String id works too")
+	assert_push_warning_count(0)
+
+
+func test_unknown_forced_theme_warns_and_picks() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	data.set_last_theme(&"test_level", &"a")
+	var frame: RunFrameScript = _themed_run({"level_id": &"test_level", "seed": 1, "theme": &"nope"}, _themed_registry(_two_themes()), data)
+	assert_push_warning("unknown theme nope for test_level")
+	assert_eq(frame.get_theme_id(), &"b", "the normal pick")
+	assert_not_null(frame.get_session())
+
+
+func test_same_seed_and_last_give_the_same_theme() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var themes: Array[LevelTheme] = [
+		_level_theme(&"a", ThemeBackdropA), _level_theme(&"b", ThemeBackdropB), _level_theme(&"c", ThemeBackdropA),
+	]
+	for run_seed: int in [3, 42, 1234]:
+		data.set_last_theme(&"test_level", &"b")
+		var first: StringName = _themed_run({"level_id": &"test_level", "seed": run_seed}, _themed_registry(themes), data).get_theme_id()
+		data.set_last_theme(&"test_level", &"b")
+		var again: StringName = _themed_run({"level_id": &"test_level", "seed": run_seed}, _themed_registry(themes), data).get_theme_id()
+		assert_eq(again, first, "seed %d" % run_seed)
+		assert_ne(first, &"b", "never the last")
+
+
+## AC 4b: the rules never change with the theme.
+func test_theme_never_changes_targets_or_config() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var with_a: RunFrameScript = _themed_run({"level_id": &"test_level", "seed": 42, "theme": &"a"}, _themed_registry(_two_themes()), data)
+	var with_b: RunFrameScript = _themed_run({"level_id": &"test_level", "seed": 42, "theme": &"b"}, _themed_registry(_two_themes()), data)
+	assert_eq(with_a.get_level().get_level_config(), with_b.get_level().get_level_config(), "same LevelConfig")
+	assert_eq(_themed_targets(with_a, 20), _themed_targets(with_b, 20), "same targets")
+
+
+## AC 4c: the theme draw never touches the run RNG: a themed run deals what the unthemed level deals.
+func test_theme_draw_never_touches_the_run_rng() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	for run_seed: int in [1, 7, 42]:
+		var themed: RunFrameScript = _themed_run({"level_id": &"test_level", "seed": run_seed}, _themed_registry(_two_themes()), data)
+		assert_ne(themed.get_theme_id(), &"")
+		assert_eq(_themed_targets(themed, 20), _targets(run_seed, 20), "seed %d" % run_seed)
+
+
+func test_theme_music_overrides_the_config() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var loud: Array[LevelTheme] = [_level_theme(&"loud", ThemeBackdropA, &"mus_test_theme")]
+	_themed_run({"level_id": &"test_level", "seed": 1}, _themed_registry(loud, ZombieRunLevelScene), data)
+	assert_eq(_music, [&"mus_test_theme"] as Array[StringName])
+	_music = []
+	var quiet: Array[LevelTheme] = [_level_theme(&"quiet", ThemeBackdropA)]
+	_themed_run({"level_id": &"test_level", "seed": 1}, _themed_registry(quiet, ZombieRunLevelScene), data)
+	assert_eq(_music, [&"mus_zombie_run"] as Array[StringName], "an empty theme music_id falls back to the config")
+
+
+func test_a_level_without_themes_saves_nothing() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 1}, null, data)
+	add_child_autofree(frame)
+	assert_eq(frame.get_theme_id(), &"")
+	assert_eq(frame.get_level().theme_id, &"")
+	assert_eq(data.get_last_theme(&"test_level"), &"")
+	assert_push_warning_count(0)
+
+
+func test_a_failed_start_saves_no_theme() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var bare: LevelBase = LevelBase.new()
+	var packed: PackedScene = PackedScene.new()
+	packed.pack(bare)
+	bare.free()
+	var frame: RunFrameScript = _make({"level_id": &"test_level", "seed": 1}, _themed_registry(_two_themes(), packed), data)
+	add_child_autofree(frame)
+	assert_push_error("[ERROR][run]")
+	assert_eq(data.get_last_theme(&"test_level"), &"", "a run that never started is not the previous theme")
+
+
+## AC 5: the shipped levels start in their single shipped theme with no warning or error.
+func test_shipped_levels_start_in_their_theme() -> void:
+	var expected: Dictionary[StringName, StringName] = {
+		&"zombie_run": &"sunny_village_green", &"horde_rush": &"farmhouse", &"pitchfork_panic": &"moonlit_village",
+	}
+	for level_id: StringName in expected:
+		var data: PlayerDataScript = _fake_player_data()
+		var frame: RunFrameScript = _make({"level_id": level_id, "seed": 42}, null, data)
+		add_child_autofree(frame)
+		assert_eq(frame.get_theme_id(), expected[level_id], "%s theme" % level_id)
+		assert_eq(frame.get_level().theme_id, expected[level_id])
+		assert_eq(data.get_last_theme(level_id), expected[level_id], "%s last theme saved" % level_id)
+		assert_not_null(frame.get_session(), "%s started" % level_id)
+	assert_eq(_nav, [], "no failed-load navigation")
+	assert_push_warning_count(0)
+	assert_push_error_count(0)

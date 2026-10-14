@@ -1,26 +1,16 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/horde_rush/horde_rush_level.gd" id="1_script"]
 [ext_resource type="Resource" path="res://data/levels/horde_rush.tres" id="2_config"]
-[ext_resource type="Texture2D" uid="uid://djor1ecd6fger" path="res://assets/sprites/backdrops/farmhouse/field.png" id="3_field"]
-[ext_resource type="Texture2D" uid="uid://7gpqbgi2rqk0" path="res://assets/sprites/backdrops/farmhouse/farmhouse.png" id="4_farmhouse"]
 [ext_resource type="PackedScene" path="res://scenes/levels/horde_rush/farmer.tscn" id="5_farmer"]
+[ext_resource type="PackedScene" path="res://scenes/levels/horde_rush/themes/farmhouse.tscn" id="6_theme"]
 
 [node name="HordeRushLevel" type="Node2D"]
 script = ExtResource("1_script")
 config = ExtResource("2_config")
 
-[node name="Field" type="Node2D" parent="."]
+[node name="Field" parent="." instance=ExtResource("6_theme")]
 unique_name_in_owner = true
-
-[node name="FieldArt" type="Sprite2D" parent="Field"]
-texture = ExtResource("3_field")
-centered = false
-
-[node name="Farmhouse" type="Sprite2D" parent="Field"]
-position = Vector2(548, 0)
-texture = ExtResource("4_farmhouse")
-centered = false
 
 [node name="Zombies" type="Node2D" parent="."]
 unique_name_in_owner = true

@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/test_level/test_level.tscn" id="1_test_level"]
+
+[node name="TestThemedLevel" instance=ExtResource("1_test_level")]
+
+[node name="Backdrop" type="Node2D" parent="."]
+unique_name_in_owner = true

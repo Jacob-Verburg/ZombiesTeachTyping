@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LevelRegistry" load_steps=17 format=3]
+[gd_resource type="Resource" script_class="LevelRegistry" load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/level_registry.gd" id="1_registry"]
 [ext_resource type="Script" path="res://scripts/resources/level_entry.gd" id="2_entry"]
@@ -11,6 +11,27 @@
 [ext_resource type="PackedScene" path="res://scenes/levels/horde_rush/horde_rush_level.tscn" id="9_horde_rush"]
 [ext_resource type="PackedScene" path="res://scenes/levels/test_level/test_paragraph_level.tscn" id="10_test_paragraph_level"]
 [ext_resource type="PackedScene" path="res://scenes/levels/pitchfork_panic/pitchfork_panic_level.tscn" id="11_pitchfork_panic"]
+[ext_resource type="Script" path="res://scripts/resources/level_theme.gd" id="12_theme"]
+[ext_resource type="PackedScene" path="res://scenes/levels/zombie_run/themes/sunny_village_green.tscn" id="13_sunny_village_green"]
+[ext_resource type="PackedScene" path="res://scenes/levels/horde_rush/themes/farmhouse.tscn" id="14_farmhouse"]
+[ext_resource type="PackedScene" path="res://scenes/levels/horde_rush/farmer.tscn" id="15_farmer"]
+[ext_resource type="PackedScene" path="res://scenes/levels/pitchfork_panic/themes/moonlit_village.tscn" id="16_moonlit_village"]
+
+[sub_resource type="Resource" id="Resource_theme_sunny_village_green"]
+script = ExtResource("12_theme")
+id = &"sunny_village_green"
+backdrop = ExtResource("13_sunny_village_green")
+
+[sub_resource type="Resource" id="Resource_theme_farmhouse"]
+script = ExtResource("12_theme")
+id = &"farmhouse"
+backdrop = ExtResource("14_farmhouse")
+defender = ExtResource("15_farmer")
+
+[sub_resource type="Resource" id="Resource_theme_moonlit_village"]
+script = ExtResource("12_theme")
+id = &"moonlit_village"
+backdrop = ExtResource("16_moonlit_village")
 
 [sub_resource type="Resource" id="Resource_zombie_run"]
 script = ExtResource("2_entry")
@@ -20,6 +41,7 @@ scene = ExtResource("4_zombie_run")
 debug_only = false
 available = true
 card_picture = ExtResource("5_card_zombie_run")
+themes = Array[ExtResource("12_theme")]([SubResource("Resource_theme_sunny_village_green")])
 
 [sub_resource type="Resource" id="Resource_horde_rush"]
 script = ExtResource("2_entry")
@@ -29,6 +51,7 @@ scene = ExtResource("9_horde_rush")
 debug_only = false
 available = true
 card_picture = ExtResource("6_card_horde_rush")
+themes = Array[ExtResource("12_theme")]([SubResource("Resource_theme_farmhouse")])
 unlocked_by = &"zombie_run"
 
 [sub_resource type="Resource" id="Resource_pitchfork_panic"]
@@ -39,6 +62,7 @@ scene = ExtResource("11_pitchfork_panic")
 debug_only = false
 available = true
 card_picture = ExtResource("7_card_pitchfork_panic")
+themes = Array[ExtResource("12_theme")]([SubResource("Resource_theme_moonlit_village")])
 unlocked_by = &"horde_rush"
 
 [sub_resource type="Resource" id="Resource_test_level"]

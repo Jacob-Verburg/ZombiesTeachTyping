@@ -1098,3 +1098,62 @@ func test_used_passages_bad_stored_type_reads_empty() -> void:
 	assert_eq(sut.get_used_passages(), ["t3_01", "t4_01"] as Array[String], "non-String entries are skipped")
 	sut.set_used_passages(["t3_01"] as Array[String])
 	assert_eq_deep(_save.get_active_profile()["used_passages"], ["t3_01"])
+
+
+# --- last themes (Story 10.1) ------------------------------------------------------
+
+func test_last_theme_starts_empty_and_round_trips() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_eq(sut.get_last_theme(&"zombie_run"), &"")
+	sut.set_last_theme(&"zombie_run", &"sunny_village_green")
+	sut.set_last_theme(&"horde_rush", &"farmhouse")
+	assert_eq(sut.get_last_theme(&"zombie_run"), &"sunny_village_green")
+	assert_eq(sut.get_last_theme(&"horde_rush"), &"farmhouse")
+	assert_eq(sut.get_last_theme(&"pitchfork_panic"), &"")
+	await wait_process_frames(2)
+	assert_eq_deep(_written_profile()["last_themes"], {"zombie_run": "sunny_village_green", "horde_rush": "farmhouse"})
+
+
+func test_last_theme_unchanged_value_requests_no_save() -> void:
+	_save = CountingSave.new()
+	_save.save_dir = TEST_DIR
+	add_child_autofree(_save)
+	var sut: PlayerDataScript = PlayerDataScript.new()
+	sut.save_service = _save
+	add_child_autofree(sut)
+	sut.set_last_theme(&"zombie_run", &"a")
+	assert_eq((_save as CountingSave).requests, 1, "one save request per change")
+	sut.set_last_theme(&"zombie_run", &"a")
+	assert_eq((_save as CountingSave).requests, 1, "an unchanged theme requests no save")
+	sut.set_last_theme(&"", &"b")
+	assert_eq((_save as CountingSave).requests, 1, "an empty level id is ignored")
+	assert_false((_save.get_active_profile()["last_themes"] as Dictionary).has(""))
+	sut.set_last_theme(&"zombie_run", &"b")
+	assert_eq((_save as CountingSave).requests, 2)
+
+
+func test_last_theme_junk_reads_empty() -> void:
+	var sut: PlayerDataScript = _make()
+	_save.get_active_profile()["last_themes"] = "farmhouse"
+	assert_eq(sut.get_last_theme(&"horde_rush"), &"")
+	sut.set_last_theme(&"horde_rush", &"farmhouse")
+	assert_eq_deep(_save.get_active_profile()["last_themes"], {"horde_rush": "farmhouse"})
+	_save.get_active_profile()["last_themes"] = {"horde_rush": 5, "zombie_run": null}
+	assert_eq(sut.get_last_theme(&"horde_rush"), &"")
+	assert_eq(sut.get_last_theme(&"zombie_run"), &"")
+
+
+func test_last_theme_survives_a_reload() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.set_last_theme(&"pitchfork_panic", &"moonlit_village")
+	await wait_process_frames(2)
+	var reloaded: PlayerDataScript = _make()
+	assert_eq(reloaded.get_last_theme(&"pitchfork_panic"), &"moonlit_village")
+	assert_eq(typeof(_written_profile()["last_themes"]["pitchfork_panic"]), TYPE_STRING)
+
+
+func test_last_theme_reset_all_clears_them() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.set_last_theme(&"zombie_run", &"sunny_village_green")
+	sut.reset_all()
+	assert_eq(sut.get_last_theme(&"zombie_run"), &"")

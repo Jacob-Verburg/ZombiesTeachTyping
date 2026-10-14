@@ -29,6 +29,14 @@ extends Control
 ## Paragraphs (Story 8.2): the frame hands player_data's used passage ids down with level.set_used_passages()
 ## after set_tier, forwards the level's used_passages_changed to player_data.set_used_passages(), and in
 ## PARAGRAPH mode passes the next passage to the HUD (its line 2 on a passage's last line).
+## Themes (Story 10.1, FR76): before the level enters the tree the frame picks one of its registry entry's
+## themes (ThemePicker: never the level's saved last theme when there is a choice) and calls
+## level.apply_theme(theme). The draw uses its own RNG built from the run seed (ThemePicker.theme_rng), never
+## the run RNG, so themes never change the targets and a pinned seed replays the theme too (given the same
+## saved last theme). The pick is saved as the level's last theme as soon as the run starts, so a quit run
+## also counts as "previous". A theme's music_id, when set, replaces the config's. A RUN payload "theme"
+## forces a theme (tests, gate captures); an unknown id warns and falls back to the normal pick. A level
+## with no themes plays its scene's built-in look and saves nothing.
 
 enum RunState { WAITING_FIRST_KEY, RUNNING, PAUSED, COUNTDOWN, ENDING, DONE }
 
@@ -77,6 +85,10 @@ var _seed: int = -1
 var _session: TypingSession
 var _level: LevelBase
 var _level_id: StringName = &""
+## The id of the theme this run plays in (Story 10.1); &"" when the level has no themes.
+var _theme_id: StringName = &""
+## True when the run's theme came from the payload (tests, gate captures): it is not saved as the last theme.
+var _theme_forced: bool = false
 var _duration: float = 0.0
 ## LevelConfig.completion_bonus, read once at start: the bonus of every recorded (completed) run.
 var _completion_bonus: int = 0
@@ -227,17 +239,26 @@ func get_level() -> LevelBase:
 	return _level
 
 
+## The id of the theme this run plays in (Story 10.1, debug overlay and tests); &"" = no themes.
+func get_theme_id() -> StringName:
+	return _theme_id
+
+
 ## Builds the level, RNG, session and input wiring. Returns "" on success, else the failure reason.
 func _start_level(payload: Dictionary) -> String:
 	var raw_id: Variant = payload.get("level_id")
 	if typeof(raw_id) != TYPE_STRING_NAME and typeof(raw_id) != TYPE_STRING:
 		return "missing level_id"
 	_level_id = StringName(raw_id)
+	_theme_id = &""
 	if level_registry == null:
 		return "no level registry"
 	var scene: PackedScene = level_registry.get_scene(_level_id)
 	if scene == null:
 		return "unknown level_id %s" % _level_id
+	var entry: LevelEntry = level_registry.get_entry(_level_id)
+	# Seeding draws nothing, so doing it before the level exists leaves the targets a seed deals unchanged.
+	_seed_rng(_requested_seed(payload))
 	var instance: Node = scene.instantiate()
 	var level: LevelBase = instance as LevelBase
 	if level == null:
@@ -249,11 +270,13 @@ func _start_level(payload: Dictionary) -> String:
 		level.free()
 		return "level %s has no LevelConfig" % _level_id
 	_level = level
+	var theme: LevelTheme = _pick_theme(entry, payload)
+	if theme != null:
+		level.apply_theme(theme)
 	%LevelHost.add_child(level)
 	var tier_config: TierConfig = _valid_tier_config()
 	level.set_tier(player_data.get_tier() if tier_config != null else 0, tier_config)
 	level.set_used_passages(player_data.get_used_passages())
-	_seed_rng(_requested_seed(payload))
 	var source: TargetSource = level.create_target_source(_rng)
 	if source == null:
 		return "level %s gave no target source" % _level_id
@@ -285,12 +308,33 @@ func _start_level(payload: Dictionary) -> String:
 	%Countdown.finished.connect(_on_countdown_finished)
 	WebPlatform.focus_lost.connect(_on_web_platform_focus_lost)
 	WebPlatform.visibility_hidden.connect(_on_web_platform_focus_lost)
-	if config.music_id != &"":
-		play_music.call(config.music_id)
+	var music: StringName = theme.music_id if theme != null and theme.music_id != &"" else config.music_id
+	if music != &"":
+		play_music.call(music)
 	last_seed = _seed
 	last_seed_level = _level_id
-	Log.info(&"run", "started level=%s seed=%d%s" % [_level_id, _seed, " (replay)" if _replayed else ""])
+	_theme_id = theme.id if theme != null else &""
+	if theme != null and not _theme_forced:
+		player_data.set_last_theme(_level_id, theme.id)
+	Log.info(&"run", "started level=%s seed=%d theme=%s%s" % [
+		_level_id, _seed, _theme_id if _theme_id != &"" else "-", " (replay)" if _replayed else ""])
 	return ""
+
+
+## This run's theme from `entry`'s themes (null when it has none): the payload's "theme" when the entry has
+## it, else ThemePicker's pick avoiding the level's saved last theme, drawn from the seed's own theme RNG.
+func _pick_theme(entry: LevelEntry, payload: Dictionary) -> LevelTheme:
+	_theme_forced = false
+	if entry == null or entry.themes.is_empty():
+		return null
+	var forced: Variant = payload.get("theme")
+	if typeof(forced) == TYPE_STRING or typeof(forced) == TYPE_STRING_NAME:
+		var theme: LevelTheme = entry.get_theme(StringName(forced))
+		if theme != null:
+			_theme_forced = true
+			return theme
+		Log.warn(&"run", "unknown theme %s for %s, picking one" % [forced, _level_id])
+	return ThemePicker.pick(entry.themes, player_data.get_last_theme(_level_id), ThemePicker.theme_rng(_seed))
 
 
 ## player_data's TierConfig, or null when missing or invalid (the level then runs untiered, tier 0).

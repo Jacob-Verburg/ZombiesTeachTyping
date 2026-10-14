@@ -1,83 +1,20 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" uid="uid://dmp5v10tvccvo" path="res://scripts/levels/pitchfork_panic/pitchfork_panic_level.gd" id="1_script"]
 [ext_resource type="Resource" path="res://data/levels/pitchfork_panic.tres" id="2_config"]
 [ext_resource type="PackedScene" path="res://scenes/characters/player_zombie.tscn" id="3_zombie"]
-[ext_resource type="Script" uid="uid://p7qqijx42407" path="res://scripts/levels/zombie_run/sunny_village_backdrop.gd" id="5_backdrop"]
-[ext_resource type="Texture2D" uid="uid://c6ehwih2xa7g2" path="res://assets/sprites/backdrops/moonlit_village/clouds.png" id="6_clouds"]
-[ext_resource type="Texture2D" uid="uid://2p77ki765j38" path="res://assets/sprites/backdrops/moonlit_village/far.png" id="7_far"]
-[ext_resource type="Texture2D" uid="uid://bqrexulht1la7" path="res://assets/sprites/backdrops/moonlit_village/near.png" id="8_near"]
-[ext_resource type="Texture2D" uid="uid://ydn85bxwbxa2" path="res://assets/sprites/backdrops/moonlit_village/ground_strip.png" id="9_ground"]
-[ext_resource type="Texture2D" uid="uid://b0cox3uep3sah" path="res://assets/sprites/backdrops/moonlit_village/moon.png" id="10_moon"]
 [ext_resource type="Script" uid="uid://41q6f4m6rfde" path="res://scripts/levels/pitchfork_panic/escape_bush.gd" id="11_bush"]
 [ext_resource type="Script" uid="uid://cta6dxhxc0wj2" path="res://scripts/levels/pitchfork_panic/dust_cloud.gd" id="12_dust"]
 [ext_resource type="Script" uid="uid://c6qvuswu3vpv6" path="res://scripts/levels/pitchfork_panic/dizzy_stars.gd" id="13_stars"]
 [ext_resource type="PackedScene" path="res://scenes/levels/pitchfork_panic/chase_mob.tscn" id="14_mob"]
-
+[ext_resource type="PackedScene" path="res://scenes/levels/pitchfork_panic/themes/moonlit_village.tscn" id="15_theme"]
 
 [node name="PitchforkPanicLevel" type="Node2D"]
 script = ExtResource("1_script")
 config = ExtResource("2_config")
 
-[node name="Backdrop" type="Node2D" parent="."]
+[node name="Backdrop" parent="." instance=ExtResource("15_theme")]
 unique_name_in_owner = true
-script = ExtResource("5_backdrop")
-
-[node name="Sky" type="ColorRect" parent="Backdrop"]
-offset_right = 640.0
-offset_bottom = 192.0
-mouse_filter = 2
-color = Color(0.16862745, 0.11372549, 0.24705882, 1)
-
-[node name="Moon" type="Sprite2D" parent="Backdrop"]
-position = Vector2(500, 18)
-texture = ExtResource("10_moon")
-centered = false
-
-[node name="Clouds" type="Node2D" parent="Backdrop"]
-
-[node name="A" type="Sprite2D" parent="Backdrop/Clouds"]
-texture = ExtResource("6_clouds")
-centered = false
-
-[node name="B" type="Sprite2D" parent="Backdrop/Clouds"]
-position = Vector2(640, 0)
-texture = ExtResource("6_clouds")
-centered = false
-
-[node name="Far" type="Node2D" parent="Backdrop"]
-
-[node name="A" type="Sprite2D" parent="Backdrop/Far"]
-texture = ExtResource("7_far")
-centered = false
-
-[node name="B" type="Sprite2D" parent="Backdrop/Far"]
-position = Vector2(640, 0)
-texture = ExtResource("7_far")
-centered = false
-
-[node name="Near" type="Node2D" parent="Backdrop"]
-
-[node name="A" type="Sprite2D" parent="Backdrop/Near"]
-texture = ExtResource("8_near")
-centered = false
-
-[node name="B" type="Sprite2D" parent="Backdrop/Near"]
-position = Vector2(640, 0)
-texture = ExtResource("8_near")
-centered = false
-
-[node name="Ground" type="Node2D" parent="Backdrop"]
-position = Vector2(0, 192)
-
-[node name="A" type="Sprite2D" parent="Backdrop/Ground"]
-texture = ExtResource("9_ground")
-centered = false
-
-[node name="B" type="Sprite2D" parent="Backdrop/Ground"]
-position = Vector2(640, 0)
-texture = ExtResource("9_ground")
-centered = false
 
 [node name="World" type="Node2D" parent="."]
 unique_name_in_owner = true

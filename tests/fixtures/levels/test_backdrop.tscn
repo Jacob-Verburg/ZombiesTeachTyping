@@ -1,0 +1,31 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/zombie_run/sunny_village_backdrop.gd" id="1_backdrop"]
+[ext_resource type="Texture2D" path="res://assets/sprites/backdrops/sunny_village_green/clouds.png" id="2_tex"]
+
+[node name="TestBackdrop" type="Node2D"]
+script = ExtResource("1_backdrop")
+
+[node name="Clouds" type="Node2D" parent="."]
+
+[node name="A" type="Sprite2D" parent="Clouds"]
+texture = ExtResource("2_tex")
+centered = false
+
+[node name="Far" type="Node2D" parent="."]
+
+[node name="A" type="Sprite2D" parent="Far"]
+texture = ExtResource("2_tex")
+centered = false
+
+[node name="Near" type="Node2D" parent="."]
+
+[node name="A" type="Sprite2D" parent="Near"]
+texture = ExtResource("2_tex")
+centered = false
+
+[node name="Ground" type="Node2D" parent="."]
+
+[node name="A" type="Sprite2D" parent="Ground"]
+texture = ExtResource("2_tex")
+centered = false

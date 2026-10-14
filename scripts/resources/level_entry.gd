@@ -21,3 +21,17 @@ extends Resource
 ## The level whose finished run (timer reached its end) opens this one; empty = open from the start. FR79.
 ## Must name an existing, non-debug, different entry, without loops (LevelRegistry.validate()).
 @export var unlocked_by: StringName = &""
+## The looks this level rotates through (Story 10.1, FR76): one per run, never the previous one twice in a
+## row when there are two or more. Empty = the level scene's built-in look, nothing saved. Stories 10.2-10.4
+## append themes here.
+@export var themes: Array[LevelTheme] = []
+
+
+## The theme called `id`, or null when the id is empty or unknown.
+func get_theme(id: StringName) -> LevelTheme:
+	if id == &"":
+		return null
+	for theme: LevelTheme in themes:
+		if theme != null and theme.id == id:
+			return theme
+	return null

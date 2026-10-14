@@ -109,6 +109,10 @@ var _dancing: bool = false
 @onready var _backdrop: SunnyVillageBackdrop = %Backdrop
 
 
+func _accepts_backdrop(node: Node) -> bool:
+	return node is SunnyVillageBackdrop
+
+
 func _ready() -> void:
 	if not request_voice.is_valid():
 		request_voice = AudioManager.play_voice

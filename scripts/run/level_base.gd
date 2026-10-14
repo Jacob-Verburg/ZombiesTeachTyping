@@ -14,8 +14,13 @@ extends Node2D
 ## the run RNG (child.seed = rng.randi()). The level may keep the run rng for its own draws; the
 ## source then never interleaves with them, so a seed always replays the same targets.
 ##
+## Themes (Story 10.1, FR76): RunFrame picks one LevelTheme per run and calls apply_theme(theme) before the
+## level enters the tree. The base swaps the backdrop slot (_backdrop_slot(), default %Backdrop) for the
+## theme's scene; a level with more themed parts (Horde Rush's defender) overrides apply_theme and swaps
+## them with _swap_slot. A theme is art and music only: it never changes the config or the targets.
+##
 ## Call order inside one run (all synchronous, in the key event's call stack):
-##   RunFrame._ready: level instanced -> added under %LevelHost (level _ready) -> set_tier(tier, config)
+##   RunFrame._ready: level instanced -> apply_theme(theme) -> added under %LevelHost (level _ready) -> set_tier(tier, config)
 ##     -> set_used_passages(ids) -> create_target_source(rng) -> TypingSession built -> TypingInput configured
 ##   first correct key: on_run_started() -> on_char_accepted(expected, 0)
 ##   each correct key: on_char_accepted(expected, index)
@@ -48,6 +53,61 @@ var tier_config: TierConfig = null
 ## The save's used paragraph ids (Story 8.2), set by RunFrame through set_used_passages(). [] outside a
 ## RunFrame. Only paragraph levels read it.
 var used_passages: Array[String] = []
+## The applied theme's id (Story 10.1), set by apply_theme(). &"" = the scene's built-in look.
+var theme_id: StringName = &""
+
+
+## Called once by RunFrame before the level enters the tree (so before _ready and its @onready lookups).
+## A null theme changes nothing. Otherwise stores theme_id and swaps the backdrop slot for the theme's
+## backdrop scene. Override to swap more slots, calling super(theme) first.
+func apply_theme(theme: LevelTheme) -> void:
+	if theme == null:
+		return
+	theme_id = theme.id
+	_swap_slot(_backdrop_slot(), theme.backdrop, _accepts_backdrop)
+
+
+## Whether a themed backdrop's root fits this level (a level that types its %Backdrop overrides this).
+## A false answer keeps the built-in backdrop with one warning (NFR16).
+func _accepts_backdrop(_node: Node) -> bool:
+	return true
+
+
+## The unique name of the node a theme's backdrop replaces.
+func _backdrop_slot() -> StringName:
+	return &"Backdrop"
+
+
+## Replaces the %`slot` node with an instance of `scene`, keeping its parent, index and position, and makes
+## the new node %`slot` again. A missing slot or a null scene warns once and keeps the built-in node
+## (NFR16). When the slot already is an instance of `scene` (a level's single shipped theme) nothing is
+## rebuilt. Only call before the level enters the tree.
+func _swap_slot(slot: StringName, scene: PackedScene, accepts: Callable = Callable()) -> void:
+	var old: Node = get_node_or_null("%" + String(slot))
+	if old == null or scene == null:
+		Log.warn(&"level", "%s: theme %s has no %s (%s), keeping the built-in look" % [
+			name, theme_id, slot, "no slot" if old == null else "no scene"])
+		return
+	if old.scene_file_path != "" and old.scene_file_path == scene.resource_path:
+		return
+	var parent: Node = old.get_parent()
+	var index: int = old.get_index()
+	var node: Node = scene.instantiate()
+	if node == null or (accepts.is_valid() and not accepts.call(node)):
+		Log.warn(&"level", "%s: theme %s has a wrong %s root, keeping the built-in look" % [name, theme_id, slot])
+		if node != null:
+			node.free()
+		return
+	if old is Node2D and node is Node2D:
+		(node as Node2D).position = (old as Node2D).position
+	old.unique_name_in_owner = false
+	parent.remove_child(old)
+	old.free()
+	node.name = slot
+	parent.add_child(node)
+	parent.move_child(node, index)
+	node.owner = self
+	node.unique_name_in_owner = true
 
 
 ## Called by RunFrame in _ready, before the session is built. Returns `config`.

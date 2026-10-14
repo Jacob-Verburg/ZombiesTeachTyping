@@ -347,7 +347,7 @@ func test_run_section_shows_the_run() -> void:
 	assert_string_contains(text, "Clock 0.0 / 120 s")
 	assert_string_contains(text, "Target %s@0 > %s" % [session.get_current_target(), " ".join(upcoming)])
 	assert_string_contains(text, "Keys 0  Errors 0  WPM 0")
-	assert_string_contains(text, "Seed 42")
+	assert_string_contains(text, "Seed 42  theme -", "the test level has no theme")
 	assert_false(text.contains("(replay)"))
 	for i: int in 5:
 		_type_correct(frame)
@@ -597,6 +597,22 @@ func test_jump_seams_default_to_the_router() -> void:
 
 
 # --- F4 stress hold (Story 6.7) ------------------------------------------------
+
+## Story 10.1: the run line names the run's theme; the longest shipped id still fits beside a widest replay seed.
+func test_run_section_shows_the_theme_and_fits() -> void:
+	var sut: OverlayScript = _make()
+	RunFrameScript.debug_seed = 1234567890
+	RunFrameScript.debug_seed_level = &"zombie_run"
+	var frame: RunFrameScript = _start_frame({"level_id": &"zombie_run"})
+	(frame.get_level() as Node).set("request_voice", func(_id: StringName) -> void: pass)
+	sut._handle_key(KEY_F3)
+	sut._handle_key(KEY_F8)
+	assert_string_contains(_text(sut, "RunLabel"), "Seed 1234567890 (replay)  theme sunny_village_green")
+	var panel: PanelContainer = sut.get_node("%Panel") as PanelContainer
+	var size: Vector2 = panel.get_combined_minimum_size()
+	assert_lte(panel.offset_top + size.y, 256.0, "bottom above the HUD band")
+	assert_lte(panel.offset_left + size.x, 640.0, "inside the 640 px playfield")
+
 
 func _horde_frame() -> RunFrameScript:
 	var frame: RunFrameScript = _start_frame({"level_id": &"horde_rush", "seed": 7})

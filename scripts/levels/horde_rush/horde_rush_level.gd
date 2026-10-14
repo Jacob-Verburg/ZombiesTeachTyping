@@ -59,6 +59,10 @@ extends LevelBase
 ## non-final hit and sfx_melt per final hit (no hit sound on top), all in the logic step that resolves them,
 ## never from a tween, never after on_run_ending(), no RNG (AudioManager throttles the bursts).
 ##
+## Themes (Story 10.1): a theme's backdrop replaces %Field and its defender replaces %Defender (it stays
+## under %Zombies, so it still y-sorts). The swap happens before _ready, so _defender_view and _farmer pick
+## up the theme's defender; a defender that is not a HordeFarmer still paces, it just has no animations.
+##
 ## Tuning (Story 6.7): every number lives in horde_rush.tres, tuned with the headless sim
 ## tools/horde_rush_sim.gd (the story's Tuning Results). Stress hold (Story 6.7, NFR1, debug only): the
 ## debug overlay's F4 sets a floor of marching copies that _process tops up, one per frame, from
@@ -171,6 +175,17 @@ func _ready() -> void:
 		return
 	if not _lanes_fit():
 		Log.error(&"level", "horde rush: %d lanes do not fit above the HUD" % _cfg.lane_count)
+
+
+func _backdrop_slot() -> StringName:
+	return &"Field"
+
+
+func apply_theme(theme: LevelTheme) -> void:
+	super(theme)
+	# Both scenes missing: the base already warned once, so a second warning would only repeat it.
+	if theme != null and (theme.backdrop != null or theme.defender != null):
+		_swap_slot(&"Defender", theme.defender)
 
 
 func _lanes_fit() -> bool:

@@ -9,16 +9,25 @@ extends GutTest
 ## the house and the tomato are sprites).
 ## Story 8.6: the Pitchfork Panic scenes are walked too; the level has no gradient, no torch rect and only the
 ## Sky and Fade ColorRects (both palette night), and its scripts draw no shapes (the endings are sprites).
+## Story 10.1: each level's look moved into theme scenes (scenes/levels/<id>/themes/), so those folders are
+## walked too and the level checks read the level scene together with its theme scene.
 
 const SCENE_DIRS: Array[String] = [
 	"res://scenes/ui/", "res://scenes/screens/", "res://scenes/run/", "res://scenes/levels/zombie_run/",
 	"res://scenes/levels/horde_rush/", "res://scenes/levels/pitchfork_panic/",
+	"res://scenes/levels/zombie_run/themes/", "res://scenes/levels/horde_rush/themes/",
+	"res://scenes/levels/pitchfork_panic/themes/",
 ]
-const PITCHFORK_LEVEL: String = "res://scenes/levels/pitchfork_panic/pitchfork_panic_level.tscn"
+## The Pitchfork Panic level and its Moonlit Village theme (the Sky moved there in Story 10.1), read as one.
+const PITCHFORK_SCENES: Array[String] = [
+	"res://scenes/levels/pitchfork_panic/pitchfork_panic_level.tscn",
+	"res://scenes/levels/pitchfork_panic/themes/moonlit_village.tscn",
+]
 const PITCHFORK_SCRIPT_DIR: String = "res://scripts/levels/pitchfork_panic/"
 const NIGHT_COLOR_TEXT: String = "color = Color(0.16862745, 0.11372549, 0.24705882, 1)"
 const HORDE_RUSH_ART_SCENES: Array[String] = [
 	"res://scenes/levels/horde_rush/horde_rush_level.tscn", "res://scenes/levels/horde_rush/tomato.tscn",
+	"res://scenes/levels/horde_rush/themes/farmhouse.tscn",
 ]
 const EXEMPT_SCENES: Array[String] = ["res://scenes/screens/keyboard_test.tscn"]
 const THEME_PATH: String = "res://data/ui_theme.tres"
@@ -77,8 +86,11 @@ func test_horde_rush_has_no_placeholder_rects() -> void:
 
 
 func test_pitchfork_panic_has_no_placeholder_art() -> void:
-	var text: String = FileAccess.get_file_as_string(PITCHFORK_LEVEL)
-	assert_ne(text, "", "level scene found")
+	var text: String = ""
+	for path: String in PITCHFORK_SCENES:
+		var part: String = FileAccess.get_file_as_string(path)
+		assert_ne(part, "", "%s found" % path)
+		text += part
 	assert_false(text.contains("GradientTexture2D"), "no gradient glow")
 	assert_false(text.contains("Gradient"), "no gradient")
 	assert_false(text.contains("name=\"Torch\""), "no torch rect")

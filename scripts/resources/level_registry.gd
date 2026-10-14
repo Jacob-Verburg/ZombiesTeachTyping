@@ -3,7 +3,7 @@ extends Resource
 ## level_id -> level scene. RunFrame looks up the RUN payload's level_id here. The shipped registry is
 ## data/levels/level_registry.tres; ids must be unique there (a unit test checks), and if two entries
 ## ever share an id the first one wins. Each entry's unlocked_by names the level whose finished run opens
-## it (Story 6.8); validate() checks the chain.
+## it (Story 6.8); validate() checks the chain. Each entry's themes (Story 10.1) are checked too.
 
 ## Every registered level, in menu order.
 @export var entries: Array[LevelEntry] = []
@@ -50,9 +50,16 @@ func unlocks_of(level_id: StringName) -> Array[LevelEntry]:
 	return result
 
 
-## "" when every unlocked_by names an existing, non-debug, different entry and following unlocked_by
-## from any entry never comes back to an id; otherwise a message naming the first problem.
+## "" when every theme is set, has an id unique within its entry and a backdrop, every unlocked_by names an
+## existing, non-debug, different entry and following unlocked_by from any entry never comes back to an id;
+## otherwise a message naming the first problem.
 func validate() -> String:
+	for entry: LevelEntry in entries:
+		if entry == null:
+			continue
+		var theme_problem: String = _validate_themes(entry)
+		if theme_problem != "":
+			return theme_problem
 	for entry: LevelEntry in entries:
 		if entry == null or entry.unlocked_by == &"":
 			continue
@@ -73,4 +80,20 @@ func validate() -> String:
 				return "unlock chain loops at %s" % current.unlocked_by
 			seen.append(current.unlocked_by)
 			current = get_entry(current.unlocked_by)
+	return ""
+
+
+## "" when `entry`'s themes are all set, named, uniquely named and have a backdrop; else the first problem.
+func _validate_themes(entry: LevelEntry) -> String:
+	var ids: Array[StringName] = []
+	for theme: LevelTheme in entry.themes:
+		if theme == null:
+			return "%s has a null theme" % entry.id
+		if theme.id == &"":
+			return "%s has a theme with no id" % entry.id
+		if theme.id in ids:
+			return "%s has two themes called %s" % [entry.id, theme.id]
+		ids.append(theme.id)
+		if theme.backdrop == null:
+			return "%s theme %s has no backdrop" % [entry.id, theme.id]
 	return ""

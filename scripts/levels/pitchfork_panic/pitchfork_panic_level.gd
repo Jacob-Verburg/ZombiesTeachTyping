@@ -126,6 +126,10 @@ var _outro_tween: Tween
 @onready var _zombie: PlayerZombie = %Zombie
 @onready var _world: Node2D = %World
 @onready var _backdrop: SunnyVillageBackdrop = %Backdrop
+
+
+func _accepts_backdrop(node: Node) -> bool:
+	return node is SunnyVillageBackdrop
 @onready var _mob: Node2D = %Mob
 ## The mob as a ChaseMob (null if %Mob is a plain Node2D: it still positions, it just has no run frames).
 @onready var _chase_mob: ChaseMob = _mob as ChaseMob

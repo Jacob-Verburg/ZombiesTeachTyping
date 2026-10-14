@@ -1,5 +1,5 @@
 class_name SaveSchema
-## The save file's shape: current (v3) defaults, number clean-up, default filling and migrations. Pure:
+## The save file's shape: current (v4) defaults, number clean-up, default filling and migrations. Pure:
 ## no files, no nodes, no autoloads. SaveService calls prepare() on every save it parses.
 ## Filling keeps every key it doesn't know (a newer build's fields survive an older build's write).
 ## Migrations: one static func per version step, named migrate_N_to_N1. Each takes the whole save
@@ -10,6 +10,8 @@ class_name SaveSchema
 ## a key present = that level is unlocked. Only PlayerData writes it.
 ## v3 (Story 8.2) adds profiles.<id>.used_passages: an Array of the paragraph ids (paragraphs.json) already
 ## shown, so no passage repeats until its tier's set is used up (FR68). Only PlayerData writes it.
+## v4 (Story 10.1) adds profiles.<id>.last_themes: {level_id: theme_id} (Strings), the theme each level
+## last played in, so the next run never repeats it (FR76). Only PlayerData writes it.
 
 const DEFAULT_PROFILE_ID: String = "p1"
 ## The v2 unlock chain (level -> the level whose finished run opens it), frozen at migration time:
@@ -32,6 +34,7 @@ static func profile_defaults() -> Dictionary:
 		"run_history": [],
 		"level_unlocks": {},
 		"used_passages": [],
+		"last_themes": {},
 	}
 
 
@@ -94,7 +97,7 @@ static func fill_defaults(data: Dictionary) -> Dictionary:
 
 ## Migration steps in order: index 0 upgrades v1 to v2, index 1 v2 to v3, and so on.
 static func migration_steps() -> Array[Callable]:
-	return [migrate_1_to_2, migrate_2_to_3]
+	return [migrate_1_to_2, migrate_2_to_3, migrate_3_to_4]
 
 
 ## v1 -> v2 (Story 6.8): gives every profile a level_unlocks Dictionary and backfills it, so a kid who
@@ -136,6 +139,24 @@ static func migrate_2_to_3(data: Dictionary) -> Dictionary:
 			continue
 		if typeof(profile.get("used_passages")) != TYPE_ARRAY:
 			profile["used_passages"] = []
+	return data
+
+
+## v3 -> v4 (Story 10.1): gives every profile an empty last_themes Dictionary; a profile that already has
+## a Dictionary there keeps it. Junk (non-dict profiles, profiles not a dict) is skipped with a warning,
+## and a non-Dictionary last_themes is replaced by {}.
+static func migrate_3_to_4(data: Dictionary) -> Dictionary:
+	var profiles: Variant = data.get("profiles")
+	if typeof(profiles) != TYPE_DICTIONARY:
+		Log.warn(&"save", "migrate_3_to_4: profiles is not a dictionary, skipping")
+		return data
+	for id: Variant in (profiles as Dictionary).keys():
+		var profile: Variant = profiles[id]
+		if typeof(profile) != TYPE_DICTIONARY:
+			Log.warn(&"save", "migrate_3_to_4: profiles/%s is not a dictionary, skipping" % id)
+			continue
+		if typeof(profile.get("last_themes")) != TYPE_DICTIONARY:
+			profile["last_themes"] = {}
 	return data
 
 

@@ -205,3 +205,66 @@ func test_unlocks_of_keeps_registry_order_and_ignores_empty() -> void:
 	assert_eq(ids, [&"c", &"b"] as Array[StringName])
 	assert_eq(registry.unlocks_of(&"").size(), 0, "empty id opens nothing")
 	assert_eq(registry.unlocks_of(&"c").size(), 0)
+
+
+# --- themes (Story 10.1) -----------------------------------------------------------
+
+func _themed(id: StringName, backdrop: PackedScene = SCENE_A) -> LevelTheme:
+	var theme: LevelTheme = LevelTheme.new()
+	theme.id = id
+	theme.backdrop = backdrop
+	return theme
+
+
+func _themed_registry(themes: Array[LevelTheme]) -> LevelRegistry:
+	var entry: LevelEntry = _entry(&"a", SCENE_A)
+	entry.themes = themes
+	var registry: LevelRegistry = LevelRegistry.new()
+	registry.entries = [entry]
+	return registry
+
+
+func test_validate_accepts_good_themes() -> void:
+	assert_eq(_themed_registry([_themed(&"x"), _themed(&"y")] as Array[LevelTheme]).validate(), "")
+	assert_eq(_themed_registry([] as Array[LevelTheme]).validate(), "", "no themes is fine")
+
+
+func test_validate_catches_a_null_theme() -> void:
+	assert_eq(_themed_registry([_themed(&"x"), null] as Array[LevelTheme]).validate(), "a has a null theme")
+
+
+func test_validate_catches_a_theme_with_no_id() -> void:
+	assert_eq(_themed_registry([_themed(&"")] as Array[LevelTheme]).validate(), "a has a theme with no id")
+
+
+func test_validate_catches_a_duplicate_theme_id() -> void:
+	assert_eq(_themed_registry([_themed(&"x"), _themed(&"x")] as Array[LevelTheme]).validate(), "a has two themes called x")
+
+
+func test_validate_catches_a_theme_with_no_backdrop() -> void:
+	assert_eq(_themed_registry([_themed(&"x", null)] as Array[LevelTheme]).validate(), "a theme x has no backdrop")
+
+
+func test_shipped_registry_themes() -> void:
+	var registry: LevelRegistry = load(REGISTRY_PATH) as LevelRegistry
+	assert_eq(registry.validate(), "", "shipped registry validates")
+	var expected: Dictionary[StringName, StringName] = {
+		&"zombie_run": &"sunny_village_green", &"horde_rush": &"farmhouse", &"pitchfork_panic": &"moonlit_village",
+	}
+	for entry: LevelEntry in registry.entries:
+		if entry.debug_only:
+			assert_eq(entry.themes.size(), 0, "%s (debug) has no themes" % entry.id)
+			continue
+		assert_gte(entry.themes.size(), 1, "%s has at least one theme" % entry.id)
+	for id: StringName in expected:
+		var themes: Array[LevelTheme] = registry.get_entry(id).themes
+		assert_eq(themes.size(), 1, "%s ships one theme (Story 10.1)" % id)
+		var theme: LevelTheme = themes[0]
+		assert_eq(theme.id, expected[id])
+		assert_not_null(theme.backdrop, "%s backdrop" % id)
+		assert_eq(theme.music_id, &"", "%s uses its config's music" % id)
+		if id == &"horde_rush":
+			assert_not_null(theme.defender, "the farmhouse theme has the farmer")
+			assert_eq(theme.defender.resource_path, "res://scenes/levels/horde_rush/farmer.tscn")
+		else:
+			assert_null(theme.defender, "%s has no defender" % id)

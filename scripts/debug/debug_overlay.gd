@@ -5,7 +5,7 @@ extends CanvasLayer
 ## the worst frame in the last 10 s, and the worst frame of the current run: Story 3.4, NFR1 check; it
 ## counts only RUNNING frames seen while the overlay is open, resets when a new run frame appears and
 ## keeps its value after the run ends, so it can be read on the report card), run (Story 2.10, only while a run is on screen: level, state, clock,
-## target + the next UPCOMING_SHOWN, keys / errors / live WPM, seed), save (last write, persistent storage),
+## target + the next UPCOMING_SHOWN, keys / errors / live WPM, seed, theme (Story 10.1)), save (last write, persistent storage),
 ## tools (replay seed, last run seed, typing log), help.
 ## Keys work only while it is open: F5 +CHEAT_BRAINS through PlayerData; F9 = SaveService.offer_export()
 ## (the same export as the main menu's Ctrl+Shift+E); F8 resets the save through PlayerData.reset_all()
@@ -303,10 +303,11 @@ func _refresh_run() -> void:
 		_shown_target(current) if current != "" else "-", session.get_cursor(), " ".join(upcoming)
 	]
 	var keys: int = session.get_keys_typed()
-	%RunLabel.text = "Run %s %s\n%s\nTarget %s\nKeys %d  Errors %d  WPM %d\nSeed %d%s%s" % [
+	var theme: StringName = frame.get_theme_id()
+	%RunLabel.text = "Run %s %s\n%s\nTarget %s\nKeys %d  Errors %d  WPM %d\nSeed %d%s  theme %s%s" % [
 		frame.get_level_id(), RunFrameScript.RunState.keys()[frame.get_state()], clock, targets.strip_edges(),
 		keys, session.get_errors(), StatsCalculator.wpm(keys, elapsed, session.get_implied_spaces()), frame.get_seed(),
-		" (replay)" if frame.is_replay() else "", _stress_text(frame.get_level())
+		" (replay)" if frame.is_replay() else "", theme if theme != &"" else "-", _stress_text(frame.get_level())
 	]
 
 
