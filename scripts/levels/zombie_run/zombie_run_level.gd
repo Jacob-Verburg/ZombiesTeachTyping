@@ -51,7 +51,7 @@ extends LevelBase
 ## on_char_accepted needs no guard. The dance draws nothing from any RNG; the completion bonus is
 ## RunFrame's.
 ##
-## Backdrop (Story 3.6, FR37): %Backdrop (SunnyVillageBackdrop) sits outside %World and scrolls its
+## Backdrop (Story 3.6, FR37): %Backdrop (ParallaxBackdrop) sits outside %World and scrolls its
 ## parallax layers from the camera x; _set_zombie_x() calls its scroll_to() in the same call that moves
 ## the world, so the backdrop, the world and the zombie never drift apart (the ground layer moves exactly
 ## with the world). It draws nothing from any RNG.
@@ -106,11 +106,11 @@ var _dancing: bool = false
 @onready var _zombie: PlayerZombie = %Zombie
 @onready var _world: Node2D = %World
 @onready var _conga: CongaLine = %CongaLine
-@onready var _backdrop: SunnyVillageBackdrop = %Backdrop
+@onready var _backdrop: ParallaxBackdrop = %Backdrop
 
 
 func _accepts_backdrop(node: Node) -> bool:
-	return node is SunnyVillageBackdrop
+	return node is ParallaxBackdrop
 
 
 func _ready() -> void:

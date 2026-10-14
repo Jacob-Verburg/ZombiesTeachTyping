@@ -164,7 +164,7 @@ func test_run_ending_returns_each_outro_length_once() -> void:
 func test_zombie_stays_at_60_percent_of_the_width_every_frame() -> void:
 	_make()
 	var zombie: Node2D = _level.get_node("%Zombie")
-	var backdrop: SunnyVillageBackdrop = _level.get_node("%Backdrop")
+	var backdrop: ParallaxBackdrop = _level.get_node("%Backdrop")
 	assert_almost_eq(zombie.global_position.x, ZOMBIE_SCREEN_X, 0.001, "first frame")
 	assert_eq(_level.get_zombie_screen_x(), ZOMBIE_SCREEN_X)
 	for i: int in 30:
@@ -177,7 +177,7 @@ func test_zombie_stays_at_60_percent_of_the_width_every_frame() -> void:
 			tween.custom_step(0.03)
 		assert_almost_eq(zombie.global_position.x, ZOMBIE_SCREEN_X, 0.001, "key %d" % i)
 		var x: float = zombie.position.x
-		assert_eq(backdrop.get_layer_offset(SunnyVillageBackdrop.LAYER_GROUND),
+		assert_eq(backdrop.get_layer_offset(ParallaxBackdrop.LAYER_GROUND),
 				fposmod(roundf(x - ZOMBIE_SCREEN_X), 640.0))
 		assert_eq(zombie.global_position.y, PitchforkPanicLevel.GROUND_Y)
 	# The sprite chases the logical position and arrives.
@@ -774,7 +774,7 @@ func test_the_pickup_sound_id_is_unchanged() -> void:
 
 func test_the_moonlit_backdrop_and_a_static_moon() -> void:
 	_make()
-	var backdrop: SunnyVillageBackdrop = _level.get_node("%Backdrop")
+	var backdrop: ParallaxBackdrop = _level.get_node("%Backdrop")
 	assert_eq((backdrop.get_node("Sky") as ColorRect).color, Color("#2B1D3F"), "a night sky")
 	var ground: Sprite2D = backdrop.get_node("Ground/A")
 	assert_eq(ground.texture.resource_path, "res://assets/sprites/backdrops/moonlit_village/ground_strip.png")
@@ -785,5 +785,5 @@ func test_the_moonlit_backdrop_and_a_static_moon() -> void:
 	_type(10)
 	assert_not_null(_level._walk_tween, "the first key starts the walk")
 	_level._walk_tween.custom_step(1.0)
-	assert_ne(backdrop.get_layer_offset(SunnyVillageBackdrop.LAYER_GROUND), 0.0, "the street scrolled")
+	assert_ne(backdrop.get_layer_offset(ParallaxBackdrop.LAYER_GROUND), 0.0, "the street scrolled")
 	assert_eq(moon.global_position, moon_at, "the moon stays put")

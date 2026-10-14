@@ -95,10 +95,35 @@ func test_a_different_backdrop_really_swaps() -> void:
 	assert_eq(node.owner, level)
 	assert_eq(level.theme_id, &"test")
 	add_child_autofree(level)
-	var backdrop: SunnyVillageBackdrop = node as SunnyVillageBackdrop
+	var backdrop: ParallaxBackdrop = node as ParallaxBackdrop
 	level.call("_set_zombie_x", 1000.0)
-	assert_ne(backdrop.get_layer(SunnyVillageBackdrop.LAYER_GROUND).position.x, 0.0, "the level scrolls the new backdrop")
+	assert_ne(backdrop.get_layer(ParallaxBackdrop.LAYER_GROUND).position.x, 0.0, "the level scrolls the new backdrop")
 	assert_push_warning_count(0)
+
+
+## Story 10.2: the shipped Pumpkin Patch Farm and Snowy Town really swap in, are ParallaxBackdrops the level
+## scrolls, and carry all eight textures (the backdrop's missing-texture warning stays silent).
+func test_new_zombie_run_themes_really_swap() -> void:
+	var registry: LevelRegistry = load(REGISTRY_PATH) as LevelRegistry
+	for theme: LevelTheme in registry.get_entry(&"zombie_run").themes.slice(1):
+		var level: LevelBase = _level(ZombieRunScene)
+		var old: Node = level.get_node("%Backdrop")
+		var index: int = old.get_index()
+		level.apply_theme(theme)
+		var node: Node = level.get_node("%Backdrop")
+		assert_eq(node.scene_file_path, theme.backdrop.resource_path, "%s swapped in" % theme.id)
+		assert_eq(String(node.name), "Backdrop")
+		assert_eq(node.get_index(), index, "same draw order")
+		assert_true(node.unique_name_in_owner, "still %Backdrop")
+		assert_eq(level.theme_id, theme.id)
+		add_child_autofree(level)
+		var backdrop: ParallaxBackdrop = node as ParallaxBackdrop
+		assert_not_null(backdrop, "%s is a ParallaxBackdrop" % theme.id)
+		assert_eq(level.get("_backdrop"), backdrop, "the level holds the new backdrop")
+		level.call("_set_zombie_x", 1000.0)
+		assert_ne(backdrop.get_layer(ParallaxBackdrop.LAYER_GROUND).position.x, 0.0, "%s scrolls" % theme.id)
+	assert_push_warning_count(0)
+	assert_push_error_count(0)
 
 
 func test_pitchfork_backdrop_swaps_too() -> void:

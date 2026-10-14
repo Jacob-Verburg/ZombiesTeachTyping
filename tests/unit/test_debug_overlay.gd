@@ -237,12 +237,15 @@ func test_unused_keys_are_not_consumed() -> void:
 	assert_false(sut._handle_key(KEY_ESCAPE))
 
 
-## Only the jump and unlock buttons take the mouse (Stories 4.2, 6.8); nothing here ever takes keyboard focus.
+## Only the jump, theme jump and unlock buttons take the mouse (Stories 4.2, 6.8, 10.2); nothing here ever
+## takes keyboard focus.
 func test_never_blocks_the_mouse() -> void:
 	var sut: OverlayScript = _make()
 	var controls: Array[Control] = _controls(sut, [])
 	assert_gt(controls.size(), 0)
 	var jumps: Array[Control] = _jump_buttons(sut) + _unlock_buttons(sut)
+	for child: Node in sut.get_node("%JumpThemeRow").get_children():
+		jumps.append(child as Control)
 	for control: Control in controls:
 		assert_eq(control.focus_mode, Control.FOCUS_NONE, str(control.name))
 		if control not in jumps:
@@ -587,6 +590,40 @@ func test_jump_buttons_do_nothing_while_closed() -> void:
 	var sut: OverlayScript = _make()
 	(sut.get_node("%JumpGiftButton") as Button).pressed.emit()
 	assert_eq(_jumps, [])
+
+
+## Story 10.2: one jump per Zombie Run theme, from the registry, on its own row, same rules as the others.
+func test_theme_jump_buttons_open_each_zombie_run_town() -> void:
+	var sut: OverlayScript = _make()
+	var row: Node = sut.get_node("%JumpThemeRow")
+	var buttons: Array[Button] = []
+	var texts: Array[String] = []
+	for child: Node in row.get_children():
+		var button: Button = child as Button
+		assert_not_null(button)
+		assert_eq(button.focus_mode, Control.FOCUS_NONE, button.text)
+		assert_eq(button.get_theme_font_size(&"font_size"), 8, button.text)
+		buttons.append(button)
+		texts.append(button.text)
+	assert_eq(texts, ["sunny_village_green", "pumpkin_patch_farm", "snowy_town"] as Array[String])
+	(buttons[0] as Button).pressed.emit()
+	assert_eq(_jumps, [], "nothing while closed")
+	_screen = Router.Screen.RUN
+	sut._handle_key(KEY_F3)
+	for button: Button in buttons:
+		assert_true(button.disabled, "%s disabled off the main menu" % button.text)
+		button.pressed.emit()
+	assert_eq(_jumps, [], "nothing off the main menu")
+	_screen = Router.Screen.MAIN_MENU
+	sut._refresh()
+	for button: Button in buttons:
+		assert_false(button.disabled, button.text)
+		button.pressed.emit()
+	assert_eq(_jumps, [
+		[Router.Screen.RUN, {"level_id": &"zombie_run", "theme": &"sunny_village_green"}],
+		[Router.Screen.RUN, {"level_id": &"zombie_run", "theme": &"pumpkin_patch_farm"}],
+		[Router.Screen.RUN, {"level_id": &"zombie_run", "theme": &"snowy_town"}],
+	])
 
 
 func test_jump_seams_default_to_the_router() -> void:

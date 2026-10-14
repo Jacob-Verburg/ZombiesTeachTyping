@@ -10,6 +10,10 @@ extends GutTest
 ## Story 8.6 adds the Moonlit Village (Pitchfork Panic): the Sunny Village rules plus art-moon on the moon
 ## only, seamless cobble tiles, and the night readability band (near.png rows 160-191 opaque and free of the
 ## characters' colours, and so is the ground strip's top).
+## Story 10.2 adds the Zombie Run themes Pumpkin Patch Farm and Snowy Town: each folder goes through the Sunny
+## rules (sizes, palette and hard alpha, reserved colours, the tag band, the seam, seamless tiles, the strip built
+## from its tiles with the path last) plus art-moon nowhere, the day readability band (near.png rows 160-191
+## and the strip's top 4 rows free of the zombie's greens) and the Halloween dressing (pumpkin and bat-purple).
 
 const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const DIR: String = "res://assets/sprites/backdrops/sunny_village_green/"
@@ -569,3 +573,172 @@ func test_moonlit_carries_the_halloween_dressing() -> void:
 func test_moonlit_import_settings_lossless_no_mipmaps() -> void:
 	for file: String in _moon_files():
 		_assert_pixel_crisp_import(MOON_DIR + file)
+
+
+# --- Zombie Run themes (Story 10.2): Pumpkin Patch Farm and Snowy Town ---
+
+const ZR_THEME_DIRS: Array[String] = [
+	"res://assets/sprites/backdrops/pumpkin_patch_farm/",
+	"res://assets/sprites/backdrops/snowy_town/",
+]
+## The day readability band: near.png rows 160-191 and the strip's top rows never wear the zombie's and the
+## party zombies' skin, so a character never camouflages on its own colour.
+const DAY_BAND_TOP: int = 160
+const DAY_STRIP_ROWS: int = 4
+const DAY_BAND_FORBIDDEN: Array[String] = [ZOMBIE_GREEN, ZOMBIE_GREEN_BRIGHT]
+
+
+func _load_from(dir: String, file: String) -> Image:
+	var path: String = dir + file
+	if not FileAccess.file_exists(path):
+		return null
+	return Image.load_from_file(ProjectSettings.globalize_path(path))
+
+
+## Shared check: the colours of the opaque pixels in rows [from_y, to_y] (to_y -1 = the last row).
+func _colors_in(dir: String, file: String, from_y: int = 0, to_y: int = -1) -> Dictionary[String, bool]:
+	var image: Image = _load_from(dir, file)
+	if image == null:
+		fail_test("%s%s missing" % [dir, file])
+		return {}
+	return _colors(image, from_y, to_y)
+
+
+## Shared check: true when something opaque sits on both x 0 and the last column in at least one row.
+func _crosses_seam(image: Image) -> bool:
+	var last: int = image.get_width() - 1
+	for y: int in image.get_height():
+		if image.get_pixel(0, y).a8 == 255 and image.get_pixel(last, y).a8 == 255:
+			return true
+	return false
+
+
+func test_zr_themes_files_exist_at_their_size() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		for file: String in LAYERS:
+			var image: Image = _load_from(dir, file)
+			assert_not_null(image, "%s%s missing" % [dir, file])
+			if image != null:
+				assert_eq(image.get_size(), Vector2i(PERIOD, PLAYFIELD_GROUND_Y), "%s%s size" % [dir, file])
+		var tiles: Image = _load_from(dir, TILES)
+		assert_not_null(tiles, "%s tiles missing" % dir)
+		if tiles != null:
+			assert_eq(tiles.get_size(), Vector2i(4 * TILE, TILE), "%s three ground tiles and the path" % dir)
+		var strip: Image = _load_from(dir, STRIP)
+		assert_not_null(strip, "%s strip missing" % dir)
+		if strip != null:
+			assert_eq(strip.get_size(), Vector2i(PERIOD, STRIP_H), "%s strip size" % dir)
+
+
+func test_zr_themes_hard_alpha_and_palette_only() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		for file: String in _all_files():
+			var image: Image = _load_from(dir, file)
+			if image == null:
+				fail_test("%s%s missing" % [dir, file])
+				continue
+			var bad: Array[String] = _alpha_palette_problems(image)
+			assert_eq(bad.size(), 0, "%s%s: %s" % [dir, file, ", ".join(bad.slice(0, 10))])
+
+
+## Candy-yellow is focus only, stamp-red the stamp only, art-moon the moon only: none of them here.
+func test_zr_themes_reserved_colours() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		for file: String in _all_files():
+			var colors: Dictionary[String, bool] = _colors_in(dir, file)
+			for hex: String in [CANDY_YELLOW, STAMP_RED, ART_MOON]:
+				assert_false(colors.has(hex), "%s%s uses %s" % [dir, file, hex])
+
+
+func test_zr_themes_tag_band_and_strip_free_of_tag_colours() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		for file: String in LAYERS:
+			var band: Dictionary[String, bool] = _colors_in(dir, file, TAG_BAND_TOP, TAG_BAND_BOTTOM)
+			for hex: String in [PARCHMENT, CHALK, CANDY_YELLOW]:
+				assert_false(band.has(hex), "%s%s has %s in the tag band" % [dir, file, hex])
+		var strip: Dictionary[String, bool] = _colors_in(dir, STRIP)
+		for hex: String in [PARCHMENT, CHALK, CANDY_YELLOW]:
+			assert_false(strip.has(hex), "%s ground strip has %s" % [dir, hex])
+
+
+func test_zr_themes_seam_rows_match_and_features_cross() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		for file: String in [LAYERS[0], LAYERS[1], LAYERS[2], STRIP]:
+			var image: Image = _load_from(dir, file)
+			if image == null or image.get_width() != PERIOD:
+				fail_test("%s%s missing" % [dir, file])
+				continue
+			var bad: Array[int] = _seam_mismatch_rows(image)
+			assert_eq(bad.size(), 0, "%s%s seam rows %s" % [dir, file, bad.slice(0, 10)])
+			assert_true(_crosses_seam(image), "%s%s has something across the seam" % [dir, file])
+
+
+## Every tile repeats with itself left to right; the three ground tiles also top to bottom (they stack in
+## rows 1-3); the path's top edge is the ground line and only ever meets the layers above it.
+func test_zr_themes_tiles_are_seamless() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		var tiles: Image = _load_from(dir, TILES)
+		if tiles == null:
+			fail_test("%s tiles missing" % dir)
+			continue
+		var count: int = tiles.get_width() / TILE
+		for tile: int in count:
+			for i: int in TILE:
+				assert_eq(tiles.get_pixel(tile * TILE, i), tiles.get_pixel(tile * TILE + TILE - 1, i),
+						"%s tile %d row %d left/right edge" % [dir, tile, i])
+				if tile < count - 1:
+					assert_eq(tiles.get_pixel(tile * TILE + i, 0), tiles.get_pixel(tile * TILE + i, TILE - 1),
+							"%s tile %d column %d top/bottom edge" % [dir, tile, i])
+
+
+## Each 16 x 16 cell of the strip is exactly one tile; row 0 only the path (the last tile), rows 1-3 never;
+## every tile is used.
+func test_zr_themes_strip_is_built_from_the_tiles() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		var tiles: Image = _load_from(dir, TILES)
+		var strip: Image = _load_from(dir, STRIP)
+		if tiles == null or strip == null:
+			fail_test("%s tiles or strip missing" % dir)
+			continue
+		var tile_bytes: Array[PackedByteArray] = []
+		for tile: int in tiles.get_width() / TILE:
+			tile_bytes.append(tiles.get_region(Rect2i(tile * TILE, 0, TILE, TILE)).get_data())
+		var path_tile: int = tile_bytes.size() - 1
+		var used: Dictionary[int, bool] = {}
+		var problems: Array[String] = []
+		for row: int in STRIP_H / TILE:
+			for col: int in PERIOD / TILE:
+				var cell: PackedByteArray = strip.get_region(Rect2i(col * TILE, row * TILE, TILE, TILE)).get_data()
+				var index: int = tile_bytes.find(cell)
+				if index == -1:
+					problems.append("(%d,%d) not a tile" % [col, row])
+					continue
+				used[index] = true
+				if (row == 0) != (index == path_tile):
+					problems.append("(%d,%d) tile %d" % [col, row, index])
+		assert_eq(problems.size(), 0, "%s strip: %s" % [dir, ", ".join(problems.slice(0, 10))])
+		assert_eq(used.size(), tile_bytes.size(), "%s: every tile is used" % dir)
+
+
+func test_zr_themes_day_readability_band() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		var band: Dictionary[String, bool] = _colors_in(dir, "near.png", DAY_BAND_TOP, PLAYFIELD_GROUND_Y - 1)
+		var path: Dictionary[String, bool] = _colors_in(dir, STRIP, 0, DAY_STRIP_ROWS - 1)
+		for hex: String in DAY_BAND_FORBIDDEN:
+			assert_false(band.has(hex), "%snear.png rows 160-191 use %s" % [dir, hex])
+			assert_false(path.has(hex), "%s ground strip top rows use %s" % [dir, hex])
+
+
+## DESIGN.md D6's light dusting of Halloween: a pumpkin and bat-purple in the near or far layer.
+func test_zr_themes_carry_the_halloween_dressing() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		var colors: Dictionary[String, bool] = _colors_in(dir, "near.png")
+		colors.merge(_colors_in(dir, "far.png"))
+		assert_true(colors.has(PUMPKIN), "%s has a pumpkin" % dir)
+		assert_true(colors.has(BAT_PURPLE), "%s has bat-purple" % dir)
+
+
+func test_zr_themes_import_settings_lossless_no_mipmaps() -> void:
+	for dir: String in ZR_THEME_DIRS:
+		for file: String in _all_files():
+			_assert_pixel_crisp_import(dir + file)

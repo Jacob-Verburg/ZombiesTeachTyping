@@ -47,7 +47,7 @@ extends LevelBase
 ## zombie so each one exists before it scrolls in. The pop is added to %World itself, after the zombie, so
 ## it rises in front of it (Smuck's layout call). Nothing time-based collects anything.
 ##
-## The look (Story 8.6, FR74): the Moonlit Village, driven by the SunnyVillageBackdrop script with the same
+## The look (Story 8.6, FR74): the Moonlit Village, driven by the ParallaxBackdrop script with the same
 ## four layers over a night Sky, plus a static Moon outside the layers (the script never moves it). The dust
 ## cloud, the dizzy stars and the bush are sprite sheets stepped by frames and whole px; no pixel art is
 ## scaled or rotated in the outros (the hop into the bush is a position tween).
@@ -125,11 +125,11 @@ var _outro_tween: Tween
 
 @onready var _zombie: PlayerZombie = %Zombie
 @onready var _world: Node2D = %World
-@onready var _backdrop: SunnyVillageBackdrop = %Backdrop
+@onready var _backdrop: ParallaxBackdrop = %Backdrop
 
 
 func _accepts_backdrop(node: Node) -> bool:
-	return node is SunnyVillageBackdrop
+	return node is ParallaxBackdrop
 @onready var _mob: Node2D = %Mob
 ## The mob as a ChaseMob (null if %Mob is a plain Node2D: it still positions, it just has no run frames).
 @onready var _chase_mob: ChaseMob = _mob as ChaseMob

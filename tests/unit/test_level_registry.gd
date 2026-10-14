@@ -248,8 +248,12 @@ func test_validate_catches_a_theme_with_no_backdrop() -> void:
 func test_shipped_registry_themes() -> void:
 	var registry: LevelRegistry = load(REGISTRY_PATH) as LevelRegistry
 	assert_eq(registry.validate(), "", "shipped registry validates")
-	var expected: Dictionary[StringName, StringName] = {
-		&"zombie_run": &"sunny_village_green", &"horde_rush": &"farmhouse", &"pitchfork_panic": &"moonlit_village",
+	# Story 10.2: Zombie Run ships three looks, Sunny first (the level scene's built-in look, so themes[0] is
+	# the no-op); the other two levels ship one.
+	var expected: Dictionary[StringName, Array] = {
+		&"zombie_run": [&"sunny_village_green", &"pumpkin_patch_farm", &"snowy_town"],
+		&"horde_rush": [&"farmhouse"],
+		&"pitchfork_panic": [&"moonlit_village"],
 	}
 	for entry: LevelEntry in registry.entries:
 		if entry.debug_only:
@@ -258,13 +262,13 @@ func test_shipped_registry_themes() -> void:
 		assert_gte(entry.themes.size(), 1, "%s has at least one theme" % entry.id)
 	for id: StringName in expected:
 		var themes: Array[LevelTheme] = registry.get_entry(id).themes
-		assert_eq(themes.size(), 1, "%s ships one theme (Story 10.1)" % id)
-		var theme: LevelTheme = themes[0]
-		assert_eq(theme.id, expected[id])
-		assert_not_null(theme.backdrop, "%s backdrop" % id)
-		assert_eq(theme.music_id, &"", "%s uses its config's music" % id)
-		if id == &"horde_rush":
-			assert_not_null(theme.defender, "the farmhouse theme has the farmer")
-			assert_eq(theme.defender.resource_path, "res://scenes/levels/horde_rush/farmer.tscn")
-		else:
-			assert_null(theme.defender, "%s has no defender" % id)
+		var ids: Array = themes.map(func(theme: LevelTheme) -> StringName: return theme.id)
+		assert_eq(ids, expected[id], "%s ships its themes in order (Stories 10.1, 10.2)" % id)
+		for theme: LevelTheme in themes:
+			assert_not_null(theme.backdrop, "%s backdrop" % theme.id)
+			assert_eq(theme.music_id, &"", "%s uses its config's music" % theme.id)
+			if id == &"horde_rush":
+				assert_not_null(theme.defender, "the farmhouse theme has the farmer")
+				assert_eq(theme.defender.resource_path, "res://scenes/levels/horde_rush/farmer.tscn")
+			else:
+				assert_null(theme.defender, "%s has no defender" % theme.id)

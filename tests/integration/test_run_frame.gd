@@ -2305,19 +2305,96 @@ func test_a_failed_start_saves_no_theme() -> void:
 	assert_eq(data.get_last_theme(&"test_level"), &"", "a run that never started is not the previous theme")
 
 
-## AC 5: the shipped levels start in their single shipped theme with no warning or error.
+## AC 5: the shipped levels start in a shipped theme with no warning or error. Story 10.2: Zombie Run's theme is
+## drawn among its three (ThemePicker.theme_rng(42)), so it is checked by membership; the others ship one.
 func test_shipped_levels_start_in_their_theme() -> void:
-	var expected: Dictionary[StringName, StringName] = {
-		&"zombie_run": &"sunny_village_green", &"horde_rush": &"farmhouse", &"pitchfork_panic": &"moonlit_village",
+	var expected: Dictionary[StringName, Array] = {
+		&"zombie_run": [&"sunny_village_green", &"pumpkin_patch_farm", &"snowy_town"],
+		&"horde_rush": [&"farmhouse"],
+		&"pitchfork_panic": [&"moonlit_village"],
 	}
 	for level_id: StringName in expected:
 		var data: PlayerDataScript = _fake_player_data()
 		var frame: RunFrameScript = _make({"level_id": level_id, "seed": 42}, null, data)
 		add_child_autofree(frame)
-		assert_eq(frame.get_theme_id(), expected[level_id], "%s theme" % level_id)
-		assert_eq(frame.get_level().theme_id, expected[level_id])
-		assert_eq(data.get_last_theme(level_id), expected[level_id], "%s last theme saved" % level_id)
+		var theme_id: StringName = frame.get_theme_id()
+		assert_true(theme_id in expected[level_id], "%s theme %s is shipped" % [level_id, theme_id])
+		if expected[level_id].size() == 1:
+			assert_eq(theme_id, expected[level_id][0], "%s theme" % level_id)
+		assert_eq(frame.get_level().theme_id, theme_id)
+		assert_eq(data.get_last_theme(level_id), theme_id, "%s last theme saved" % level_id)
 		assert_not_null(frame.get_session(), "%s started" % level_id)
 	assert_eq(_nav, [], "no failed-load navigation")
 	assert_push_warning_count(0)
 	assert_push_error_count(0)
+
+
+# --- Story 10.2: the Zombie Run themes ---
+
+const ZOMBIE_RUN_THEMES: Array[StringName] = [&"sunny_village_green", &"pumpkin_patch_farm", &"snowy_town"]
+
+
+## The letters of the first `count` targets, typed correctly.
+func _typed_letters(frame: RunFrameScript, count: int) -> Array[String]:
+	var out: Array[String] = []
+	for i: int in count:
+		out.append(_type_correct(frame))
+	return out
+
+
+func _shipped_zombie_run_themes() -> Array[LevelTheme]:
+	var registry: LevelRegistry = load("res://data/levels/level_registry.tres") as LevelRegistry
+	return registry.get_entry(&"zombie_run").themes
+
+
+## AC 8: the theme never changes the rules. Same seed, each theme forced: same targets, same config, and the
+## level's %Backdrop is that theme's scene.
+func test_zombie_run_rules_do_not_change_with_the_theme() -> void:
+	var backdrops: Dictionary[StringName, String] = {}
+	for theme: LevelTheme in _shipped_zombie_run_themes():
+		backdrops[theme.id] = theme.backdrop.resource_path
+	assert_eq(backdrops.keys(), ZOMBIE_RUN_THEMES as Array, "the shipped Zombie Run themes")
+	var first_letters: Array[String] = []
+	var first_config: LevelConfig = null
+	for theme_id: StringName in ZOMBIE_RUN_THEMES:
+		var data: PlayerDataScript = _fake_player_data()
+		var frame: RunFrameScript = _make({"level_id": &"zombie_run", "seed": 42, "theme": theme_id}, null, data)
+		add_child_autofree(frame)
+		assert_eq(frame.get_theme_id(), theme_id, "forced theme")
+		var level: LevelBase = frame.get_level()
+		assert_eq(level.get_node("%Backdrop").scene_file_path, backdrops[theme_id], "%s backdrop" % theme_id)
+		var config: LevelConfig = level.get_level_config()
+		var letters: Array[String] = _typed_letters(frame, 20)
+		if first_config == null:
+			first_config = config
+			first_letters = letters
+			continue
+		assert_eq(config, first_config, "%s: same LevelConfig" % theme_id)
+		assert_eq(letters, first_letters, "%s: same target sequence for the same seed" % theme_id)
+	assert_eq(_nav, [], "no failed-load navigation")
+	assert_push_warning_count(0)
+	assert_push_error_count(0)
+
+
+## FR76: the same look never shows twice in a row (the picker reads the saved last theme).
+func test_zombie_run_never_repeats_its_look() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var seen: Array[StringName] = []
+	for run_seed: int in range(1, 6):
+		var frame: RunFrameScript = _make({"level_id": &"zombie_run", "seed": run_seed}, null, data)
+		add_child_autofree(frame)
+		seen.append(frame.get_theme_id())
+	for i: int in range(1, seen.size()):
+		assert_ne(seen[i], seen[i - 1], "run %d repeats %s" % [i + 1, seen[i]])
+	assert_push_warning_count(0)
+	assert_push_error_count(0)
+
+
+## Every shipped Zombie Run theme is really drawn (a cheap proof the shipped list is the one used).
+func test_every_zombie_run_theme_can_be_drawn() -> void:
+	var themes: Array[LevelTheme] = _shipped_zombie_run_themes()
+	var drawn: Dictionary[StringName, bool] = {}
+	for run_seed: int in range(1, 61):
+		drawn[ThemePicker.pick(themes, &"", ThemePicker.theme_rng(run_seed)).id] = true
+	for theme_id: StringName in ZOMBIE_RUN_THEMES:
+		assert_true(drawn.has(theme_id), "%s drawn over seeds 1..60" % theme_id)

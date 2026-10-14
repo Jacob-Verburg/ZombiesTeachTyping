@@ -26,7 +26,8 @@ Stories that make final art and wait for that approval:
   Top hat, Pirate, Crown; see section 3).
 - **Epic 9:** Story 9.2 (the eight remaining pets: Black cat, Spider, Orange cat, Bat, Crow, Wolf-dog,
   Floating eyeball, Brain buddy; see section 3).
-- Later art (the rest of Epic 9, Epic 10) reuses these rules for its characters, hats, pets and backdrops.
+- **Epic 10:** Story 10.2 (the Zombie Run themes Pumpkin Patch Farm and Snowy Town; see section 3).
+- Later art (the rest of Epic 10) reuses these rules for its characters, hats, pets and backdrops.
 
 Before its final-art story, any story may use **placeholder art**: plain shapes in palette colors.
 
@@ -215,13 +216,32 @@ same four parallax layers and layout as Sunny Village Green (`clouds.png` night 
 `far.png` dusk hills with `ink-muted` houses, a church and a windmill with `pumpkin-light` windows and
 friendly bats, `near.png` the village street front: cottages behind a stone garden wall, a lamp post and
 jack-o'-lanterns, `ground_tiles.png` cobble, mossy cobble, cracked cobble and a puddle, `ground_strip.png`),
-driven by the same `SunnyVillageBackdrop` script over a `night` sky, plus a static `moon.png` (48×48, the
+driven by the same `ParallaxBackdrop` script over a `night` sky, plus a static `moon.png` (48×48, the
 only place `art-moon` appears, *tested*). The same backdrop rules apply (outline-exempt, hard alpha,
 palette, no `candy-yellow`/`stamp-red`, 640 px seams wrap), plus the **night readability band**
 (*tested*): in `near.png` rows 160–191, where the characters' bodies pass, are fully opaque and use none of
 `ink`, `night`, `zombie-green`, `zombie-green-bright`, `bat-purple`, `art-brain-pink` or `art-brain-shade`,
 and neither do the ground strip's top 4 rows, so the ink outline, the zombie and the brains never get lost
 against the dark. Stars stay below y 44 (the pause button corner).
+
+**Zombie Run themes** (Story 10.2, FR76; `assets/sprites/backdrops/pumpkin_patch_farm/` and
+`assets/sprites/backdrops/snowy_town/`, one folder per look, folder = theme id = scene name in
+`scenes/levels/zombie_run/themes/`): two more looks on the shared `ParallaxBackdrop` script (renamed from the
+Sunny-only name in 10.2: it drives every scrolling look), each with the Sunny layout and an `art-sky` Sky:
+`clouds.png`, `far.png`, `near.png` (640×192), `ground_tiles.png` (three ground tiles and the path last,
+64×16) and `ground_strip.png` (640×64, row 0 only the path, rows 1–3 never). **Pumpkin Patch Farm**:
+harvested `wood-light` hills with furrows, a hedgerow, distant pumpkin rows, a red-free barn and silo, bats;
+in front, pumpkin-and-bat-purple bunting, a fence, a smiling scarecrow, a haystack, pumpkin vines and a
+pumpkin cart across the seam; grass, leaf and straw tiles and a dirt path. **Snowy Town**: `stone-light` snow
+clouds and fixed flakes (static: they drift with the cloud layer), snowy hills with pines, little houses and
+a church, cottages with snow roofs and icicles, a snowman in a pumpkin hat and scarf, a lamp post across the
+seam; snow, drift and footprint tiles and a cleared stone-light path. Snow is `art-sky-light`, never `chalk`
+(a tag colour). The Sunny rules apply (*tested*: sizes, palette, hard alpha, no `candy-yellow`, `stamp-red`
+or `art-moon`, the tag band and the strip free of `parchment`/`chalk`/`candy-yellow`, seams wrap with
+something across them, seamless tiles, the strip built from its tiles, pumpkin and bat-purple dressing), plus
+the **day readability band** (*tested*): `near.png` rows 160–191 and the ground strip's top 4 rows use no
+`zombie-green` or `zombie-green-bright`, so the zombie and the party zombies never sit on their own skin.
+Villagers are not recoloured per theme. Nothing round sits on the zombie's crown row at the run-start offset.
 
 **Import settings:** Lossless compression (`compress/mode=0`), no mipmaps (*tested*). Filtering is the
 project default, Nearest; do not set a per-file filter.
@@ -235,7 +255,8 @@ screen for legibility.
 **How sprites are made:** code-authored pixel art. Each frame is an ASCII map in
 `tools/gen_art_prototypes.gd` (the prototypes), `tools/gen_zombie_run_art.gd` (Story 3.6, which reads
 the palette, legends and approved maps from the first), `tools/gen_cosmetics_art.gd` (Story 4.3) or
-`tools/gen_horde_rush_art.gd` (Story 6.6) or `tools/gen_pitchfork_panic_art.gd` (Story 8.6), one character per pixel, a legend from
+`tools/gen_horde_rush_art.gd` (Story 6.6), `tools/gen_pitchfork_panic_art.gd` (Story 8.6) or
+`tools/gen_zombie_run_themes_art.gd` (Story 10.2, the Zombie Run theme backdrops), one character per pixel, a legend from
 character to palette **name**, written to PNG by running the tool headless and then `--import`. The
 backdrop is drawn by the same tool from shapes at fixed positions (no randomness). Never hand-edit a
 PNG. Commit the PNGs and `.import` files.

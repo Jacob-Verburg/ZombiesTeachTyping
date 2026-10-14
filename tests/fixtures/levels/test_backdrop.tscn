@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/levels/zombie_run/sunny_village_backdrop.gd" id="1_backdrop"]
+[ext_resource type="Script" path="res://scripts/levels/zombie_run/parallax_backdrop.gd" id="1_backdrop"]
 [ext_resource type="Texture2D" path="res://assets/sprites/backdrops/sunny_village_green/clouds.png" id="2_tex"]
 
 [node name="TestBackdrop" type="Node2D"]

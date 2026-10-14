@@ -827,7 +827,7 @@
 
 ## Deferred from: dev of story 10-1 (2026-10-14)
 
-- `SunnyVillageBackdrop` still names one look but drives both the Sunny Village Green and the Moonlit Village theme scenes (and the test fixture backdrop). Rename it (e.g. `ParallaxBackdrop`, ~6 test files) when 10.2 adds a third parallax look.
+- `SunnyVillageBackdrop` still names one look but drives both the Sunny Village Green and the Moonlit Village theme scenes (and the test fixture backdrop). Rename it (e.g. `ParallaxBackdrop`, ~6 test files) when 10.2 adds a third parallax look. Resolved in 10.2: `SunnyVillageBackdrop` renamed `ParallaxBackdrop` (`scripts/levels/zombie_run/parallax_backdrop.gd`, uid kept).
 - Per-theme dive props for Pitchfork Panic (`EscapeBush`, `DustCloud`, `DizzyStars` stay in the level scene) are left to 10.4; Horde Rush's projectile scene and throw/hit SFX (the tomato consts in `horde_rush_level.gd`) are left to 10.3, which extends `LevelTheme`.
 - Theme slots are swapped only before the level enters the tree (`LevelBase._swap_slot`); a theme part that has to change mid-run would need a different mechanism.
 - A non-`HordeFarmer` defender paces with no animations (`_farmer` null); a 10.3 defender that wants idle/walk/throw needs the same API or an interface.
@@ -841,3 +841,21 @@
 - `LevelRegistry.validate()` does not check `music_id` exists, defender presence per level, or backdrop root type.
 - Junk entries in an existing `last_themes` dict persist; `set_last_theme` does not guard an empty profile.
 - Registry eagerly loads all theme backdrops for all levels; revisit as themes grow in 10.2–10.4.
+
+## Deferred from: dev of story 10-2 (2026-10-14)
+
+- Villager recolours per theme were not built (design decision, accepted at Gate 1): Pumpkin Patch Farm and Snowy Town use the shared villager, poof and party-hat zombie sheets. A per-theme villager would also need a per-theme party zombie and conga follower, a `LevelTheme` field and level plumbing.
+- The Zombie Run level card (`ui_level_card_zombie_run.png`) still shows Sunny Village Green, whichever theme the run draws.
+- `LevelTheme.music_id` is unused by the new themes: every Zombie Run look plays `mus_zombie_run`.
+- Snow in Snowy Town is static (fixed flakes in `clouds.png` that drift with the cloud parallax); `ParallaxBackdrop` has no `_process` by design. Falling snow is not built.
+- The registry now eagerly loads three Zombie Run backdrop scenes (plus their textures) whenever it is loaded (the 10.1 note still applies; small textures, not a measured problem).
+- Accepted at Gate 1: at the run-start offset the scarecrow (Farm) and the snowman (Snowy) sit behind the first brain block position; tags still read by their ink outline. The Snowy path (`stone-light` slush) is pale, marked by its `stone` edge line.
+- Web smoke console check: the browser pane buffers only recent console messages, so the error-only reads at the end of each 2:00 run covered the tail of each run, not every message.
+
+## Deferred from: code review of story 10-2-pumpkin-patch-farm-and-snowy-town (2026-10-14)
+
+- `_check_seam` (`tools/gen_zombie_run_themes_art.gd`) compares opacity only at x 0 and x 639, not colour, so a 1px colour jump at the wrap can pass. Same documented heuristic as `test_seam_rows_match` in `test_art_backdrop.gd`.
+- Snowy cottage window has a "+" ink crossbar, and the snow flakes are placed by formula, not by hand; both passed the Gate visuals. Re-check them if the "no letter-like marks" rule gets stricter.
+- No structural test for the two new theme scenes' node layout (Clouds/Far/Near/Ground, A+B at 640); only partly covered by `test_new_zombie_run_themes_really_swap` and the RunFrame integration tests.
+- The 2:00 scroll and 12+ follower performance smoke runs were only done at the gates (recorded in the story), not re-run in review.
+- All three Zombie Run skies share the `art-sky` colour (accepted: AC 2 says palette colour, and the layers cover most of the sky).

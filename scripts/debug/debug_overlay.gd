@@ -31,6 +31,10 @@ extends CanvasLayer
 ## They call PlayerData.debug_set_all_unlocked(true / false) (every locked level opened with its unlock
 ## moment unseen and its "New!" badge on, or every unlock cleared), then reload the main menu so the moment
 ## or the locks show at once.
+## Story 10.2: %JumpThemeRow holds one button per Zombie Run theme, built in _ready from the level registry's
+## zombie_run entry (loaded lazily, never preloaded), labelled with the theme id (debug text) and jumping with
+## {"level_id": &"zombie_run", "theme": <id>}, so each town opens directly (from the menu card the theme is
+## random). They follow the same rules as the other jumps (mouse-only, main menu only).
 ## Closed = no per-frame work (_process off, refresh timer stopped). Nothing is logged per frame.
 ## A section is one label plus one _refresh_* called from _refresh().
 ## player_data, save_service, find_run_frame, navigate and current_screen are test seams: tests assign them before add_child.
@@ -52,6 +56,8 @@ const TARGET_SHOWN_CHARS: int = 16
 ## Copies the F4 stress hold keeps marching (NFR1: 30 zombies on screen; a debug value, not a balance
 ## number).
 const STRESS_COPIES: int = 30
+## Read for the theme jump buttons (Story 10.2): load(), not preload, like PlayerData.
+const LEVEL_REGISTRY_PATH: String = "res://data/levels/level_registry.tres"
 const HELP_TEXT: String = "F5 +100 brains  F6 end run  F7 typing log\nF8 reset  F9 export  F2 pin seed  F4 stress"
 const CONFIRM_TEXT: String = "Reset the save? F8 again = yes, any other key = no"
 
@@ -100,6 +106,7 @@ func _ready() -> void:
 	%JumpKeyboardTestButton.pressed.connect(_jump.bind(Router.Screen.KEYBOARD_TEST, {}))
 	%UnlockAllButton.pressed.connect(_set_all_unlocked.bind(true))
 	%RelockAllButton.pressed.connect(_set_all_unlocked.bind(false))
+	_build_theme_jumps()
 	visible = false
 	set_process(false)
 	%HelpLabel.text = HELP_TEXT
@@ -355,6 +362,26 @@ func _refresh_jumps() -> void:
 	for button: Button in [%JumpTestLevelButton, %JumpWordLevelButton, %JumpParagraphLevelButton,
 			%JumpHordeRushButton, %JumpPitchforkButton, %JumpGiftButton, %JumpKeyboardTestButton, %UnlockAllButton, %RelockAllButton]:
 		button.disabled = not on_menu
+	for child: Node in %JumpThemeRow.get_children():
+		(child as Button).disabled = not on_menu
+
+
+## One jump button per Zombie Run theme in the shipped registry, in registry order.
+func _build_theme_jumps() -> void:
+	var registry: LevelRegistry = load(LEVEL_REGISTRY_PATH) as LevelRegistry
+	var entry: LevelEntry = registry.get_entry(&"zombie_run") if registry != null else null
+	if entry == null:
+		return
+	for theme: LevelTheme in entry.themes:
+		if theme == null:
+			continue
+		var button: Button = Button.new()
+		button.name = "JumpTheme_%s" % theme.id
+		button.text = String(theme.id)
+		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_font_size_override(&"font_size", 8)
+		button.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"zombie_run", "theme": theme.id}))
+		%JumpThemeRow.add_child(button)
 
 
 func _on_main_menu() -> bool:

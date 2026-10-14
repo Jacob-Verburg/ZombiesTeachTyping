@@ -9,7 +9,7 @@ extends Resource
 ## The theme id, saved as the level's last theme, e.g. &"sunny_village_green". Unique within its entry.
 @export var id: StringName
 ## The scene that replaces the level's backdrop slot (%Backdrop, or %Field for Horde Rush). Its root
-## must work where the built-in one did (Zombie Run and Pitchfork Panic: a SunnyVillageBackdrop).
+## must work where the built-in one did (Zombie Run and Pitchfork Panic: a ParallaxBackdrop).
 @export var backdrop: PackedScene
 ## Horde Rush only: the scene that replaces %Defender. Null elsewhere.
 @export var defender: PackedScene

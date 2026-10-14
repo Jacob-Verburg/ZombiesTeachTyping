@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LevelRegistry" load_steps=25 format=3]
+[gd_resource type="Resource" script_class="LevelRegistry" load_steps=29 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/level_registry.gd" id="1_registry"]
 [ext_resource type="Script" path="res://scripts/resources/level_entry.gd" id="2_entry"]
@@ -16,11 +16,23 @@
 [ext_resource type="PackedScene" path="res://scenes/levels/horde_rush/themes/farmhouse.tscn" id="14_farmhouse"]
 [ext_resource type="PackedScene" path="res://scenes/levels/horde_rush/farmer.tscn" id="15_farmer"]
 [ext_resource type="PackedScene" path="res://scenes/levels/pitchfork_panic/themes/moonlit_village.tscn" id="16_moonlit_village"]
+[ext_resource type="PackedScene" path="res://scenes/levels/zombie_run/themes/pumpkin_patch_farm.tscn" id="17_pumpkin_patch_farm"]
+[ext_resource type="PackedScene" path="res://scenes/levels/zombie_run/themes/snowy_town.tscn" id="18_snowy_town"]
 
 [sub_resource type="Resource" id="Resource_theme_sunny_village_green"]
 script = ExtResource("12_theme")
 id = &"sunny_village_green"
 backdrop = ExtResource("13_sunny_village_green")
+
+[sub_resource type="Resource" id="Resource_theme_pumpkin_patch_farm"]
+script = ExtResource("12_theme")
+id = &"pumpkin_patch_farm"
+backdrop = ExtResource("17_pumpkin_patch_farm")
+
+[sub_resource type="Resource" id="Resource_theme_snowy_town"]
+script = ExtResource("12_theme")
+id = &"snowy_town"
+backdrop = ExtResource("18_snowy_town")
 
 [sub_resource type="Resource" id="Resource_theme_farmhouse"]
 script = ExtResource("12_theme")
@@ -41,7 +53,7 @@ scene = ExtResource("4_zombie_run")
 debug_only = false
 available = true
 card_picture = ExtResource("5_card_zombie_run")
-themes = Array[ExtResource("12_theme")]([SubResource("Resource_theme_sunny_village_green")])
+themes = Array[ExtResource("12_theme")]([SubResource("Resource_theme_sunny_village_green"), SubResource("Resource_theme_pumpkin_patch_farm"), SubResource("Resource_theme_snowy_town")])
 
 [sub_resource type="Resource" id="Resource_horde_rush"]
 script = ExtResource("2_entry")

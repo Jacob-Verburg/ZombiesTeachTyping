@@ -1,10 +1,10 @@
-class_name SunnyVillageBackdrop
+class_name ParallaxBackdrop
 extends Node2D
-## The Sunny Village Green backdrop (Story 3.6, FR37): a static sky and four parallax layers behind
-## Zombie Run's %World, drawn in this order: clouds, far hills, near village, ground strip. Story 8.6:
-## Pitchfork Panic reuses it as is for the Moonlit Village (only the textures and the Sky colour differ, plus a
-## static Moon child outside the four layers, which this script never moves). The name stays until Epic 10
-## generalises it for the other settings.
+## One shared 4-layer parallax backdrop for every scrolling look: a static sky and four parallax layers
+## behind the level's %World, drawn in this order: clouds, far, near, ground strip. It drives Sunny Village
+## Green (Story 3.6, FR37), the Moonlit Village (Story 8.6, Pitchfork Panic, plus a static Moon child outside
+## the four layers, which this script never moves), and Pumpkin Patch Farm and Snowy Town (Story 10.2, FR76).
+## Only the textures and the Sky colour differ between looks. (Named for Sunny Village until 10.2.)
 ##
 ## Each layer is a Node2D holding two Sprite2D copies of the same 640 px wide texture side by side (copy A
 ## at local x 0, copy B at PERIOD; centered = false, no region, no repeat flags). scroll_to() places the

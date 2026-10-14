@@ -1068,17 +1068,17 @@ func test_villager_key_plays_the_hug() -> void:
 # --- backdrop (Story 3.6) --------------------------------------------------------
 
 
-func _backdrop() -> SunnyVillageBackdrop:
-	return _level.get_node("%Backdrop") as SunnyVillageBackdrop
+func _backdrop() -> ParallaxBackdrop:
+	return _level.get_node("%Backdrop") as ParallaxBackdrop
 
 
 func _ground_offset() -> float:
-	return _backdrop().get_layer_offset(SunnyVillageBackdrop.LAYER_GROUND)
+	return _backdrop().get_layer_offset(ParallaxBackdrop.LAYER_GROUND)
 
 
 func test_backdrop_is_outside_the_world_and_behind_it() -> void:
 	_make()
-	var backdrop: SunnyVillageBackdrop = _backdrop()
+	var backdrop: ParallaxBackdrop = _backdrop()
 	assert_not_null(backdrop)
 	assert_eq(backdrop.get_parent(), _level, "outside %World, so the HUD never scrolls with it")
 	assert_lt(backdrop.get_index(), _world().get_index(), "drawn behind the world")
@@ -1124,7 +1124,7 @@ func test_ground_layer_stays_in_step_with_the_world_while_scooting() -> void:
 			_step(0.013)
 			var world_px: float = roundf(-_world().position.x)
 			assert_eq(_ground_offset(), fposmod(world_px, 640.0), "key %d step %d" % [i, j])
-			var layer_x: float = _backdrop().get_layer(SunnyVillageBackdrop.LAYER_GROUND).position.x
+			var layer_x: float = _backdrop().get_layer(ParallaxBackdrop.LAYER_GROUND).position.x
 			assert_eq(fposmod(layer_x - roundf(_world().position.x), 640.0), 0.0, "ground and world move together")
 
 
@@ -1134,9 +1134,9 @@ func test_backdrop_layers_scroll_at_different_speeds() -> void:
 		_key()
 	_finish_scoot()
 	var camera_x: float = _level.get_camera_x()
-	for layer: StringName in SunnyVillageBackdrop.FACTORS:
+	for layer: StringName in ParallaxBackdrop.FACTORS:
 		assert_eq(_backdrop().get_layer_offset(layer),
-				fposmod(roundf(camera_x * SunnyVillageBackdrop.FACTORS[layer]), 640.0), String(layer))
+				fposmod(roundf(camera_x * ParallaxBackdrop.FACTORS[layer]), 640.0), String(layer))
 
 
 # --- sounds (Story 5.1) ---------------------------------------------------------

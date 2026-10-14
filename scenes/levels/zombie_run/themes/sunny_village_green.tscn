@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://scripts/levels/zombie_run/sunny_village_backdrop.gd" id="5_backdrop"]
+[ext_resource type="Script" path="res://scripts/levels/zombie_run/parallax_backdrop.gd" id="5_backdrop"]
 [ext_resource type="Texture2D" uid="uid://dismikogh8rev" path="res://assets/sprites/backdrops/sunny_village_green/clouds.png" id="6_clouds"]
 [ext_resource type="Texture2D" uid="uid://bl6nefl11kyyl" path="res://assets/sprites/backdrops/sunny_village_green/far.png" id="7_far"]
 [ext_resource type="Texture2D" uid="uid://dgk04f862v6y7" path="res://assets/sprites/backdrops/sunny_village_green/near.png" id="8_near"]
