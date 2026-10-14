@@ -1,10 +1,10 @@
-class_name HordeTomatoSplat
+class_name HordeHitEffect
 extends Node2D
-## A tomato splat (Story 6.6): where a tomato lands on a copy, a self-freeing one-shot under the level's
-## %Effects, spawned at the logical landing point. 3 frames (squish, burst, drips) in pumpkin with seeds
-## and a leaf bit: clearly fruit, never blood (stamp red is reserved, DESIGN.md D16). A node-bound tween
-## steps the frames (the poof pattern), so it pauses with the tree and tests can custom_step it; the sprite
-## never plays on its own. It never gates input or logic.
+## A projectile's hit effect (the tomato splat 6.6; the dart hit and the water splash 10.3): where a
+## projectile lands on a copy, a self-freeing one-shot under the level's %Effects, spawned at the logical
+## landing point. 3 frames at 12 fps for every pair, drawn as food or toys, never blood (stamp red is
+## reserved, DESIGN.md D16). A node-bound tween steps the frames (the poof pattern), so it pauses with the
+## tree and tests can custom_step it; the sprite never plays on its own. It never gates input or logic.
 
 ## Look values (art spec "splat 3f at 12 fps", not GDD numbers). FRAMES matches the sheet.
 const FRAMES: int = 3
@@ -19,7 +19,7 @@ var _tween: Tween
 func _ready() -> void:
 	# NFR16: a missing sprite never stops a run (the tween still runs and frees the node).
 	if _sprite.sprite_frames == null:
-		Log.warn(&"level", "tomato splat has no sprite frames")
+		Log.warn(&"level", "hit effect has no sprite frames")
 	_sprite.frame = 0
 	_tween = create_tween()
 	_tween.tween_method(_set_frame, 0.0, float(FRAMES), FRAMES / FPS)

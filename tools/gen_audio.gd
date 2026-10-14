@@ -17,6 +17,8 @@ extends SceneTree
 ##   uv run --with soundfile tools/encode_ogg.py <dir>/mus_pitchfork_panic.wav assets/audio/music/mus_pitchfork_panic.ogg
 ## And for Horde Rush, encode only its loop:
 ##   uv run --with soundfile tools/encode_ogg.py <dir>/mus_horde_rush.wav assets/audio/music/mus_horde_rush.ogg
+## Story 10.3 adds the Horde Rush pair sounds (sfx_dart_throw, sfx_dart_hit for the Knight; sfx_balloon_throw,
+## sfx_balloon_hit for the Lifeguard), appended last so no earlier sound changes.
 
 const MIX_RATE: int = 44100
 ## About -3 dBFS: the files carry the sound, the library's volume_db does the mixing.
@@ -121,6 +123,10 @@ func _init() -> void:
 		_save_sfx(_dust_cloud(), SFX_DIR + "sfx_dust_cloud.wav"),
 		_save_sfx(_escape(), SFX_DIR + "sfx_escape.wav"),
 		_save_music(_pitchfork_panic_music(), music_dir.path_join("mus_pitchfork_panic.wav")),
+		_save_sfx(_dart_throw(), SFX_DIR + "sfx_dart_throw.wav"),
+		_save_sfx(_dart_hit(), SFX_DIR + "sfx_dart_hit.wav"),
+		_save_sfx(_balloon_throw(), SFX_DIR + "sfx_balloon_throw.wav"),
+		_save_sfx(_balloon_hit(), SFX_DIR + "sfx_balloon_hit.wav"),
 	]
 	# Non-zero exit on any failure, so a bad path or cwd doesn't look like success.
 	quit(0 if errors.all(func(err: Error) -> bool: return err == OK) else 1)
@@ -310,6 +316,80 @@ func _melt() -> PackedFloat32Array:
 		var whistle: float = sin(TAU * phase) * minf(1.0, t / 0.005) * pow(1.0 - u, 0.8)
 		var bubbles: float = gurgle.process(rng.randf_range(-1.0, 1.0)) * (0.5 + 0.5 * sin(TAU * 14.0 * t)) * u * 2.5
 		out[i] = (whistle * 0.8 + bubbles) * minf(1.0, (1.0 - u) * 6.0)
+	return out
+
+
+## About 120 ms (Story 10.3): the Knight's toy dart leaves his hand, a light "fwip": band-passed noise
+## sweeping up 1.5 -> 4 kHz with a fast decay. Thinner and quicker than the tomato's whoosh.
+func _dart_throw() -> PackedFloat32Array:
+	var count: int = _n(0.12)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(10301)
+	var band: Biquad = Biquad.new()
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		band.set_bandpass(lerpf(1500.0, 4000.0, u), 2.5, MIX_RATE)
+		var envelope: float = minf(1.0, t / 0.008) * pow(1.0 - u, 2.0)
+		out[i] = band.process(rng.randf_range(-1.0, 1.0)) * envelope
+	return out
+
+
+## About 200 ms (Story 10.3): the suction cup lands, a rubbery "plook" with a boing tail: a sine pop
+## falling 600 -> 180 Hz with a 12 Hz vibrato over its last part. No noise burst, so never the tomato's splut.
+func _dart_hit() -> PackedFloat32Array:
+	var count: int = _n(0.2)
+	var out: PackedFloat32Array = _zeros(count)
+	var phase: float = 0.0
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		var wobble: float = 1.0 + 0.12 * sin(TAU * 12.0 * t) * smoothstep(0.03, 0.08, t)
+		phase += lerpf(180.0, 600.0, exp(-t * 30.0)) * wobble / MIX_RATE
+		var body: float = sin(TAU * phase) + 0.25 * sin(TAU * phase * 2.0)
+		out[i] = body * minf(1.0, t / 0.002) * exp(-t * 9.0) * (1.0 - u)
+	return out
+
+
+## About 180 ms (Story 10.3): the Lifeguard lobs a water balloon, a soft "whuh": low-passed noise in the
+## 500 Hz - 1.5 kHz band with a slower attack than the dart. Softer and lower than both other throws.
+func _balloon_throw() -> PackedFloat32Array:
+	var count: int = _n(0.18)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(10302)
+	var band: Biquad = Biquad.new()
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		band.set_bandpass(lerpf(500.0, 1500.0, sin(PI * u)), 1.0, MIX_RATE)
+		var envelope: float = minf(1.0, t / 0.05) * pow(1.0 - u, 1.5)
+		out[i] = band.process(rng.randf_range(-1.0, 1.0)) * envelope
+	return out
+
+
+## About 300 ms (Story 10.3): the balloon bursts, a "sploosh": a noise burst closing 4 kHz -> 600 Hz plus four
+## short high droplet blips at fixed offsets. Wetter and longer than the tomato's splut.
+func _balloon_hit() -> PackedFloat32Array:
+	var count: int = _n(0.3)
+	var out: PackedFloat32Array = _zeros(count)
+	var rng: RandomNumberGenerator = _rng(10303)
+	var filter: Biquad = Biquad.new()
+	for i: int in count:
+		var t: float = _t(i)
+		var u: float = float(i) / count
+		filter.set_lowpass(lerpf(4000.0, 600.0, sqrt(u)), 1.0, MIX_RATE)
+		out[i] = filter.process(rng.randf_range(-1.0, 1.0)) * exp(-t * 12.0) * minf(1.0, t / 0.003) * 1.4
+	# Droplets: [start s, start Hz]; each a 30 ms sine chirping up, like drops landing in water.
+	for drop: Vector2 in [Vector2(0.06, 1400.0), Vector2(0.11, 1900.0), Vector2(0.16, 1600.0), Vector2(0.22, 2200.0)]:
+		var start: int = _n(drop.x)
+		var length: int = _n(0.03)
+		var phase: float = 0.0
+		for i: int in length:
+			if start + i >= count:
+				break
+			var dt: float = _t(i)
+			phase += drop.y * (1.0 + dt * 20.0) / MIX_RATE
+			out[start + i] += sin(TAU * phase) * exp(-dt * 120.0) * 0.45
 	return out
 
 

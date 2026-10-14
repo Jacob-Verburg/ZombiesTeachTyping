@@ -127,7 +127,8 @@ const SFX_IDS: Array[StringName] = [&"sfx_ui_click", &"sfx_wrong_key", &"sfx_bra
 		&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04",
 		&"sfx_zombie_spawn", &"sfx_tomato_throw", &"sfx_tomato_hit", &"sfx_melt",
 		&"sfx_unlock_jingle",
-		&"sfx_brain_pickup", &"sfx_dust_cloud", &"sfx_escape"]
+		&"sfx_brain_pickup", &"sfx_dust_cloud", &"sfx_escape",
+		&"sfx_dart_throw", &"sfx_dart_hit", &"sfx_balloon_throw", &"sfx_balloon_hit"]
 const VOICE_IDS: Array[StringName] = [&"vo_brainsss"]
 const MUSIC_IDS: Array[StringName] = [&"mus_menu", &"mus_zombie_run", &"mus_horde_rush", &"mus_pitchfork_panic"]
 ## -1 dBFS as a 16-bit sample value.
@@ -260,7 +261,7 @@ func test_wrong_key_tick_is_the_quietest_effect() -> void:
 func test_burst_cues_are_throttled() -> void:
 	var library: AudioLibrary = _library()
 	for id: StringName in [&"sfx_brain_bonk", &"sfx_hug_poof", &"sfx_zombie_spawn", &"sfx_tomato_throw", &"sfx_tomato_hit",
-			&"sfx_melt"]:
+			&"sfx_melt", &"sfx_dart_throw", &"sfx_dart_hit", &"sfx_balloon_throw", &"sfx_balloon_hit"]:
 		var cue: AudioCue = library.get_cue(id)
 		assert_gt(cue.min_interval_s, 0.0, "%s can't stack in a burst" % id)
 		assert_lt(cue.min_interval_s, 0.1, "%s still plays once per report row / fast key" % id)

@@ -16,6 +16,8 @@ extends GutTest
 ## (a recorder set before add_child, like the voice).
 ## Story 6.7: the debug stress hold (a floor of marching copies topped up one per frame from STRESS_WORDS).
 ## Story 9.1: the hat height cap against the real geometry (a brute copy in lane 0 keeps every hat on screen).
+## Story 10.3: the pair (projectile, hit effect, throw and hit sounds) comes from the defender scene
+## (HordeDefenderSprite exports), with the tomato pair as the fallback.
 
 const LevelScene: PackedScene = preload("res://scenes/levels/horde_rush/horde_rush_level.tscn")
 const LevelScript := preload("res://scripts/levels/horde_rush/horde_rush_level.gd")
@@ -23,6 +25,10 @@ const STEP: float = 1.0 / 60.0
 const PlayerZombieScene: PackedScene = preload("res://scenes/characters/player_zombie.tscn")
 ## The hat list and the HAT_MAX_RISE cap live with the art tests (Story 9.1).
 const ArtSprites := preload("res://tests/unit/test_art_sprites.gd")
+## Story 10.3: the Farmer and the tomato pair, for the pair fixtures.
+const FarmerScene: PackedScene = preload("res://scenes/levels/horde_rush/farmer.tscn")
+const TomatoScene: PackedScene = preload("res://scenes/levels/horde_rush/tomato.tscn")
+const TomatoSplatScene: PackedScene = preload("res://scenes/levels/horde_rush/tomato_splat.tscn")
 
 var _level: LevelScript
 var _source: TargetSource
@@ -39,8 +45,9 @@ const MECHANIC_PROJECTILE_S: float = 1.0
 
 
 ## A deep duplicate of the shipped config with the defender pinned to the MECHANIC_ numbers; `tweak`
-## (optional) changes it further before the level is added. The shipped resource is never edited.
-func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> LevelScript:
+## (optional) changes it further before the level is added; `before_add` (optional) gets the level just
+## before add_child (Story 10.3: a fixture defender). The shipped resource is never edited.
+func _make(rng_seed: int = 42, tweak: Callable = Callable(), before_add: Callable = Callable()) -> LevelScript:
 	_level = LevelScene.instantiate() as LevelScript
 	_level.process_mode = Node.PROCESS_MODE_DISABLED
 	var config: HordeRushConfig = _pinned_config(_level)
@@ -51,6 +58,8 @@ func _make(rng_seed: int = 42, tweak: Callable = Callable()) -> LevelScript:
 	_level.request_voice = func(id: StringName) -> void: _voices.append(id)
 	_sfx = []
 	_level.play_sfx = func(id: StringName) -> void: _sfx.append(id)
+	if before_add.is_valid():
+		before_add.call(_level)
 	add_child_autofree(_level)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = rng_seed
@@ -798,15 +807,15 @@ func test_the_defender_stops_while_the_tree_is_paused() -> void:
 
 # --- art and sounds (Story 6.6) ------------------------------------------------------------------
 
-func _farmer() -> HordeFarmer:
-	return _level.get_defender_view() as HordeFarmer
+func _farmer() -> HordeDefenderSprite:
+	return _level.get_defender_view() as HordeDefenderSprite
 
 
-func _splats() -> Array[HordeTomatoSplat]:
-	var found: Array[HordeTomatoSplat] = []
+func _splats() -> Array[HordeHitEffect]:
+	var found: Array[HordeHitEffect] = []
 	for child: Node in _level.get_node("%Effects").get_children():
-		if child is HordeTomatoSplat and not child.is_queued_for_deletion():
-			found.append(child as HordeTomatoSplat)
+		if child is HordeHitEffect and not child.is_queued_for_deletion():
+			found.append(child as HordeHitEffect)
 	return found
 
 
@@ -828,33 +837,33 @@ func test_the_field_is_the_farmhouse_art() -> void:
 
 func test_the_defender_view_is_the_farmer() -> void:
 	_make()
-	var farmer: HordeFarmer = _farmer()
-	assert_not_null(farmer, "%Defender is a HordeFarmer")
+	var farmer: HordeDefenderSprite = _farmer()
+	assert_not_null(farmer, "%Defender is a HordeDefenderSprite")
 	assert_eq(farmer.get_parent(), _level.get_node("%Zombies"))
 	assert_true(farmer.is_unique_name_in_owner())
 
 
 func test_the_farmer_animates_from_logic() -> void:
 	_make()
-	var farmer: HordeFarmer = _farmer()
+	var farmer: HordeDefenderSprite = _farmer()
 	var body: AnimatedSprite2D = farmer.get_body()
 	_copy_in_lane("rabbit", 0)
 	_steps(0.5)
-	assert_eq(body.animation, HordeFarmer.ANIM_IDLE, "idle before the first key")
+	assert_eq(body.animation, HordeDefenderSprite.ANIM_IDLE, "idle before the first key")
 	_level.on_run_started()
 	_level._process(STEP)
 	assert_eq(_level.get_defender().get_thrown_count(), 1)
-	assert_eq(body.animation, HordeFarmer.ANIM_THROW, "a throw on the step that throws")
+	assert_eq(body.animation, HordeDefenderSprite.ANIM_THROW, "a throw on the step that throws")
 	assert_eq(body.frame, 0)
 	assert_true(farmer.is_throwing())
 	_steps(0.1)
-	assert_eq(body.animation, HordeFarmer.ANIM_THROW, "the pacing walk waits for the throw")
+	assert_eq(body.animation, HordeDefenderSprite.ANIM_THROW, "the pacing walk waits for the throw")
 	body.animation_finished.emit()
-	assert_eq(body.animation, HordeFarmer.ANIM_WALK, "then walks while pacing")
+	assert_eq(body.animation, HordeDefenderSprite.ANIM_WALK, "then walks while pacing")
 	_level._process(STEP)
-	assert_eq(body.animation, HordeFarmer.ANIM_WALK)
+	assert_eq(body.animation, HordeDefenderSprite.ANIM_WALK)
 	_level.on_run_ending(&"timer")
-	assert_eq(body.animation, HordeFarmer.ANIM_IDLE, "idle after the end")
+	assert_eq(body.animation, HordeDefenderSprite.ANIM_IDLE, "idle after the end")
 
 
 func test_a_run_ending_mid_throw_settles_on_idle() -> void:
@@ -863,11 +872,11 @@ func test_a_run_ending_mid_throw_settles_on_idle() -> void:
 	_copy_in_lane("rabbit", 0)
 	_level.on_run_started()
 	_level._process(STEP)
-	assert_eq(body.animation, HordeFarmer.ANIM_THROW)
+	assert_eq(body.animation, HordeDefenderSprite.ANIM_THROW)
 	_level.on_run_ending(&"timer")
-	assert_eq(body.animation, HordeFarmer.ANIM_THROW, "the throw finishes")
+	assert_eq(body.animation, HordeDefenderSprite.ANIM_THROW, "the throw finishes")
 	body.animation_finished.emit()
-	assert_eq(body.animation, HordeFarmer.ANIM_IDLE, "then idle, with nothing calling him")
+	assert_eq(body.animation, HordeDefenderSprite.ANIM_IDLE, "then idle, with nothing calling him")
 
 
 func test_a_non_farmer_defender_still_moves() -> void:
@@ -917,9 +926,9 @@ func test_a_hit_spawns_one_splat_at_the_landing_point() -> void:
 	var view: PlayerZombie = _level.get_view(medium.id)
 	_level.on_run_started()
 	_until_landed(1)
-	var splats: Array[HordeTomatoSplat] = _splats()
+	var splats: Array[HordeHitEffect] = _splats()
 	assert_eq(splats.size(), 1)
-	var splat: HordeTomatoSplat = splats[0]
+	var splat: HordeHitEffect = splats[0]
 	assert_eq(splat.position.y, _level.lane_feet_y(0) - LevelScript.TOMATO_RISE_PX, "at the tomato's height")
 	assert_almost_eq(splat.position.x, view.position.x, LevelScript.SPRITE_HALF_WIDTH_PX * 1.25 + 1.0,
 			"on the copy it hit")
@@ -951,13 +960,13 @@ func test_a_splat_frees_itself_after_its_tween() -> void:
 	_copy_in_lane("frog", 0)
 	_level.on_run_started()
 	_until_landed(1)
-	var splat: HordeTomatoSplat = _splats()[0]
+	var splat: HordeHitEffect = _splats()[0]
 	var tween: Tween = splat.get_tween()
 	assert_not_null(tween)
-	tween.custom_step(1.0 / HordeTomatoSplat.FPS + 0.001)
+	tween.custom_step(1.0 / HordeHitEffect.FPS + 0.001)
 	assert_eq(splat.get_frame(), 1)
-	tween.custom_step(float(HordeTomatoSplat.FRAMES) / HordeTomatoSplat.FPS)
-	assert_eq(splat.get_frame(), HordeTomatoSplat.FRAMES - 1)
+	tween.custom_step(float(HordeHitEffect.FRAMES) / HordeHitEffect.FPS)
+	assert_eq(splat.get_frame(), HordeHitEffect.FRAMES - 1)
 	await wait_process_frames(1)
 	assert_false(is_instance_valid(splat), "freed after its frames")
 
@@ -1237,3 +1246,134 @@ func test_a_negative_floor_is_off() -> void:
 	_make()
 	_level.debug_set_stress_floor(-5)
 	assert_eq(_level.get_stress_floor(), 0)
+
+
+# --- Story 10.3: the pair travels with the defender scene ---
+
+
+## A Callable for _make's before_add: puts `defender` in place of the level's %Defender (same parent,
+## index, name and unique name), as a theme swap would.
+func _with_defender(defender: Node2D) -> Callable:
+	return func(level: Node) -> void:
+		var old: Node = level.get_node("%Defender")
+		defender.name = "Defender"
+		old.replace_by(defender)
+		defender.owner = level
+		defender.unique_name_in_owner = true
+		old.free()
+
+
+## A Farmer scene whose four pair exports are swapped for fixture values (the tomato's scenes crossed over,
+## so the scene paths tell them apart); `empty` clears projectile_scene instead.
+func _fixture_defender(empty: bool = false) -> HordeDefenderSprite:
+	var defender: HordeDefenderSprite = FarmerScene.instantiate() as HordeDefenderSprite
+	defender.projectile_scene = null if empty else TomatoSplatScene
+	defender.hit_scene = TomatoScene
+	defender.throw_sfx = &"sfx_fixture_throw"
+	defender.hit_sfx = &"sfx_fixture_hit"
+	return defender
+
+
+func _hit_effects() -> Array[Node]:
+	var found: Array[Node] = []
+	for child: Node in _level.get_node("%Effects").get_children():
+		if not child.is_queued_for_deletion() and not child is HordeArrivalPop:
+			found.append(child)
+	return found
+
+
+func test_the_farmhouse_pair_is_the_tomato_pair() -> void:
+	_make()
+	var farmer: HordeDefenderSprite = _farmer()
+	assert_eq(farmer.projectile_scene.resource_path, TomatoScene.resource_path)
+	assert_eq(farmer.hit_scene.resource_path, TomatoSplatScene.resource_path)
+	assert_eq(farmer.throw_sfx, LevelScript.SFX_THROW)
+	assert_eq(farmer.hit_sfx, LevelScript.SFX_HIT)
+	_copy_in_lane("frog", 0)
+	_sfx.clear()
+	_level.on_run_started()
+	_level._process(STEP)
+	assert_eq(_level.get_projectile_view(0).scene_file_path, TomatoScene.resource_path)
+	_until_landed(1)
+	assert_eq(_sfx[0], LevelScript.SFX_THROW)
+	assert_eq(_sfx.back(), LevelScript.SFX_HIT)
+	var effects: Array[Node] = _hit_effects()
+	assert_eq(effects.size(), 1)
+	assert_eq(effects[0].scene_file_path, TomatoSplatScene.resource_path)
+
+
+func test_a_defender_brings_its_own_pair() -> void:
+	_make(42, Callable(), _with_defender(_fixture_defender()))
+	assert_true(_level.get_defender_view() is HordeDefenderSprite)
+	_copy_in_lane("frog", 0)
+	_sfx.clear()
+	_level.on_run_started()
+	_level._process(STEP)
+	assert_eq(_level.get_projectile_view(0).scene_file_path, TomatoSplatScene.resource_path,
+			"the defender's projectile scene")
+	_until_landed(1)
+	assert_eq(_level.get_defender().get_hit_count(), 1)
+	assert_eq(_sfx[0], &"sfx_fixture_throw")
+	assert_eq(_sfx.back(), &"sfx_fixture_hit")
+	assert_false(_sfx.has(LevelScript.SFX_THROW))
+	assert_false(_sfx.has(LevelScript.SFX_HIT))
+	var effects: Array[Node] = _hit_effects()
+	assert_eq(effects.size(), 1)
+	assert_eq(effects[0].scene_file_path, TomatoScene.resource_path, "the defender's hit scene")
+
+
+func test_a_final_hit_spawns_the_pairs_effect_and_melts() -> void:
+	_make(42, Callable(), _with_defender(_fixture_defender()))
+	_copy_in_lane("cat", 0)
+	_sfx.clear()
+	_level.on_run_started()
+	_until_landed(1)
+	assert_eq(_level.get_field().get_stopped_count(), 1)
+	assert_eq(_sfx.back(), LevelScript.SFX_MELT, "the melt stays pair-independent")
+	assert_false(_sfx.has(&"sfx_fixture_hit"))
+	assert_eq(_hit_effects().size(), 1)
+	assert_eq(_hit_effects()[0].scene_file_path, TomatoScene.resource_path)
+
+
+func test_an_empty_projectile_scene_warns_once_and_throws_tomatoes() -> void:
+	_make(42, Callable(), _with_defender(_fixture_defender(true)))
+	assert_push_warning("horde rush: defender has no projectile scene, using the tomato")
+	assert_push_warning_count(1)
+	_copy_in_lane("frog", 0)
+	_sfx.clear()
+	_level.on_run_started()
+	_level._process(STEP)
+	assert_eq(_level.get_projectile_view(0).scene_file_path, TomatoScene.resource_path)
+	_until_landed(1)
+	assert_eq(_sfx[0], &"sfx_fixture_throw", "the other exports still apply")
+	assert_push_warning_count(1, "still one warning after a throw and a hit")
+
+
+func test_every_empty_export_warns_once() -> void:
+	var defender: HordeDefenderSprite = _fixture_defender(true)
+	defender.hit_scene = null
+	defender.throw_sfx = &""
+	defender.hit_sfx = &""
+	_make(42, Callable(), _with_defender(defender))
+	assert_push_warning_count(4)
+	_copy_in_lane("frog", 0)
+	_sfx.clear()
+	_level.on_run_started()
+	_until_landed(1)
+	assert_eq(_sfx[0], LevelScript.SFX_THROW)
+	assert_eq(_sfx.back(), LevelScript.SFX_HIT)
+	assert_eq(_hit_effects()[0].scene_file_path, TomatoSplatScene.resource_path)
+
+
+func test_a_non_sprite_defender_throws_tomatoes_silently() -> void:
+	var plain: Node2D = Node2D.new()
+	_make(42, Callable(), _with_defender(plain))
+	assert_push_warning_count(0)
+	_copy_in_lane("frog", 0)
+	_sfx.clear()
+	_level.on_run_started()
+	_level._process(STEP)
+	assert_eq(_level.get_projectile_view(0).scene_file_path, TomatoScene.resource_path)
+	_until_landed(1)
+	assert_eq(_sfx[0], LevelScript.SFX_THROW)
+	assert_eq(_sfx.back(), LevelScript.SFX_HIT)

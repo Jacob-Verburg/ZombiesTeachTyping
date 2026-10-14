@@ -14,6 +14,10 @@ extends GutTest
 ## rules (sizes, palette and hard alpha, reserved colours, the tag band, the seam, seamless tiles, the strip built
 ## from its tiles with the path last) plus art-moon nowhere, the day readability band (near.png rows 160-191
 ## and the strip's top 4 rows free of the zombie's greens) and the Halloween dressing (pumpkin and bat-purple).
+## Story 10.3 adds the Horde Rush pairs Castle and Beach Hut: each folder goes through the Farmhouse rules (sizes,
+## palette and hard alpha, candy-yellow, stamp-red and art-moon nowhere, no zombie greens in the lanes or the house
+## front, the field opaque, a doorway per lane on the soles row against that house's own wall colours) and the
+## pixel-crisp import.
 
 const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const DIR: String = "res://assets/sprites/backdrops/sunny_village_green/"
@@ -307,18 +311,21 @@ func test_farmhouse_no_candy_yellow_or_stamp_red() -> void:
 ## Where copies walk (the lanes left of the house, and the house's first 8 px below the sky band) there
 ## is no zombie-green or zombie-green-bright, so a copy never camouflages.
 func test_no_zombie_green_where_copies_walk() -> void:
-	var field: Image = _load_farm("field.png")
-	var house: Image = _load_farm("farmhouse.png")
+	_assert_no_zombie_green_where_copies_walk(_load_farm("field.png"), _load_farm("farmhouse.png"), "farmhouse")
+
+
+## Shared (Story 10.3): no zombie greens in a pair's lanes or its house front.
+func _assert_no_zombie_green_where_copies_walk(field: Image, house: Image, label: String) -> void:
 	if field == null or house == null:
-		fail_test("farmhouse layers missing")
+		fail_test("%s layers missing" % label)
 		return
 	var lanes: Dictionary[String, bool] = _rect_colors(field,
 			Rect2i(0, FARM_FIELD_TOP_Y, HOUSE_FRONT_X, field.get_height() - FARM_FIELD_TOP_Y))
 	var front: Dictionary[String, bool] = _rect_colors(house,
 			Rect2i(0, FARM_FIELD_TOP_Y, 8, house.get_height() - FARM_FIELD_TOP_Y))
 	for hex: String in [ZOMBIE_GREEN, ZOMBIE_GREEN_BRIGHT]:
-		assert_false(lanes.has(hex), "field lanes use %s" % hex)
-		assert_false(front.has(hex), "farmhouse front uses %s" % hex)
+		assert_false(lanes.has(hex), "%s field lanes use %s" % [label, hex])
+		assert_false(front.has(hex), "%s front uses %s" % [label, hex])
 
 
 ## The field is fully opaque (it is the whole backdrop behind the lanes and the sky).
@@ -335,30 +342,30 @@ func test_field_is_opaque() -> void:
 ## (feet line - 1) is at least DOOR_MIN_H tall, and the feet-line row itself is not part of it (the step).
 ## So an arriving copy's soles meet the bottom of its own lane's opening.
 func test_a_doorway_per_lane_on_the_feet_line() -> void:
-	var house: Image = _load_farm("farmhouse.png")
+	_assert_a_doorway_per_lane(_load_farm("farmhouse.png"), WALL_COLOURS, "farmhouse")
+
+
+## Shared (Story 10.3): the doorway rule for any house, given its wall colours.
+func _assert_a_doorway_per_lane(house: Image, wall: Array[String], label: String) -> void:
 	if house == null:
-		fail_test("farmhouse.png missing")
+		fail_test("%s house missing" % label)
 		return
 	for lane: int in FARM_LANE_COUNT:
 		var bottom: int = _feet_y(lane) - 1
 		for x: int in DOOR_COLUMNS:
-			assert_false(_is_opening(house, x, bottom + 1),
-					"lane %d column %d: the opening runs past the feet line" % [lane, x])
+			assert_false(_is_opening(house, x, bottom + 1, wall),
+					"%s lane %d column %d: the opening runs past the feet line" % [label, lane, x])
 			var run: int = 0
-			while bottom - run >= 0 and _is_opening(house, x, bottom - run):
+			while bottom - run >= 0 and _is_opening(house, x, bottom - run, wall):
 				run += 1
-			assert_true(run >= DOOR_MIN_H, "lane %d column %d: opening %d px tall, want >= %d" % [
-					lane, x, run, DOOR_MIN_H])
+			assert_true(run >= DOOR_MIN_H, "%s lane %d column %d: opening %d px tall, want >= %d" % [
+					label, lane, x, run, DOOR_MIN_H])
 
 
-## An opening pixel is opaque and not a wall colour.
-func _is_opening(image: Image, x: int, y: int) -> bool:
+## An opening pixel is opaque and not one of the house's wall colours.
+func _is_opening(image: Image, x: int, y: int, wall: Array[String]) -> bool:
 	var color: Color = image.get_pixel(x, y)
-	return color.a8 == 255 and not _is_wall(image, x, y)
-
-
-func _is_wall(image: Image, x: int, y: int) -> bool:
-	return image.get_pixel(x, y).to_html(false) in WALL_COLOURS
+	return color.a8 == 255 and not color.to_html(false) in wall
 
 
 func test_farmhouse_import_settings_lossless_no_mipmaps() -> void:
@@ -741,4 +748,86 @@ func test_zr_themes_carry_the_halloween_dressing() -> void:
 func test_zr_themes_import_settings_lossless_no_mipmaps() -> void:
 	for dir: String in ZR_THEME_DIRS:
 		for file: String in _all_files():
+			_assert_pixel_crisp_import(dir + file)
+
+
+# --- Castle and Beach Hut (Story 10.3, Horde Rush pairs) ---
+
+## Each pair's folder, its house file and the house's wall colours (fill, joints or seams, ink edge):
+## anything else at the field edge is a doorway.
+const HR_PAIRS: Dictionary[String, Dictionary] = {
+	"res://assets/sprites/backdrops/castle/": {
+		"house": "castle.png",
+		"wall": ["bdb6c4", "6f6a80", "1e1428"],
+	},
+	"res://assets/sprites/backdrops/beach_hut/": {
+		"house": "beach_hut.png",
+		"wall": ["f4f1e4", "bfe6f2", "8a5228", "1e1428"],
+	},
+}
+
+
+func _hr_files(dir: String) -> Dictionary[String, Vector2i]:
+	var house: String = HR_PAIRS[dir]["house"]
+	return {"field.png": FARM_FILES["field.png"], house: FARM_FILES["farmhouse.png"]}
+
+
+func _hr_wall(dir: String) -> Array[String]:
+	var wall: Array[String] = []
+	wall.assign(HR_PAIRS[dir]["wall"])
+	return wall
+
+
+func test_hr_pairs_layers_exist_at_their_size() -> void:
+	for dir: String in HR_PAIRS:
+		var files: Dictionary[String, Vector2i] = _hr_files(dir)
+		for file: String in files:
+			var image: Image = _load_from(dir, file)
+			assert_not_null(image, "%s%s missing" % [dir, file])
+			if image != null:
+				assert_eq(image.get_size(), files[file], "%s%s size" % [dir, file])
+
+
+func test_hr_pairs_hard_alpha_and_palette_only() -> void:
+	for dir: String in HR_PAIRS:
+		for file: String in _hr_files(dir):
+			var image: Image = _load_from(dir, file)
+			if image == null:
+				fail_test("%s%s missing" % [dir, file])
+				continue
+			var bad: Array[String] = _alpha_palette_problems(image)
+			assert_eq(bad.size(), 0, "%s%s: %s" % [dir, file, ", ".join(bad.slice(0, 10))])
+
+
+func test_hr_pairs_reserved_colours() -> void:
+	for dir: String in HR_PAIRS:
+		for file: String in _hr_files(dir):
+			var colors: Dictionary[String, bool] = _colors_in(dir, file)
+			for hex: String in [CANDY_YELLOW, STAMP_RED, ART_MOON]:
+				assert_false(colors.has(hex), "%s%s uses %s" % [dir, file, hex])
+
+
+func test_hr_pairs_no_zombie_green_where_copies_walk() -> void:
+	for dir: String in HR_PAIRS:
+		_assert_no_zombie_green_where_copies_walk(_load_from(dir, "field.png"),
+				_load_from(dir, HR_PAIRS[dir]["house"]), dir)
+
+
+func test_hr_pairs_field_is_opaque() -> void:
+	for dir: String in HR_PAIRS:
+		var field: Image = _load_from(dir, "field.png")
+		if field == null:
+			fail_test("%sfield.png missing" % dir)
+			continue
+		assert_eq(field.detect_alpha(), Image.ALPHA_NONE, "%sfield.png has no transparent pixels" % dir)
+
+
+func test_hr_pairs_a_doorway_per_lane_on_the_feet_line() -> void:
+	for dir: String in HR_PAIRS:
+		_assert_a_doorway_per_lane(_load_from(dir, HR_PAIRS[dir]["house"]), _hr_wall(dir), dir)
+
+
+func test_hr_pairs_import_settings_lossless_no_mipmaps() -> void:
+	for dir: String in HR_PAIRS:
+		for file: String in _hr_files(dir):
 			_assert_pixel_crisp_import(dir + file)

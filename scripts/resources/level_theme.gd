@@ -11,7 +11,9 @@ extends Resource
 ## The scene that replaces the level's backdrop slot (%Backdrop, or %Field for Horde Rush). Its root
 ## must work where the built-in one did (Zombie Run and Pitchfork Panic: a ParallaxBackdrop).
 @export var backdrop: PackedScene
-## Horde Rush only: the scene that replaces %Defender. Null elsewhere.
+## Horde Rush only: the scene that replaces %Defender. Null elsewhere. A HordeDefenderSprite scene brings
+## its pair's projectile, hit effect and throw/hit sounds with it (Story 10.3), so this resource never
+## names them.
 @export var defender: PackedScene
 ## The music track for runs in this theme; empty = the level config's music_id.
 @export var music_id: StringName = &""

@@ -2306,11 +2306,12 @@ func test_a_failed_start_saves_no_theme() -> void:
 
 
 ## AC 5: the shipped levels start in a shipped theme with no warning or error. Story 10.2: Zombie Run's theme is
-## drawn among its three (ThemePicker.theme_rng(42)), so it is checked by membership; the others ship one.
+## drawn among its three, and Story 10.3: Horde Rush's among its three (ThemePicker.theme_rng(42)), so both are checked
+## by membership; Pitchfork Panic ships one.
 func test_shipped_levels_start_in_their_theme() -> void:
 	var expected: Dictionary[StringName, Array] = {
 		&"zombie_run": [&"sunny_village_green", &"pumpkin_patch_farm", &"snowy_town"],
-		&"horde_rush": [&"farmhouse"],
+		&"horde_rush": [&"farmhouse", &"castle", &"beach_hut"],
 		&"pitchfork_panic": [&"moonlit_village"],
 	}
 	for level_id: StringName in expected:
@@ -2397,4 +2398,97 @@ func test_every_zombie_run_theme_can_be_drawn() -> void:
 	for run_seed: int in range(1, 61):
 		drawn[ThemePicker.pick(themes, &"", ThemePicker.theme_rng(run_seed)).id] = true
 	for theme_id: StringName in ZOMBIE_RUN_THEMES:
+		assert_true(drawn.has(theme_id), "%s drawn over seeds 1..60" % theme_id)
+
+
+# --- Story 10.3: the Horde Rush house + defender pairs ---
+
+const HORDE_RUSH_THEMES: Array[StringName] = [&"farmhouse", &"castle", &"beach_hut"]
+
+
+func _shipped_horde_rush_themes() -> Array[LevelTheme]:
+	var registry: LevelRegistry = load("res://data/levels/level_registry.tres") as LevelRegistry
+	return registry.get_entry(&"horde_rush").themes
+
+
+## A scripted Horde Rush run on `frame`: words typed through the session, fixed _process steps between
+## them; returns what the rules decide (targets, defender and field counts, arrival brains).
+func _scripted_horde_run(frame: RunFrameScript) -> Dictionary:
+	var level: Node = frame.get_level()
+	var words: Array[String] = []
+	for burst: int in 3:
+		for w: int in 4:
+			var word: String = frame.get_session().get_current_target()
+			for c: String in word:
+				_send_char(frame, c)
+			words.append(word)
+		for i: int in 150:
+			level._process(1.0 / 60.0)
+	var defender: HordeDefender = level.get_defender()
+	var field: HordeField = level.get_field()
+	return {
+		"words": words,
+		"thrown": defender.get_thrown_count(),
+		"hit": defender.get_hit_count(),
+		"miss": defender.get_miss_count(),
+		"spawned": field.get_spawned_count(),
+		"stopped": field.get_stopped_count(),
+		"arrived": field.get_arrived_count(),
+		"brains": level.get_brains_earned(),
+	}
+
+
+## AC 7: the pair never changes the rules. Same seed, each pair forced, the same scripted words and steps: the
+## same targets, LevelConfig, throws, hits, misses, stops, arrivals and brains; %Field and %Defender are that
+## pair's scenes.
+func test_horde_rush_rules_do_not_change_with_the_pair() -> void:
+	var scenes: Dictionary[StringName, Array] = {}
+	for theme: LevelTheme in _shipped_horde_rush_themes():
+		scenes[theme.id] = [theme.backdrop.resource_path, theme.defender.resource_path]
+	assert_eq(scenes.keys(), HORDE_RUSH_THEMES as Array, "the shipped Horde Rush themes")
+	var first: Dictionary = {}
+	var first_config: LevelConfig = null
+	for theme_id: StringName in HORDE_RUSH_THEMES:
+		var data: PlayerDataScript = _fake_player_data()
+		var frame: RunFrameScript = _make({"level_id": &"horde_rush", "seed": 42, "theme": theme_id}, null, data)
+		add_child_autofree(frame)
+		assert_eq(frame.get_theme_id(), theme_id, "forced theme")
+		var level: LevelBase = frame.get_level()
+		assert_eq(level.get_node("%Field").scene_file_path, scenes[theme_id][0], "%s field" % theme_id)
+		assert_eq(level.get_node("%Defender").scene_file_path, scenes[theme_id][1], "%s defender" % theme_id)
+		var config: LevelConfig = level.get_level_config()
+		var outcome: Dictionary = _scripted_horde_run(frame)
+		assert_gt(outcome["thrown"], 0, "%s: the defender threw" % theme_id)
+		if first_config == null:
+			first_config = config
+			first = outcome
+			continue
+		assert_eq(config, first_config, "%s: same LevelConfig" % theme_id)
+		assert_eq(outcome, first, "%s: same targets and outcome for the same seed" % theme_id)
+	assert_eq(_nav, [], "no failed-load navigation")
+	assert_push_warning_count(0)
+	assert_push_error_count(0)
+
+
+## FR76: the same house never shows twice in a row.
+func test_horde_rush_never_repeats_its_pair() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var seen: Array[StringName] = []
+	for run_seed: int in range(1, 6):
+		var frame: RunFrameScript = _make({"level_id": &"horde_rush", "seed": run_seed}, null, data)
+		add_child_autofree(frame)
+		seen.append(frame.get_theme_id())
+	for i: int in range(1, seen.size()):
+		assert_ne(seen[i], seen[i - 1], "run %d repeats %s" % [i + 1, seen[i]])
+	assert_push_warning_count(0)
+	assert_push_error_count(0)
+
+
+## Every shipped Horde Rush pair is really drawn.
+func test_every_horde_rush_pair_can_be_drawn() -> void:
+	var themes: Array[LevelTheme] = _shipped_horde_rush_themes()
+	var drawn: Dictionary[StringName, bool] = {}
+	for run_seed: int in range(1, 61):
+		drawn[ThemePicker.pick(themes, &"", ThemePicker.theme_rng(run_seed)).id] = true
+	for theme_id: StringName in HORDE_RUSH_THEMES:
 		assert_true(drawn.has(theme_id), "%s drawn over seeds 1..60" % theme_id)

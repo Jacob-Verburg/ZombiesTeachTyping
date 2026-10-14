@@ -45,39 +45,41 @@ extends LevelBase
 ## The shuffle is a slide and an edge-on squash into the copy's own lane's doorway; the pop is the shared brain.
 ##
 ## The art (Story 6.6, docs/art-style-sheet.md): %Field holds two static layers, field.png (the sky band and
-## five baked soil lanes, so a lane_count change needs new field art) and farmhouse.png at HOUSE_FRONT_X,
-## whose field edge has a doorway per lane on that lane's feet line. The defender is the Farmer
-## (HordeFarmer): idle before the first key and after the end, walking while he paces, a one-shot throw on
-## every throw, all from logic. A tomato is the tomato_fly sheet; every hit (non-final or final) spawns a
-## self-freeing HordeTomatoSplat under %Effects at the landing point; a non-final hit swaps the copy's
-## walk for its flash frames (the walk recoloured, PlayerZombie.set_flashing) for hit_flash_s; a final
-## hit plays the copy's melt frames over melt_s (PlayerZombie.melt) and then frees it. Stamp red is
-## reserved (DESIGN.md D16): the tomato and the flash are pumpkin.
+## five baked lanes, so a lane_count change needs new field art) and the house at HOUSE_FRONT_X, whose field
+## edge has a doorway per lane on that lane's feet line. The defender (HordeDefenderSprite: the Farmer, or a
+## theme's Knight or Lifeguard): idle before the first key and after the end, walking while he paces, a
+## one-shot throw on every throw, all from logic. A projectile is the pair's projectile scene; every hit
+## (non-final or final) spawns the pair's self-freeing HordeHitEffect under %Effects at the landing point; a
+## non-final hit swaps the copy's walk for its flash frames (the walk recoloured, PlayerZombie.set_flashing)
+## for hit_flash_s; a final hit plays the copy's melt frames over melt_s (PlayerZombie.melt) and then frees
+## it. Stamp red is reserved (DESIGN.md D16): the tomato and the flash are pumpkin.
 ##
 ## Sounds (Story 6.6): the march is RunFrame's (horde_rush.tres music_id). Through the play_sfx seam:
-## sfx_zombie_spawn per spawned copy (in the key's call), sfx_tomato_throw per throw, sfx_tomato_hit per
+## sfx_zombie_spawn per spawned copy (in the key's call), the pair's throw sound per throw, its hit sound per
 ## non-final hit and sfx_melt per final hit (no hit sound on top), all in the logic step that resolves them,
 ## never from a tween, never after on_run_ending(), no RNG (AudioManager throttles the bursts).
 ##
 ## Themes (Story 10.1): a theme's backdrop replaces %Field and its defender replaces %Defender (it stays
-## under %Zombies, so it still y-sorts). The swap happens before _ready, so _defender_view and _farmer pick
-## up the theme's defender; a defender that is not a HordeFarmer still paces, it just has no animations.
+## under %Zombies, so it still y-sorts). The swap happens before _ready, so _defender_view and
+## _defender_sprite pick up the theme's defender; a defender that is not a HordeDefenderSprite still paces,
+## it just has no animations. Pairs (Story 10.3): the projectile, hit effect and throw/hit sounds travel
+## with the defender scene (HordeDefenderSprite's exports), read once in _ready; a defender that brings none
+## throws tomatoes (TOMATO_SCENE, TOMATO_SPLAT_SCENE, SFX_THROW, SFX_HIT are the built-in pair's fallbacks).
 ##
 ## Tuning (Story 6.7): every number lives in horde_rush.tres, tuned with the headless sim
 ## tools/horde_rush_sim.gd (the story's Tuning Results). Stress hold (Story 6.7, NFR1, debug only): the
 ## debug overlay's F4 sets a floor of marching copies that _process tops up, one per frame, from
-## STRESS_WORDS.
+## STRESS_WORDS. Every pair shares that tuning and the lane layout.
 ##
-## Unlocked by a finished Zombie Run (Story 6.8, the registry's unlocked_by). Still to come: the Castle + Knight and
-## Beach Hut + Lifeguard pairs (Epic 10).
+## Unlocked by a finished Zombie Run (Story 6.8, the registry's unlocked_by).
 
 const PLAYER_ZOMBIE_SCENE: PackedScene = preload("res://scenes/characters/player_zombie.tscn")
 const TOMATO_SCENE: PackedScene = preload("res://scenes/levels/horde_rush/tomato.tscn")
 const TOMATO_SPLAT_SCENE: PackedScene = preload("res://scenes/levels/horde_rush/tomato_splat.tscn")
 ## The "+N" brain pop over the house front.
 const ARRIVAL_POP_SCENE: PackedScene = preload("res://scenes/levels/horde_rush/arrival_pop.tscn")
-## Sound ids (data/audio/audio_library.tres). The tomato ones belong to the Farmhouse pair (Epic 10 adds
-## its own per pair); the spawn and the melt are pair-independent.
+## Sound ids (data/audio/audio_library.tres). The tomato ones are the Farmhouse pair's, the fallback when a
+## defender scene brings no sounds (Story 10.3); the spawn and the melt are pair-independent.
 const SFX_SPAWN: StringName = &"sfx_zombie_spawn"
 const SFX_THROW: StringName = &"sfx_tomato_throw"
 const SFX_HIT: StringName = &"sfx_tomato_hit"
@@ -153,14 +155,20 @@ var _brains: int = 0
 var _stress_floor: int = 0
 ## The next STRESS_WORDS index.
 var _stress_next: int = 0
+## The pair's projectile, hit effect and sounds (Story 10.3), read from the defender scene in _ready; the
+## built-in tomato pair's when the defender brings none.
+var _projectile_scene: PackedScene = TOMATO_SCENE
+var _hit_scene: PackedScene = TOMATO_SPLAT_SCENE
+var _throw_sfx: StringName = SFX_THROW
+var _hit_sfx: StringName = SFX_HIT
 
 @onready var _zombies: Node2D = %Zombies
 @onready var _projectiles: Node2D = %Projectiles
 @onready var _defender_view: Node2D = %Defender
 @onready var _effects: Node2D = %Effects
-## The defender view as the Farmer; null when %Defender is some other node (it still moves, it just does
-## not animate).
-@onready var _farmer: HordeFarmer = _defender_view as HordeFarmer
+## The defender view as the shared defender sprite; null when %Defender is some other node (it still
+## moves, it just does not animate).
+@onready var _defender_sprite: HordeDefenderSprite = _defender_view as HordeDefenderSprite
 
 
 func _ready() -> void:
@@ -168,6 +176,7 @@ func _ready() -> void:
 		request_voice = AudioManager.play_voice
 	if not play_sfx.is_valid():
 		play_sfx = AudioManager.play_sfx
+	_resolve_pair()
 	_cfg = config as HordeRushConfig
 	if _cfg == null:
 		assert(false, "HordeRushLevel needs a HordeRushConfig")
@@ -175,6 +184,30 @@ func _ready() -> void:
 		return
 	if not _lanes_fit():
 		Log.error(&"level", "horde rush: %d lanes do not fit above the HUD" % _cfg.lane_count)
+
+
+## The pair travels with the defender scene (_ready runs after apply_theme, so this is the theme's
+## defender). A defender that is not a HordeDefenderSprite throws tomatoes silently; a sprite with an empty
+## export warns once per export (NFR16) and uses the tomato pair's value for it.
+func _resolve_pair() -> void:
+	if _defender_sprite == null:
+		return
+	if _defender_sprite.projectile_scene != null:
+		_projectile_scene = _defender_sprite.projectile_scene
+	else:
+		Log.warn(&"level", "horde rush: defender has no projectile scene, using the tomato")
+	if _defender_sprite.hit_scene != null:
+		_hit_scene = _defender_sprite.hit_scene
+	else:
+		Log.warn(&"level", "horde rush: defender has no hit scene, using the tomato splat")
+	if _defender_sprite.throw_sfx != &"":
+		_throw_sfx = _defender_sprite.throw_sfx
+	else:
+		Log.warn(&"level", "horde rush: defender has no throw sound, using the tomato's")
+	if _defender_sprite.hit_sfx != &"":
+		_hit_sfx = _defender_sprite.hit_sfx
+	else:
+		Log.warn(&"level", "horde rush: defender has no hit sound, using the tomato's")
 
 
 func _backdrop_slot() -> StringName:
@@ -290,8 +323,8 @@ func _reset() -> void:
 			tomato.queue_free()
 	_projectile_views.clear()
 	_defender_running = false
-	if _farmer != null:
-		_farmer.play_idle()
+	if _defender_sprite != null:
+		_defender_sprite.play_idle()
 	_frozen = false
 	_brains = 0
 	_stress_floor = 0
@@ -360,8 +393,8 @@ func on_run_ending(_reason: StringName) -> float:
 		view.set_flashing(false)
 		view.dance(_cfg.outro_time_s)
 	_flash_tweens.clear()
-	if _farmer != null:
-		_farmer.play_idle()
+	if _defender_sprite != null:
+		_defender_sprite.play_idle()
 	return _cfg.outro_time_s
 
 
@@ -477,9 +510,9 @@ func _logic_step(dt: float) -> void:
 	var step: HordeDefender.Step = _defender.advance(dt, _field)
 	for projectile: HordeProjectile in step.thrown:
 		_add_projectile_view(projectile)
-		if _farmer != null:
-			_farmer.play_throw()
-		_play_sfx(SFX_THROW)
+		if _defender_sprite != null:
+			_defender_sprite.play_throw()
+		_play_sfx(_throw_sfx)
 	for projectile: HordeProjectile in step.landed:
 		var tomato: Node2D = _projectile_views.get(projectile.id) as Node2D
 		_projectile_views.erase(projectile.id)
@@ -492,7 +525,7 @@ func _logic_step(dt: float) -> void:
 			_play_sfx(SFX_MELT)
 			_on_marcher_stopped(projectile.hit_marcher)
 		else:
-			_play_sfx(SFX_HIT)
+			_play_sfx(_hit_sfx)
 			_flash(projectile.hit_marcher)
 
 
@@ -511,11 +544,11 @@ func _update_views() -> void:
 		if tomato != null:
 			tomato.position = _tomato_position(projectile)
 	_update_defender_view()
-	if _farmer != null:
+	if _defender_sprite != null:
 		if _defender_running:
-			_farmer.play_walk()
+			_defender_sprite.play_walk()
 		else:
-			_farmer.play_idle()
+			_defender_sprite.play_idle()
 
 
 func _update_defender_view() -> void:
@@ -531,10 +564,10 @@ func _tomato_position(projectile: HordeProjectile) -> Vector2:
 
 
 func _add_projectile_view(projectile: HordeProjectile) -> void:
-	var tomato: Node2D = TOMATO_SCENE.instantiate() as Node2D
+	var tomato: Node2D = _projectile_scene.instantiate() as Node2D
 	if tomato == null:
 		# The projectile still flies and lands (logic leads); only its sprite is missing.
-		Log.error(&"level", "horde rush: tomato.tscn root is not a Node2D")
+		Log.error(&"level", "horde rush: projectile scene root is not a Node2D")
 		return
 	tomato.position = _tomato_position(projectile)
 	_projectiles.add_child(tomato)
@@ -545,9 +578,9 @@ func _add_projectile_view(projectile: HordeProjectile) -> void:
 func _spawn_splat(at: Vector2) -> void:
 	if _effects == null:
 		return
-	var splat: Node2D = TOMATO_SPLAT_SCENE.instantiate() as Node2D
+	var splat: Node2D = _hit_scene.instantiate() as Node2D
 	if splat == null:
-		Log.error(&"level", "horde rush: tomato_splat.tscn root is not a Node2D")
+		Log.error(&"level", "horde rush: hit scene root is not a Node2D")
 		return
 	splat.position = at
 	_effects.add_child(splat)

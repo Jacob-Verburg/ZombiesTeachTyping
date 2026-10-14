@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" uid="uid://mj8si6q18pfm" path="res://assets/sprites/backdrops/beach_hut/field.png" id="3_field"]
+[ext_resource type="Texture2D" uid="uid://chr83k3wckqgm" path="res://assets/sprites/backdrops/beach_hut/beach_hut.png" id="4_house"]
+
+[node name="Field" type="Node2D"]
+
+[node name="FieldArt" type="Sprite2D" parent="."]
+texture = ExtResource("3_field")
+centered = false
+
+[node name="House" type="Sprite2D" parent="."]
+position = Vector2(548, 0)
+texture = ExtResource("4_house")
+centered = false

@@ -6,7 +6,8 @@ extends GutTest
 ## Story 8.6 Pitchfork Panic set (the four mob runs, the zombie's dazed sit, the dizzy star, the mob hint,
 ## the dust cloud and the escape bush) and the Story 9.1 hats (Witch, Bunny ears, Santa, Leprechaun, Heart
 ## headband, Top hat, Pirate, Crown) and the Story 9.2 pets (Black cat, Spider, Orange cat, Bat, Crow,
-## Wolf-dog, Floating eyeball, Brain buddy): size, hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty distinct frames on one ground
+## Wolf-dog, Floating eyeball, Brain buddy) and the Story 10.3 Horde Rush pairs (the Knight and the Lifeguard, the toy
+## dart and its hit, the water balloon and its splash): size, hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty distinct frames on one ground
 ## line, and pixel-crisp import settings.
 ## Read from the committed PNG bytes (Image.load_from_file), so import state doesn't matter.
 ## Frame size per sheet: characters (and the poof) 32x32, props 16x16, effects 48x48 (style sheet section 3).
@@ -54,6 +55,23 @@ const HORDE_RUSH_SHEETS: Array[String] = [
 ]
 ## The tomato in flight is small next to a 32 px copy.
 const TOMATO_MAX_WIDTH: int = 8
+## Story 10.3: the Castle and Beach Hut pairs (the Knight, the Lifeguard, the toy dart and the water balloon).
+const KNIGHT_DIR: String = "res://assets/sprites/characters/knight/"
+const LIFEGUARD_DIR: String = "res://assets/sprites/characters/lifeguard/"
+const DART_FLY_PATH: String = PROPS_DIR + "dart_fly.png"
+const DART_HIT_PATH: String = PROPS_DIR + "dart_hit.png"
+const BALLOON_FLY_PATH: String = PROPS_DIR + "water_balloon_fly.png"
+const BALLOON_SPLASH_PATH: String = PROPS_DIR + "water_balloon_splash.png"
+## Story 10.3 sheets: never stamp-red (D16), candy-yellow (focus) or art-moon (the moon).
+const HORDE_RUSH_PAIR_SHEETS: Array[String] = [
+	KNIGHT_DIR + "knight_idle.png", KNIGHT_DIR + "knight_walk.png", KNIGHT_DIR + "knight_throw.png",
+	LIFEGUARD_DIR + "lifeguard_idle.png", LIFEGUARD_DIR + "lifeguard_walk.png", LIFEGUARD_DIR + "lifeguard_throw.png",
+	DART_FLY_PATH, DART_HIT_PATH, BALLOON_FLY_PATH, BALLOON_SPLASH_PATH,
+]
+## The toy dart in flight stays small next to a 32 px copy; so does the balloon.
+const DART_MAX_WIDTH: int = 12
+const DART_MAX_HEIGHT: int = 6
+const BALLOON_MAX_WIDTH: int = 8
 ## Character sheet path -> frame count (FRAME x FRAME frames).
 const SHEETS: Dictionary[String, int] = {
 	"res://assets/sprites/characters/zombie/zombie_idle.png": 2,
@@ -86,6 +104,12 @@ const SHEETS: Dictionary[String, int] = {
 	MOB_TORCH_ALT_PATH: 4,
 	DAZED_PATH: 2,
 	MOB_HINT_PATH: 2,
+	KNIGHT_DIR + "knight_idle.png": 2,
+	KNIGHT_DIR + "knight_walk.png": 4,
+	KNIGHT_DIR + "knight_throw.png": 3,
+	LIFEGUARD_DIR + "lifeguard_idle.png": 2,
+	LIFEGUARD_DIR + "lifeguard_walk.png": 4,
+	LIFEGUARD_DIR + "lifeguard_throw.png": 3,
 }
 ## Prop sheet path -> frame count (PROP_FRAME x PROP_FRAME frames).
 const PROP_SHEETS: Dictionary[String, int] = {
@@ -94,6 +118,10 @@ const PROP_SHEETS: Dictionary[String, int] = {
 	PROPS_DIR + "brain_pop.png": 2,
 	TOMATO_FLY_PATH: 2,
 	TOMATO_SPLAT_PATH: 3,
+	DART_FLY_PATH: 2,
+	DART_HIT_PATH: 3,
+	BALLOON_FLY_PATH: 2,
+	BALLOON_SPLASH_PATH: 3,
 	DIZZY_STAR_PATH: 2,
 }
 ## Effect sheet path -> frame count (EFFECT_FRAME x EFFECT_FRAME frames), Story 8.6.
@@ -219,6 +247,13 @@ const ART_MOON: String = "fff3b0"
 ## The Farmer legend in tools/gen_horde_rush_art.gd: ink, both skins, parchment-shade, wood-light, wood-dark,
 ## chalk, stone, ink-muted.
 const FARMER_COLOURS: Array[String] = [INK, ART_SKIN_LIGHT, ART_SKIN_DARK, "d9bc84", "c08447", WOOD_DARK, CHALK, STONE, "4e4757"]
+## The Knight and Lifeguard legends in tools/gen_horde_rush_pairs_art.gd (Story 10.3).
+const KNIGHT_COLOURS: Array[String] = [INK, ART_SKIN_LIGHT, ART_SKIN_DARK, STONE_LIGHT, STONE, INK_MUTED, PUMPKIN,
+		PUMPKIN_LIGHT, ART_SKY, CHALK, WOOD_DARK]
+const LIFEGUARD_COLOURS: Array[String] = [INK, ART_SKIN_LIGHT, ART_SKIN_DARK, WOOD_DARK, CHALK, ART_SKY, STONE,
+		STONE_LIGHT, PUMPKIN, ART_SKY_LIGHT]
+const ART_SKY: String = "7ec8e3"
+const ART_SKY_LIGHT: String = "bfe6f2"
 ## Orthogonal neighbours (up, down, left, right).
 const NEIGHBOURS: Array[Vector2i] = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]
 
@@ -449,6 +484,13 @@ func test_right_color_ramps_used() -> void:
 		elif PETS.has(path):
 			for hex: String in PET_COLOURS[path]:
 				assert_true(colors.has(hex), "%s uses %s" % [_name(path), hex])
+		elif path == DART_FLY_PATH or path == DART_HIT_PATH:
+			assert_true(colors.has(PUMPKIN), "%s has no pumpkin cup rim" % _name(path))
+			assert_true(colors.has(PUMPKIN_LIGHT), "%s has no pumpkin-light cup" % _name(path))
+			assert_true(colors.has(CHALK), "%s has no chalk" % _name(path))
+		elif path == BALLOON_FLY_PATH or path == BALLOON_SPLASH_PATH:
+			assert_true(colors.has(ART_SKY), "%s has no art-sky water" % _name(path))
+			assert_true(colors.has(ART_SKY_LIGHT), "%s has no art-sky-light" % _name(path))
 		elif path == TOMATO_FLY_PATH or path == TOMATO_SPLAT_PATH:
 			assert_true(colors.has(PUMPKIN), "%s has no pumpkin" % _name(path))
 			assert_true(colors.has(PUMPKIN_LIGHT), "%s has no pumpkin-light" % _name(path))
@@ -875,3 +917,71 @@ func test_mob_hint_fits_its_frame() -> void:
 		assert_true(used.position.y >= 1, "hint frame %d top margin" % frame)
 		assert_true(used.end.x <= FRAME - 1, "hint frame %d right margin" % frame)
 		assert_eq(used.end.y, FRAME - 1, "hint frame %d stands on row 30" % frame)
+
+
+## Story 10.3: a defender is a human: skin only art-skin-light/-dark, no zombie green or bat-purple on him,
+## nothing outside his legend.
+func _assert_defender_is_human(dir: String, prefix: String, legend: Array[String]) -> void:
+	for anim: String in ["idle", "walk", "throw"]:
+		var image: Image = _load(dir + "%s_%s.png" % [prefix, anim])
+		assert_not_null(image, "%s %s missing" % [prefix, anim])
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		assert_true(colors.has(ART_SKIN_LIGHT), "%s %s has art-skin-light" % [prefix, anim])
+		assert_true(colors.has(ART_SKIN_DARK), "%s %s has art-skin-dark" % [prefix, anim])
+		for hex: String in [ZOMBIE_GREEN, ZOMBIE_GREEN_BRIGHT, ZOMBIE_GREEN_DARK, BAT_PURPLE]:
+			assert_false(colors.has(hex), "%s %s uses %s" % [prefix, anim, hex])
+		for hex: String in colors:
+			assert_true(legend.has(hex), "%s %s has off-legend colour %s" % [prefix, anim, hex])
+
+
+func test_knight_skin_is_human() -> void:
+	_assert_defender_is_human(KNIGHT_DIR, "knight", KNIGHT_COLOURS)
+
+
+func test_lifeguard_skin_is_human() -> void:
+	_assert_defender_is_human(LIFEGUARD_DIR, "lifeguard", LIFEGUARD_COLOURS)
+
+
+func test_horde_rush_pair_sheets_never_use_reserved_colours() -> void:
+	for path: String in HORDE_RUSH_PAIR_SHEETS:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		var colors: Dictionary[String, bool] = _colors(image)
+		for hex: String in [STAMP_RED, CANDY_YELLOW, ART_MOON]:
+			assert_false(colors.has(hex), "%s uses %s" % [_name(path), hex])
+
+
+## Opaque rows of one frame: bottom - top + 1 (0 when empty).
+func _opaque_height(image: Image, frame: int, size: int) -> int:
+	var top: int = size
+	var bottom: int = -1
+	for y: int in size:
+		for x: int in size:
+			if _opaque(image, frame * size + x, y):
+				top = mini(top, y)
+				bottom = maxi(bottom, y)
+	return bottom - top + 1 if bottom >= 0 else 0
+
+
+func test_dart_is_small() -> void:
+	var image: Image = _load(DART_FLY_PATH)
+	assert_not_null(image)
+	if image == null:
+		return
+	for frame: int in PROP_SHEETS[DART_FLY_PATH]:
+		assert_between(_opaque_width(image, frame, PROP_FRAME), 1, DART_MAX_WIDTH, "dart frame %d width" % frame)
+		assert_between(_opaque_height(image, frame, PROP_FRAME), 1, DART_MAX_HEIGHT, "dart frame %d height" % frame)
+
+
+func test_water_balloon_is_small() -> void:
+	var image: Image = _load(BALLOON_FLY_PATH)
+	assert_not_null(image)
+	if image == null:
+		return
+	for frame: int in PROP_SHEETS[BALLOON_FLY_PATH]:
+		assert_between(_opaque_width(image, frame, PROP_FRAME), 1, BALLOON_MAX_WIDTH,
+				"balloon frame %d width" % frame)

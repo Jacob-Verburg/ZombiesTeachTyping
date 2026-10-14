@@ -28,6 +28,10 @@ const NIGHT_COLOR_TEXT: String = "color = Color(0.16862745, 0.11372549, 0.247058
 const HORDE_RUSH_ART_SCENES: Array[String] = [
 	"res://scenes/levels/horde_rush/horde_rush_level.tscn", "res://scenes/levels/horde_rush/tomato.tscn",
 	"res://scenes/levels/horde_rush/themes/farmhouse.tscn",
+	"res://scenes/levels/horde_rush/themes/castle.tscn", "res://scenes/levels/horde_rush/themes/beach_hut.tscn",
+	"res://scenes/levels/horde_rush/knight.tscn", "res://scenes/levels/horde_rush/lifeguard.tscn",
+	"res://scenes/levels/horde_rush/dart.tscn", "res://scenes/levels/horde_rush/dart_hit.tscn",
+	"res://scenes/levels/horde_rush/water_balloon.tscn", "res://scenes/levels/horde_rush/water_balloon_splash.tscn",
 ]
 const EXEMPT_SCENES: Array[String] = ["res://scenes/screens/keyboard_test.tscn"]
 const THEME_PATH: String = "res://data/ui_theme.tres"

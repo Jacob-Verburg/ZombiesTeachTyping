@@ -10,7 +10,8 @@ extends Control
 ## props are 16x16 frames (an animation's "size", default FRAME). Story 6.6 adds the Horde Rush set
 ## (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat). Story 8.6 adds the
 ## Pitchfork Panic set (the four mob runs, the zombie's dazed sit, the dizzy star, the mob hint, and the 48x48
-## dust cloud and escape bush). A page holds up to PAGE_SIZE animations, fewer when wide 48 px columns would
+## dust cloud and escape bush). Story 10.3 adds the Horde Rush pairs (the Knight's and the Lifeguard's idle/walk/throw, the
+## toy dart and its hit, the water balloon and its splash). A page holds up to PAGE_SIZE animations, fewer when wide 48 px columns would
 ## run off the 640 px view; the type specimen hides on a page whose 3x sprites reach down to it.
 ## B cycles the plain background (palette colors only), N the animation page, Esc quits. F3/F5/F8/F9 are left alone (the
 ## debug overlay, added by the Router in debug runs, owns them).
@@ -79,6 +80,16 @@ const ANIMATIONS: Array[Dictionary] = [
 	{"name": "mob_hint", "path": "res://assets/sprites/props/mob_hint.png", "frames": 2, "fps": HINT_FPS},
 	{"name": "dust_cloud", "path": "res://assets/sprites/props/dust_cloud.png", "frames": 4, "fps": DUST_FPS, "size": EFFECT_FRAME},
 	{"name": "escape_bush", "path": "res://assets/sprites/props/escape_bush.png", "frames": 3, "fps": BUSH_FPS, "size": EFFECT_FRAME},
+	{"name": "knight_idle", "path": "res://assets/sprites/characters/knight/knight_idle.png", "frames": 2, "fps": IDLE_FPS},
+	{"name": "knight_walk", "path": "res://assets/sprites/characters/knight/knight_walk.png", "frames": 4, "fps": WALK_FPS},
+	{"name": "knight_throw", "path": "res://assets/sprites/characters/knight/knight_throw.png", "frames": 3, "fps": FARMER_THROW_FPS},
+	{"name": "dart_fly", "path": "res://assets/sprites/props/dart_fly.png", "frames": 2, "fps": TOMATO_FPS, "size": PROP_FRAME},
+	{"name": "dart_hit", "path": "res://assets/sprites/props/dart_hit.png", "frames": 3, "fps": SPLAT_FPS, "size": PROP_FRAME},
+	{"name": "lifeguard_idle", "path": "res://assets/sprites/characters/lifeguard/lifeguard_idle.png", "frames": 2, "fps": IDLE_FPS},
+	{"name": "lifeguard_walk", "path": "res://assets/sprites/characters/lifeguard/lifeguard_walk.png", "frames": 4, "fps": WALK_FPS},
+	{"name": "lifeguard_throw", "path": "res://assets/sprites/characters/lifeguard/lifeguard_throw.png", "frames": 3, "fps": FARMER_THROW_FPS},
+	{"name": "balloon_fly", "path": "res://assets/sprites/props/water_balloon_fly.png", "frames": 2, "fps": TOMATO_FPS, "size": PROP_FRAME},
+	{"name": "balloon_splash", "path": "res://assets/sprites/props/water_balloon_splash.png", "frames": 3, "fps": SPLAT_FPS, "size": PROP_FRAME},
 ]
 ## Most animations shown at once (one row of columns); N shows the next page.
 const PAGE_SIZE: int = 4

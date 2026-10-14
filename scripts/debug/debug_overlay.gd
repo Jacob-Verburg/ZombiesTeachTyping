@@ -35,6 +35,8 @@ extends CanvasLayer
 ## zombie_run entry (loaded lazily, never preloaded), labelled with the theme id (debug text) and jumping with
 ## {"level_id": &"zombie_run", "theme": <id>}, so each town opens directly (from the menu card the theme is
 ## random). They follow the same rules as the other jumps (mouse-only, main menu only).
+## Story 10.3: the row also holds one button per Horde Rush pair ({"level_id": &"horde_rush", "theme": <id>}), built
+## the same way (THEME_JUMP_LEVELS).
 ## Closed = no per-frame work (_process off, refresh timer stopped). Nothing is logged per frame.
 ## A section is one label plus one _refresh_* called from _refresh().
 ## player_data, save_service, find_run_frame, navigate and current_screen are test seams: tests assign them before add_child.
@@ -58,6 +60,8 @@ const TARGET_SHOWN_CHARS: int = 16
 const STRESS_COPIES: int = 30
 ## Read for the theme jump buttons (Story 10.2): load(), not preload, like PlayerData.
 const LEVEL_REGISTRY_PATH: String = "res://data/levels/level_registry.tres"
+## The levels whose themes get jump buttons: Zombie Run (Story 10.2) and Horde Rush (Story 10.3).
+const THEME_JUMP_LEVELS: Array[StringName] = [&"zombie_run", &"horde_rush"]
 const HELP_TEXT: String = "F5 +100 brains  F6 end run  F7 typing log\nF8 reset  F9 export  F2 pin seed  F4 stress"
 const CONFIRM_TEXT: String = "Reset the save? F8 again = yes, any other key = no"
 
@@ -366,22 +370,25 @@ func _refresh_jumps() -> void:
 		(child as Button).disabled = not on_menu
 
 
-## One jump button per Zombie Run theme in the shipped registry, in registry order.
+## One jump button per theme of each THEME_JUMP_LEVELS level in the shipped registry, in registry order.
 func _build_theme_jumps() -> void:
 	var registry: LevelRegistry = load(LEVEL_REGISTRY_PATH) as LevelRegistry
-	var entry: LevelEntry = registry.get_entry(&"zombie_run") if registry != null else null
-	if entry == null:
+	if registry == null:
 		return
-	for theme: LevelTheme in entry.themes:
-		if theme == null:
+	for level_id: StringName in THEME_JUMP_LEVELS:
+		var entry: LevelEntry = registry.get_entry(level_id)
+		if entry == null:
 			continue
-		var button: Button = Button.new()
-		button.name = "JumpTheme_%s" % theme.id
-		button.text = String(theme.id)
-		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_font_size_override(&"font_size", 8)
-		button.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": &"zombie_run", "theme": theme.id}))
-		%JumpThemeRow.add_child(button)
+		for theme: LevelTheme in entry.themes:
+			if theme == null:
+				continue
+			var button: Button = Button.new()
+			button.name = "JumpTheme_%s" % theme.id
+			button.text = String(theme.id)
+			button.focus_mode = Control.FOCUS_NONE
+			button.add_theme_font_size_override(&"font_size", 8)
+			button.pressed.connect(_jump.bind(Router.Screen.RUN, {"level_id": level_id, "theme": theme.id}))
+			%JumpThemeRow.add_child(button)
 
 
 func _on_main_menu() -> bool:

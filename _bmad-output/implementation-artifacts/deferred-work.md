@@ -830,7 +830,7 @@
 - `SunnyVillageBackdrop` still names one look but drives both the Sunny Village Green and the Moonlit Village theme scenes (and the test fixture backdrop). Rename it (e.g. `ParallaxBackdrop`, ~6 test files) when 10.2 adds a third parallax look. Resolved in 10.2: `SunnyVillageBackdrop` renamed `ParallaxBackdrop` (`scripts/levels/zombie_run/parallax_backdrop.gd`, uid kept).
 - Per-theme dive props for Pitchfork Panic (`EscapeBush`, `DustCloud`, `DizzyStars` stay in the level scene) are left to 10.4; Horde Rush's projectile scene and throw/hit SFX (the tomato consts in `horde_rush_level.gd`) are left to 10.3, which extends `LevelTheme`.
 - Theme slots are swapped only before the level enters the tree (`LevelBase._swap_slot`); a theme part that has to change mid-run would need a different mechanism.
-- A non-`HordeFarmer` defender paces with no animations (`_farmer` null); a 10.3 defender that wants idle/walk/throw needs the same API or an interface.
+- A non-`HordeFarmer` defender paces with no animations (`_farmer` null); a 10.3 defender that wants idle/walk/throw needs the same API or an interface. Resolved in 10.3: Horde Rush projectile and SFX per pair (on the defender scene, not `LevelTheme`); non-Farmer defenders animate (`HordeDefenderSprite`, renamed from `HordeFarmer`; `HordeTomatoSplat` renamed `HordeHitEffect`).
 - `test_screen_flow.gd` instanced RUN on the live `PlayerData` autoload; harmless until runs wrote at start. Since 10.1 RunFrame saves the last theme at run start, so the test now injects a temp PlayerData (first full suite run of this story wrote the dev machine's real save; restored byte-identical, see the story's Debug Log). Any new test that starts a real level through RunFrame must inject `player_data`.
 - The themed test fixture (`tests/fixtures/levels/test_themed_level.tscn`) adds its `%Backdrop` after the test level's labels, so a theme backdrop would draw over them; harmless for tests, never shipped.
 
@@ -859,3 +859,14 @@
 - No structural test for the two new theme scenes' node layout (Clouds/Far/Near/Ground, A+B at 640); only partly covered by `test_new_zombie_run_themes_really_swap` and the RunFrame integration tests.
 - The 2:00 scroll and 12+ follower performance smoke runs were only done at the gates (recorded in the story), not re-run in review.
 - All three Zombie Run skies share the `art-sky` colour (accepted: AC 2 says palette colour, and the layers cover most of the sky).
+
+## Deferred from: dev of story 10-3 (2026-10-14)
+
+- The copy's hit flash stays pumpkin ("splatted") for every pair, also after a dart or a water balloon; a per-pair flash would need new zombie flash sheets per pair (design decision in the story).
+- The Horde Rush level card (`ui_level_card_horde_rush.png`) still shows the Farmhouse, whichever pair the run draws.
+- `LevelTheme.music_id` is unused by the new pairs: every Horde Rush pair plays `mus_horde_rush`.
+- The registry now eagerly loads three Horde Rush pairs (field, house, defender, projectile and hit scenes with their textures) whenever it is loaded (the 10.1 note still applies; small textures, not a measured problem).
+- `HordeHitEffect` fixes 3 frames at 12 fps for every pair (`FRAMES`/`FPS` consts); a pair wanting a longer hit needs an export.
+- The hit scenes keep the animation name `splat` (copied from `tomato_splat.tscn`), also for the dart hit and the water splash; harmless (the tween steps frames), but the name reads tomato-specific.
+- Web smoke console check: the browser pane buffers only recent messages and the debug log is verbose under the F4 stress hold, so the error-only reads at the end of each 3:00 run covered the tail only (same limit as 10.2).
+- The Lifeguard's far leg uses `stone` (knee-length board shorts' shade) and bare feet are `art-skin-dark` rows in the Farmer's boot rows: chosen to reuse the Farmer's leg maps; passed Gate 1.

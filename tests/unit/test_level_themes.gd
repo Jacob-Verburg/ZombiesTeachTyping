@@ -2,6 +2,7 @@ extends GutTest
 ## Levels apply a theme (Story 10.1, FR76): LevelBase.apply_theme swaps the backdrop slot (and Horde Rush's
 ## defender) before the level enters the tree. A level's shipped theme is a no-op (nothing rebuilt); a
 ## different scene really replaces the node; a missing scene warns and keeps the built-in look (NFR16).
+## Story 10.3: the Castle and Beach Hut pairs swap in with their own projectile, hit effect and sounds.
 
 const ZombieRunScene: PackedScene = preload("res://scenes/levels/zombie_run/zombie_run_level.tscn")
 const HordeRushScene: PackedScene = preload("res://scenes/levels/horde_rush/horde_rush_level.tscn")
@@ -180,4 +181,58 @@ func test_null_defender_warns_and_keeps_the_farmer() -> void:
 	assert_push_warning("theme half has no Defender")
 	assert_eq(level.get_node("%Defender").get_instance_id(), before)
 	add_child_autofree(level)
-	assert_true(level.get_defender_view() is HordeFarmer)
+	assert_true(level.get_defender_view() is HordeDefenderSprite)
+
+
+## Story 10.3: the new Horde Rush pairs swap %Field and %Defender like any theme, and the pair's projectile,
+## hit effect and sounds come with the defender scene: the first throw flies the pair's projectile with its
+## throw sound, the first hit spawns its hit effect with its hit sound.
+func test_new_horde_rush_pairs_really_swap() -> void:
+	var registry: LevelRegistry = load(REGISTRY_PATH) as LevelRegistry
+	var pairs: Dictionary[StringName, Array] = {
+		&"castle": ["res://scenes/levels/horde_rush/dart.tscn", "res://scenes/levels/horde_rush/dart_hit.tscn",
+				&"sfx_dart_throw", &"sfx_dart_hit"],
+		&"beach_hut": ["res://scenes/levels/horde_rush/water_balloon.tscn",
+				"res://scenes/levels/horde_rush/water_balloon_splash.tscn", &"sfx_balloon_throw", &"sfx_balloon_hit"],
+	}
+	for theme: LevelTheme in registry.get_entry(&"horde_rush").themes:
+		if not pairs.has(theme.id):
+			continue
+		var level: HordeRushScript = _level(HordeRushScene) as HordeRushScript
+		var sfx: Array[StringName] = []
+		level.play_sfx = func(id: StringName) -> void: sfx.append(id)
+		var old_defender: Node2D = level.get_node("%Defender") as Node2D
+		var defender_index: int = old_defender.get_index()
+		var defender_pos: Vector2 = old_defender.position
+		level.apply_theme(theme)
+		assert_eq(level.get_node("%Field").scene_file_path, theme.backdrop.resource_path, "%s field" % theme.id)
+		var defender: Node2D = level.get_node("%Defender") as Node2D
+		assert_eq(defender.scene_file_path, theme.defender.resource_path, "%s defender" % theme.id)
+		assert_eq(defender.get_parent(), level.get_node("%Zombies"), "%s defender y-sorts" % theme.id)
+		assert_eq(defender.get_index(), defender_index)
+		assert_eq(defender.position, defender_pos)
+		add_child_autofree(level)
+		assert_true(level.get_defender_view() is HordeDefenderSprite, "%s defender animates" % theme.id)
+		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+		rng.seed = 42
+		assert_not_null(level.create_target_source(rng))
+		level.on_target_completed("frog")
+		level.get_field().get_marching()[0].lane = 0
+		level.on_run_started()
+		level._process(1.0 / 60.0)
+		assert_eq(level.get_defender().get_thrown_count(), 1, "%s threw at once" % theme.id)
+		assert_eq(level.get_projectile_view(0).scene_file_path, pairs[theme.id][0], "%s projectile" % theme.id)
+		assert_eq(sfx.back(), pairs[theme.id][2], "%s throw sound" % theme.id)
+		for i: int in 600:
+			if level.get_defender().get_hit_count() > 0:
+				break
+			level._process(1.0 / 60.0)
+		assert_eq(level.get_defender().get_hit_count(), 1, "%s hit the copy" % theme.id)
+		assert_true(sfx.has(pairs[theme.id][3]), "%s hit sound" % theme.id)
+		assert_false(sfx.has(&"sfx_tomato_throw") or sfx.has(&"sfx_tomato_hit"), "%s: no tomato sounds" % theme.id)
+		var effects: Array[String] = []
+		for child: Node in level.get_node("%Effects").get_children():
+			effects.append(child.scene_file_path)
+		assert_true(effects.has(pairs[theme.id][1]), "%s hit effect in %%Effects: %s" % [theme.id, effects])
+	assert_push_warning_count(0)
+	assert_push_error_count(0)

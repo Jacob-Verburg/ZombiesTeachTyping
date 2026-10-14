@@ -27,6 +27,10 @@
 [ext_resource type="AudioStream" uid="uid://dni7kfgjpn688" path="res://assets/audio/sfx/sfx_dust_cloud.wav" id="25_dust"]
 [ext_resource type="AudioStream" uid="uid://uryliepfqhso" path="res://assets/audio/sfx/sfx_escape.wav" id="26_escape"]
 [ext_resource type="AudioStream" uid="uid://djxf2mcn55gjo" path="res://assets/audio/music/mus_pitchfork_panic.ogg" id="27_chase_music"]
+[ext_resource type="AudioStream" uid="uid://gl2ivwntbbpb" path="res://assets/audio/sfx/sfx_dart_throw.wav" id="28_dart_throw"]
+[ext_resource type="AudioStream" uid="uid://b7eqb7fg28sm6" path="res://assets/audio/sfx/sfx_dart_hit.wav" id="29_dart_hit"]
+[ext_resource type="AudioStream" uid="uid://cf6ijovn4304q" path="res://assets/audio/sfx/sfx_balloon_throw.wav" id="30_balloon_throw"]
+[ext_resource type="AudioStream" uid="uid://d264205r7ae2k" path="res://assets/audio/sfx/sfx_balloon_hit.wav" id="31_balloon_hit"]
 
 [sub_resource type="Resource" id="Resource_click"]
 script = ExtResource("2_cue")
@@ -180,9 +184,37 @@ id = &"sfx_escape"
 stream = ExtResource("26_escape")
 volume_db = -7.0
 
+[sub_resource type="Resource" id="Resource_dart_throw"]
+script = ExtResource("2_cue")
+id = &"sfx_dart_throw"
+stream = ExtResource("28_dart_throw")
+volume_db = -11.0
+min_interval_s = 0.08
+
+[sub_resource type="Resource" id="Resource_dart_hit"]
+script = ExtResource("2_cue")
+id = &"sfx_dart_hit"
+stream = ExtResource("29_dart_hit")
+volume_db = -9.0
+min_interval_s = 0.06
+
+[sub_resource type="Resource" id="Resource_balloon_throw"]
+script = ExtResource("2_cue")
+id = &"sfx_balloon_throw"
+stream = ExtResource("30_balloon_throw")
+volume_db = -11.0
+min_interval_s = 0.08
+
+[sub_resource type="Resource" id="Resource_balloon_hit"]
+script = ExtResource("2_cue")
+id = &"sfx_balloon_hit"
+stream = ExtResource("31_balloon_hit")
+volume_db = -9.0
+min_interval_s = 0.06
+
 [resource]
 script = ExtResource("1_lib")
-cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04"), SubResource("Resource_purchase"), SubResource("Resource_bonk"), SubResource("Resource_poof"), SubResource("Resource_chalk"), SubResource("Resource_chime"), SubResource("Resource_run_music"), SubResource("Resource_horde_music"), SubResource("Resource_spawn"), SubResource("Resource_throw"), SubResource("Resource_hit"), SubResource("Resource_melt"), SubResource("Resource_unlock"), SubResource("Resource_pickup"), SubResource("Resource_chase_music"), SubResource("Resource_dust"), SubResource("Resource_escape")])
+cues = Array[ExtResource("2_cue")]([SubResource("Resource_click"), SubResource("Resource_menu"), SubResource("Resource_wrong_key"), SubResource("Resource_brainsss"), SubResource("Resource_groan_01"), SubResource("Resource_groan_02"), SubResource("Resource_groan_03"), SubResource("Resource_groan_04"), SubResource("Resource_purchase"), SubResource("Resource_bonk"), SubResource("Resource_poof"), SubResource("Resource_chalk"), SubResource("Resource_chime"), SubResource("Resource_run_music"), SubResource("Resource_horde_music"), SubResource("Resource_spawn"), SubResource("Resource_throw"), SubResource("Resource_hit"), SubResource("Resource_melt"), SubResource("Resource_unlock"), SubResource("Resource_pickup"), SubResource("Resource_chase_music"), SubResource("Resource_dust"), SubResource("Resource_escape"), SubResource("Resource_dart_throw"), SubResource("Resource_dart_hit"), SubResource("Resource_balloon_throw"), SubResource("Resource_balloon_hit")])
 voice_min_gap_s = 8.0
 groan_ids = Array[StringName]([&"sfx_groan_01", &"sfx_groan_02", &"sfx_groan_03", &"sfx_groan_04"])
 groan_min_interval_s = 3.0

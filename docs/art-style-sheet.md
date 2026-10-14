@@ -27,6 +27,8 @@ Stories that make final art and wait for that approval:
 - **Epic 9:** Story 9.2 (the eight remaining pets: Black cat, Spider, Orange cat, Bat, Crow, Wolf-dog,
   Floating eyeball, Brain buddy; see section 3).
 - **Epic 10:** Story 10.2 (the Zombie Run themes Pumpkin Patch Farm and Snowy Town; see section 3).
+- **Epic 10:** Story 10.3 (the Horde Rush pairs Castle + Knight and Beach Hut + Lifeguard: houses, lanes, defenders,
+  the toy dart and its hit, the water balloon and its splash; see section 3).
 - Later art (the rest of Epic 10) reuses these rules for its characters, hats, pets and backdrops.
 
 Before its final-art story, any story may use **placeholder art**: plain shapes in palette colors.
@@ -149,7 +151,13 @@ animations and are exempt from the frame count only; every pixel rule applies to
 | farmer `walk` (6.6) | 4 | 32×32 | 10 | loop (he paces up and down the lanes, facing left) |
 | farmer `throw` (6.6) | 3 | 32×32 | 12 | once: wind-up, release, follow-through |
 | `tomato_fly` (6.6) | 2 | 16×16 | 10 | loop while it flies (at most 8 px wide) |
-| `tomato_splat` (6.6) | 3 | 16×16 | 12 | once (frames stepped by the splat's tween), then freed |
+| `tomato_splat` (6.6) | 3 | 16×16 | 12 | once (frames stepped by the splat's tween, `HordeHitEffect`), then freed |
+| knight, lifeguard `idle` (10.3) | 2 | 32×32 | 8 | loop (the shared `HordeDefenderSprite`) |
+| knight, lifeguard `walk` (10.3) | 4 | 32×32 | 10 | loop (the Farmer's leg rhythm, facing left) |
+| knight `throw` (10.3) | 3 | 32×32 | 12 | once: dart drawn back over the shoulder, release at chest height, follow-through low |
+| lifeguard `throw` (10.3) | 3 | 32×32 | 12 | once: balloon held low behind, underarm swing at chest height, follow-through high |
+| `dart_fly`, `water_balloon_fly` (10.3) | 2 | 16×16 | 10 | loop while it flies (dart at most 12×6 px, balloon at most 8 px wide) |
+| `dart_hit`, `water_balloon_splash` (10.3) | 3 | 16×16 | 12 | once (stepped by `HordeHitEffect`'s tween), then freed |
 | mob `pitch_run`, `pitch_alt_run` (8.6) | 4 | 32×32 | 10 | loop (base A, a pitchfork held straight up; and its clothes recolour) |
 | mob `torch_run`, `torch_alt_run` (8.6) | 4 | 32×32 | 10 | loop (base B, the torch flame changes shape every frame; and its recolour) |
 | zombie `dazed` (8.6) | 2 | 32×32 | 8 | loop while dazed (sitting, swirly eyes; the head sways 1 px) |
@@ -211,6 +219,27 @@ house's first 8 px), so a copy never camouflages (*tested* in `test_art_backdrop
 `parchment-shade` with `wood-light` furrows (not wood: the zombie's trousers are wood, so they would sink
 into wood soil).
 
+**Castle and Beach Hut backdrops** (Story 10.3, Horde Rush; `assets/sprites/backdrops/castle/` and
+`assets/sprites/backdrops/beach_hut/`, folder = theme id = scene name in `scenes/levels/horde_rush/themes/`): the
+Farmhouse layout exactly (`field.png` 640×256 and the house 92×256 at (548, 0), `castle.png` / `beach_hut.png`), the
+same rules (*tested*: sizes, palette, hard alpha, no `candy-yellow`, `stamp-red` or `art-moon`, no zombie greens in
+the lanes or the house's first 8 px, the field opaque, a doorway per lane on the soles row against each house's own
+wall colours). **Castle**: distant stone towers with plain pennants on a grass horizon, jousting lists of packed
+`parchment-shade` sand with `wood-light` rake arcs, `wood-light` fences with pumpkin and bat-purple pennant triangles
+between the lanes; the castle is `stone-light` blocks in a running bond with merlons under the pause button, a plain
+bat-purple banner, an arched gateway per lane with a raised portcullis (never closed over the opening) and plain arrow
+slits (no cross bar: it reads as "+"). **Beach Hut**: a pumpkin-light sun (never candy-yellow or the moon), the sea
+and chalk foam above y 36, `parchment` sand with long `wood-light` ripple arcs near the lane edges (the middles stay
+calm), beach things on the strips (striped towels, sandcastles, shells, beach balls); the hut is chalk and
+sky-light vertical planks with a bat-purple gable roof, a pumpkin eave, a door leaf swung open per lane and
+shuttered windows (one sill, no cross). **No weapons** (FR58, NFR10): the Knight carries no sword, shield, lance
+or bow and throws a toy suction-cup dart by hand (big rubber cup leading, no point; its hit squashes, boings off
+and leaves a star, never sticking in); the Lifeguard lobs a water balloon (no water gun or hose). Both defenders
+are humans (skin only `art-skin-light`/`art-skin-dark`, no zombie greens or bat-purple, *tested*); the Lifeguard
+has no cross or "+" anywhere. Each defender scene (`knight.tscn`, `lifeguard.tscn`, like `farmer.tscn`) uses the
+shared `HordeDefenderSprite` script and brings its pair's projectile, hit effect (`HordeHitEffect`, 3 frames) and
+sounds with it.
+
 **Moonlit Village backdrop** (Story 8.6, Pitchfork Panic; `assets/sprites/backdrops/moonlit_village/`): the
 same four parallax layers and layout as Sunny Village Green (`clouds.png` night clouds and chalk stars,
 `far.png` dusk hills with `ink-muted` houses, a church and a windmill with `pumpkin-light` windows and
@@ -256,7 +285,8 @@ screen for legibility.
 `tools/gen_art_prototypes.gd` (the prototypes), `tools/gen_zombie_run_art.gd` (Story 3.6, which reads
 the palette, legends and approved maps from the first), `tools/gen_cosmetics_art.gd` (Story 4.3) or
 `tools/gen_horde_rush_art.gd` (Story 6.6), `tools/gen_pitchfork_panic_art.gd` (Story 8.6) or
-`tools/gen_zombie_run_themes_art.gd` (Story 10.2, the Zombie Run theme backdrops), one character per pixel, a legend from
+`tools/gen_zombie_run_themes_art.gd` (Story 10.2, the Zombie Run theme backdrops) or `tools/gen_horde_rush_pairs_art.gd`
+(Story 10.3, the Castle and Beach Hut pairs), one character per pixel, a legend from
 character to palette **name**, written to PNG by running the tool headless and then `--import`. The
 backdrop is drawn by the same tool from shapes at fixed positions (no randomness). Never hand-edit a
 PNG. Commit the PNGs and `.import` files.
