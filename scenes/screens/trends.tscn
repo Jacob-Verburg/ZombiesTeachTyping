@@ -1,0 +1,208 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/screens/trends.gd" id="1_script"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/trend_chart.tscn" id="2_chart"]
+
+[ext_resource type="Script" path="res://scripts/ui/pixel_button.gd" id="3_pixel_button"]
+
+[node name="Trends" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.16862746, 0.11372549, 0.24705882, 1)
+
+[node name="Heading" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 216.0
+offset_top = 16.0
+offset_right = 424.0
+offset_bottom = 52.0
+mouse_filter = 2
+theme_type_variation = &"Sign"
+
+[node name="HeadingLabel" type="Label" parent="Heading"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+theme_override_font_sizes/font_size = 24
+text = "Progress"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Totals" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 64.0
+offset_right = 272.0
+offset_bottom = 296.0
+mouse_filter = 2
+theme_type_variation = &"Chalkboard"
+
+[node name="Label0" type="Label" parent="Totals"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 14.0
+offset_right = 248.0
+offset_bottom = 30.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "Keys Typed"
+
+[node name="KeysValue" type="Label" parent="Totals"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 34.0
+offset_right = 248.0
+offset_bottom = 50.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "0"
+
+[node name="Label1" type="Label" parent="Totals"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 70.0
+offset_right = 248.0
+offset_bottom = 86.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "Best WPM"
+
+[node name="BestWpmValue" type="Label" parent="Totals"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 90.0
+offset_right = 248.0
+offset_bottom = 106.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "0"
+
+[node name="Label2" type="Label" parent="Totals"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 126.0
+offset_right = 248.0
+offset_bottom = 142.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "Brains Earned"
+
+[node name="BrainsValue" type="Label" parent="Totals"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 146.0
+offset_right = 248.0
+offset_bottom = 162.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "0"
+
+[node name="Label3" type="Label" parent="Totals"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 182.0
+offset_right = 248.0
+offset_bottom = 198.0
+theme_override_colors/font_color = Color(0.65882353, 0.76862745, 0.65098039, 1)
+text = "Time Practiced"
+
+[node name="TimeValue" type="Label" parent="Totals"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 202.0
+offset_right = 248.0
+offset_bottom = 218.0
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+text = "0"
+
+[node name="WpmChart" parent="." instance=ExtResource("2_chart")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 288.0
+offset_top = 64.0
+offset_right = 624.0
+offset_bottom = 136.0
+
+[node name="AccuracyChart" parent="." instance=ExtResource("2_chart")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 288.0
+offset_top = 144.0
+offset_right = 624.0
+offset_bottom = 216.0
+
+[node name="PracticeChart" parent="." instance=ExtResource("2_chart")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 288.0
+offset_top = 224.0
+offset_right = 624.0
+offset_bottom = 296.0
+
+[node name="EmptySign" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 288.0
+offset_top = 64.0
+offset_right = 624.0
+offset_bottom = 296.0
+mouse_filter = 2
+theme_type_variation = &"Sign"
+
+[node name="EmptyLabel" type="Label" parent="EmptySign"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+theme_override_font_sizes/font_size = 16
+text = "Finish a game to see your charts!"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="MenuButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 480.0
+offset_top = 312.0
+offset_right = 560.0
+offset_bottom = 344.0
+focus_neighbor_left = NodePath(".")
+focus_neighbor_top = NodePath(".")
+focus_neighbor_right = NodePath(".")
+focus_neighbor_bottom = NodePath(".")
+focus_next = NodePath(".")
+focus_previous = NodePath(".")
+text = "Menu"
+theme_type_variation = &"PixelButton"
+script = ExtResource("3_pixel_button")
+
+[node name="EscHint" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 568.0
+offset_top = 316.0
+offset_right = 624.0
+offset_bottom = 340.0
+theme_override_colors/font_color = Color(0.11764706, 0.078431375, 0.15686275, 1)
+text = "Esc"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_type_variation = &"Keycap"

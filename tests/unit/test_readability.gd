@@ -7,6 +7,7 @@ extends GutTest
 ## confirm prompt with every live item's question) get one here.
 ## Screens are instanced like tests/integration/test_screen_flow.gd: disabled, recorder seams before add_child,
 ## a temp-dir PlayerData for anything that writes. Router.go() is never called.
+## Story 10.5: the Progress screen is walked filled (several runs, so its charts and totals show).
 
 const TEXT_FLOOR: int = 16
 const TARGET_FLOOR: int = 32
@@ -20,6 +21,7 @@ const MenuScene: PackedScene = preload("res://scenes/screens/main_menu.tscn")
 const ReportScene: PackedScene = preload("res://scenes/screens/report_card.tscn")
 const GiftScene: PackedScene = preload("res://scenes/screens/welcome_gift.tscn")
 const ClosetScene: PackedScene = preload("res://scenes/screens/crypt_closet.tscn")
+const TrendsScene: PackedScene = preload("res://scenes/screens/trends.tscn")
 const HudScene: PackedScene = preload("res://scenes/run/hud.tscn")
 const PauseScene: PackedScene = preload("res://scenes/run/pause_panel.tscn")
 const CountdownScene: PackedScene = preload("res://scenes/run/countdown.tscn")
@@ -146,6 +148,22 @@ func _closet() -> Control:
 	return closet
 
 
+func _trends() -> Control:
+	for i: int in 9:
+		_player.record_run(RunResult.create(
+				&"zombie_run", 1790000000 + i * 43200, 120.0, 60 + i * 10, i, {}, 5, 0, "all",
+				GameConstants.END_REASON_TIMER))
+	var trends: Control = TrendsScene.instantiate() as Control
+	trends.process_mode = Node.PROCESS_MODE_DISABLED
+	trends.set("navigate", _noop_nav)
+	trends.set("is_transitioning", func() -> bool: return false)
+	trends.set("play_sfx", _noop_sfx)
+	trends.set("play_music", _noop_sfx)
+	trends.set("player_data", _player)
+	add_child_autofree(trends)
+	return trends
+
+
 func _hud() -> Control:
 	var hud: Control = HudScene.instantiate() as Control
 	hud.process_mode = Node.PROCESS_MODE_DISABLED
@@ -232,8 +250,8 @@ func _playfield() -> Array[Node]:
 
 ## Every MVP screen and the run's parts, built and laid out.
 func _all_roots() -> Array[Node]:
-	var roots: Array[Node] = [_title(), _menu(), _report_card(), _gift(), _closet(), _hud(), _pause_panel(),
-			_countdown(), _prompt("Buy the Pumpkin hat for 100 brains?")]
+	var roots: Array[Node] = [_title(), _menu(), _report_card(), _gift(), _closet(), _trends(), _hud(),
+			_pause_panel(), _countdown(), _prompt("Buy the Pumpkin hat for 100 brains?")]
 	roots.append_array(_widgets())
 	roots.append_array(_playfield())
 	return roots

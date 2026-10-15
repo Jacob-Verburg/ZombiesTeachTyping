@@ -9,13 +9,16 @@ extends GutTest
 ## MAIN_MENU gets a temp-dir PlayerData too: since Story 6.8 it writes unlock state (mark_unlock_seen /
 ## mark_level_chosen), which must never reach the real save.
 ## RUN gets a temp-dir PlayerData too: since Story 10.1 a started level saves its theme as the level's last one.
+## TRENDS (Story 10.5) only reads, but gets a temp-dir PlayerData and a navigate recorder anyway (never the live
+## autoload's save).
 
 const FLOW_BUTTONS: Dictionary = {
-	"MAIN_MENU": ["%ClosetButton"],
+	"MAIN_MENU": ["%ClosetButton", "%TrendsButton"],
 	"REPORT_CARD": ["%PlayAgainButton", "%MenuButton"],
 	"WELCOME_GIFT": ["%OpenClosetButton"],
 	"CRYPT_CLOSET": ["%MenuButton"],
 	"KEYBOARD_TEST": ["%FullscreenButton", "%DownloadButton", "%BackButton", "%BrainButton"],
+	"TRENDS": ["%MenuButton"],
 }
 
 
@@ -70,6 +73,10 @@ func _instance(screen: Router.Screen) -> Control:
 		node.set("navigate", _record)
 		node.set("player_data", _temp_player_data())
 	if screen == Router.Screen.MAIN_MENU:
+		node.set("player_data", _temp_player_data())
+	if screen == Router.Screen.TRENDS:
+		node.set("navigate", _record)
+		node.set("play_sfx", func(_id: StringName) -> void: pass)
 		node.set("player_data", _temp_player_data())
 	if screen == Router.Screen.WELCOME_GIFT:
 		node.set("navigate", _record)
@@ -209,3 +216,12 @@ func test_menu_card_routes_to_a_pitchfork_panic() -> void:
 	assert_eq(run.call("get_level_id"), &"pitchfork_panic")
 	assert_not_null(run.call("get_session"), "the run built a typing session")
 	assert_eq(_nav, [], "the run started instead of bouncing back to the menu")
+
+
+## Story 10.5: the Progress screen consumes whatever payload it was given and navigates nowhere on open.
+func test_trends_consumes_the_payload() -> void:
+	Router._store_payload({"stale": true})
+	var trends: Control = _instance(Router.Screen.TRENDS)
+	assert_not_null(trends)
+	assert_eq(Router.take_payload(), {})
+	assert_eq(_nav, [])

@@ -1,10 +1,12 @@
 extends GutTest
 ## SaveSchema: defaults, number normalising, default filling, migrations (v1 -> v2 level_unlocks backfill,
-## Story 6.8; v2 -> v3 used_passages, Story 8.2; v3 -> v4 last_themes, Story 10.1). Pure; only reads fixtures (and the shipped level registry
+## Story 6.8; v2 -> v3 used_passages, Story 8.2; v3 -> v4 last_themes, Story 10.1; v4 -> v5 lifetime backfill, Story 10.5). Pure; only reads fixtures (and the shipped level registry
 ## in one guard test).
 
-## The current-schema fresh save; the v1, v2 and v3 fixtures are kept byte-identical as migration inputs.
-const FRESH_PATH: String = "res://tests/fixtures/saves/save_v4_fresh.json"
+## The current-schema fresh save; the v1-v4 fixtures are kept byte-identical as migration inputs.
+const FRESH_PATH: String = "res://tests/fixtures/saves/save_v5_fresh.json"
+const V4_FRESH_PATH: String = "res://tests/fixtures/saves/save_v4_fresh.json"
+const V4_HISTORY_PATH: String = "res://tests/fixtures/saves/save_v4_history.json"
 const V3_FRESH_PATH: String = "res://tests/fixtures/saves/save_v3_fresh.json"
 const V2_FRESH_PATH: String = "res://tests/fixtures/saves/save_v2_fresh.json"
 const V1_FRESH_PATH: String = "res://tests/fixtures/saves/save_v1_fresh.json"
@@ -58,7 +60,7 @@ func _step_b(data: Dictionary) -> Dictionary:
 	return data
 
 
-func test_defaults_match_v4_fixture() -> void:
+func test_defaults_match_v5_fixture() -> void:
 	assert_eq_deep(SaveSchema.defaults(), _fresh())
 	assert_eq(JSON.stringify(SaveSchema.defaults(), "\t"), _fixture_text(FRESH_PATH))
 	assert_eq(SaveSchema.DEFAULT_PROFILE_ID, "p1")
@@ -236,15 +238,17 @@ func test_prepare_round_trips_full_fixture() -> void:
 	assert_eq(typeof(first["schema_version"]), TYPE_INT)
 	var text: String = JSON.stringify(first, "\t")
 	assert_false(text.contains("\"brains\": 0.0"), "no whole number is written as a float")
-	assert_false(text.contains("\"schema_version\": 4.0"), "no whole number is written as a float")
+	assert_false(text.contains("\"schema_version\": 5.0"), "no whole number is written as a float")
 	# The v1 fixture is canonical; prepare() only adds what migrate_1_to_2 adds (its two timer runs of
-	# Zombie Run open Horde Rush), what migrate_2_to_3 and migrate_3_to_4 add, and bumps the version.
+	# Zombie Run open Horde Rush), what migrate_2_to_3 to migrate_4_to_5 add, and bumps the version.
+	# Lifetime backfill: 2 records (keys 51 + 70, 60 s + 60 s, brains 12 + 18 = 30 < the wallet's 340).
 	var expected: Dictionary = _full()
-	expected["schema_version"] = 4
+	expected["schema_version"] = 5
 	expected["profiles"]["p1"]["level_unlocks"] = {"horde_rush": UNSEEN.duplicate()}
 	expected["profiles"]["p1"]["used_passages"] = []
 	expected["profiles"]["p1"]["last_themes"] = {}
-	assert_eq(text, JSON.stringify(expected, "\t"), "full fixture is canonical apart from the v2-v4 additions")
+	expected["profiles"]["p1"]["lifetime"] = {"runs": 2, "keys_typed": 121, "seconds": 120, "brains": 340}
+	assert_eq(text, JSON.stringify(expected, "\t"), "full fixture is canonical apart from the v2-v5 additions")
 	var second: Dictionary = SaveSchema.prepare(JSON.parse_string(text))
 	assert_eq_deep(second, first)
 	assert_eq(typeof(second["profiles"]["p1"]["run_history"][0]["per_key"]["f"][2]["g"]), TYPE_INT)
@@ -302,19 +306,19 @@ func test_migrate_1_to_2_keeps_existing_entries() -> void:
 	assert_eq_deep(data["profiles"]["p1"]["level_unlocks"], {"horde_rush": seen, "x_level": {"kept": 1}})
 
 
-func test_prepare_v1_reaches_v4() -> void:
+func test_prepare_v1_reaches_v5() -> void:
 	var data: Dictionary = SaveSchema.prepare(JSON.parse_string(_fixture_text(V1_FRESH_PATH)))
-	assert_eq(data["schema_version"], 4)
+	assert_eq(data["schema_version"], 5)
 	assert_eq_deep(data, SaveSchema.defaults())
 	var backfilled: Dictionary = SaveSchema.prepare(JSON.parse_string(_fixture_text(BACKFILL_PATH)))
-	assert_eq(backfilled["schema_version"], 4)
+	assert_eq(backfilled["schema_version"], 5)
 	assert_eq_deep(backfilled["profiles"]["p1"]["level_unlocks"], {"horde_rush": UNSEEN})
 	assert_eq_deep(backfilled["profiles"]["p2"]["level_unlocks"], {})
 	assert_eq_deep(backfilled["profiles"]["p1"]["used_passages"], [])
 	assert_eq_deep(backfilled["profiles"]["p2"]["used_passages"], [])
 	assert_eq_deep(backfilled["profiles"]["p1"]["last_themes"], {})
 	assert_eq_deep(backfilled["profiles"]["p2"]["last_themes"], {})
-	assert_eq(SaveSchema.migration_steps().size(), 3)
+	assert_eq(SaveSchema.migration_steps().size(), 4)
 	assert_eq(SaveSchema.migration_steps()[0], Callable(SaveSchema.migrate_1_to_2), "registered at index 0")
 	assert_eq(SaveSchema.migration_steps()[1], Callable(SaveSchema.migrate_2_to_3), "registered at index 1")
 
@@ -352,7 +356,7 @@ func test_migrate_2_to_3_survives_junk() -> void:
 
 
 func test_migration_steps_register_3_to_4() -> void:
-	assert_eq(SaveSchema.migration_steps().size(), 3)
+	assert_eq(SaveSchema.migration_steps().size(), 4)
 	assert_eq(SaveSchema.migration_steps()[2], Callable(SaveSchema.migrate_3_to_4), "registered at index 2")
 
 
@@ -361,7 +365,7 @@ func test_migrate_3_to_4_adds_last_themes() -> void:
 	assert_eq(v3["schema_version"], 3, "the v3 fixture is a v3 save")
 	assert_false(v3["profiles"]["p1"].has("last_themes"))
 	var data: Dictionary = SaveSchema.migrate(v3)
-	assert_eq(data["schema_version"], 4)
+	assert_eq(data["schema_version"], GameConstants.CURRENT_SCHEMA)
 	assert_eq_deep(data["profiles"]["p1"]["last_themes"], {})
 	assert_eq_deep(SaveSchema.prepare(_parse(_fixture_text(V3_FRESH_PATH))), SaveSchema.defaults())
 	assert_push_warning_count(0)
@@ -394,6 +398,90 @@ func test_migrate_3_to_4_survives_junk() -> void:
 	assert_push_warning("migrate_3_to_4: profiles/bad is not a dictionary")
 	assert_eq_deep(data["profiles"]["text"]["last_themes"], {})
 	assert_eq_deep(data["profiles"]["ok"]["last_themes"], {})
+
+
+func _v4(path: String) -> Dictionary:
+	var v4: Dictionary = SaveSchema.normalize_numbers(_parse(_fixture_text(path)))
+	assert_eq(v4["schema_version"], 4, "the fixture is a v4 save")
+	return v4
+
+
+func test_migration_steps_register_4_to_5() -> void:
+	assert_eq(SaveSchema.migration_steps().size(), 4)
+	assert_eq(SaveSchema.migration_steps()[3], Callable(SaveSchema.migrate_4_to_5), "registered at index 3")
+
+
+func test_migrate_4_to_5_adds_lifetime() -> void:
+	var v4: Dictionary = _v4(V4_FRESH_PATH)
+	assert_false(v4["profiles"]["p1"].has("lifetime"))
+	var data: Dictionary = SaveSchema.migrate(v4)
+	assert_eq(data["schema_version"], 5)
+	assert_eq_deep(data["profiles"]["p1"]["lifetime"], {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 0})
+	assert_eq_deep(SaveSchema.prepare(_parse(_fixture_text(V4_FRESH_PATH))), SaveSchema.defaults())
+	assert_push_warning_count(0)
+
+
+func test_migrate_4_to_5_backfills_from_history() -> void:
+	var data: Dictionary = SaveSchema.prepare(_parse(_fixture_text(V4_HISTORY_PATH)))
+	assert_eq(data["schema_version"], 5)
+	# p1: 3 records (keys 51 + 60 + 40, 60 + 120 + 120 s, brains 47) plus a junk entry; the wallet (500) wins.
+	assert_eq_deep(
+		data["profiles"]["p1"]["lifetime"], {"runs": 3, "keys_typed": 151, "seconds": 300, "brains": 500}
+	)
+	# p2: 2 records (keys 30 + 45, 120 + 180 s, brains 25 + 30 = 55); the history beats the wallet (5).
+	assert_eq_deep(data["profiles"]["p2"]["lifetime"], {"runs": 2, "keys_typed": 75, "seconds": 300, "brains": 55})
+	assert_eq(data["profiles"]["p1"]["run_history"].size(), 4, "history untouched, junk entry included")
+	assert_eq(data["profiles"]["p1"]["brains"], 500, "the wallet is untouched")
+	assert_push_warning_count(0)
+
+
+func test_migrate_4_to_5_keeps_existing_dict() -> void:
+	var v4: Dictionary = _v4(V4_HISTORY_PATH)
+	v4["profiles"]["p1"]["lifetime"] = {"runs": 99, "keys_typed": 1, "seconds": 2, "brains": 3}
+	SaveSchema.migrate_4_to_5(v4)
+	assert_eq_deep(v4["profiles"]["p1"]["lifetime"], {"runs": 99, "keys_typed": 1, "seconds": 2, "brains": 3})
+
+
+func test_migrate_4_to_5_replaces_a_non_dict() -> void:
+	var v4: Dictionary = _v4(V4_HISTORY_PATH)
+	v4["profiles"]["p1"]["lifetime"] = [1, 2, 3]
+	SaveSchema.migrate_4_to_5(v4)
+	assert_eq_deep(
+		v4["profiles"]["p1"]["lifetime"], {"runs": 3, "keys_typed": 151, "seconds": 300, "brains": 500}
+	)
+	assert_push_warning_count(0)
+
+
+func test_migrate_4_to_5_ignores_junk_values() -> void:
+	var data: Dictionary = {"profiles": {"p1": {
+		"brains": -7,
+		"run_history": [
+			{"keys_typed": -5, "duration_s": 2.5, "brains": "9"},
+			{"keys_typed": 10},
+			{"keys_typed": 3.0, "duration_s": 60, "brains": null},
+			{},
+		],
+	}}}
+	SaveSchema.migrate_4_to_5(data)
+	assert_eq_deep(data["profiles"]["p1"]["lifetime"], {"runs": 4, "keys_typed": 10, "seconds": 60, "brains": 0})
+	var no_history: Dictionary = {"profiles": {"p1": {"brains": 12, "run_history": "lots"}}}
+	SaveSchema.migrate_4_to_5(no_history)
+	assert_eq_deep(
+		no_history["profiles"]["p1"]["lifetime"], {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 12}
+	)
+
+
+func test_migrate_4_to_5_survives_junk() -> void:
+	var no_profiles: Dictionary = {"schema_version": 4, "profiles": "nope"}
+	assert_eq_deep(SaveSchema.migrate_4_to_5(no_profiles), {"schema_version": 4, "profiles": "nope"})
+	assert_push_warning("migrate_4_to_5: profiles is not a dictionary")
+	var missing: Dictionary = {"schema_version": 4}
+	assert_eq_deep(SaveSchema.migrate_4_to_5(missing), {"schema_version": 4})
+	var data: Dictionary = {"profiles": {"bad": 5, "ok": {}}}
+	SaveSchema.migrate_4_to_5(data)
+	assert_eq(data["profiles"]["bad"], 5, "a junk profile is left for fill_defaults")
+	assert_push_warning("migrate_4_to_5: profiles/bad is not a dictionary")
+	assert_eq_deep(data["profiles"]["ok"]["lifetime"], {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 0})
 
 
 ## The frozen migration chain matches the shipped registry. If a later story changes the chain on purpose,

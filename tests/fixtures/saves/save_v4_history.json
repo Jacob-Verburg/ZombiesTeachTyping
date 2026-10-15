@@ -1,0 +1,126 @@
+{
+	"active_profile": "p1",
+	"profiles": {
+		"p1": {
+			"best_wpm": {
+				"zombie_run": 0
+			},
+			"brains": 500,
+			"equipped": {
+				"hat": "",
+				"pet": ""
+			},
+			"flags": {
+				"placement_done": false,
+				"tutorial_seen": false,
+				"welcome_bonus_claimed": false
+			},
+			"last_themes": {},
+			"level_unlocks": {},
+			"name": "",
+			"owned_items": [],
+			"run_history": [
+				{
+					"accuracy": 82,
+					"brains": 12,
+					"duration_s": 60,
+					"end_reason": "timer",
+					"errors": 3,
+					"keys_typed": 51,
+					"letter_pool_or_tier": "all",
+					"level_id": "zombie_run",
+					"per_key": {},
+					"timestamp": 1790000000,
+					"wpm": 10
+				},
+				{
+					"accuracy": 88,
+					"brains": 20,
+					"duration_s": 120,
+					"end_reason": "timer",
+					"errors": 3,
+					"keys_typed": 60,
+					"letter_pool_or_tier": "all",
+					"level_id": "zombie_run",
+					"per_key": {},
+					"timestamp": 1790086400,
+					"wpm": 12
+				},
+				"oops",
+				{
+					"accuracy": 80,
+					"brains": 15,
+					"duration_s": 120,
+					"end_reason": "timer",
+					"errors": 3,
+					"keys_typed": 40,
+					"letter_pool_or_tier": "all",
+					"level_id": "zombie_run",
+					"per_key": {},
+					"timestamp": 1790172800,
+					"wpm": 9
+				}
+			],
+			"settings": {
+				"music_on": true,
+				"sound_on": true
+			},
+			"tier": 0,
+			"used_passages": []
+		},
+		"p2": {
+			"best_wpm": {
+				"zombie_run": 0
+			},
+			"brains": 5,
+			"equipped": {
+				"hat": "",
+				"pet": ""
+			},
+			"flags": {
+				"placement_done": false,
+				"tutorial_seen": false,
+				"welcome_bonus_claimed": false
+			},
+			"last_themes": {},
+			"level_unlocks": {},
+			"name": "",
+			"owned_items": [],
+			"run_history": [
+				{
+					"accuracy": 75,
+					"brains": 25,
+					"duration_s": 120,
+					"end_reason": "timer",
+					"errors": 3,
+					"keys_typed": 30,
+					"letter_pool_or_tier": "all",
+					"level_id": "zombie_run",
+					"per_key": {},
+					"timestamp": 1790000000,
+					"wpm": 8
+				},
+				{
+					"accuracy": 85,
+					"brains": 30,
+					"duration_s": 180,
+					"end_reason": "timer",
+					"errors": 3,
+					"keys_typed": 45,
+					"letter_pool_or_tier": "all",
+					"level_id": "zombie_run",
+					"per_key": {},
+					"timestamp": 1790086400,
+					"wpm": 11
+				}
+			],
+			"settings": {
+				"music_on": true,
+				"sound_on": true
+			},
+			"tier": 0,
+			"used_passages": []
+		}
+	},
+	"schema_version": 4
+}

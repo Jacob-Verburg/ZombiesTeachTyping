@@ -35,11 +35,12 @@ Screens map 1:1 to `Router.Screen` (ARCH Screen Flow). Mocked surfaces link to t
 |---|---|---|---|
 | Boot splash (web) | Opening the link | Load progress in game style (D11) | Title |
 | Title | Boot | Logo + "Click or press any key"; unlocks browser audio | Main Menu |
-| [Main Menu](mockups/key-main-menu.html) | Title, Report Card (Menu), Closet (Esc), Pause (Quit to Menu) | Zombie with hat + pet, brain counter, 3 level cards, Crypt Closet button, Music / Sound / Fullscreen toggles, storage notice when needed | Run, Crypt Closet |
+| [Main Menu](mockups/key-main-menu.html) | Title, Report Card (Menu), Closet (Esc), Progress (Esc), Pause (Quit to Menu) | Zombie with hat + pet, brain counter, 3 level cards, Crypt Closet button, Progress button (top right, Story 10.5), Music / Sound / Fullscreen toggles, storage notice when needed | Run, Crypt Closet, Progress |
 | [Run](mockups/key-run-hud.html) (`RunFrame`) | Level card, Play Again | Playfield + shared HUD band; pause panel and countdown overlay it | Report Card, Main Menu (quit) |
 | [Report Card](mockups/key-report-card.html) | Run end (timer / caught / escaped) | Chalkboard stats, Professor Zombie, New best! | Run (Play Again), Main Menu, Welcome Gift (first completed run ever) |
 | Welcome Gift | Report Card, once per save | +100 brains, one button | Crypt Closet |
 | Crypt Closet | Main Menu, Welcome Gift | 3×3 hats + 3×3 pets, preview zombie, brain counter; first-visit tutorial | Main Menu (Esc) |
+| Progress (`TRENDS`, Story 10.5) | Main Menu | For a parent: lifetime totals chalkboard + chalk bar charts of WPM, accuracy (last 20 games) and practice time (last 7 days with practice); [sketch](sketches/trends-10-5.md) | Main Menu (Esc / Menu) |
 
 Flow (GDD Screens & Flow, FR24): `Title → Main Menu → [Level → Report Card → (Welcome Gift → Crypt Closet, first time only) → Play Again | Menu] | Crypt Closet`.
 
@@ -68,6 +69,10 @@ Microcopy. Brand voice lives in `DESIGN.md` Brand & Style. Every label uses word
 | Level card — Locked (D12, D14) | Focus-only hint: "Finish Zombie Run to open!" / "Finish Horde Rush to open!" `[ASSUMPTION — copy]`. The card itself shows only the padlock; the hint sign hangs below the card while it has focus, so the copy is no longer squeezed onto the card and can grow if needed. |
 | Level card — unlocked | "New!" `[ASSUMPTION — copy]` |
 | Main menu toggles | "Music" · "Sound" · "Fullscreen" |
+| Main menu, Progress screen heading (Story 10.5) | "Progress" (Gate 1, 2026-10-14) |
+| Progress charts | "Words per minute" · "Accuracy" · "Practice time" |
+| Progress totals | "Keys Typed" · "Best WPM" · "Brains Earned" · "Time Practiced"; time as "45 min" / "1 hr 5 min" / "0 min" |
+| Progress, no game yet | "Finish a game to see your charts!" · "Menu" + key hint "Esc" |
 | Storage notice | "This browser might forget your brains" (Story 5.2, Gate A; was "Progress may not be saved in this browser mode", too hard for a 6-year-old) |
 | Web page, game can't start | "This game needs a newer browser. Try Chrome, Edge or Firefox on a computer." (Story 5.2, Gate A; replaces the engine's own message, which stays in the console) |
 
@@ -138,6 +143,8 @@ Behavioral delta only; visual specs live in `DESIGN.md` Components. Anything not
 | Crypt Closet | Nothing affordable | All live tiles show "Need N more"; no arrow (tutorial can only start from the gift, which guarantees 100). |
 | Crypt Closet | Confirm open | Modal; grids unreachable until Yes/No. |
 | Crypt Closet | Empty slots | Preview zombie with no hat / no pet; valid, not an error. |
+| Progress | Empty (no finished game) | One parchment sign "Finish a game to see your charts!" instead of the charts; the totals still show (Brains Earned may be above 0 from quit games or the gift). |
+| Progress | Filled | Three chalk bar charts (newest right; practice days without practice are skipped, never empty bars) beside the totals board. No dates, goals, grades, ranks, comparisons or timers; never the tier. |
 | Any screen | Save write fails | Silent; nothing shown to the kid beyond the storage notice (ARCH). |
 | Any screen | Router transition | Quick fade; input to the outgoing screen is ignored during the fade `[ASSUMPTION]`. |
 

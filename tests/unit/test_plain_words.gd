@@ -11,6 +11,8 @@ extends GutTest
 ## (d) no ranks, grades or difficulty words (NFR10);
 ## (e) no all-caps words except "WPM" (Gate A: kept, the GDD stat name).
 ## The approved list matches the `## Copy Review` verdicts of Story 5.2 (Gate A, 2026-10-06).
+## Story 10.5: the Progress screen's copy (scene, script titles, a filled live screen with its totals) is
+## walked too; its strings were approved at Gate 1 (2026-10-14).
 ## Debug-only screens are exempt: keyboard_test.tscn, scenes/debug/, the art reviews, the debug-only Test level.
 
 const SCENE_DIRS: Array[String] = [
@@ -44,12 +46,17 @@ const APPROVED_COPY: Array[String] = [
 	"Pirate hat", "Golden crown",
 	"Cute ghost", "Black cat", "Spider", "Orange cat", "Bat", "Crow", "Wolf-dog", "Floating eyeball",
 	"Brain buddy",
+	# Story 10.5: the Progress screen (Gate 1, 2026-10-14)
+	"Progress", "Words per minute", "Practice time", "Best WPM", "Brains Earned", "Time Practiced",
+	"Finish a game to see your charts!",
 ]
 ## Numbers and formatted values: counts, "+N", "+N bonus", "Need N more", times, percents, the conga badge,
 ## the WPM placeholder (en dash), the confirm question for a live item (a word may carry one hyphenated part,
 ## "Wolf-dog"; no digits, apostrophes or capitals after the first letter).
 const APPROVED_PATTERNS: Array[String] = [
 	"^\\d+$", "^\\+\\d+$", "^\\+\\d+ bonus$", "^Need \\d+ more$", "^\\d+:\\d\\d$", "^\\d+%$", "^×\\d+$", "^–$",
+	# Story 10.5: Time Practiced ("45 min", "1 hr 5 min").
+	"^\\d+ min$", "^\\d+ hr \\d+ min$",
 	"^Buy the [A-Z][a-z]+(-[a-z]+)?( [a-z]+(-[a-z]+)?)* for \\d+ brains\\?$",
 ]
 const SLANG: String = "(?i)(brains{2,}|bra{2,}i*n|\\bu{2,}h+|\\bgr{2,}|\\bargh+|\\bra{2,}wr|\\bmm{2,}|\\bnom\\b)"
@@ -62,6 +69,8 @@ const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
 const HudScript := preload("res://scripts/run/hud.gd")
 const MainMenuScript := preload("res://scripts/screens/main_menu.gd")
 const ReportScript := preload("res://scripts/screens/report_card.gd")
+const TrendsScript := preload("res://scripts/screens/trends.gd")
+const TrendsScene: PackedScene = preload("res://scenes/screens/trends.tscn")
 const ClosetScene: PackedScene = preload("res://scenes/screens/crypt_closet.tscn")
 const ReportScene: PackedScene = preload("res://scenes/screens/report_card.tscn")
 const GiftScene: PackedScene = preload("res://scenes/screens/welcome_gift.tscn")
@@ -138,6 +147,9 @@ func _runtime_strings() -> Dictionary[String, String]:
 		out["toggle %d" % kind] = MenuToggle.CAPTIONS[kind]
 	out["storage notice"] = MainMenuScript.STORAGE_NOTICE_TEXT
 	out["report fallback"] = ReportScript.FALLBACK_HEADING
+	out["trends wpm title"] = TrendsScript.WPM_TITLE
+	out["trends accuracy title"] = TrendsScript.ACCURACY_TITLE
+	out["trends practice title"] = TrendsScript.PRACTICE_TITLE
 	for entry: LevelEntry in REGISTRY.menu_entries():
 		out["level %s" % entry.id] = entry.display_name
 		if entry.unlocked_by != &"":
@@ -195,6 +207,18 @@ func _live_strings() -> Dictionary[String, String]:
 	gift.set("player_data", _player)
 	add_child_autofree(gift)
 	_collect_labels(gift, "gift", out)
+	# The Progress screen filled (titles, totals, "1 hr 5 min").
+	for i: int in 3:
+		_player.record_run(RunResult.create(
+				&"zombie_run", 1790000000 + i * 86400, 1300.0, 300, 4, {}, 6, 0, "all", GameConstants.END_REASON_TIMER))
+	var trends: Control = TrendsScene.instantiate() as Control
+	trends.process_mode = Node.PROCESS_MODE_DISABLED
+	trends.set("navigate", _noop_nav)
+	trends.set("play_sfx", _noop)
+	trends.set("play_music", _noop)
+	trends.set("player_data", _player)
+	add_child_autofree(trends)
+	_collect_labels(trends, "trends", out)
 	# The conga badge at 13.
 	var leader: Node2D = Node2D.new()
 	add_child_autofree(leader)
@@ -260,7 +284,7 @@ func test_the_walk_finds_the_copy() -> void:
 	values.assign(strings.values())
 	for expected: String in ["Click or press any key", "Buy the Pumpkin hat for 100 brains?", "+10 bonus",
 			"×13", "Need 40 more", "Zombie Run", "This browser might forget your brains", "+100", "Caps Lock is on",
-			"Buy the Wolf-dog for 300 brains?", "Golden crown"]:
+			"Buy the Wolf-dog for 300 brains?", "Golden crown", "Words per minute", "1 hr 5 min"]:
 		assert_has(values, expected, "the walk saw '%s'" % expected)
 
 

@@ -25,6 +25,9 @@ extends Control
 ## played, not marked). Choosing a New card calls PlayerData.mark_level_chosen() before leaving, so its badge
 ## is gone next time. Card states are re-read (no moment) on profile_replaced and unlocks_changed.
 ## Story 5.2 (Gate A): the storage notice reads "This browser might forget your brains" (plain words, NFR9).
+## Story 10.5: the Progress button (%TrendsButton, top right) opens the Progress screen (Router TRENDS) through
+## _leave(). It is its own top focus row: Up from any card goes to it, Down from it goes to the first choosable
+## card (or the Closet button when there is none), Left/Right stay put; Tab walks cards, bottom row, Progress.
 ## Seams (tests assign them before add_child): navigate, player_data, toggle_fullscreen, is_fullscreen and
 ## the exported level_registry.
 
@@ -85,6 +88,7 @@ func _ready() -> void:
 	get_tree().root.size_changed.connect(_on_window_resized)
 	_sync_fullscreen()
 	%ClosetButton.pressed.connect(_on_closet_button_pressed)
+	%TrendsButton.pressed.connect(_on_trends_button_pressed)
 	_wire_focus()
 	var first: LevelCard = _first_choosable_card()
 	if first != null:
@@ -241,7 +245,7 @@ func _refresh_unlocks() -> void:
 	_wire_focus()
 
 
-## Two rows: the cards, and Closet / Music / Sound / Fullscreen. The row ends stop (no wrap).
+## Three rows: Progress, the cards, and Closet / Music / Sound / Fullscreen. The row ends stop (no wrap).
 func _wire_focus() -> void:
 	var bottom: Array[Control] = [
 		%ClosetButton, %MusicToggle.get_focus_target(), %SoundToggle.get_focus_target(),
@@ -249,10 +253,22 @@ func _wire_focus() -> void:
 	]
 	var cards: Array[Control] = []
 	cards.assign(_cards)
+	var trends: Control = %TrendsButton
 	_wire_row(cards, bottom[0], true)
 	_wire_row(bottom, _first_choosable_card(), false)
-	# Tab walks the cards, then the bottom row, and wraps.
+	for card: Control in cards:
+		card.focus_neighbor_top = card.get_path_to(trends)
+	var below: Control = _first_choosable_card()
+	if below == null:
+		below = bottom[0]
+	var own: NodePath = trends.get_path_to(trends)
+	trends.focus_neighbor_left = own
+	trends.focus_neighbor_right = own
+	trends.focus_neighbor_top = own
+	trends.focus_neighbor_bottom = trends.get_path_to(below)
+	# Tab walks the cards, then the bottom row, then Progress, and wraps.
 	var order: Array[Control] = cards + bottom
+	order.append(trends)
 	for i: int in order.size():
 		var control: Control = order[i]
 		control.focus_next = control.get_path_to(order[(i + 1) % order.size()])
@@ -344,6 +360,10 @@ func _on_card_chosen(level_id: StringName) -> void:
 
 func _on_closet_button_pressed() -> void:
 	_leave(Router.Screen.CRYPT_CLOSET, {})
+
+
+func _on_trends_button_pressed() -> void:
+	_leave(Router.Screen.TRENDS, {})
 
 
 func _on_brains_changed(total: int, _delta: int) -> void:

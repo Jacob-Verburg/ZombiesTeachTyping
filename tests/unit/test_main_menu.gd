@@ -7,6 +7,7 @@ extends GutTest
 ## Story 6.8: Locked / New cards from the temp save's unlocks, the hint copy, the one-time unlock moment and
 ## the input that finishes it (handlers called directly: the menu is disabled, so its tweens never run),
 ## mark_level_chosen, re-reads on profile_replaced / unlocks_changed, the hint and badge layout.
+## Story 10.5: the Progress button (%TrendsButton) opens TRENDS and is its own top focus row.
 
 const MenuScene: PackedScene = preload("res://scenes/screens/main_menu.tscn")
 const MainMenuScript := preload("res://scripts/screens/main_menu.gd")
@@ -227,7 +228,7 @@ func test_card_row_neighbours() -> void:
 	assert_eq(_neighbor(cards[2], SIDE_RIGHT), cards[2], "right end stops")
 	for card: LevelCard in cards:
 		assert_eq(_neighbor(card, SIDE_BOTTOM), closet, "down from %s" % card.get_level_id())
-		assert_eq(_neighbor(card, SIDE_TOP), card, "nothing above the cards")
+		assert_eq(_neighbor(card, SIDE_TOP), _node("%TrendsButton"), "up from %s goes to Progress" % card.get_level_id())
 
 
 func test_bottom_row_neighbours() -> void:
@@ -255,11 +256,41 @@ func test_tab_order_walks_cards_then_bottom_row() -> void:
 	var order: Array[Control] = []
 	order.assign(_cards())
 	order.append_array([
-		_node("%ClosetButton"), _target("%MusicToggle"), _target("%SoundToggle"), _target("%FullscreenToggle")
+		_node("%ClosetButton"), _target("%MusicToggle"), _target("%SoundToggle"), _target("%FullscreenToggle"),
+		_node("%TrendsButton"),
 	])
 	for i: int in order.size():
 		var next: Node = order[i].get_node_or_null(order[i].focus_next)
 		assert_eq(next, order[(i + 1) % order.size()])
+
+
+func test_trends_button_opens_progress() -> void:
+	_make()
+	(_node("%TrendsButton") as Button).pressed.emit()
+	assert_eq(_nav, [[Router.Screen.TRENDS, {}]])
+	(_node("%TrendsButton") as Button).pressed.emit()
+	(_node("%ClosetButton") as Button).pressed.emit()
+	assert_eq(_nav.size(), 1, "the _leaving guard: one navigation per menu")
+
+
+func test_trends_button_neighbours() -> void:
+	_make()
+	var trends: Control = _node("%TrendsButton")
+	assert_eq(_neighbor(trends, SIDE_BOTTOM), _cards()[0], "down to the first choosable card")
+	for side: Side in [SIDE_LEFT, SIDE_RIGHT, SIDE_TOP]:
+		assert_eq(_neighbor(trends, side), trends, "side %d stays put" % side)
+	assert_false(trends.has_focus(), "the first card keeps the opening focus")
+	assert_eq(trends.get_node_or_null(trends.focus_previous), _target("%FullscreenToggle"))
+
+
+func test_trends_button_down_goes_to_the_first_choosable_card() -> void:
+	_make(_registry([_entry(&"a", false), _entry(&"b", true)]), true)
+	assert_eq(_neighbor(_node("%TrendsButton"), SIDE_BOTTOM), _cards()[1])
+
+
+func test_trends_button_down_goes_to_the_closet_without_a_choosable_card() -> void:
+	_make(_registry([_entry(&"a", false)]), true)
+	assert_eq(_neighbor(_node("%TrendsButton"), SIDE_BOTTOM), _node("%ClosetButton"))
 
 
 func test_decor_never_takes_focus_or_the_mouse() -> void:
@@ -431,7 +462,9 @@ func test_export_chord_is_ctrl_shift_e_only() -> void:
 ## hint sign is not part of the card's rect: it is a transient overlay drawn over the notice on purpose, and
 ## test_hint_sign_stays_inside_the_margin_and_over_the_notice checks it on its own (Story 6.8).
 func _interactive_and_decor() -> Array[Control]:
-	var result: Array[Control] = [_node("%BrainCounter"), _node("%Logo"), _node("%ClosetButton")]
+	var result: Array[Control] = [
+		_node("%BrainCounter"), _node("%Logo"), _node("%ClosetButton"), _node("%TrendsButton")
+	]
 	result.append_array(_cards())
 	for path: String in ["%MusicToggle", "%SoundToggle", "%FullscreenToggle"]:
 		var toggle: MenuToggle = _menu.get_node(path) as MenuToggle

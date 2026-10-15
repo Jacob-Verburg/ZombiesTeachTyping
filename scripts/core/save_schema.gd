@@ -1,5 +1,5 @@
 class_name SaveSchema
-## The save file's shape: current (v4) defaults, number clean-up, default filling and migrations. Pure:
+## The save file's shape: current (v5) defaults, number clean-up, default filling and migrations. Pure:
 ## no files, no nodes, no autoloads. SaveService calls prepare() on every save it parses.
 ## Filling keeps every key it doesn't know (a newer build's fields survive an older build's write).
 ## Migrations: one static func per version step, named migrate_N_to_N1. Each takes the whole save
@@ -12,6 +12,8 @@ class_name SaveSchema
 ## shown, so no passage repeats until its tier's set is used up (FR68). Only PlayerData writes it.
 ## v4 (Story 10.1) adds profiles.<id>.last_themes: {level_id: theme_id} (Strings), the theme each level
 ## last played in, so the next run never repeats it (FR76). Only PlayerData writes it.
+## v5 (Story 10.5) adds profiles.<id>.lifetime: {"runs", "keys_typed", "seconds", "brains"} (non-negative
+## ints), running totals that outlive the run_history cap (FR77). Only PlayerData writes it.
 
 const DEFAULT_PROFILE_ID: String = "p1"
 ## The v2 unlock chain (level -> the level whose finished run opens it), frozen at migration time:
@@ -35,6 +37,7 @@ static func profile_defaults() -> Dictionary:
 		"level_unlocks": {},
 		"used_passages": [],
 		"last_themes": {},
+		"lifetime": {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 0},
 	}
 
 
@@ -97,7 +100,7 @@ static func fill_defaults(data: Dictionary) -> Dictionary:
 
 ## Migration steps in order: index 0 upgrades v1 to v2, index 1 v2 to v3, and so on.
 static func migration_steps() -> Array[Callable]:
-	return [migrate_1_to_2, migrate_2_to_3, migrate_3_to_4]
+	return [migrate_1_to_2, migrate_2_to_3, migrate_3_to_4, migrate_4_to_5]
 
 
 ## v1 -> v2 (Story 6.8): gives every profile a level_unlocks Dictionary and backfills it, so a kid who
@@ -158,6 +161,53 @@ static func migrate_3_to_4(data: Dictionary) -> Dictionary:
 		if typeof(profile.get("last_themes")) != TYPE_DICTIONARY:
 			profile["last_themes"] = {}
 	return data
+
+
+## v4 -> v5 (Story 10.5): gives every profile a lifetime Dictionary, backfilled from what the save already
+## knows: runs = the Dictionary records in run_history; keys_typed / seconds = the sums of their keys_typed /
+## duration_s; brains = max(the sum of their brains, the wallet), since the wallet can hold quit-run and gift
+## brains history never saw. Only non-negative ints are summed. A profile that already has a Dictionary
+## lifetime keeps it; a non-Dictionary is rebuilt. Junk (non-dict profiles, profiles not a dict) is skipped
+## with a warning.
+static func migrate_4_to_5(data: Dictionary) -> Dictionary:
+	var profiles: Variant = data.get("profiles")
+	if typeof(profiles) != TYPE_DICTIONARY:
+		Log.warn(&"save", "migrate_4_to_5: profiles is not a dictionary, skipping")
+		return data
+	for id: Variant in (profiles as Dictionary).keys():
+		var profile: Variant = profiles[id]
+		if typeof(profile) != TYPE_DICTIONARY:
+			Log.warn(&"save", "migrate_4_to_5: profiles/%s is not a dictionary, skipping" % id)
+			continue
+		if typeof(profile.get("lifetime")) == TYPE_DICTIONARY:
+			continue
+		var runs: int = 0
+		var keys_typed: int = 0
+		var seconds: int = 0
+		var brains: int = 0
+		var history: Variant = profile.get("run_history")
+		if typeof(history) == TYPE_ARRAY:
+			for record: Variant in history:
+				if typeof(record) != TYPE_DICTIONARY:
+					continue
+				runs += 1
+				keys_typed += _whole(record.get("keys_typed"))
+				seconds += _whole(record.get("duration_s"))
+				brains += _whole(record.get("brains"))
+		profile["lifetime"] = {
+			"runs": runs,
+			"keys_typed": keys_typed,
+			"seconds": seconds,
+			"brains": maxi(brains, _whole(profile.get("brains"))),
+		}
+	return data
+
+
+## A non-negative int as itself; anything else (negative, float, string, null) as 0.
+static func _whole(value: Variant) -> int:
+	if typeof(value) == TYPE_INT and int(value) >= 0:
+		return value
+	return 0
 
 
 ## The level ids with at least one "timer" record in `history`; empty when history isn't an Array.

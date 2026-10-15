@@ -37,6 +37,10 @@ extends Node
 ## Last themes (Story 10.1, FR76): get_last_theme / set_last_theme read and write the profile's
 ## last_themes, {level_id: theme_id}, the look each level last started in. RunFrame reads it to pick a
 ## different theme and writes the pick at run start, so this is its only writer. No signal: nothing listens.
+## Lifetime (Story 10.5, FR77): the profile's lifetime {"runs", "keys_typed", "seconds", "brains"} are running
+## totals that outlive the RUN_HISTORY_CAP. record_run adds the run (inline, same single save request);
+## add_brains adds to lifetime brains too (quit runs, the welcome gift); spending never lowers it. Reads for
+## the Progress screen: get_lifetime, get_best_wpm_overall, get_run_history (copies; junk reads as 0 / skipped).
 
 enum PurchaseResult { OK, NOT_ENOUGH_BRAINS, ALREADY_OWNED, UNAVAILABLE }
 
@@ -64,6 +68,8 @@ const TIER_CONFIG: TierConfig = preload("res://data/tier_config.tres")
 const LEVEL_REGISTRY_PATH: String = "res://data/levels/level_registry.tres"
 ## What get_unlock_state returns for an open level (no lock, nothing new to show).
 const OPEN_STATE: Dictionary = {"unlocked": true, "moment_seen": true, "chosen": true}
+## The lifetime totals' keys (SaveSchema v5).
+const LIFETIME_FIELDS: Array[String] = ["runs", "keys_typed", "seconds", "brains"]
 
 ## Test seam: tests assign a fresh SaveService before add_child.
 var save_service: SaveServiceScript = null
@@ -104,12 +110,13 @@ func add_brains(amount: int) -> void:
 		return
 	var total: int = get_brains() + amount
 	_profile()["brains"] = total
+	_add_lifetime("brains", amount)
 	brains_changed.emit(total, amount)
 	save_service.request_save()
 
 
 ## Saves a finished run (never a quit): appends its record (newest RUN_HISTORY_CAP kept), updates the
-## level's best WPM, adds the run's brains, for a timer finish unlocks the levels it opens, and places or
+## level's best WPM, adds the run's brains, adds the run to the lifetime totals, for a timer finish unlocks the levels it opens, and places or
 ## moves the hidden tier, with one save request. Returns true for a new personal best; a level's first run sets the best but returns false.
 func record_run(result: RunResult) -> bool:
 	if result == null:
@@ -117,7 +124,8 @@ func record_run(result: RunResult) -> bool:
 		return false
 	var profile: Dictionary = _profile()
 	var history: Array = profile["run_history"]
-	history.append(result.to_record())
+	var record: Dictionary = result.to_record()
+	history.append(record)
 	if history.size() > GameConstants.RUN_HISTORY_CAP:
 		# One slice, not remove_at(0) per run: a loaded history may be far over the cap.
 		profile["run_history"] = history.slice(history.size() - GameConstants.RUN_HISTORY_CAP)
@@ -131,6 +139,11 @@ func record_run(result: RunResult) -> bool:
 	if result.wpm > previous:
 		best[key] = result.wpm
 	var earned: int = result.total_brains()
+	# Before brains_changed, so a listener reading get_lifetime() sees this run.
+	_add_lifetime("runs", 1)
+	_add_lifetime("keys_typed", maxi(0, result.keys_typed))
+	_add_lifetime("seconds", int(record["duration_s"]))
+	_add_lifetime("brains", maxi(0, earned))
 	if earned > 0:
 		# Inline, not add_brains(): that would request a second save.
 		var total: int = get_brains() + earned
@@ -394,6 +407,44 @@ func set_last_theme(level_id: StringName, theme_id: StringName) -> void:
 	save_service.request_save()
 
 
+## The lifetime totals, a fresh {"runs", "keys_typed", "seconds", "brains"} Dictionary of non-negative ints. A
+## missing, negative or non-int stored value (or a non-Dictionary lifetime) reads as 0.
+func get_lifetime() -> Dictionary:
+	var stored: Variant = _profile().get("lifetime")
+	var source: Dictionary = stored if stored is Dictionary else {}
+	var totals: Dictionary = {}
+	for field: String in LIFETIME_FIELDS:
+		totals[field] = _whole(source.get(field))
+	return totals
+
+
+## The highest saved per-level best WPM (best_wpm outlives the history cap); 0 when there is none. Only
+## non-negative ints and whole floats count.
+func get_best_wpm_overall() -> int:
+	var stored: Variant = _profile().get("best_wpm")
+	if not stored is Dictionary:
+		return 0
+	var best: int = 0
+	for value: Variant in (stored as Dictionary).values():
+		if value is float and is_finite(value) and value == floorf(value) and absf(value) < 9.0e15:
+			value = int(value)
+		best = maxi(best, _whole(value))
+	return best
+
+
+## Deep copies of the run_history Dictionary records, oldest first; junk entries are skipped. Mutating the
+## result never changes the save.
+func get_run_history() -> Array[Dictionary]:
+	var records: Array[Dictionary] = []
+	var stored: Variant = _profile().get("run_history")
+	if not stored is Array:
+		return records
+	for record: Variant in stored as Array:
+		if record is Dictionary:
+			records.append((record as Dictionary).duplicate(true))
+	return records
+
+
 ## Replaces the save with defaults (debug overlay F8). The old save.json becomes save.bak on the write.
 func reset_all() -> void:
 	save_service.reset_to_defaults()
@@ -477,6 +528,23 @@ func _registry() -> LevelRegistry:
 			Log.error(&"run", "level registry failed to load from %s" % LEVEL_REGISTRY_PATH)
 			level_registry = LevelRegistry.new()
 	return level_registry
+
+
+## Adds `amount` to one lifetime total, inline (no save request). A non-Dictionary lifetime is replaced by the
+## defaults first, and a junk stored value counts as 0.
+func _add_lifetime(field: String, amount: int) -> void:
+	var profile: Dictionary = _profile()
+	if not profile.get("lifetime") is Dictionary:
+		profile["lifetime"] = SaveSchema.profile_defaults()["lifetime"]
+	var lifetime: Dictionary = profile["lifetime"]
+	lifetime[field] = _whole(lifetime.get(field)) + amount
+
+
+## A non-negative int as itself; anything else reads as 0.
+func _whole(value: Variant) -> int:
+	if value is int and int(value) >= 0:
+		return value
+	return 0
 
 
 ## The profile's level_unlocks Dictionary; a non-Dictionary value is replaced by {} first.

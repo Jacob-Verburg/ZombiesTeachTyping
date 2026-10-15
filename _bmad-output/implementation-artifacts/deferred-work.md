@@ -897,3 +897,13 @@
 - `PitchforkPanicLevel._apply_escape_cover` runs once from `_ready`; a later `apply_theme()` would leave the old cover (no such caller today).
 - Full 5:00 scroll/perf smoke per Pitchfork Panic setting (Cornfield Path, Spooky Forest Bridge) not run; ~35 s / ~20 s only. Reason: user accepted the disclosed deviation.
 - `SheetFrames.from_texture` accepts oversized sheets (minimum-size check only). Reason: kept as a documented minimum; the test fixture relies on it.
+
+## Deferred from: dev of story 10-5 (2026-10-14)
+
+- The Progress charts mix every level (as the hidden tier's rolling average does); there is no per-level filter.
+- No value labels on the bars and no dates under them: the totals board carries the numbers. A parent who wants exact WPM per game sees the report card only.
+- Practice days use the system time zone's bias; on web it may read 0, so days there are UTC days (a late-evening game in the Americas can land on the next day).
+- Pre-v5 saves' Brains Earned is backfilled as max(history brains, wallet): gift and quit-run brains already spent before v5 can't be recovered, so the backfill is a lower bound. Owned-item prices are not added back (migrations never read the catalogue).
+- Keys Typed / Time Practiced count recorded (finished) games only, matching run_history (FR13); quit games add only their brains.
+- The main menu's `%Logo` TextureRect rect (x 144–496) overlaps the Progress button's rect (x 480–624) by 16 px; the logo's drawn pixels end at x 461, so nothing visibly overlaps, but no test checks drawn pixels against the button.
+- Web smoke ended the game with F6 after a few keys (the pane's synthetic `type` events do not reach the run; single key presses do), not a full timed game.

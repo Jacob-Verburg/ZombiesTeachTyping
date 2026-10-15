@@ -109,6 +109,17 @@ theme_type_variation = &"PixelButton"
 text = "Crypt Closet"
 script = ExtResource("5_pixel_button")
 
+[node name="TrendsButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 480.0
+offset_top = 16.0
+offset_right = 624.0
+offset_bottom = 48.0
+theme_type_variation = &"PixelButton"
+text = "Progress"
+script = ExtResource("5_pixel_button")
+
 [node name="MusicToggle" parent="." instance=ExtResource("6_toggle")]
 unique_name_in_owner = true
 layout_mode = 0

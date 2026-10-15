@@ -10,7 +10,7 @@ extends Node
 
 signal screen_changed(screen: Screen)
 
-enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET, KEYBOARD_TEST }
+enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET, KEYBOARD_TEST, TRENDS }
 
 ## Paths, not preloads: a failed preload is a parse error, so the MAIN_MENU fallback could never run.
 const SCREEN_PATHS: Dictionary[Screen, String] = {
@@ -21,6 +21,7 @@ const SCREEN_PATHS: Dictionary[Screen, String] = {
 	Screen.WELCOME_GIFT: "res://scenes/screens/welcome_gift.tscn",
 	Screen.CRYPT_CLOSET: "res://scenes/screens/crypt_closet.tscn",
 	Screen.KEYBOARD_TEST: "res://scenes/screens/keyboard_test.tscn",
+	Screen.TRENDS: "res://scenes/screens/trends.tscn",
 }
 const FADE_OUT_SEC: float = 0.15
 const FADE_IN_SEC: float = 0.15

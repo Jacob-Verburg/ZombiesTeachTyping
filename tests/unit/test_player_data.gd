@@ -1,6 +1,6 @@
 extends GutTest
 ## PlayerData: brains, settings, wallet, inventory, equipment, flag and level-unlock (Story 6.8) mutations,
-## their signals, coalesced save requests, live profile reads.
+## their signals, coalesced save requests, live profile reads, lifetime totals and Progress reads (Story 10.5).
 ## Always a fresh SaveService (save_dir = TEST_DIR) and a fresh PlayerData wired to it through the
 ## save_service seam before add_child. The live autoloads are only read, so the real save is never touched.
 
@@ -1157,3 +1157,134 @@ func test_last_theme_reset_all_clears_them() -> void:
 	sut.set_last_theme(&"zombie_run", &"sunny_village_green")
 	sut.reset_all()
 	assert_eq(sut.get_last_theme(&"zombie_run"), &"")
+
+
+# --- lifetime totals and Progress reads (Story 10.5) ---------------------------
+
+## A run lasting `seconds` with `keys` keys and `brains` level brains (+ `bonus`).
+func _timed(keys: int, seconds: float, brains: int = 0, bonus: int = 0, stamp: int = 1000) -> RunResult:
+	return RunResult.create(
+		&"zombie_run", stamp, seconds, keys, 0, {}, brains, bonus, "all", GameConstants.END_REASON_TIMER)
+
+
+func test_record_run_adds_to_every_lifetime_total_with_one_save() -> void:
+	_save = CountingSave.new()
+	_save.save_dir = TEST_DIR
+	add_child_autofree(_save)
+	var sut: PlayerDataScript = PlayerDataScript.new()
+	sut.save_service = _save
+	add_child_autofree(sut)
+	sut.record_run(_timed(51, 120.9, 7, 5))
+	assert_eq_deep(sut.get_lifetime(), {"runs": 1, "keys_typed": 51, "seconds": 120, "brains": 12})
+	assert_eq((_save as CountingSave).requests, 1, "still exactly one save request")
+	await wait_process_frames(2)
+	var written: Dictionary = SaveSchema.normalize_numbers(_written_profile()["lifetime"])
+	assert_eq_deep(written, {"runs": 1, "keys_typed": 51, "seconds": 120, "brains": 12})
+
+
+func test_lifetime_accumulates_over_runs() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.record_run(_timed(50, 60.0, 3))
+	sut.record_run(_timed(70, 180.0, 4, 10))
+	assert_eq_deep(sut.get_lifetime(), {"runs": 2, "keys_typed": 120, "seconds": 240, "brains": 17})
+
+
+func test_lifetime_listener_on_brains_changed_sees_the_run() -> void:
+	var sut: PlayerDataScript = _make()
+	var seen: Array[int] = []
+	sut.brains_changed.connect(func(_t: int, _d: int) -> void: seen.append(int(sut.get_lifetime()["runs"])))
+	sut.record_run(_timed(50, 60.0, 3))
+	assert_eq(seen, [1] as Array[int])
+
+
+func test_lifetime_outlives_the_history_cap() -> void:
+	var sut: PlayerDataScript = _make()
+	var runs: int = GameConstants.RUN_HISTORY_CAP + 1
+	for i: int in runs:
+		sut.record_run(_timed(10, 60.0, 1, 0, i))
+	assert_eq(_history().size(), GameConstants.RUN_HISTORY_CAP)
+	assert_eq_deep(
+		sut.get_lifetime(), {"runs": runs, "keys_typed": 10 * runs, "seconds": 60 * runs, "brains": runs}
+	)
+
+
+func test_add_brains_counts_toward_lifetime_and_spending_never_lowers_it() -> void:
+	var sut: PlayerDataScript = _make_shop(0, true)
+	sut.add_brains(100)
+	assert_eq(int(sut.get_lifetime()["brains"]), 100, "quit-run and gift brains count")
+	assert_eq((_save as CountingSave).requests, 1, "add_brains still makes one save request")
+	assert_eq(sut.buy_item(_item_of(sut, &"hat_pumpkin")), PlayerDataScript.PurchaseResult.OK)
+	assert_eq(sut.get_brains(), 100 - HAT_PRICE)
+	assert_eq(int(sut.get_lifetime()["brains"]), 100, "spending does not lower Brains Earned")
+	sut.add_brains(0)
+	assert_eq(int(sut.get_lifetime()["brains"]), 100)
+	assert_eq_deep(sut.get_lifetime(), {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 100})
+
+
+func test_get_lifetime_reads_junk_as_zero() -> void:
+	var sut: PlayerDataScript = _make()
+	_save.get_active_profile()["lifetime"] = "x"
+	assert_eq_deep(sut.get_lifetime(), {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 0})
+	_save.get_active_profile()["lifetime"] = {"runs": -5, "keys_typed": 3.5, "seconds": "7"}
+	assert_eq_deep(sut.get_lifetime(), {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 0})
+	sut.add_brains(4)
+	assert_eq_deep(sut.get_lifetime(), {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 4})
+	_save.get_active_profile()["lifetime"] = [1]
+	sut.record_run(_timed(5, 60.0))
+	assert_eq_deep(sut.get_lifetime(), {"runs": 1, "keys_typed": 5, "seconds": 60, "brains": 0})
+	assert_push_error_count(0)
+
+
+func test_get_lifetime_returns_a_copy() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.add_brains(3)
+	var totals: Dictionary = sut.get_lifetime()
+	totals["brains"] = 999
+	assert_eq(int(sut.get_lifetime()["brains"]), 3)
+
+
+func test_get_best_wpm_overall_is_the_highest_level_best() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_eq(sut.get_best_wpm_overall(), 0, "fresh save")
+	_save.get_active_profile()["best_wpm"] = {"zombie_run": 12, "horde_rush": 17, "pitchfork_panic": 9}
+	assert_eq(sut.get_best_wpm_overall(), 17)
+	_save.get_active_profile()["best_wpm"] = {"zombie_run": 12, "a": -40, "b": "99", "c": 30.5, "d": 21.0}
+	assert_eq(sut.get_best_wpm_overall(), 21, "junk ignored; a whole float counts")
+	_save.get_active_profile()["best_wpm"] = "lots"
+	assert_eq(sut.get_best_wpm_overall(), 0)
+
+
+func test_get_run_history_returns_copies_and_skips_junk() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.record_run(_timed(50, 60.0, 0, 0, 10))
+	sut.record_run(_timed(60, 60.0, 0, 0, 20))
+	_history().insert(1, "oops")
+	_history().append(7)
+	var records: Array[Dictionary] = sut.get_run_history()
+	assert_eq(records.size(), 2)
+	assert_eq(int(records[0]["timestamp"]), 10, "oldest first")
+	assert_eq(int(records[1]["timestamp"]), 20)
+	records[0]["wpm"] = 999
+	records[0]["per_key"]["z"] = [1, 1, {}]
+	records.clear()
+	assert_eq(int((_history()[0] as Dictionary)["wpm"]), 10, "the save is untouched")
+	assert_false((_history()[0] as Dictionary)["per_key"].has("z"))
+	assert_eq(_history().size(), 4)
+	_save.get_active_profile()["run_history"] = "nope"
+	assert_eq(sut.get_run_history().size(), 0)
+
+
+func test_lifetime_survives_a_reload() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.record_run(_timed(40, 120.0, 6))
+	sut.add_brains(2)
+	await wait_process_frames(2)
+	var reloaded: PlayerDataScript = _make()
+	assert_eq_deep(reloaded.get_lifetime(), {"runs": 1, "keys_typed": 40, "seconds": 120, "brains": 8})
+
+
+func test_reset_all_clears_lifetime() -> void:
+	var sut: PlayerDataScript = _make()
+	sut.record_run(_timed(40, 120.0, 6))
+	sut.reset_all()
+	assert_eq_deep(sut.get_lifetime(), {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 0})
