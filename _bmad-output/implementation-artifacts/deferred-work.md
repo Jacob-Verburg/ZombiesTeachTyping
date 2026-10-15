@@ -907,3 +907,7 @@
 - Keys Typed / Time Practiced count recorded (finished) games only, matching run_history (FR13); quit games add only their brains.
 - The main menu's `%Logo` TextureRect rect (x 144–496) overlaps the Progress button's rect (x 480–624) by 16 px; the logo's drawn pixels end at x 461, so nothing visibly overlaps, but no test checks drawn pixels against the button.
 - Web smoke ended the game with F6 after a few keys (the pane's synthetic `type` events do not reach the run; single key presses do), not a full timed game.
+
+## Deferred from: code review of story-10-5 (2026-10-14)
+
+- `_whole` int-guard helper is duplicated in `save_schema.gd`, `trends_calculator.gd` and `player_data.gd`; consolidate into one shared helper.

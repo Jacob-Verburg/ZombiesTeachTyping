@@ -4,7 +4,7 @@ baseline_commit: e3b4481cb77520703397ff4b5424c58d34d55500
 
 # Story 10.5: Trends and Lifetime Stats Screen
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -26,7 +26,13 @@ so that I can see the practice is working.
 8. **Robust and live (NFR16, Boundary 4).** The screen reads only through `PlayerData` getters (no save dictionary, no `SaveService`), writes nothing, and re-reads everything on `PlayerData.profile_replaced` (F8 reset while open) and `run_recorded` (never fired here in practice; harmless). A junk value anywhere (a negative, a float, a string, a missing key) reads as 0 and never logs an error to the kid's screen or stops the screen.
 9. **Layout and readability (NFR7, DESIGN.md).** All text ≥ 16 px (theme default, Press Start 2P: **16 px per character** at 16 px), every focusable control ≥ 32 px tall, every control inside the 16 px margin, nothing overlaps, no text clipped (each label's minimum size fits its rect). Only `%MenuButton` is focusable on the Progress screen and it starts focused. The new scene and screen are walked by `test_no_placeholder_chrome.gd`, `test_plain_words.gd`, `test_readability.gd` and `test_screen_flow.gd` (it gets a temp-dir `PlayerData` like MAIN_MENU, so the real save is never touched).
 10. **Main menu focus and existing behaviour preserved.** `%TrendsButton` joins focus wiring as its own top row: Up from any card → `%TrendsButton`; Down from `%TrendsButton` → the first choosable card (or `%ClosetButton` when none); Left/Right on it stay put; Tab order: cards → bottom row → `%TrendsButton` → wraps. Initial focus, the unlock moment (input finishes it; focus still goes to the new card), the storage notice, Ctrl+Shift+E, Esc-does-nothing and every existing `test_main_menu.gd` / `test_level_unlocks.gd` / `test_main_menu_fullscreen.gd` case still pass (update only the neighbour/Tab expectations that this AC changes).
-11. **Approval gates.** Gate 1: a layout sketch of the Progress screen (both states) and the menu's new button, with the copy list, approved by Smuck **before** wiring visuals. Gate 2: in-game screenshots (filled state with ≥ 8 runs over ≥ 3 days, empty state, menu with the button focused, grayscale of the filled state) approved by Smuck. Each answer verbatim with the date in `## Art Approval`. No new sound (UI click only): no Audio gate.
+11. **Approval gates.** Gate 1: a layout sketch of the Progress screen (both states) and the menu's new button, with the copy list, approved by Smuck **before** wiring visuals. Gate 2: in-game screenshots (filled state with ≥ 8 runs over ≥ 3 days, empty state, menu with the button focused, grayscale of the filled state) approved by Smuck. Each answer verbatim with the date in `### Review Findings
+
+- [x] [Review][Decision] (resolved 1a: keep as is, dismissed) Debug/test brain grants and the welcome gift count as "Brains Earned" — `PlayerData.add_brains` now feeds `lifetime.brains` for every caller: CHEAT_BRAINS (`debug_overlay.gd:182`), `hat_fit_check.gd:236`, `keyboard_test.gd:116`, the welcome gift (`welcome_gift.gd:87`) and quit-run brains (`run_frame.gd:470`). Options: (a) keep as is, since quit-run brains were really earned and cheats are dev-only; (b) count only run and quit brains, via a separate path for the gift and debug grants.
+- [x] [Review][Decision] (resolved 2a: keep floor-to-minutes, dismissed) "Time Practiced" reads "0 min" for a lifetime under 60 s — a kid's first 45 s game looks unrecorded [scripts/core/trends_calculator.gd:623]. Options: (a) keep floor-to-minutes; (b) show "<1 min" (needs plain-words approval); (c) show seconds under a minute.
+- [x] [Review][Defer] `_whole` helper is duplicated in save_schema, trends_calculator and player_data [scripts/] — deferred, pre-existing pattern.
+
+## Art Approval`. No new sound (UI click only): no Audio gate.
 12. **No regressions.** Full GUT suite green, count only goes up; zero `Parse Error|Compile Error|Failed to load script`; `SCRIPT ERROR` / `WARNING` counts unchanged except deliberate, asserted ones. All existing PNG/WAV byte-identical. The real `user://save.json` sha256 identical before and after every suite run and manual check.
 
 ## Tasks / Subtasks
