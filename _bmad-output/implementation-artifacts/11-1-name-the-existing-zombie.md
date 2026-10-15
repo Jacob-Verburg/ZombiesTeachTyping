@@ -4,7 +4,7 @@ baseline_commit: b992bce7ac5b306281910057b4c859cd8d8da4b1
 
 # Story 11.1: Name the Existing Zombie
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -212,6 +212,18 @@ so that my brains and hats are clearly mine.
 - [Source: scripts/screens/title.gd], [scripts/autoloads/router.gd], [scripts/autoloads/player_data.gd], [scripts/core/save_schema.gd profile_defaults/_merge], [scripts/core/game_constants.gd], [scripts/autoloads/web_platform.gd capture_keys], [scripts/screens/welcome_gift.gd], [scripts/screens/main_menu.gd + main_menu.tscn (Zombie, PetSlot)], [scripts/screens/keyboard_test.gd capture_keys on/off]
 - [Source: tests/unit/test_title.gd], [tests/unit/test_router.gd], [tests/integration/test_screen_flow.gd], [tests/unit/test_player_data.gd], [tests/unit/test_plain_words.gd], [tests/unit/test_readability.gd], [tests/unit/test_no_placeholder_chrome.gd], [tests/unit/test_trends.gd (seams, _reset_input_handled)]
 - [Source: _bmad-output/implementation-artifacts/10-5-trends-and-lifetime-stats-screen.md] (new screen + Router append + gates template), [10-1-random-theme-rotation.md] (real-save incident), [deferred-work.md] (Epic 11 notes: profile switch must call `_reconcile_tier()` — 11.2, not here)
+
+### Review Findings
+
+- [x] [Review][Patch] No way past the name screen without typing an ASCII letter — decision 1a: pressing Done on an empty field saves the default name "Zombie" instead of wiggling, so non-Latin-layout, touch and switch players can always continue; update AC 4 wording/tests accordingly [scripts/screens/name_zombie.gd:131-137, tests/unit/test_name_zombie.gd]
+- [x] [Review][Dismissed] Held Backspace deletes one character per press — decision 2b: kept as is (AC 3 echo filter stands)
+- [x] [Review][Patch] `_leaving` stays true forever if the Router has not started a transition right after `navigate.call` — typing and Done are dead with no feedback; release `_leaving` when `is_transitioning` is false after the call, and cover it with a test [scripts/screens/name_zombie.gd:145-154]
+- [x] [Review][Patch] `char(key.unicode)` is unguarded against lone surrogates / codepoints above 0x10FFFF (web/IME) — check the code point with `ZombieName.is_letter` range before calling `char` [scripts/screens/name_zombie.gd:104-105]
+- [x] [Review][Patch] A trailing space can take the 12th slot: 11 letters + Space looks full, the caret hides, no letter can be added, and Done saves 11 letters — refuse a space that would be the last character [scripts/core/zombie_name.gd append, scripts/screens/name_zombie.gd:126]
+- [x] [Review][Patch] Screen does not re-read the name on `profile_replaced` (PlayerData doc promises it) — F8 `reset_all()` while open leaves stale text and Done re-saves the old name [scripts/screens/name_zombie.gd:66]
+- [x] [Review][Patch] `test_a_space_only_name_is_not_saved` actually tests an empty name (S, Backspace, Enter) and only asserts `_nav == []`; assert wiggle and unchanged saved name, and use a real space-only input path [tests/unit/test_name_zombie.gd:783-788]
+- [x] [Review][Patch] NFR12 log-guard test is a weak single-line regex over three files (misses multi-line calls, other variable names such as `next`/`value`/`current`/`out`, `title.gd`, `router.gd`); widen identifiers and files, join continuation lines. Also `test_ignored_keys_add_nothing` asserts "never wiggle" though ignored keys cannot reach `_submit` (vacuous) [tests/unit/test_player_data.gd:1129-1145, tests/unit/test_name_zombie.gd:705-731]
+- [x] [Review][Defer] `set_zombie_name` returns true and the screen navigates when the save is read-only (newer schema) or the write fails — the name lives only in memory and the name screen returns next launch [scripts/autoloads/player_data.gd:172-183] — deferred, pre-existing save behavior
 
 ## Art Approval
 

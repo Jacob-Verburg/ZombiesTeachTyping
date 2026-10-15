@@ -19,13 +19,14 @@ static func is_letter(c: String) -> bool:
 
 
 ## `current` with `c` added, or `current` unchanged when `c` is not a letter or a single space, when the
-## result would be longer than the max, or when `c` is a space and `current` is empty or ends in a space.
+## result would be longer than the max, or when `c` is a space and `current` is empty, ends in a space, or
+## would fill the last slot (a trailing space is stripped on save, so it must not block the 12th letter).
 static func append(current: String, c: String) -> String:
 	if current.length() >= GameConstants.ZOMBIE_NAME_MAX_LENGTH:
 		return current
 	if is_letter(c):
 		return current + c
-	if c == SPACE and not current.is_empty() and not current.ends_with(SPACE):
+	if c == SPACE and not current.is_empty() and not current.ends_with(SPACE) 			and current.length() < GameConstants.ZOMBIE_NAME_MAX_LENGTH - 1:
 		return current + c
 	return current
 

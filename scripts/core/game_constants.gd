@@ -43,3 +43,6 @@ const TIER_POOL_FORMAT: String = "tier_%d"
 ## FR78 / Story 11.1: the longest zombie name, in characters (letters and single spaces). A content rule from
 ## the epics ("plain-word, length-limited"), not a balancing number, so it lives here and not in a Resource.
 const ZOMBIE_NAME_MAX_LENGTH: int = 12
+## Story 11.1 review: the name Done saves when nothing valid is typed, so a player who cannot type an ASCII letter
+## (touch, a non-Latin layout, a switch) is never stuck on the name screen.
+const ZOMBIE_NAME_DEFAULT: String = "Zombie"

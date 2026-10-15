@@ -8,8 +8,8 @@ extends Control
 ## before the GUI, so it never presses the focused button (ui_accept includes Space). Enter (or a click on
 ## %DoneButton) with a valid name saves it through PlayerData.set_zombie_name, plays the UI click and navigates
 ## to the main menu once (_leaving, released if the Router's transition ends without freeing the screen).
-## With an empty name, Done only wiggles the field (no sound, no text) and the button wears its "off" look
-## while staying focusable. Esc does nothing: there is nowhere to go back to. The payload is consumed and
+## With nothing valid typed, Done saves the default name (GameConstants.ZOMBIE_NAME_DEFAULT) so nobody is stuck
+## here; the button wears its "off" look while the field is empty, and the field only wiggles if the save is refused. Esc does nothing: there is nowhere to go back to. The payload is consumed and
 ## ignored. While open, WebPlatform.capture_keys is on, so the browser never scrolls on Space or navigates on
 ## Backspace. The name is personal data: nothing here logs it (NFR12).
 ## Seams (tests assign them before add_child): navigate, player_data, play_sfx, play_music, is_transitioning.
@@ -63,12 +63,18 @@ func _ready() -> void:
 	WebPlatform.capture_keys = true
 	_field_rest_x = %NameField.position.x
 	%DoneButton.pressed.connect(_submit)
+	player_data.profile_replaced.connect(_on_profile_replaced)
 	_set_text(player_data.get_zombie_name())
 	%DoneButton.grab_focus()
 
 
 func _exit_tree() -> void:
 	WebPlatform.capture_keys = false
+
+
+## A reset or profile switch replaced the profile: show the new profile's name.
+func _on_profile_replaced() -> void:
+	_set_text(player_data.get_zombie_name())
 
 
 ## The name typed so far, as shown.
@@ -101,7 +107,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif key.keycode == KEY_BACKSPACE:
 		get_viewport().set_input_as_handled()
 		_set_text(ZombieName.backspace(_text))
-	elif key.unicode != 0:
+	elif key.unicode > 0 and key.unicode <= 0x10FFFF and not (key.unicode >= 0xD800 and key.unicode <= 0xDFFF):
 		var next: String = ZombieName.append(_text, char(key.unicode))
 		if next != _text:
 			get_viewport().set_input_as_handled()
@@ -127,25 +133,25 @@ func _set_text(value: String) -> void:
 	_set_done_ready(ZombieName.is_valid(ZombieName.clean(_text)))
 
 
-## Enter or a click on Done: a valid name finishes, anything else wiggles the field.
+## Enter or a click on Done: a valid name finishes; with nothing valid typed the default name is saved, so
+## nobody is stuck here (Story 11.1 review).
 func _submit() -> void:
 	if _leaving or is_transitioning.call():
 		return
-	if not ZombieName.is_valid(ZombieName.clean(_text)):
-		_wiggle()
-		return
-	_finish()
+	var cleaned: String = ZombieName.clean(_text)
+	_finish(cleaned if ZombieName.is_valid(cleaned) else GameConstants.ZOMBIE_NAME_DEFAULT)
 
 
 ## What Done does with a valid name, in one place (Story 11.2's "New zombie" will branch here).
-func _finish() -> void:
-	if not player_data.set_zombie_name(_text):
+func _finish(chosen: String) -> void:
+	if not player_data.set_zombie_name(chosen):
 		_wiggle()
 		return
 	_leaving = true
 	play_sfx.call(&"sfx_ui_click")
 	navigate.call(Router.Screen.MAIN_MENU, {})
 	if not is_transitioning.call():
+		_leaving = false  # the Router never started: don't leave the screen dead
 		return
 	while is_transitioning.call():
 		await get_tree().process_frame

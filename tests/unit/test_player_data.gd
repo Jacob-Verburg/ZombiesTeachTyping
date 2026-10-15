@@ -1411,11 +1411,13 @@ func test_zombie_name_warnings_never_carry_the_name() -> void:
 func test_zombie_name_is_never_passed_to_a_log_call() -> void:
 	var call: RegEx = RegEx.create_from_string(r"\b(Log\.\w+|print\w*|push_\w+)\s*\(")
 	var quoted: RegEx = RegEx.create_from_string(r'"(\\.|[^"\\])*"')
-	var name_var: RegEx = RegEx.create_from_string(r"\b(name|raw|text|cleaned|_text)\b")
+	var name_var: RegEx = RegEx.create_from_string(
+			r"\b(name|raw|text|cleaned|_text|next|value|current|out|chosen|stored)\b|get_zombie_name|get_text")
 	for path: String in [
 		"res://scripts/autoloads/player_data.gd",
 		"res://scripts/screens/name_zombie.gd",
 		"res://scripts/core/zombie_name.gd",
+		"res://scripts/screens/title.gd",
 	]:
 		assert_true(FileAccess.file_exists(path), path)
 		var lines: PackedStringArray = FileAccess.get_file_as_string(path).split("\n")
@@ -1423,5 +1425,9 @@ func test_zombie_name_is_never_passed_to_a_log_call() -> void:
 			var line: String = lines[i]
 			if line.strip_edges().begins_with("#") or call.search(line) == null:
 				continue
+			var j: int = i  # join continuation lines until the call's parentheses balance
+			while line.count("(") > line.count(")") and j + 1 < lines.size():
+				j += 1
+				line += " " + lines[j].strip_edges()
 			var code: String = quoted.sub(line, "\"\"", true)
 			assert_null(name_var.search(code), "%s:%d logs a name variable: %s" % [path, i + 1, line.strip_edges()])

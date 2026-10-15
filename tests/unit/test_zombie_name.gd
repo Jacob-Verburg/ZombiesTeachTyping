@@ -45,6 +45,7 @@ func test_append_stops_at_the_max_length() -> void:
 	assert_eq(ZombieName.append("W".repeat(MAX - 1), "W"), full, "the 12th character fits")
 	assert_eq(ZombieName.append(full, "W"), full, "the 13th letter is ignored")
 	assert_eq(ZombieName.append(full, " "), full, "so is a 13th space")
+	assert_eq(ZombieName.append("W".repeat(MAX - 1), " "), "W".repeat(MAX - 1), "a space never takes the last slot")
 
 
 func test_backspace() -> void:

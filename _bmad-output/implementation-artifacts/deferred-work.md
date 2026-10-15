@@ -918,3 +918,7 @@
 - Web smoke: the browser pane's synthetic key events drop Shift, so capitals came out lowercase there; capitals were checked in the desktop capture run ("Mister Bones") and by unit tests (unicode + shift).
 - A kid can't rename the zombie after Done (no rename button in any AC); a name typo stays until 11.2+ adds a way, or F8 reset in debug builds.
 - The NFR12 source-guard test reads three files as text with a simple regex (a log call line naming `name` / `raw` / `text` / `cleaned` / `_text` outside quotes); a name passed through a differently named variable would slip past it.
+
+## Deferred from: code review of story-11-1-name-the-existing-zombie (2026-10-15)
+
+- `PlayerData.set_zombie_name` returns true and the name screen navigates even when the save is read-only (newer `schema_version`) or the write fails; the name then exists only in memory and the name screen shows again next launch with no explanation. Same behavior as other PlayerData setters; fix belongs with a save-failure UX pass.

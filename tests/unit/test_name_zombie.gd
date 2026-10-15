@@ -74,7 +74,9 @@ func _make(enabled: bool = false) -> NameZombieScript:
 	var screen: NameZombieScript = NameZombieScene.instantiate() as NameZombieScript
 	if not enabled:
 		screen.process_mode = Node.PROCESS_MODE_DISABLED
-	screen.navigate = func(target: int, payload: Dictionary) -> void: _nav.append([target, payload])
+	screen.navigate = func(target: int, payload: Dictionary) -> void:
+		_nav.append([target, payload])
+		_transitioning = true  # the real Router starts its transition synchronously
 	screen.play_sfx = func(id: StringName) -> void: _sfx.append(id)
 	screen.play_music = func(id: StringName) -> void: _music.append(id)
 	screen.is_transitioning = func() -> bool: return _transitioning
@@ -147,7 +149,7 @@ func test_ignored_keys_add_nothing() -> void:
 	screen._input(_key(KEY_SPACE, " "))
 	assert_eq(screen.get_text(), "Sam ", "no double space")
 	assert_eq(_sfx, [] as Array[StringName], "ignored keys are silent")
-	assert_false(screen.is_wiggling(), "and never wiggle")
+	assert_eq(_nav, [], "and never navigate")
 
 
 func test_thirteenth_letter_is_ignored() -> void:
@@ -178,33 +180,57 @@ func test_caret_follows_the_text_and_hides_when_full() -> void:
 
 # --- Done -------------------------------------------------------------------------
 
-func test_enter_with_an_empty_name_only_wiggles() -> void:
+func test_enter_with_an_empty_name_saves_the_default_and_goes_on() -> void:
 	var screen: NameZombieScript = _make()
 	assert_true(screen.is_done_off(), "Done wears its off look while empty")
 	_enter(screen)
-	assert_eq(_nav, [])
-	assert_eq(_sfx, [] as Array[StringName], "no sound")
-	assert_eq(_save.requests, 0, "nothing saved")
-	assert_true(screen.is_wiggling())
-	assert_eq(_player.get_zombie_name(), "")
+	assert_eq(_player.get_zombie_name(), GameConstants.ZOMBIE_NAME_DEFAULT)
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]], "nobody is stuck on the name screen")
+	assert_false(screen.is_wiggling())
 
 
 func test_wiggle_returns_the_field_to_rest() -> void:
 	var screen: NameZombieScript = _make(true)
 	var field: Control = screen.get_node("%NameField")
 	var rest: float = field.position.x
-	screen._submit()
-	screen._submit()
+	screen._wiggle()
+	screen._wiggle()
 	await wait_seconds(NameZombieScript.WIGGLE_S + 0.1)
 	assert_eq(field.position.x, rest, "mashing never drifts the field")
 
 
-func test_a_space_only_name_is_not_saved() -> void:
+func test_a_space_alone_never_makes_a_name() -> void:
 	var screen: NameZombieScript = _make()
-	_type(screen, "S")
-	screen._unhandled_input(_key(KEY_BACKSPACE))
+	_type(screen, " ")
+	assert_eq(screen.get_text(), "", "a leading space is refused")
 	_enter(screen)
-	assert_eq(_nav, [])
+	assert_eq(_player.get_zombie_name(), GameConstants.ZOMBIE_NAME_DEFAULT, "never a blank name")
+
+
+func test_a_trailing_space_cannot_take_the_last_slot() -> void:
+	var screen: NameZombieScript = _make()
+	_type(screen, "WWWWWWWWWWW ")
+	assert_eq(screen.get_text(), "WWWWWWWWWWW", "the 12th slot stays free for a letter")
+	_type(screen, "W")
+	assert_eq(screen.get_text(), "WWWWWWWWWWWW")
+
+
+func test_surrogate_and_out_of_range_codes_are_ignored() -> void:
+	var screen: NameZombieScript = _make()
+	for code: int in [0xD800, 0xDFFF, 0x110000]:
+		var event: InputEventKey = InputEventKey.new()
+		event.pressed = true
+		event.unicode = code
+		screen._unhandled_input(event)
+	assert_eq(screen.get_text(), "")
+
+
+func test_a_replaced_profile_is_shown() -> void:
+	var screen: NameZombieScript = _make(true)
+	_type(screen, "Old")
+	_player.set_zombie_name("Bones")
+	_player.reset_all()
+	assert_eq(screen.get_text(), "", "reset_all clears the name and the screen follows")
 
 
 func test_enter_with_a_name_saves_and_goes_to_the_menu_once() -> void:
@@ -254,6 +280,15 @@ func test_guard_is_released_when_the_transition_ends_without_leaving() -> void:
 	await wait_process_frames(2)
 	screen._submit()
 	assert_eq(_nav.size(), 2, "the screen is not left dead when the menu failed to load")
+
+
+func test_guard_is_released_when_the_router_never_starts() -> void:
+	var screen: NameZombieScript = _make()
+	screen.navigate = func(target: int, payload: Dictionary) -> void: _nav.append([target, payload])
+	_type(screen, "Bo")
+	screen._submit()
+	screen._submit()
+	assert_eq(_nav.size(), 2, "a navigation that never began leaves the screen usable")
 
 
 func test_escape_does_nothing() -> void:
