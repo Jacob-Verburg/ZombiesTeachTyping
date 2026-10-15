@@ -9,7 +9,7 @@ extends Control
 ## %DoneButton) with a valid name saves it through PlayerData.set_zombie_name, plays the UI click and navigates
 ## to the main menu once (_leaving, released if the Router's transition ends without freeing the screen).
 ## With nothing valid typed, Done saves the default name (GameConstants.ZOMBIE_NAME_DEFAULT) so nobody is stuck
-## here; the button wears its "off" look while the field is empty, and the field only wiggles if the save is refused. Esc does nothing: there is nowhere to go back to.
+## here; the button wears its "off" look while the field is empty, and the field only wiggles if the save is refused. Esc does nothing unless there is another zombie to go back to (then Back is shown, as below).
 ## New-zombie mode (Story 11.2, payload {"new_zombie": true} from "Who's playing?"; anything else is 11.1's mode):
 ## the field starts empty and a plain zombie (no hat, no pet: the new zombie owns nothing yet) stands above it;
 ## Done with a valid name no other zombie has calls PlayerData.create_profile and goes to the main menu once; an
@@ -77,6 +77,8 @@ func _ready() -> void:
 	player_data.profile_replaced.connect(_on_profile_replaced)
 	if _new_zombie:
 		_show_new_zombie_mode()
+	if _can_go_back():
+		_show_back()
 	_set_text("" if _new_zombie else player_data.get_zombie_name())
 	%DoneButton.grab_focus()
 
@@ -101,8 +103,14 @@ func is_new_zombie_mode() -> bool:
 	return _new_zombie
 
 
-## New-zombie mode: Back shown and paired with Done, and a plain zombie (it owns nothing yet).
-func _show_new_zombie_mode() -> void:
+## Back (and Esc) lead to "Who's playing?": always in new-zombie mode, and in 11.1's mode once there is another
+## zombie to go back to (a mis-picked unnamed zombie must not strand the player here).
+func _can_go_back() -> bool:
+	return _new_zombie or player_data.get_profile_ids().size() > 1
+
+
+## Back shown and paired with Done.
+func _show_back() -> void:
 	var back: Button = %BackButton
 	var done: Button = %DoneButton
 	back.visible = true
@@ -113,6 +121,10 @@ func _show_new_zombie_mode() -> void:
 	done.focus_previous = to_back
 	back.focus_neighbor_right = to_done
 	back.focus_next = to_done
+
+
+## New-zombie mode: a plain zombie (it owns nothing yet).
+func _show_new_zombie_mode() -> void:
 	var hat_slot: HatSlot = %Zombie.get_node(^"%HatSlot") as HatSlot
 	hat_slot.follow_equipped = false
 	hat_slot.show_item(null)
@@ -139,8 +151,7 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		get_viewport().set_input_as_handled()
-		if _new_zombie:
-			_back()
+		_back()
 		return
 	if not event is InputEventKey:
 		return
@@ -201,13 +212,14 @@ func _finish(chosen: String) -> void:
 	if not saved:
 		_wiggle()
 		return
+	_new_zombie = false  # created: if the Router doesn't leave, Done must not try to create it again
 	play_sfx.call(&"sfx_ui_click")
 	_go(Router.Screen.MAIN_MENU)
 
 
-## Back or Esc in new-zombie mode: back to "Who's playing?"; nothing is created.
+## Back or Esc (when _can_go_back): back to "Who's playing?"; nothing is created.
 func _back() -> void:
-	if not _new_zombie or _leaving or is_transitioning.call():
+	if not _can_go_back() or _leaving or is_transitioning.call():
 		return
 	play_sfx.call(&"sfx_ui_click")
 	_go(Router.Screen.WHOS_PLAYING)

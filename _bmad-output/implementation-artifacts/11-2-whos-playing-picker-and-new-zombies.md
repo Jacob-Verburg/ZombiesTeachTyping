@@ -4,7 +4,7 @@ baseline_commit: 544f6e855819c6063bb5f1b32501fa9f7c0f24e9
 
 # Story 11.2: "Who's Playing?" Picker and New Zombies
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -96,6 +96,18 @@ so that my sibling's runs never mix with mine.
   - [x] 11.1 Full suite + counts vs baseline; real save sha256 unchanged.
   - [x] 11.2 Mutation pass (scratch harness, restore after): `switch_profile` skips `_reconcile_tier`; `switch_profile` doesn't emit `profile_replaced`; `create_profile` allows a duplicate name; `create_profile` ignores the cap; `get_profile_summary` shows a hat the profile doesn't own; title always `NAME_ZOMBIE`; new-zombie Done saves "Zombie" on empty; Back creates a profile; picker focuses the first card instead of the active one. Each must turn a test red.
   - [x] 11.3 Anything deferred → `deferred-work.md`. Status → review.
+
+### Review Findings
+
+Code review 2026-10-15 of commit cd9415b, scripts and scenes only (tests not yet reviewed). Layers: Blind Hunter, Edge Case Hunter, Acceptance Auditor (no AC violations found).
+
+- [x] [Review][Patch] Picking an unnamed zombie strands the player on the 11.1 name screen — resolved: allow Back/Esc to return to the picker in 11.1 mode when more than one profile exists [scripts/screens/name_zombie.gd, scripts/screens/whos_playing.gd `_pick`]
+- [x] [Review][Dismiss] Duplicate display names via the default "Zombie" — decided: accept as is
+- [x] [Review][Patch] More than MAX_ZOMBIES profiles (hand-edited save) overflow the screen with off-screen focusable cards — cap the displayed list, active first [scripts/screens/whos_playing.gd `_build`]
+- [x] [Review][Patch] Picker rebuild skipped while `_leaving` leaves stale cards if navigation never starts — set a `_dirty` flag in `_on_profile_replaced` and rebuild in `_release_when_settled` [scripts/screens/whos_playing.gd]
+- [x] [Review][Patch] `_build` stacks cards using `card.size.y` before layout is applied — use the 52 px constant or `get_combined_minimum_size().y` [scripts/screens/whos_playing.gd `_build`]
+- [x] [Review][Patch] Skip ids whose `get_profile_summary` is empty so a dead card never emits `&""` [scripts/screens/whos_playing.gd `_build`, scripts/ui/zombie_card.gd]
+- [x] [Review][Patch] After a successful `create_profile` with no transition started, the screen stays in new-zombie mode and Done then wiggles ("name already used") — leave the mode or navigate on success [scripts/screens/name_zombie.gd `_finish`]
 
 ## Dev Notes
 

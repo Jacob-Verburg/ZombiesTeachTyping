@@ -23,6 +23,8 @@ const CATALOGUE: Catalogue = preload("res://data/cosmetics/catalogue.tres")
 const CARD_GAP_PX: float = 4.0
 ## Look value, not a GDD number: the gap between the last card and New zombie.
 const BUTTON_GAP_PX: float = 12.0
+## Look value: the height of one card (the scene's custom_minimum_size), so stacking never waits on layout.
+const CARD_HEIGHT_PX: float = 52.0
 
 ## Test seam: called as navigate.call(screen, payload). Defaults to Router.go in _ready.
 var navigate: Callable
@@ -39,6 +41,8 @@ var is_transitioning: Callable
 
 ## Set by the one navigation; nothing picks or rebuilds after it.
 var _leaving: bool = false
+## A profile_replaced arrived while _leaving: rebuild once the screen takes input again.
+var _dirty: bool = false
 
 
 func _ready() -> void:
@@ -85,7 +89,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## A reset replaced the save while the picker is open: show the zombies it holds now.
 func _on_profile_replaced() -> void:
-	if not _leaving:
+	if _leaving:
+		_dirty = true
+	else:
 		_build()
 
 
@@ -99,13 +105,16 @@ func _build() -> void:
 	var active: StringName = player_data.get_active_profile_id()
 	var focus_card: ZombieCard = null
 	var y: float = 0.0
-	for id: StringName in player_data.get_profile_ids():
+	for id: StringName in _shown_ids(active):
+		var summary: Dictionary = player_data.get_profile_summary(id)
+		if summary.is_empty():
+			continue  # no such profile: a card for it could only pick nothing
 		var card: ZombieCard = ZombieCardScene.instantiate() as ZombieCard
-		card.setup(player_data.get_profile_summary(id), catalogue)
+		card.setup(summary, catalogue)
 		card.position = Vector2(0.0, y)
 		card.picked.connect(_pick)
 		holder.add_child(card)
-		y += card.size.y + CARD_GAP_PX
+		y += CARD_HEIGHT_PX + CARD_GAP_PX
 		if focus_card == null or id == active:
 			focus_card = card
 	var button: Button = %NewZombieButton
@@ -118,6 +127,18 @@ func _build() -> void:
 		focus_card.grab_focus()
 	elif can_add:
 		button.grab_focus()
+
+
+## The ids to show: at most MAX_ZOMBIES (a hand-edited save may hold more than fit on screen), always including
+## the active zombie.
+func _shown_ids(active: StringName) -> Array[StringName]:
+	var ids: Array[StringName] = player_data.get_profile_ids()
+	if ids.size() <= GameConstants.MAX_ZOMBIES:
+		return ids
+	var shown: Array[StringName] = ids.slice(0, GameConstants.MAX_ZOMBIES)
+	if not shown.has(active) and ids.has(active):
+		shown[shown.size() - 1] = active
+	return shown
 
 
 ## One focus list: the cards then New zombie (when shown). Arrows and Tab step through it; the ends stop.
@@ -169,6 +190,9 @@ func _go(screen: Router.Screen, payload: Dictionary = {}) -> void:
 	navigate.call(screen, payload)
 	if not is_transitioning.call():
 		_leaving = false
+		if _dirty:
+			_dirty = false
+			_build()
 		return
 	# A connection to a method (not an await), so nothing resumes on a freed screen.
 	get_tree().process_frame.connect(_release_when_settled)
@@ -179,3 +203,6 @@ func _release_when_settled() -> void:
 		return
 	get_tree().process_frame.disconnect(_release_when_settled)
 	_leaving = false
+	if _dirty:
+		_dirty = false
+		_build()
