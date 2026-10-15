@@ -8,11 +8,14 @@ extends GutTest
 ## Screens are instanced like tests/integration/test_screen_flow.gd: disabled, recorder seams before add_child,
 ## a temp-dir PlayerData for anything that writes. Router.go() is never called.
 ## Story 10.5: the Progress screen is walked filled (several runs, so its charts and totals show).
+## Story 11.1: the name screen is walked filled with the widest name (12 W), and its typed name is >= 24 px.
 
 const TEXT_FLOOR: int = 16
 const TARGET_FLOOR: int = 32
 const PARAGRAPH_FLOOR: int = 24
 const CLICK_FLOOR: float = 32.0
+## Story 11.1 / AC 9: the typed zombie name.
+const NAME_FLOOR: int = 24
 
 const SaveServiceScript := preload("res://scripts/autoloads/save_service.gd")
 const PlayerDataScript := preload("res://scripts/autoloads/player_data.gd")
@@ -22,6 +25,7 @@ const ReportScene: PackedScene = preload("res://scenes/screens/report_card.tscn"
 const GiftScene: PackedScene = preload("res://scenes/screens/welcome_gift.tscn")
 const ClosetScene: PackedScene = preload("res://scenes/screens/crypt_closet.tscn")
 const TrendsScene: PackedScene = preload("res://scenes/screens/trends.tscn")
+const NameZombieScene: PackedScene = preload("res://scenes/screens/name_zombie.tscn")
 const HudScene: PackedScene = preload("res://scenes/run/hud.tscn")
 const PauseScene: PackedScene = preload("res://scenes/run/pause_panel.tscn")
 const CountdownScene: PackedScene = preload("res://scenes/run/countdown.tscn")
@@ -164,6 +168,20 @@ func _trends() -> Control:
 	return trends
 
 
+## The name screen showing the widest possible name (12 W, Press Start 2P's widest glyph is still 24 px).
+func _name_zombie() -> Control:
+	assert_true(_player.set_zombie_name("W".repeat(GameConstants.ZOMBIE_NAME_MAX_LENGTH)))
+	var naming: Control = NameZombieScene.instantiate() as Control
+	naming.process_mode = Node.PROCESS_MODE_DISABLED
+	naming.set("navigate", _noop_nav)
+	naming.set("is_transitioning", func() -> bool: return false)
+	naming.set("play_sfx", _noop_sfx)
+	naming.set("play_music", _noop_sfx)
+	naming.set("player_data", _player)
+	add_child_autofree(naming)
+	return naming
+
+
 func _hud() -> Control:
 	var hud: Control = HudScene.instantiate() as Control
 	hud.process_mode = Node.PROCESS_MODE_DISABLED
@@ -250,7 +268,7 @@ func _playfield() -> Array[Node]:
 
 ## Every MVP screen and the run's parts, built and laid out.
 func _all_roots() -> Array[Node]:
-	var roots: Array[Node] = [_title(), _menu(), _report_card(), _gift(), _closet(), _trends(), _hud(),
+	var roots: Array[Node] = [_title(), _menu(), _report_card(), _gift(), _closet(), _trends(), _name_zombie(), _hud(),
 			_pause_panel(), _countdown(), _prompt("Buy the Pumpkin hat for 100 brains?")]
 	roots.append_array(_widgets())
 	roots.append_array(_playfield())
@@ -321,6 +339,17 @@ func test_every_clickable_is_at_least_32px_tall() -> void:
 		assert_gte(control.get_global_rect().size.y, CLICK_FLOOR, "%s click target height" % _describe(control))
 		checked += 1
 	assert_gt(checked, 15, "the walk found the MVP screens' controls")
+
+
+func test_name_screen_name_is_24px_and_everything_fits() -> void:
+	var naming: Control = _name_zombie()
+	await wait_process_frames(2)
+	var name_label: Label = naming.get_node("%NameLabel") as Label
+	assert_eq(name_label.text, "W".repeat(GameConstants.ZOMBIE_NAME_MAX_LENGTH))
+	assert_gte(name_label.get_theme_font_size(&"font_size"), NAME_FLOOR, "the typed name")
+	var nodes: Array[Control] = _text_nodes([naming])
+	for control: Control in nodes:
+		_assert_fits(control)
 
 
 # --- fit checks for screens without their own ----------------------------------------------------------------

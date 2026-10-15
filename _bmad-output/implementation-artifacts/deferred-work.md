@@ -911,3 +911,10 @@
 ## Deferred from: code review of story-10-5 (2026-10-14)
 
 - `_whole` int-guard helper is duplicated in `save_schema.gd`, `trends_calculator.gd` and `player_data.gd`; consolidate into one shared helper.
+
+## Deferred from: dev of story 11-1 (2026-10-15)
+
+- The name screen's Done "off" look comes from theme overrides that assume Done keeps focus (it is the only focusable control and starts focused). If focus were ever lost, `PixelButton` drops its `normal` override and the plank shows lit with grey text until focus returns.
+- Web smoke: the browser pane's synthetic key events drop Shift, so capitals came out lowercase there; capitals were checked in the desktop capture run ("Mister Bones") and by unit tests (unicode + shift).
+- A kid can't rename the zombie after Done (no rename button in any AC); a name typo stays until 11.2+ adds a way, or F8 reset in debug builds.
+- The NFR12 source-guard test reads three files as text with a simple regex (a log call line naming `name` / `raw` / `text` / `cleaned` / `_text` outside quotes); a name passed through a differently named variable would slip past it.

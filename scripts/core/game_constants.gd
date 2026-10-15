@@ -40,3 +40,6 @@ const LETTER_POOL_ALL: String = "all"
 ## FR51: RunResult.letter_pool_or_tier for a run that used tier n's pool ("tier_1".."tier_5", Story 7.5).
 ## Saved in the run record, never shown (FR60).
 const TIER_POOL_FORMAT: String = "tier_%d"
+## FR78 / Story 11.1: the longest zombie name, in characters (letters and single spaces). A content rule from
+## the epics ("plain-word, length-limited"), not a balancing number, so it lives here and not in a Resource.
+const ZOMBIE_NAME_MAX_LENGTH: int = 12

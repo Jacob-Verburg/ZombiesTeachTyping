@@ -186,14 +186,16 @@ No starter template. The existing project is used, with these settings corrected
 `Router` (autoload) owns a `CanvasLayer` fade overlay and a screen registry:
 
 ```gdscript
-enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET }
+enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET, KEYBOARD_TEST, TRENDS, NAME_ZOMBIE }
+# New screens are appended (screen ids are passed around as ints): TRENDS (Story 10.5), NAME_ZOMBIE (Story 11.1).
 func go(screen: Screen, payload: Dictionary = {}) -> void
 func take_payload() -> Dictionary   # called once by the incoming screen in _ready()
 ```
 
 - `RUN` payload: `{ "level_id": StringName }`. `RunFrame` instances the level scene named in the level registry.
 - `REPORT_CARD` payload: `{ "result": RunResult }`.
-- Flow: Title → Main Menu → Run → Report Card → (Welcome Gift → Crypt Closet, first completed run only) → Play Again (Run, same level) | Menu.
+- `NAME_ZOMBIE` (Story 11.1, FR78): the title goes here instead of the menu while the active profile's `name` is empty or invalid (`PlayerData.get_zombie_name()`); Done saves it with `PlayerData.set_zombie_name()` (rules in `ZombieName`) and goes to the menu. No payload. The name is never logged.
+- Flow: Title → (Name your zombie, unnamed zombie only) → Main Menu → Run → Report Card → (Welcome Gift → Crypt Closet, first completed run only) → Play Again (Run, same level) | Menu.
 
 ### Typing Pipeline & Level Contract
 
@@ -720,6 +722,7 @@ zombies-teach-typing/
 | Catalogue & prices | `data/cosmetics/`, `scripts/resources/cosmetic_item.gd` | Static item data |
 | Finger map | `data/finger_map.tres`, `scripts/resources/finger_map.gd` | Char → finger/hand/Shift |
 | Logging & constants | `scripts/core/` | `Log`, `GameConstants` |
+| Zombie name rules | `scripts/core/zombie_name.gd` | Pure `ZombieName`: letters + single spaces, 1–12 characters (Story 11.1, FR78) |
 | Debug tools | `scenes/debug/`, `scripts/debug/` | Debug-build-only overlay and cheats |
 | Tests | `tests/` | GUT unit/integration tests + fixtures |
 | CI/deploy | `.github/workflows/build.yml`, `export_presets.cfg` | Build, test, publish |

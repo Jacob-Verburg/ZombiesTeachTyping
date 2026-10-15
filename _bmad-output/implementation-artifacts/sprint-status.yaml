@@ -1,5 +1,5 @@
 # generated: 2026-09-27 12:21
-# last_updated: 2026-10-14
+# last_updated: 2026-10-15
 # project: zombies-teach-typing
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-09-27 12:21
-last_updated: 2026-10-14
+last_updated: 2026-10-15
 project: zombies-teach-typing
 project_key: NOKEY
 tracking_system: file-system
@@ -137,8 +137,8 @@ development_status:
   10-5-trends-and-lifetime-stats-screen: done
   epic-10-retrospective: optional
 
-  epic-11: backlog
-  11-1-name-the-existing-zombie: backlog
+  epic-11: in-progress
+  11-1-name-the-existing-zombie: review
   11-2-whos-playing-picker-and-new-zombies: backlog
   11-3-fully-separate-zombies: backlog
   11-4-zombie-name-on-menu-and-report-card: backlog

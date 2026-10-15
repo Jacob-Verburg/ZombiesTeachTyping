@@ -19,6 +19,7 @@ const FLOW_BUTTONS: Dictionary = {
 	"CRYPT_CLOSET": ["%MenuButton"],
 	"KEYBOARD_TEST": ["%FullscreenButton", "%DownloadButton", "%BackButton", "%BrainButton"],
 	"TRENDS": ["%MenuButton"],
+	"NAME_ZOMBIE": ["%DoneButton"],
 }
 
 
@@ -29,7 +30,7 @@ const TEST_DIR: String = "user://test_screen_flow/"
 var _nav: Array = []
 
 
-# The keyboard test screen and the run frame set capture_keys in _ready(); every freed instance must have reset it.
+# The keyboard test, the run frame and the name screen (11.1) set capture_keys in _ready(); every freed instance must have reset it.
 # Checked before each test and after all, because autofree runs after after_each().
 func before_each() -> void:
 	assert_false(WebPlatform.capture_keys, "keyboard test left capture_keys on")
@@ -78,6 +79,10 @@ func _instance(screen: Router.Screen) -> Control:
 		node.set("navigate", _record)
 		node.set("play_sfx", func(_id: StringName) -> void: pass)
 		node.set("player_data", _temp_player_data())
+	if screen == Router.Screen.NAME_ZOMBIE:
+		node.set("navigate", _record)
+		node.set("play_sfx", func(_id: StringName) -> void: pass)
+		node.set("player_data", _temp_player_data())
 	if screen == Router.Screen.WELCOME_GIFT:
 		node.set("navigate", _record)
 		node.set("play_sfx", func(_id: StringName) -> void: pass)
@@ -118,6 +123,15 @@ func test_run_with_empty_payload_returns_to_menu() -> void:
 	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
 	assert_null(run.call("get_session"))
 	assert_push_error("[ERROR][run]")
+
+
+## Story 11.1: the name screen consumes and ignores its payload, and navigates nowhere on open.
+func test_name_zombie_consumes_the_payload() -> void:
+	Router._store_payload({"stale": true})
+	var screen: Control = _instance(Router.Screen.NAME_ZOMBIE)
+	assert_not_null(screen)
+	assert_eq(Router.take_payload(), {})
+	assert_eq(_nav, [])
 
 
 ## Story 4.2: the real menu has no payload label; it consumes whatever payload it was given.

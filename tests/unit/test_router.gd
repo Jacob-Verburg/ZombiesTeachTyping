@@ -22,7 +22,7 @@ func test_every_screen_has_a_loadable_scene() -> void:
 
 
 func test_screen_enum_order_is_stable() -> void:
-	assert_eq(RouterScript.Screen.keys(), ["TITLE", "MAIN_MENU", "RUN", "REPORT_CARD", "WELCOME_GIFT", "CRYPT_CLOSET", "KEYBOARD_TEST", "TRENDS"], "Story 10.5 appended TRENDS; nothing moved")
+	assert_eq(RouterScript.Screen.keys(), ["TITLE", "MAIN_MENU", "RUN", "REPORT_CARD", "WELCOME_GIFT", "CRYPT_CLOSET", "KEYBOARD_TEST", "TRENDS", "NAME_ZOMBIE"], "Story 11.1 appended NAME_ZOMBIE; nothing moved")
 
 
 func test_take_payload_returns_once() -> void:

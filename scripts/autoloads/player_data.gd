@@ -41,6 +41,10 @@ extends Node
 ## totals that outlive the RUN_HISTORY_CAP. record_run adds the run (inline, same single save request);
 ## add_brains adds to lifetime brains too (quit runs, the welcome gift); spending never lowers it. Reads for
 ## the Progress screen: get_lifetime, get_best_wpm_overall, get_run_history (copies; junk reads as 0 / skipped).
+## Zombie name (Story 11.1, FR78): the active profile's "name". set_zombie_name stores ZombieName.clean(raw) and
+## refuses an invalid name; get_zombie_name reads it back through ZombieName.is_valid, so a junk or hand-edited
+## value reads as "" (not named yet, NFR16). The name is personal data: it is never logged (NFR12), only fixed
+## text. Epic 11's profile switch emits profile_replaced, and anything showing the name re-reads it then.
 
 enum PurchaseResult { OK, NOT_ENOUGH_BRAINS, ALREADY_OWNED, UNAVAILABLE }
 
@@ -61,6 +65,8 @@ signal level_unlocked(level_id: StringName)
 signal unlocks_changed(level_id: StringName)
 ## The used passage ids changed (set_used_passages, Story 8.2).
 signal used_passages_changed
+## The active profile's zombie name was set (Story 11.1). The name is never logged.
+signal zombie_name_changed(name: String)
 
 const SaveServiceScript: GDScript = preload("res://scripts/autoloads/save_service.gd")
 const CATALOGUE: Catalogue = preload("res://data/cosmetics/catalogue.tres")
@@ -343,6 +349,31 @@ func set_flag(flag: StringName, value: bool) -> void:
 	flags[String(flag)] = value
 	flags_changed.emit(flag, value)
 	save_service.request_save()
+
+
+## The active profile's zombie name; "" when it has none yet (a missing, non-String or invalid stored value).
+func get_zombie_name() -> String:
+	var stored: Variant = _profile().get("name", "")
+	if not stored is String or not ZombieName.is_valid(stored as String):
+		return ""
+	return stored as String
+
+
+## Stores ZombieName.clean(raw) as the zombie name. An invalid name logs a fixed warning, changes nothing and
+## returns false; the stored name again returns true with no signal and no save; otherwise it writes the name,
+## emits zombie_name_changed and requests a save. Never logs the name (NFR12).
+func set_zombie_name(raw: String) -> bool:
+	var cleaned: String = ZombieName.clean(raw)
+	if not ZombieName.is_valid(cleaned):
+		Log.warn(&"save", "set_zombie_name: invalid name")
+		return false
+	if cleaned == get_zombie_name():
+		return true
+	_profile()["name"] = cleaned
+	zombie_name_changed.emit(cleaned)
+	save_service.request_save()
+	Log.info(&"save", "zombie named")
+	return true
 
 
 ## The hidden tier for Story 7.5: 1..tier count once placed; 0 when not placed yet (or a junk stored value).

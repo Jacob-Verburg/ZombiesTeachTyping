@@ -1288,3 +1288,140 @@ func test_reset_all_clears_lifetime() -> void:
 	sut.record_run(_timed(40, 120.0, 6))
 	sut.reset_all()
 	assert_eq_deep(sut.get_lifetime(), {"runs": 0, "keys_typed": 0, "seconds": 0, "brains": 0})
+
+
+# --- zombie name (Story 11.1, FR78) ----------------------------------------------
+
+## A PlayerData on a CountingSave, so tests can count save requests.
+func _make_counting() -> PlayerDataScript:
+	_save = CountingSave.new()
+	_save.save_dir = TEST_DIR
+	add_child_autofree(_save)
+	var sut: PlayerDataScript = PlayerDataScript.new()
+	sut.save_service = _save
+	add_child_autofree(sut)
+	return sut
+
+
+func test_zombie_name_fresh_profile_reads_empty() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_eq(sut.get_zombie_name(), "")
+
+
+func test_zombie_name_fixture_without_a_name_reads_empty() -> void:
+	_put_fixture(FULL_PATH)
+	var sut: PlayerDataScript = _make()
+	assert_eq(sut.get_zombie_name(), "", "an MVP save gets the name screen")
+
+
+func test_set_zombie_name_stores_the_cleaned_name_with_one_save() -> void:
+	var sut: PlayerDataScript = _make_counting()
+	watch_signals(sut)
+	assert_true(sut.set_zombie_name("  Sam   Z "))
+	assert_eq(sut.get_zombie_name(), "Sam Z")
+	assert_eq(_save.get_active_profile()["name"], "Sam Z")
+	assert_eq((_save as CountingSave).requests, 1)
+	assert_signal_emit_count(sut, "zombie_name_changed", 1)
+	assert_signal_emitted_with_parameters(sut, "zombie_name_changed", ["Sam Z"])
+
+
+func test_set_zombie_name_same_name_twice_is_one_signal_one_save() -> void:
+	var sut: PlayerDataScript = _make_counting()
+	watch_signals(sut)
+	assert_true(sut.set_zombie_name("Sam"))
+	assert_true(sut.set_zombie_name("Sam "), "cleans to the stored name")
+	assert_eq((_save as CountingSave).requests, 1)
+	assert_signal_emit_count(sut, "zombie_name_changed", 1)
+	assert_true(sut.set_zombie_name("Bo"))
+	assert_eq((_save as CountingSave).requests, 2)
+	assert_eq(sut.get_zombie_name(), "Bo")
+
+
+func test_set_zombie_name_leaves_the_rest_of_the_profile_untouched() -> void:
+	_put_fixture(FULL_PATH)
+	var sut: PlayerDataScript = _make()
+	var before: Dictionary = _save.get_active_profile().duplicate(true)
+	assert_true(sut.set_zombie_name("Sam"))
+	var after: Dictionary = _save.get_active_profile().duplicate(true)
+	assert_eq(after["name"], "Sam")
+	before.erase("name")
+	after.erase("name")
+	assert_eq_deep(after, before)
+	await wait_process_frames(2)
+	var written: Dictionary = _written_profile()
+	assert_eq(written["name"], "Sam")
+	assert_eq(written.keys().size(), _save.get_active_profile().keys().size())
+
+
+func test_set_zombie_name_invalid_changes_nothing() -> void:
+	var sut: PlayerDataScript = _make_counting()
+	assert_true(sut.set_zombie_name("Sam"))
+	watch_signals(sut)
+	for raw: String in ["", "123", "   ", "!!!"]:
+		assert_false(sut.set_zombie_name(raw), "rejects '%s'" % raw)
+	assert_eq(sut.get_zombie_name(), "Sam")
+	assert_eq((_save as CountingSave).requests, 1, "no save for a rejected name")
+	assert_signal_not_emitted(sut, "zombie_name_changed")
+	assert_push_warning("set_zombie_name: invalid name")
+	assert_push_warning_count(4)
+
+
+func test_zombie_name_junk_stored_values_read_empty() -> void:
+	var sut: PlayerDataScript = _make()
+	for junk: Variant in [5, null, ["Sam"], "!!!", "W".repeat(40), " Sam", "Sam "]:
+		_save.get_active_profile()["name"] = junk
+		assert_eq(sut.get_zombie_name(), "", "junk %s reads as not named" % type_string(typeof(junk)))
+
+
+func test_zombie_name_survives_a_reload() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_true(sut.set_zombie_name("Mr Bones"))
+	await wait_process_frames(2)
+	var reloaded: PlayerDataScript = _make()
+	assert_eq(reloaded.get_zombie_name(), "Mr Bones")
+
+
+func test_zombie_name_reset_all_clears_it() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_true(sut.set_zombie_name("Sam"))
+	sut.reset_all()
+	assert_eq(sut.get_zombie_name(), "")
+
+
+## NFR12, part (a): the only line set_zombie_name pushes is fixed text. ("Zorbleflux9" from the story cleans to
+## the valid "Zorbleflux", so it saves with no warning at all; a name with no letter is the invalid case.)
+func test_zombie_name_warnings_never_carry_the_name() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_true(sut.set_zombie_name("Zorbleflux9"))
+	assert_eq(sut.get_zombie_name(), "Zorbleflux")
+	assert_push_warning_count(0, "a valid name pushes nothing")
+	assert_false(sut.set_zombie_name("#9#9#"))
+	for err: Variant in gut.error_tracker.get_errors_for_test():
+		assert_false(err.contains_text("Zorbleflux"), "no tracked line carries the name")
+		assert_false(err.contains_text("#9#9#"), "or the rejected text")
+	assert_push_warning("[WARN][save] set_zombie_name: invalid name")
+	assert_push_warning_count(1)
+	assert_push_error_count(0)
+
+
+## NFR12, part (b): print lines can't be captured by GUT, so this reads the name code as text. Any Log.* /
+## print / push_* call line in these files fails if, after its quoted strings are removed, it still names a
+## variable that can hold the name (name, raw, text, cleaned, _text). Name-related log messages must stay
+## fixed literals.
+func test_zombie_name_is_never_passed_to_a_log_call() -> void:
+	var call: RegEx = RegEx.create_from_string(r"\b(Log\.\w+|print\w*|push_\w+)\s*\(")
+	var quoted: RegEx = RegEx.create_from_string(r'"(\\.|[^"\\])*"')
+	var name_var: RegEx = RegEx.create_from_string(r"\b(name|raw|text|cleaned|_text)\b")
+	for path: String in [
+		"res://scripts/autoloads/player_data.gd",
+		"res://scripts/screens/name_zombie.gd",
+		"res://scripts/core/zombie_name.gd",
+	]:
+		assert_true(FileAccess.file_exists(path), path)
+		var lines: PackedStringArray = FileAccess.get_file_as_string(path).split("\n")
+		for i: int in lines.size():
+			var line: String = lines[i]
+			if line.strip_edges().begins_with("#") or call.search(line) == null:
+				continue
+			var code: String = quoted.sub(line, "\"\"", true)
+			assert_null(name_var.search(code), "%s:%d logs a name variable: %s" % [path, i + 1, line.strip_edges()])

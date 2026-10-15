@@ -49,6 +49,8 @@ const APPROVED_COPY: Array[String] = [
 	# Story 10.5: the Progress screen (Gate 1, 2026-10-14)
 	"Progress", "Words per minute", "Practice time", "Best WPM", "Brains Earned", "Time Practiced",
 	"Finish a game to see your charts!",
+	# Story 11.1: the name screen (Gate 1, 2026-10-15). The kid's typed name is their own words, never copy.
+	"Name your zombie!", "Done",
 ]
 ## Numbers and formatted values: counts, "+N", "+N bonus", "Need N more", times, percents, the conga badge,
 ## the WPM placeholder (en dash), the confirm question for a live item (a word may carry one hyphenated part,
@@ -71,6 +73,7 @@ const MainMenuScript := preload("res://scripts/screens/main_menu.gd")
 const ReportScript := preload("res://scripts/screens/report_card.gd")
 const TrendsScript := preload("res://scripts/screens/trends.gd")
 const TrendsScene: PackedScene = preload("res://scenes/screens/trends.tscn")
+const NameZombieScene: PackedScene = preload("res://scenes/screens/name_zombie.tscn")
 const ClosetScene: PackedScene = preload("res://scenes/screens/crypt_closet.tscn")
 const ReportScene: PackedScene = preload("res://scenes/screens/report_card.tscn")
 const GiftScene: PackedScene = preload("res://scenes/screens/welcome_gift.tscn")
@@ -219,6 +222,17 @@ func _live_strings() -> Dictionary[String, String]:
 	trends.set("player_data", _player)
 	add_child_autofree(trends)
 	_collect_labels(trends, "trends", out)
+	# The name screen as a kid first sees it: the zombie has no name, so %NameLabel is empty (a typed name is
+	# user content and never part of the copy check).
+	var naming: Control = NameZombieScene.instantiate() as Control
+	naming.process_mode = Node.PROCESS_MODE_DISABLED
+	naming.set("navigate", _noop_nav)
+	naming.set("play_sfx", _noop)
+	naming.set("play_music", _noop)
+	naming.set("player_data", _player)
+	add_child_autofree(naming)
+	assert_eq((naming.get_node("%NameLabel") as Label).text, "", "no name leaks into the copy walk")
+	_collect_labels(naming, "name", out)
 	# The conga badge at 13.
 	var leader: Node2D = Node2D.new()
 	add_child_autofree(leader)
@@ -284,7 +298,7 @@ func test_the_walk_finds_the_copy() -> void:
 	values.assign(strings.values())
 	for expected: String in ["Click or press any key", "Buy the Pumpkin hat for 100 brains?", "+10 bonus",
 			"×13", "Need 40 more", "Zombie Run", "This browser might forget your brains", "+100", "Caps Lock is on",
-			"Buy the Wolf-dog for 300 brains?", "Golden crown", "Words per minute", "1 hr 5 min"]:
+			"Buy the Wolf-dog for 300 brains?", "Golden crown", "Words per minute", "1 hr 5 min", "Name your zombie!", "Done"]:
 		assert_has(values, expected, "the walk saw '%s'" % expected)
 
 
