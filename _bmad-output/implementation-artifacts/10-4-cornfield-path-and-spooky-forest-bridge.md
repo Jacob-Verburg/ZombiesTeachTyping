@@ -4,7 +4,7 @@ baseline_commit: e5ec1d6c0fd7b19f96b1fe85e4c3324fd129cc82
 
 # Story 10.4: Cornfield Path and Spooky Forest Bridge
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -328,3 +328,22 @@ Modified:
 ### Change Log
 
 - 2026-10-14: Story 10.4 implemented. Two new Pitchfork Panic settings (Cornfield Path, Spooky Forest Bridge) with per-setting escape covers (haystack, hollow log) carried by a new `ChaseBackdrop`; `EscapeBush` renamed `EscapeCover`. New art tool and 12 PNGs, two theme scenes, two registry entries, debug theme jumps and art-review entries, art/level/RunFrame tests (2144 -> 2165), style sheet and deferred-work updated. Gates 1 and 2 approved. Status -> review.
+
+### Review Findings
+
+Code review 2026-10-14 (Blind Hunter partial: read ~1560 of 2541 diff lines; Edge Case Hunter; Acceptance Auditor). Generator tool `tools/gen_chase_themes_art.gd` only grep-checked by the Auditor.
+
+- [x] [Review][Defer] Perf smoke was ~35 s / ~20 s per setting, not a full 5:00 run (AC 2, NFR1) — deferred, reason: user accepts the disclosed deviation; full run deferred
+- [x] [Review][Defer] `SheetFrames.from_texture` only rejects too-small sheets (oversized accepted) — deferred, reason: keep as a documented minimum (doc comment added as a patch below)
+- [x] [Review][Patch] Document in `SheetFrames.from_texture` that the size check is a minimum, not exact [scripts/levels/pitchfork_panic/sheet_frames.gd:~21]
+- [x] [Review][Patch] `EscapeCover._ready` loads the default sheet twice and `_sheet` can be null while a sprite shows; set `_sheet` from the texture `SheetFrames` used [scripts/levels/pitchfork_panic/escape_cover.gd:36]
+- [x] [Review][Patch] `test_pitchfork_panic_rules_do_not_change_with_the_setting` asserts `assert_eq` on a shared cached `LevelConfig` Resource, which is trivially true (AC 6) [tests/integration/test_run_frame.gd]
+- [x] [Review][Patch] `_scripted_chase_run` indexes `get_current_target()[get_cursor()]` with no bounds check; break when the cursor passes the passage end [tests/integration/test_run_frame.gd:~777]
+- [x] [Review][Patch] No level-level test that a `ChaseBackdrop` with a too-small cover sheet warns once and keeps the bush through `_apply_escape_cover` (AC 4, Task 3.6) [tests/unit/test_pitchfork_panic_level.gd]
+- [x] [Review][Patch] `test_a_chase_backdrop_brings_its_own_cover` asserts only `visible` and `get_sheet()` after stepping the outro, both true beforehand; assert the outro frame/atlas (Task 3.6) [tests/unit/test_pitchfork_panic_level.gd]
+- [x] [Review][Patch] No guard that the forest ground rows 1-3 never contain a plank tile (Dev Notes ground rule) [tests/unit/test_art_backdrop.gd]
+- [x] [Review][Patch] Stale "bush"/"static Moon"/"Moonlit Village ... ParallaxBackdrop" wording in test vars/messages and the `PitchforkPanicLevel` doc comment [tests/unit/test_pitchfork_panic_level.gd:582-589,685; scripts/levels/pitchfork_panic/pitchfork_panic_level.gd:50-55]
+- [x] [Review][Defer] `ChaseBackdrop` in `pitchfork_panic/` extends `ParallaxBackdrop` from `zombie_run/` (cross-level script coupling) — deferred, design choice
+- [x] [Review][Defer] Layer structure copy-pasted across three theme scenes (could use scene inheritance) — deferred, matches Moonlit shape
+- [x] [Review][Defer] New theme scenes' texture `ext_resource` lines have no `uid=` (resolve by path; Godot rewrites on next editor save) — deferred
+- [x] [Review][Defer] Cover is applied once in `_ready`; a later `apply_theme()` would not update it — deferred, no such caller today

@@ -954,6 +954,9 @@ func test_pp_themes_strip_is_built_from_the_tiles() -> void:
 				used[index] = true
 				if row == 0 and not index in PP_THEMES[dir]:
 					problems.append("(%d,0) tile %d on the path" % [col, index])
+				# The forest's rows 1-3 are the creek under the bridge: never a plank.
+				if row > 0 and dir.contains("spooky_forest_bridge") and index in PP_THEMES[dir]:
+					problems.append("(%d,%d) plank tile %d under the bridge" % [col, row, index])
 		assert_eq(problems.size(), 0, "%s strip: %s" % [dir, ", ".join(problems.slice(0, 10))])
 		assert_eq(used.size(), tile_bytes.size(), "%s: every tile is used" % dir)
 

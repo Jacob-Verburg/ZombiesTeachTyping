@@ -579,14 +579,14 @@ func test_escape_outro_by_beats_with_the_camera_stopped() -> void:
 	_level.on_run_ending(&"escaped")
 	var tween: Tween = _level.get_outro_tween()
 	tween.custom_step(0.1)
-	assert_true(_visible("%EscapeCover"), "t=0.1: the bush is there")
+	assert_true(_visible("%EscapeCover"), "t=0.1: the cover is there")
 	assert_true(zombie.visible)
-	assert_gt(zombie.position.x, start_x, "running at the bush")
-	var bush: Node2D = _level.get_node("%EscapeCover")
-	assert_almost_eq(bush.position.x, start_x + PitchforkPanicLevel.ESCAPE_COVER_AHEAD_PX, 1e-3)
+	assert_gt(zombie.position.x, start_x, "running at the cover")
+	var cover: Node2D = _level.get_node("%EscapeCover")
+	assert_almost_eq(cover.position.x, start_x + PitchforkPanicLevel.ESCAPE_COVER_AHEAD_PX, 1e-3)
 	assert_false(label.visible)
 	tween.custom_step(1.5)
-	assert_false(zombie.visible, "t=1.6: into the bush")
+	assert_false(zombie.visible, "t=1.6: into the cover")
 	assert_true(label.visible)
 	assert_eq(label.text, "Escaped!")
 	assert_almost_eq(label.position.x + label.size.x / 2.0, 320.0, 1.0)
@@ -682,18 +682,18 @@ func test_dizzy_stars_orbit_while_shown_and_stop_hides() -> void:
 
 
 func test_escape_cover_rustles_by_frames_and_ends_on_the_still_frame() -> void:
-	var bush: EscapeCover = EscapeCover.new()
-	add_child_autofree(bush)
-	bush.position.x = 12.0
-	assert_eq(bush.get_frame(), 0, "still before the dive")
-	bush.rustle(0.3)
-	bush.get_tween().custom_step(0.1)
-	assert_true(bush.get_frame() in [1, 2], "rustling")
-	assert_eq(bush.scale, Vector2.ONE, "never squashed")
-	bush.get_tween().custom_step(0.3)
-	assert_eq(bush.get_frame(), 0, "ends on the still frame")
-	assert_eq(bush.scale, Vector2.ONE)
-	assert_eq(bush.position.x, 12.0, "at its base x")
+	var cover: EscapeCover = EscapeCover.new()
+	add_child_autofree(cover)
+	cover.position.x = 12.0
+	assert_eq(cover.get_frame(), 0, "still before the dive")
+	cover.rustle(0.3)
+	cover.get_tween().custom_step(0.1)
+	assert_true(cover.get_frame() in [1, 2], "rustling")
+	assert_eq(cover.scale, Vector2.ONE, "never squashed")
+	cover.get_tween().custom_step(0.3)
+	assert_eq(cover.get_frame(), 0, "ends on the still frame")
+	assert_eq(cover.scale, Vector2.ONE)
+	assert_eq(cover.position.x, 12.0, "at its base x")
 
 
 
@@ -835,9 +835,12 @@ func test_a_chase_backdrop_brings_its_own_cover() -> void:
 	rng.seed = 42
 	assert_not_null(_level.create_target_source(rng))
 	_level.on_run_ending(&"escaped")
-	_level.get_outro_tween().custom_step(0.1)
+	_level.get_outro_tween().custom_step(1.7)
 	assert_true(cover.visible)
 	assert_eq(cover.get_sheet().resource_path, DUST_SHEET_PATH)
+	var shown: AtlasTexture = sprite.sprite_frames.get_frame_texture(EscapeCover.ANIM, sprite.frame) as AtlasTexture
+	assert_eq(shown.atlas.resource_path, DUST_SHEET_PATH, "the outro shows the setting's sheet")
+	assert_eq(sprite.sprite_frames.get_frame_count(EscapeCover.ANIM), 3)
 	assert_push_warning_count(0)
 
 
@@ -846,6 +849,15 @@ func test_a_chase_backdrop_without_a_sheet_warns_and_keeps_the_bush() -> void:
 	var cover: EscapeCover = _level.get_node("%EscapeCover")
 	assert_eq(cover.get_sheet().resource_path, BUSH_PATH)
 	assert_push_warning("no escape cover sheet")
+	assert_push_warning_count(1)
+
+
+func test_a_chase_backdrop_with_a_too_small_sheet_warns_once_and_keeps_the_bush() -> void:
+	var small: Texture2D = load("res://assets/sprites/props/dizzy_star.png") as Texture2D
+	_make_with_backdrop(TestChaseBackdrop, func(node: Node) -> void: (node as ChaseBackdrop).escape_cover_sheet = small)
+	var cover: EscapeCover = _level.get_node("%EscapeCover")
+	assert_eq(cover.get_sheet().resource_path, BUSH_PATH)
+	assert_push_warning("smaller than 3 frames of 48 px")
 	assert_push_warning_count(1)
 
 

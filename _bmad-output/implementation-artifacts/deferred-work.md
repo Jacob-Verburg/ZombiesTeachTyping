@@ -888,3 +888,12 @@
 - Accepted at Gate 1: no static `Sun` or `Moon` child in either new setting (the Cornfield's sunset is the clouds layer's bands; the Forest's canopies would hide a moon); the Forest's near canopies pass under the pause button corner (the button still reads, checklist item 8).
 - The scroll/perf smoke ended each run with F6 after about 35 s / 20 s of real typing (synthetic browser key events, because the pane's key injection drops capitals), not a full 5:00 run per setting.
 - `EscapeCover.use_sheet()` before `_ready` returns false and changes nothing (the level calls it from its own `_ready`, after its children's).
+
+## Deferred from: code review of story-10-4 (2026-10-14)
+
+- `ChaseBackdrop` (pitchfork_panic/) extends `ParallaxBackdrop` from zombie_run/: cross-level script coupling; consider a neutral shared folder.
+- The three Pitchfork Panic theme scenes duplicate the same layer structure; scene inheritance would cut the copy-paste.
+- The new theme scenes' texture `ext_resource` lines carry no `uid=`; they resolve by path and Godot adds uids on the next editor save.
+- `PitchforkPanicLevel._apply_escape_cover` runs once from `_ready`; a later `apply_theme()` would leave the old cover (no such caller today).
+- Full 5:00 scroll/perf smoke per Pitchfork Panic setting (Cornfield Path, Spooky Forest Bridge) not run; ~35 s / ~20 s only. Reason: user accepted the disclosed deviation.
+- `SheetFrames.from_texture` accepts oversized sheets (minimum-size check only). Reason: kept as a documented minimum; the test fixture relies on it.

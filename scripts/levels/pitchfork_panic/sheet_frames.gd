@@ -19,7 +19,8 @@ static func build(path: String, frame_count: int, frame_px: int, fps: float, ani
 
 
 ## The same from an already loaded sheet (Story 10.4: a setting hands its escape cover over as a texture).
-## Null (after one warning naming `owner_name`) when the sheet is too small for the frames.
+## Null (after one warning naming `owner_name`) when the sheet is too small for the frames. The size check is a
+## minimum, not an exact fit: a larger sheet is accepted and only its first `frame_count` cells are used.
 static func from_texture(sheet: Texture2D, frame_count: int, frame_px: int, fps: float, anim: StringName,
 		loop: bool, owner_name: String) -> SpriteFrames:
 	if sheet.get_width() < frame_count * frame_px or sheet.get_height() < frame_px:

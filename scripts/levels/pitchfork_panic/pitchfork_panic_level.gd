@@ -47,12 +47,13 @@ extends LevelBase
 ## zombie so each one exists before it scrolls in. The pop is added to %World itself, after the zombie, so
 ## it rises in front of it (Smuck's layout call). Nothing time-based collects anything.
 ##
-## The look (Story 8.6, FR74): the Moonlit Village, driven by the ParallaxBackdrop script with the same
-## four layers over a night Sky, plus a static Moon outside the layers (the script never moves it). The dust
+## The look (Story 8.6, FR74; Story 10.4): the current setting's ChaseBackdrop (Moonlit Village, Cornfield Path
+## or Spooky Forest Bridge: the same four layers over a Sky; the Moonlit Village also has a static Moon outside
+## the layers, which the script never moves). The dust
 ## cloud, the dizzy stars and the escape cover are sprite sheets stepped by frames and whole px; no pixel art is
 ## scaled or rotated in the outros (the hop into the cover is a position tween). Each setting brings its own
-## escape cover (Story 10.4): a ChaseBackdrop's escape_cover_sheet goes to %EscapeCover in _ready (the
-## Moonlit Village's is the bush); a plain ParallaxBackdrop keeps the built-in bush.
+## escape cover: a ChaseBackdrop's escape_cover_sheet goes to %EscapeCover in _ready (the Moonlit Village's
+## is the bush); a plain ParallaxBackdrop keeps the built-in bush.
 ##
 ## Randomness: the run RNG's first randi() seeds the paragraph source's child RNG (unchanged from 8.3, so a
 ## seed deals the same text), its second seeds the pickup trail's child RNG; after create_target_source the

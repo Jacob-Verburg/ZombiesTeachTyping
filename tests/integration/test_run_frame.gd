@@ -2523,6 +2523,8 @@ func _scripted_chase_run(frame: RunFrameScript) -> Dictionary:
 	for burst: int in 4:
 		for i: int in 15:
 			var session: TypingSession = frame.get_session()
+			if session.get_cursor() >= session.get_current_target().length():
+				break
 			var c: String = session.get_current_target()[session.get_cursor()]
 			_send_char(frame, c)
 			typed += c
@@ -2570,7 +2572,11 @@ func test_pitchfork_panic_rules_do_not_change_with_the_setting() -> void:
 			first_config = config
 			first = outcome
 			continue
-		assert_eq(config, first_config, "%s: same LevelConfig" % theme_id)
+		# The config is a shared cached Resource, so compare what it says, not the reference.
+		assert_eq(config.resource_path, first_config.resource_path, "%s: same LevelConfig file" % theme_id)
+		assert_eq([config.duration_s, config.target_mode, config.completion_bonus, config.music_id],
+				[first_config.duration_s, first_config.target_mode, first_config.completion_bonus, first_config.music_id],
+				"%s: same LevelConfig values" % theme_id)
 		assert_eq(outcome, first, "%s: same passage, chase and ending for the same seed" % theme_id)
 	assert_eq(_nav, [], "no failed-load navigation")
 	assert_push_warning_count(0)

@@ -32,10 +32,14 @@ func _ready() -> void:
 	_sprite.name = "Sprite"
 	_sprite.centered = false
 	_sprite.position = SPRITE_OFFSET
-	_sprite.sprite_frames = SheetFrames.build(DEFAULT_SHEET_PATH, FRAME_COUNT, FRAME_PX, FPS, ANIM, false, "escape cover")
-	if _sprite.sprite_frames != null:
-		_sprite.animation = ANIM
-		_sheet = load(DEFAULT_SHEET_PATH) as Texture2D
+	var default_sheet: Texture2D = load(DEFAULT_SHEET_PATH) as Texture2D if ResourceLoader.exists(DEFAULT_SHEET_PATH) else null
+	if default_sheet == null:
+		Log.warn(&"level", "escape cover has no sprite sheet at %s" % DEFAULT_SHEET_PATH)
+	else:
+		_sprite.sprite_frames = SheetFrames.from_texture(default_sheet, FRAME_COUNT, FRAME_PX, FPS, ANIM, false, "escape cover")
+		if _sprite.sprite_frames != null:
+			_sprite.animation = ANIM
+			_sheet = default_sheet
 	add_child(_sprite)
 
 
