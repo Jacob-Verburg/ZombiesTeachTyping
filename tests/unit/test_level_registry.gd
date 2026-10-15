@@ -256,11 +256,11 @@ func test_shipped_registry_themes() -> void:
 	assert_eq(registry.validate(), "", "shipped registry validates")
 	# Story 10.2: Zombie Run ships three looks, Sunny first (the level scene's built-in look, so themes[0] is
 	# the no-op); Story 10.3: Horde Rush ships three house + defender pairs, the Farmhouse first for the same
-	# reason; Pitchfork Panic ships one.
+	# reason; Story 10.4: Pitchfork Panic ships three settings, the Moonlit Village first for the same reason.
 	var expected: Dictionary[StringName, Array] = {
 		&"zombie_run": [&"sunny_village_green", &"pumpkin_patch_farm", &"snowy_town"],
 		&"horde_rush": [&"farmhouse", &"castle", &"beach_hut"],
-		&"pitchfork_panic": [&"moonlit_village"],
+		&"pitchfork_panic": [&"moonlit_village", &"cornfield_path", &"spooky_forest_bridge"],
 	}
 	for entry: LevelEntry in registry.entries:
 		if entry.debug_only:
@@ -282,3 +282,12 @@ func test_shipped_registry_themes() -> void:
 						"res://scenes/levels/horde_rush/themes/%s.tscn" % theme.id, "%s backdrop" % theme.id)
 			else:
 				assert_null(theme.defender, "%s has no defender" % theme.id)
+			if id == &"pitchfork_panic":
+				# Story 10.4: each setting is a ChaseBackdrop carrying its own escape cover.
+				assert_eq(theme.backdrop.resource_path,
+						"res://scenes/levels/pitchfork_panic/themes/%s.tscn" % theme.id, "%s backdrop" % theme.id)
+				var backdrop: ChaseBackdrop = theme.backdrop.instantiate() as ChaseBackdrop
+				assert_not_null(backdrop, "%s is a ChaseBackdrop" % theme.id)
+				if backdrop != null:
+					assert_not_null(backdrop.escape_cover_sheet, "%s has its escape cover" % theme.id)
+					backdrop.free()

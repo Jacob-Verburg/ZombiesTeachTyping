@@ -11,7 +11,7 @@ extends Control
 ## (zombie flash and melt, the Farmer's idle/walk/throw, the tomato and its splat). Story 8.6 adds the
 ## Pitchfork Panic set (the four mob runs, the zombie's dazed sit, the dizzy star, the mob hint, and the 48x48
 ## dust cloud and escape bush). Story 10.3 adds the Horde Rush pairs (the Knight's and the Lifeguard's idle/walk/throw, the
-## toy dart and its hit, the water balloon and its splash). A page holds up to PAGE_SIZE animations, fewer when wide 48 px columns would
+## toy dart and its hit, the water balloon and its splash); Story 10.4 the escape haystack and hollow log. A page holds up to PAGE_SIZE animations, fewer when wide 48 px columns would
 ## run off the 640 px view; the type specimen hides on a page whose 3x sprites reach down to it.
 ## B cycles the plain background (palette colors only), N the animation page, Esc quits. F3/F5/F8/F9 are left alone (the
 ## debug overlay, added by the Router in debug runs, owns them).
@@ -80,6 +80,8 @@ const ANIMATIONS: Array[Dictionary] = [
 	{"name": "mob_hint", "path": "res://assets/sprites/props/mob_hint.png", "frames": 2, "fps": HINT_FPS},
 	{"name": "dust_cloud", "path": "res://assets/sprites/props/dust_cloud.png", "frames": 4, "fps": DUST_FPS, "size": EFFECT_FRAME},
 	{"name": "escape_bush", "path": "res://assets/sprites/props/escape_bush.png", "frames": 3, "fps": BUSH_FPS, "size": EFFECT_FRAME},
+	{"name": "escape_haystack", "path": "res://assets/sprites/props/escape_haystack.png", "frames": 3, "fps": BUSH_FPS, "size": EFFECT_FRAME},
+	{"name": "escape_hollow_log", "path": "res://assets/sprites/props/escape_hollow_log.png", "frames": 3, "fps": BUSH_FPS, "size": EFFECT_FRAME},
 	{"name": "knight_idle", "path": "res://assets/sprites/characters/knight/knight_idle.png", "frames": 2, "fps": IDLE_FPS},
 	{"name": "knight_walk", "path": "res://assets/sprites/characters/knight/knight_walk.png", "frames": 4, "fps": WALK_FPS},
 	{"name": "knight_throw", "path": "res://assets/sprites/characters/knight/knight_throw.png", "frames": 3, "fps": FARMER_THROW_FPS},

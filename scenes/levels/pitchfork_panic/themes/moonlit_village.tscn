@@ -1,14 +1,16 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
-[ext_resource type="Script" uid="uid://p7qqijx42407" path="res://scripts/levels/zombie_run/parallax_backdrop.gd" id="5_backdrop"]
+[ext_resource type="Script" uid="uid://cfc2j68e0u70b" path="res://scripts/levels/pitchfork_panic/chase_backdrop.gd" id="5_backdrop"]
 [ext_resource type="Texture2D" uid="uid://c6ehwih2xa7g2" path="res://assets/sprites/backdrops/moonlit_village/clouds.png" id="6_clouds"]
 [ext_resource type="Texture2D" uid="uid://2p77ki765j38" path="res://assets/sprites/backdrops/moonlit_village/far.png" id="7_far"]
 [ext_resource type="Texture2D" uid="uid://bqrexulht1la7" path="res://assets/sprites/backdrops/moonlit_village/near.png" id="8_near"]
 [ext_resource type="Texture2D" uid="uid://ydn85bxwbxa2" path="res://assets/sprites/backdrops/moonlit_village/ground_strip.png" id="9_ground"]
 [ext_resource type="Texture2D" uid="uid://b0cox3uep3sah" path="res://assets/sprites/backdrops/moonlit_village/moon.png" id="10_moon"]
+[ext_resource type="Texture2D" uid="uid://d0kd54ptviysd" path="res://assets/sprites/props/escape_bush.png" id="11_cover"]
 
 [node name="Backdrop" type="Node2D"]
 script = ExtResource("5_backdrop")
+escape_cover_sheet = ExtResource("11_cover")
 
 [node name="Sky" type="ColorRect" parent="."]
 offset_right = 640.0

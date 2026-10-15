@@ -11,6 +11,8 @@ extends GutTest
 ## Sky and Fade ColorRects (both palette night), and its scripts draw no shapes (the endings are sprites).
 ## Story 10.1: each level's look moved into theme scenes (scenes/levels/<id>/themes/), so those folders are
 ## walked too and the level checks read the level scene together with its theme scene.
+## Story 10.4: the Pitchfork Panic settings Cornfield Path and Spooky Forest Bridge are sprites over one Sky
+## ColorRect each, no gradient.
 
 const SCENE_DIRS: Array[String] = [
 	"res://scenes/ui/", "res://scenes/screens/", "res://scenes/run/", "res://scenes/levels/zombie_run/",
@@ -22,6 +24,11 @@ const SCENE_DIRS: Array[String] = [
 const PITCHFORK_SCENES: Array[String] = [
 	"res://scenes/levels/pitchfork_panic/pitchfork_panic_level.tscn",
 	"res://scenes/levels/pitchfork_panic/themes/moonlit_village.tscn",
+]
+## Story 10.4: the other Pitchfork Panic settings (each read on its own).
+const PITCHFORK_SETTING_SCENES: Array[String] = [
+	"res://scenes/levels/pitchfork_panic/themes/cornfield_path.tscn",
+	"res://scenes/levels/pitchfork_panic/themes/spooky_forest_bridge.tscn",
 ]
 const PITCHFORK_SCRIPT_DIR: String = "res://scripts/levels/pitchfork_panic/"
 const NIGHT_COLOR_TEXT: String = "color = Color(0.16862745, 0.11372549, 0.24705882, 1)"
@@ -102,6 +109,15 @@ func test_pitchfork_panic_has_no_placeholder_art() -> void:
 	assert_true(text.contains("[node name=\"Sky\" type=\"ColorRect\""))
 	assert_true(text.contains("[node name=\"Fade\" type=\"ColorRect\""))
 	assert_eq(text.count(NIGHT_COLOR_TEXT), 2, "both palette night")
+
+
+func test_pitchfork_panic_settings_have_no_placeholder_art() -> void:
+	for path: String in PITCHFORK_SETTING_SCENES:
+		var text: String = FileAccess.get_file_as_string(path)
+		assert_ne(text, "", "%s found" % path)
+		assert_false(text.contains("Gradient"), "%s: no gradient" % path)
+		assert_eq(text.count("type=\"ColorRect\""), 1, "%s: only the Sky" % path)
+		assert_true(text.contains("[node name=\"Sky\" type=\"ColorRect\""), "%s: the Sky" % path)
 
 
 func test_pitchfork_panic_scripts_draw_no_shapes() -> void:

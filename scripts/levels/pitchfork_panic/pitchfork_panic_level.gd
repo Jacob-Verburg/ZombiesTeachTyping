@@ -12,7 +12,7 @@ extends LevelBase
 ## Camera without Camera2D (same technique as Zombie Run): the level scrolls %World, and _set_zombie_x()
 ## moves the zombie, the world and the backdrop in one call, so the zombie is at zombie_screen_x_frac of the
 ## 640 px width every frame. Nothing else ever tweens the zombie's position, except the escape dive (below),
-## where the camera stops and only the zombie node runs off into the bush.
+## where the camera stops and only the zombie node runs off into the cover.
 ##
 ## The mob (ChaseMob, Story 8.6) lives in world coordinates at mob_steps * step_px, so it scrolls with %World;
 ## its origin is the front member's feet and the other three trail behind within 58 px. It is drawn whenever
@@ -33,7 +33,7 @@ extends LevelBase
 ## length: caught = a dust cloud over the zombie and the mob (caught_dust_s), the zombie sitting dazed
 ## (PlayerZombie.sit_dazed(); a tilt and drop only if its sheet is missing) with circling stars and "Got
 ## you!" (caught_dazed_s), then a fade to night on a CanvasLayer over the HUD (caught_fade_s);
-## escaped = the zombie hops into a bush ahead and vanishes (escape_dive_s), then "Escaped!"
+## escaped = the zombie hops into the setting's cover ahead and vanishes (escape_dive_s), then "Escaped!"
 ## (escape_label_s). The outro is visuals only: one node-bound tween chain, nothing awaits, the result was
 ## decided before it starts, and freeing the level mid-outro leaves nothing running. The mob stays where it
 ## froze.
@@ -49,8 +49,10 @@ extends LevelBase
 ##
 ## The look (Story 8.6, FR74): the Moonlit Village, driven by the ParallaxBackdrop script with the same
 ## four layers over a night Sky, plus a static Moon outside the layers (the script never moves it). The dust
-## cloud, the dizzy stars and the bush are sprite sheets stepped by frames and whole px; no pixel art is
-## scaled or rotated in the outros (the hop into the bush is a position tween).
+## cloud, the dizzy stars and the escape cover are sprite sheets stepped by frames and whole px; no pixel art is
+## scaled or rotated in the outros (the hop into the cover is a position tween). Each setting brings its own
+## escape cover (Story 10.4): a ChaseBackdrop's escape_cover_sheet goes to %EscapeCover in _ready (the
+## Moonlit Village's is the bush); a plain ParallaxBackdrop keeps the built-in bush.
 ##
 ## Randomness: the run RNG's first randi() seeds the paragraph source's child RNG (unchanged from 8.3, so a
 ## seed deals the same text), its second seeds the pickup trail's child RNG; after create_target_source the
@@ -83,11 +85,11 @@ const PICKUP_SCENE: PackedScene = preload("res://scenes/levels/pitchfork_panic/b
 const TEXT_CAUGHT: String = "Got you!"
 ## The escape outro's label (EXPERIENCE.md string table).
 const TEXT_ESCAPED: String = "Escaped!"
-## The bush stands this far ahead of the zombie when it escapes. Layout, not a GDD number.
-const ESCAPE_BUSH_AHEAD_PX: float = 48.0
-## Share of escape_dive_s spent running to the bush; for the rest the bush rustles with the zombie inside.
+## The cover stands this far ahead of the zombie when it escapes. Layout, not a GDD number.
+const ESCAPE_COVER_AHEAD_PX: float = 48.0
+## Share of escape_dive_s spent running to the cover; for the rest the cover rustles with the zombie inside.
 const ESCAPE_RUN_SHARE: float = 0.8
-## Height of the hop into the bush in px (look value).
+## Height of the hop into the cover in px (look value).
 const ESCAPE_HOP_PX: float = 10.0
 ## The end label's top edge in playfield px. Layout, not a GDD number.
 const END_LABEL_Y: float = 100.0
@@ -136,7 +138,7 @@ func _accepts_backdrop(node: Node) -> bool:
 @onready var _pickups: Node2D = %Pickups
 @onready var _dust: DustCloud = %DustCloud
 @onready var _stars: DizzyStars = %DizzyStars
-@onready var _bush: EscapeBush = %EscapeBush
+@onready var _cover: EscapeCover = %EscapeCover
 @onready var _end_label: Label = %EndLabel
 @onready var _fade: ColorRect = %Fade
 
@@ -145,6 +147,7 @@ func _ready() -> void:
 	process_priority = PROCESS_PRIORITY
 	if not play_sfx.is_valid():
 		play_sfx = AudioManager.play_sfx
+	_apply_escape_cover()
 	_cfg = config as PitchforkPanicConfig
 	if _cfg == null:
 		Log.error(&"level", "pitchfork panic level has no PitchforkPanicConfig")
@@ -153,6 +156,19 @@ func _ready() -> void:
 	_mob.position.y = GROUND_Y
 	_set_zombie_x(0.0)
 	_mob.visible = false
+
+
+## Hands the setting's escape cover to %EscapeCover. A plain ParallaxBackdrop (or none) keeps the built-in bush
+## silently; a ChaseBackdrop without a sheet warns once and keeps it too (NFR16); a sheet of the wrong size
+## warns once in EscapeCover.use_sheet() and keeps it.
+func _apply_escape_cover() -> void:
+	var chase: ChaseBackdrop = _backdrop as ChaseBackdrop
+	if chase == null or _cover == null:
+		return
+	if chase.escape_cover_sheet == null:
+		Log.warn(&"level", "pitchfork panic backdrop %s has no escape cover sheet, using the bush" % chase.scene_file_path)
+		return
+	_cover.use_sheet(chase.escape_cover_sheet)
 
 
 ## Builds the paragraph source, the chase model and the pickup trail. A broken config or no text at all returns null, so
@@ -230,7 +246,7 @@ func on_run_ending(reason: StringName) -> float:
 	var known: bool = reason == GameConstants.END_REASON_CAUGHT or reason == GameConstants.END_REASON_ESCAPED
 	if _cfg == null or not known:
 		return 0.0
-	if _zombie == null or _dust == null or _stars == null or _bush == null or _end_label == null or _fade == null:
+	if _zombie == null or _dust == null or _stars == null or _cover == null or _end_label == null or _fade == null:
 		Log.error(&"level", "pitchfork panic level is missing an outro node; skipping the outro")
 		return 0.0
 	_ending_reason = reason
@@ -311,28 +327,28 @@ func _show_dazed() -> void:
 	_show_end_label(TEXT_CAUGHT, _world.position.x + _zombie.position.x)
 
 
-## Escaped: the camera stops; the zombie hops forward into the bush and vanishes, then "Escaped!".
+## Escaped: the camera stops; the zombie hops forward into the setting's cover and vanishes, then "Escaped!".
 func _play_escape() -> void:
 	if play_sfx.is_valid():
 		play_sfx.call(SFX_ESCAPE)
-	var bush_x: float = _zombie.position.x + ESCAPE_BUSH_AHEAD_PX
-	_bush.position = Vector2(bush_x, GROUND_Y)
-	_bush.visible = true
+	var cover_x: float = _zombie.position.x + ESCAPE_COVER_AHEAD_PX
+	_cover.position = Vector2(cover_x, GROUND_Y)
+	_cover.visible = true
 	var run_s: float = _cfg.escape_dive_s * ESCAPE_RUN_SHARE
 	_zombie.play_walk()
 	_zombie.hop(run_s, ESCAPE_HOP_PX)
 	_outro_tween = create_tween()
-	_outro_tween.tween_property(_zombie, "position:x", bush_x, run_s)
-	_outro_tween.tween_callback(_vanish_into_bush)
+	_outro_tween.tween_property(_zombie, "position:x", cover_x, run_s)
+	_outro_tween.tween_callback(_vanish_into_cover)
 	_outro_tween.tween_interval(_cfg.escape_dive_s - run_s)
 	_outro_tween.tween_callback(_show_end_label.bind(TEXT_ESCAPED, SCREEN_W / 2.0))
 
 
-## The zombie reaches the bush: gone, and the bush rustles for the rest of the dive.
-func _vanish_into_bush() -> void:
+## The zombie reaches the cover: gone, and the cover rustles for the rest of the dive.
+func _vanish_into_cover() -> void:
 	_zombie.stop_hop()
 	_zombie.visible = false
-	_bush.rustle(_cfg.escape_dive_s * (1.0 - ESCAPE_RUN_SHARE))
+	_cover.rustle(_cfg.escape_dive_s * (1.0 - ESCAPE_RUN_SHARE))
 
 
 ## Shows `text` centred on screen x `centre_x`, kept inside the playfield.

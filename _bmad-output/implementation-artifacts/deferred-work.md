@@ -725,7 +725,7 @@
   - Resolved in 8.6: sprite sheets (dust_cloud 4f and escape_bush 3f at 48x48, dizzy_star 2f) stepped by frames and whole px, and the zombie's `dazed` sit (`PlayerZombie.sit_dazed()`); the tilt is only a fallback when the sheet is missing. No scale or rotation of pixel art remains in the outros.
 - No ending sounds (dust-cloud thump, escape cheer) until 8.6.
   - Resolved in 8.6: `sfx_dust_cloud` (caught) and `sfx_escape` (escape), played once inside on_run_ending()'s call; Audio gate approved.
-- One bush for every setting; hedge/gate variants arrive with the chase settings (Epic 10.4).
+- One bush for every setting; hedge/gate variants arrive with the chase settings (Epic 10.4). Resolved in 10.4: each setting carries its own escape cover (the bush, a haystack, a hollow log) on its `ChaseBackdrop` scene.
 - The report card shows one "+35 bonus" line for an escape, not "+10" and "+25" separately; the "Escaped!" moment carries the win. Revisit if playtest kids don't connect the bonus to escaping.
   - 8.7: the escape line is now "+30 bonus" (`completion_bonus` 10 -> 5). Still open for a kid playtest (Q5).
 - The dust cloud (about 56x36 px) and the stars (3.5 px radius) are small at 1x on the 640x360 playfield; they read in the screenshots but check them with 8.6's art and on the kid playtest (8.7).
@@ -828,7 +828,7 @@
 ## Deferred from: dev of story 10-1 (2026-10-14)
 
 - `SunnyVillageBackdrop` still names one look but drives both the Sunny Village Green and the Moonlit Village theme scenes (and the test fixture backdrop). Rename it (e.g. `ParallaxBackdrop`, ~6 test files) when 10.2 adds a third parallax look. Resolved in 10.2: `SunnyVillageBackdrop` renamed `ParallaxBackdrop` (`scripts/levels/zombie_run/parallax_backdrop.gd`, uid kept).
-- Per-theme dive props for Pitchfork Panic (`EscapeBush`, `DustCloud`, `DizzyStars` stay in the level scene) are left to 10.4; Horde Rush's projectile scene and throw/hit SFX (the tomato consts in `horde_rush_level.gd`) are left to 10.3, which extends `LevelTheme`.
+- Per-theme dive props for Pitchfork Panic (`EscapeBush`, `DustCloud`, `DizzyStars` stay in the level scene) are left to 10.4; Horde Rush's projectile scene and throw/hit SFX (the tomato consts in `horde_rush_level.gd`) are left to 10.3, which extends `LevelTheme`. Resolved in 10.4: per-setting escape cover (on `ChaseBackdrop`, not `LevelTheme`; `EscapeBush` renamed `EscapeCover`); the dust cloud and dizzy stars stay setting-neutral (see 10-4 below).
 - Theme slots are swapped only before the level enters the tree (`LevelBase._swap_slot`); a theme part that has to change mid-run would need a different mechanism.
 - A non-`HordeFarmer` defender paces with no animations (`_farmer` null); a 10.3 defender that wants idle/walk/throw needs the same API or an interface. Resolved in 10.3: Horde Rush projectile and SFX per pair (on the defender scene, not `LevelTheme`); non-Farmer defenders animate (`HordeDefenderSprite`, renamed from `HordeFarmer`; `HordeTomatoSplat` renamed `HordeHitEffect`).
 - `test_screen_flow.gd` instanced RUN on the live `PlayerData` autoload; harmless until runs wrote at start. Since 10.1 RunFrame saves the last theme at run start, so the test now injects a temp PlayerData (first full suite run of this story wrote the dev machine's real save; restored byte-identical, see the story's Debug Log). Any new test that starts a real level through RunFrame must inject `player_data`.
@@ -873,5 +873,18 @@
 
 ## Deferred from: code review of story-10-3 (2026-10-14)
 
-- `THEME_JUMP_LEVELS` in `debug_overlay.gd` is a hard-coded level list, and `JumpTheme_<id>` button names are unique only while theme ids are unique across levels. Revisit when a third themed level lands.
+- `THEME_JUMP_LEVELS` in `debug_overlay.gd` is a hard-coded level list, and `JumpTheme_<id>` button names are unique only while theme ids are unique across levels. Revisit when a third themed level lands. Revisited in 10.4: `pitchfork_panic` added to the list (the agreed fix); the list is still hard-coded (see 10-4 below).
 - Pixel-level art rules (dart cup/point, no weapons, no letter-like marks) and the lane-floor-not-wood rule have no automated guard; they rest on Gate 1/2 approval (same as the Farmhouse).
+
+## Deferred from: dev of story 10-4 (2026-10-14)
+
+- The dust cloud, the dizzy stars and `sfx_escape` are setting-independent (a scuffle, stars, one escape sound): only the escape cover changes per setting.
+- The Pitchfork Panic level card on the main menu still shows the Moonlit Village, whichever setting the run draws.
+- `LevelTheme.music_id` is unused by the Pitchfork settings: all three play `mus_pitchfork_panic`.
+- The mob keeps its nightcaps and pyjamas in every setting (woken villagers), also at the cornfield's sunset.
+- The registry now eagerly loads three Pitchfork Panic backdrops (and their covers) along with the other themed levels' scenes.
+- The overlay's theme rows are still keyed by the hard-coded `THEME_JUMP_LEVELS`; a fourth themed level must be added there by hand.
+- `mob_hint.png` is still unused (since 8.7).
+- Accepted at Gate 1: no static `Sun` or `Moon` child in either new setting (the Cornfield's sunset is the clouds layer's bands; the Forest's canopies would hide a moon); the Forest's near canopies pass under the pause button corner (the button still reads, checklist item 8).
+- The scroll/perf smoke ended each run with F6 after about 35 s / 20 s of real typing (synthetic browser key events, because the pane's key injection drops capitals), not a full 5:00 run per setting.
+- `EscapeCover.use_sheet()` before `_ready` returns false and changes nothing (the level calls it from its own `_ready`, after its children's).

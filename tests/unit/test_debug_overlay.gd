@@ -593,7 +593,7 @@ func test_jump_buttons_do_nothing_while_closed() -> void:
 
 
 ## Story 10.2: one jump per Zombie Run theme, from the registry, on its own row, same rules as the others.
-## Story 10.3: and one per Horde Rush pair, after them.
+## Story 10.3: and one per Horde Rush pair, after them. Story 10.4: and one per Pitchfork Panic setting, last.
 func test_theme_jump_buttons_open_each_town_and_pair() -> void:
 	var sut: OverlayScript = _make()
 	var row: Node = sut.get_node("%JumpThemeRow")
@@ -606,7 +606,8 @@ func test_theme_jump_buttons_open_each_town_and_pair() -> void:
 		assert_eq(button.get_theme_font_size(&"font_size"), 8, button.text)
 		buttons.append(button)
 		texts.append(button.text)
-	assert_eq(texts, ["sunny_village_green", "pumpkin_patch_farm", "snowy_town", "farmhouse", "castle", "beach_hut"] as Array[String])
+	assert_eq(texts, ["sunny_village_green", "pumpkin_patch_farm", "snowy_town", "farmhouse", "castle", "beach_hut",
+			"moonlit_village", "cornfield_path", "spooky_forest_bridge"] as Array[String])
 	(buttons[0] as Button).pressed.emit()
 	assert_eq(_jumps, [], "nothing while closed")
 	_screen = Router.Screen.RUN
@@ -627,6 +628,9 @@ func test_theme_jump_buttons_open_each_town_and_pair() -> void:
 		[Router.Screen.RUN, {"level_id": &"horde_rush", "theme": &"farmhouse"}],
 		[Router.Screen.RUN, {"level_id": &"horde_rush", "theme": &"castle"}],
 		[Router.Screen.RUN, {"level_id": &"horde_rush", "theme": &"beach_hut"}],
+		[Router.Screen.RUN, {"level_id": &"pitchfork_panic", "theme": &"moonlit_village"}],
+		[Router.Screen.RUN, {"level_id": &"pitchfork_panic", "theme": &"cornfield_path"}],
+		[Router.Screen.RUN, {"level_id": &"pitchfork_panic", "theme": &"spooky_forest_bridge"}],
 	])
 
 

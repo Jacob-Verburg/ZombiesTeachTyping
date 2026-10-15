@@ -1,7 +1,7 @@
 class_name SheetFrames
 extends RefCounted
 ## Builds a one-animation SpriteFrames from a horizontal sprite sheet in code (Story 8.6). The Pitchfork
-## Panic ending nodes (DustCloud, DizzyStars, EscapeBush) are script-only nodes that tests create with new(),
+## Panic ending nodes (DustCloud, DizzyStars, EscapeCover) are script-only nodes that tests create with new(),
 ## so their sprites are made in _ready() rather than in a scene. One AtlasTexture region per frame, the
 ## texture filter left at the project default (Nearest). A sheet that fails to load logs one warning and
 ## returns null, so the node stays invisible-safe and the run goes on (NFR16).
@@ -15,8 +15,16 @@ static func build(path: String, frame_count: int, frame_px: int, fps: float, ani
 	if sheet == null:
 		Log.warn(&"level", "%s has no sprite sheet at %s" % [owner_name, path])
 		return null
+	return from_texture(sheet, frame_count, frame_px, fps, anim, loop, owner_name)
+
+
+## The same from an already loaded sheet (Story 10.4: a setting hands its escape cover over as a texture).
+## Null (after one warning naming `owner_name`) when the sheet is too small for the frames.
+static func from_texture(sheet: Texture2D, frame_count: int, frame_px: int, fps: float, anim: StringName,
+		loop: bool, owner_name: String) -> SpriteFrames:
 	if sheet.get_width() < frame_count * frame_px or sheet.get_height() < frame_px:
-		Log.warn(&"level", "%s sprite sheet %s is smaller than %d frames of %d px" % [owner_name, path, frame_count, frame_px])
+		Log.warn(&"level", "%s sprite sheet %s is smaller than %d frames of %d px"
+				% [owner_name, sheet.resource_path, frame_count, frame_px])
 		return null
 	var frames: SpriteFrames = SpriteFrames.new()
 	frames.rename_animation(&"default", anim)

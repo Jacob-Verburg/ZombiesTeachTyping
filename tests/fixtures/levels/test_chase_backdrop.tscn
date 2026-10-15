@@ -1,0 +1,33 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/pitchfork_panic/chase_backdrop.gd" id="1_backdrop"]
+[ext_resource type="Texture2D" path="res://assets/sprites/backdrops/sunny_village_green/clouds.png" id="2_tex"]
+[ext_resource type="Texture2D" path="res://assets/sprites/props/dust_cloud.png" id="3_cover"]
+
+[node name="TestChaseBackdrop" type="Node2D"]
+script = ExtResource("1_backdrop")
+escape_cover_sheet = ExtResource("3_cover")
+
+[node name="Clouds" type="Node2D" parent="."]
+
+[node name="A" type="Sprite2D" parent="Clouds"]
+texture = ExtResource("2_tex")
+centered = false
+
+[node name="Far" type="Node2D" parent="."]
+
+[node name="A" type="Sprite2D" parent="Far"]
+texture = ExtResource("2_tex")
+centered = false
+
+[node name="Near" type="Node2D" parent="."]
+
+[node name="A" type="Sprite2D" parent="Near"]
+texture = ExtResource("2_tex")
+centered = false
+
+[node name="Ground" type="Node2D" parent="."]
+
+[node name="A" type="Sprite2D" parent="Ground"]
+texture = ExtResource("2_tex")
+centered = false

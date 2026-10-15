@@ -29,6 +29,8 @@ Stories that make final art and wait for that approval:
 - **Epic 10:** Story 10.2 (the Zombie Run themes Pumpkin Patch Farm and Snowy Town; see section 3).
 - **Epic 10:** Story 10.3 (the Horde Rush pairs Castle + Knight and Beach Hut + Lifeguard: houses, lanes, defenders,
   the toy dart and its hit, the water balloon and its splash; see section 3).
+- **Epic 10:** Story 10.4 (the Pitchfork Panic settings Cornfield Path and Spooky Forest Bridge, and each setting's
+  escape cover: the haystack and the hollow log; see section 3).
 - Later art (the rest of Epic 10) reuses these rules for its characters, hats, pets and backdrops.
 
 Before its final-art story, any story may use **placeholder art**: plain shapes in palette colors.
@@ -165,6 +167,7 @@ animations and are exempt from the frame count only; every pixel rule applies to
 | `mob_hint` (8.6) | 2 | 32×32 | 8 | loop at the left screen edge (pitchfork tips and torches poking in) |
 | `dust_cloud` (8.6) | 4 | 48×48 | 10 (stepped by its tween) | loops for `caught_dust_s`, then hidden |
 | `escape_bush` (8.6) | 3 | 48×48 | stepped by its tween | frame 0 still; frames 1–2 rustle |
+| `escape_haystack`, `escape_hollow_log` (10.4) | 3 | 48×48 | stepped by `EscapeCover`'s tween | the bush's contract: frame 0 still; frames 1–2 lean or rock with bits popping off |
 
 **Hats** (Story 4.3) are 32×32 one-frame overlays whose **seat** (the bottom-centre of the brim) is pixel
 (16, 30): the lowest opaque row is row 30 and the opaque columns are centred on column 16 (*tested*). Row
@@ -272,6 +275,29 @@ the **day readability band** (*tested*): `near.png` rows 160–191 and the groun
 `zombie-green` or `zombie-green-bright`, so the zombie and the party zombies never sit on their own skin.
 Villagers are not recoloured per theme. Nothing round sits on the zombie's crown row at the run-start offset.
 
+**Pitchfork Panic settings** (Story 10.4, FR74, FR76; `assets/sprites/backdrops/cornfield_path/` and
+`assets/sprites/backdrops/spooky_forest_bridge/`, folder = theme id = scene name in
+`scenes/levels/pitchfork_panic/themes/`): two more chase settings with the Moonlit layout (`clouds.png`, `far.png`,
+`near.png` 640×192, `ground_tiles.png` four tiles 64×16, `ground_strip.png` 640×64, row 0 only the setting's path
+tiles), each scene a `ChaseBackdrop` (the `ParallaxBackdrop` script plus one export, `escape_cover_sheet`), no
+static moon. **Cornfield Path**, sunset under a `dusk` Sky: sunset bands and thin streak clouds, `ink-muted` hills
+with a barn, silo and farmhouse in silhouette and a distant pumpkin patch, bats; in front, a wall of corn, a
+split-rail fence, a smiling scarecrow and pumpkins; dirt, straw and pebble path tiles over field soil with
+stubble. **Spooky Forest Bridge**, night under a `night` Sky: dusk clouds, stars and `pumpkin-light` fireflies,
+rows of rounded tree tops with a smiling owl and bats; in front, big friendly trees (smooth trunks, no knots
+or holes), a jack-o'-lantern on a stump, ferns, the bridge's far handrail, toadstools and stones; plank path
+tiles over creek water and reeds. The Moonlit rules apply (*tested*: sizes, palette, hard alpha, no
+`candy-yellow`, `stamp-red` or `art-moon`, seams wrap with something across them, seamless tiles, the strip
+built from its tiles, pumpkin and bat-purple dressing), with the night band extended to the **chase
+readability band** (*tested*): `near.png` rows 160–191 fully opaque and free of `ink`, `night`, `zombie-green`,
+`zombie-green-bright`, `bat-purple`, `art-brain-pink` and `art-brain-shade`, and the ground strip's top 4 rows
+free of those plus `wood` and `wood-dark` (the zombie's trousers and shoes), so planks are `wood-light`.
+**Escape covers** (`assets/sprites/props/escape_haystack.png`, `escape_hollow_log.png`): the escape bush's
+contract (48×48, 3 frames, standing on row 46, ink outline, frame 0 at least 28×30 opaque so the zombie
+disappears into it, *tested*). Each setting's scene carries its cover; `PitchforkPanicLevel` hands it to
+`EscapeCover` (renamed from the escape bush), and the Moonlit Village keeps `escape_bush.png`. The mob, the
+dust cloud and the dizzy stars are the same in every setting.
+
 **Import settings:** Lossless compression (`compress/mode=0`), no mipmaps (*tested*). Filtering is the
 project default, Nearest; do not set a per-file filter.
 
@@ -286,7 +312,9 @@ screen for legibility.
 the palette, legends and approved maps from the first), `tools/gen_cosmetics_art.gd` (Story 4.3) or
 `tools/gen_horde_rush_art.gd` (Story 6.6), `tools/gen_pitchfork_panic_art.gd` (Story 8.6) or
 `tools/gen_zombie_run_themes_art.gd` (Story 10.2, the Zombie Run theme backdrops) or `tools/gen_horde_rush_pairs_art.gd`
-(Story 10.3, the Castle and Beach Hut pairs), one character per pixel, a legend from
+(Story 10.3, the Castle and Beach Hut pairs) or `tools/gen_chase_themes_art.gd` (Story 10.4, the Pitchfork Panic
+settings and their escape covers; the covers are painted as fills and grown a 1 px ink outline), one character
+per pixel, a legend from
 character to palette **name**, written to PNG by running the tool headless and then `--import`. The
 backdrop is drawn by the same tool from shapes at fixed positions (no randomness). Never hand-edit a
 PNG. Commit the PNGs and `.import` files.

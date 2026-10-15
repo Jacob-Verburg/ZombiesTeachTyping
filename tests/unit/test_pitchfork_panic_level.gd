@@ -10,6 +10,7 @@ extends GutTest
 ## sit (with the tilt fallback), the outro sounds, the sprite
 ## ending nodes (frames and whole px, scale ONE throughout) and the static moon.
 ## Story 8.7: the whole mob walks in from the left edge (gap 25 puts the front frame's right edge at x 0).
+## Story 10.4: the escape cover travels with the backdrop (ChaseBackdrop.escape_cover_sheet to %EscapeCover).
 ## Outro beats are driven with Tween.custom_step() on the level's outro tween (get_outro_tween()), so they are
 ## deterministic and fast; the tree's own frames add only a few real milliseconds on top.
 
@@ -578,11 +579,11 @@ func test_escape_outro_by_beats_with_the_camera_stopped() -> void:
 	_level.on_run_ending(&"escaped")
 	var tween: Tween = _level.get_outro_tween()
 	tween.custom_step(0.1)
-	assert_true(_visible("%EscapeBush"), "t=0.1: the bush is there")
+	assert_true(_visible("%EscapeCover"), "t=0.1: the bush is there")
 	assert_true(zombie.visible)
 	assert_gt(zombie.position.x, start_x, "running at the bush")
-	var bush: Node2D = _level.get_node("%EscapeBush")
-	assert_almost_eq(bush.position.x, start_x + PitchforkPanicLevel.ESCAPE_BUSH_AHEAD_PX, 1e-3)
+	var bush: Node2D = _level.get_node("%EscapeCover")
+	assert_almost_eq(bush.position.x, start_x + PitchforkPanicLevel.ESCAPE_COVER_AHEAD_PX, 1e-3)
 	assert_false(label.visible)
 	tween.custom_step(1.5)
 	assert_false(zombie.visible, "t=1.6: into the bush")
@@ -609,7 +610,7 @@ func test_endings_hide_the_pickups_and_keep_the_brains() -> void:
 func test_endings_draw_in_front_of_the_mob_and_the_zombie() -> void:
 	_make()
 	var zombie_index: int = _level.get_node("%Zombie").get_index()
-	for unique: String in ["%EscapeBush", "%DustCloud", "%DizzyStars"]:
+	for unique: String in ["%EscapeCover", "%DustCloud", "%DizzyStars"]:
 		var node: Node = _level.get_node(unique)
 		assert_eq(node.get_parent(), _level.get_node("%World"), unique)
 		assert_gt(node.get_index(), zombie_index, unique)
@@ -680,8 +681,8 @@ func test_dizzy_stars_orbit_while_shown_and_stop_hides() -> void:
 	assert_false(stars.is_processing())
 
 
-func test_escape_bush_rustles_by_frames_and_ends_on_the_still_frame() -> void:
-	var bush: EscapeBush = EscapeBush.new()
+func test_escape_cover_rustles_by_frames_and_ends_on_the_still_frame() -> void:
+	var bush: EscapeCover = EscapeCover.new()
 	add_child_autofree(bush)
 	bush.position.x = 12.0
 	assert_eq(bush.get_frame(), 0, "still before the dive")
@@ -787,3 +788,93 @@ func test_the_moonlit_backdrop_and_a_static_moon() -> void:
 	_level._walk_tween.custom_step(1.0)
 	assert_ne(backdrop.get_layer_offset(ParallaxBackdrop.LAYER_GROUND), 0.0, "the street scrolled")
 	assert_eq(moon.global_position, moon_at, "the moon stays put")
+
+
+# --- Story 10.4: the escape cover travels with the backdrop ---
+
+const BUSH_PATH: String = "res://assets/sprites/props/escape_bush.png"
+const TestChaseBackdrop: PackedScene = preload("res://tests/fixtures/levels/test_chase_backdrop.tscn")
+const DUST_SHEET_PATH: String = "res://assets/sprites/props/dust_cloud.png"
+
+
+## The level with `backdrop` swapped into the %Backdrop slot before it enters the tree (as RunFrame does).
+func _make_with_backdrop(backdrop: PackedScene, before_add: Callable = Callable()) -> PitchforkPanicLevel:
+	_level = LevelScene.instantiate() as PitchforkPanicLevel
+	_sfx = []
+	_level.play_sfx = func(id: StringName) -> void: _sfx.append(id)
+	var theme: LevelTheme = LevelTheme.new()
+	theme.id = &"test"
+	theme.backdrop = backdrop
+	_level.apply_theme(theme)
+	if before_add.is_valid():
+		before_add.call(_level.get_node("%Backdrop"))
+	add_child_autofree(_level)
+	return _level
+
+
+func test_the_moonlit_village_dives_into_the_bush() -> void:
+	_make()
+	var cover: EscapeCover = _level.get_node("%EscapeCover")
+	assert_true(_level.get_node("%Backdrop") is ChaseBackdrop, "the Moonlit Village is a ChaseBackdrop")
+	assert_not_null(cover.get_sheet())
+	assert_eq(cover.get_sheet().resource_path, BUSH_PATH)
+	assert_push_warning_count(0)
+
+
+func test_a_chase_backdrop_brings_its_own_cover() -> void:
+	_make_with_backdrop(TestChaseBackdrop)
+	var cover: EscapeCover = _level.get_node("%EscapeCover")
+	assert_eq(cover.get_sheet().resource_path, DUST_SHEET_PATH, "the setting's sheet")
+	var sprite: AnimatedSprite2D = cover.get_node("Sprite")
+	assert_eq(sprite.sprite_frames.get_frame_count(EscapeCover.ANIM), 3)
+	assert_eq((sprite.sprite_frames.get_frame_texture(EscapeCover.ANIM, 0) as AtlasTexture).atlas.resource_path,
+			DUST_SHEET_PATH)
+	assert_eq(sprite.position, Vector2(-24.0, -47.0), "same contract")
+	# The escape outro shows that sheet.
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 42
+	assert_not_null(_level.create_target_source(rng))
+	_level.on_run_ending(&"escaped")
+	_level.get_outro_tween().custom_step(0.1)
+	assert_true(cover.visible)
+	assert_eq(cover.get_sheet().resource_path, DUST_SHEET_PATH)
+	assert_push_warning_count(0)
+
+
+func test_a_chase_backdrop_without_a_sheet_warns_and_keeps_the_bush() -> void:
+	_make_with_backdrop(TestChaseBackdrop, func(node: Node) -> void: (node as ChaseBackdrop).escape_cover_sheet = null)
+	var cover: EscapeCover = _level.get_node("%EscapeCover")
+	assert_eq(cover.get_sheet().resource_path, BUSH_PATH)
+	assert_push_warning("no escape cover sheet")
+	assert_push_warning_count(1)
+
+
+func test_a_plain_backdrop_keeps_the_bush_silently() -> void:
+	_make_with_backdrop(preload("res://tests/fixtures/levels/test_backdrop.tscn"))
+	assert_eq((_level.get_node("%EscapeCover") as EscapeCover).get_sheet().resource_path, BUSH_PATH)
+	assert_push_warning_count(0)
+
+
+func test_a_too_small_cover_sheet_warns_and_keeps_the_frames() -> void:
+	var cover: EscapeCover = EscapeCover.new()
+	add_child_autofree(cover)
+	assert_false(cover.use_sheet(load("res://assets/sprites/props/dizzy_star.png") as Texture2D))
+	assert_push_warning("smaller than 3 frames of 48 px")
+	assert_push_warning_count(1)
+	var sprite: AnimatedSprite2D = cover.get_node("Sprite")
+	assert_eq(sprite.sprite_frames.get_frame_count(EscapeCover.ANIM), 3)
+	assert_eq(cover.get_sheet().resource_path, BUSH_PATH)
+	assert_false(cover.use_sheet(null), "null changes nothing")
+	assert_eq(cover.get_sheet().resource_path, BUSH_PATH)
+
+
+func test_use_sheet_stops_a_rustle_and_shows_the_still_frame() -> void:
+	var cover: EscapeCover = EscapeCover.new()
+	add_child_autofree(cover)
+	cover.rustle(0.3)
+	cover.get_tween().custom_step(0.1)
+	assert_true(cover.get_frame() in [1, 2])
+	assert_true(cover.use_sheet(load(DUST_SHEET_PATH) as Texture2D))
+	assert_false(cover.get_tween().is_valid(), "the rustle stopped")
+	assert_eq(cover.get_frame(), 0)
+	assert_push_warning_count(0)

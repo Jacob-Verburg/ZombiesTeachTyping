@@ -18,6 +18,11 @@ extends GutTest
 ## palette and hard alpha, candy-yellow, stamp-red and art-moon nowhere, no zombie greens in the lanes or the house
 ## front, the field opaque, a doorway per lane on the soles row against that house's own wall colours) and the
 ## pixel-crisp import.
+## Story 10.4 adds the Pitchfork Panic settings Cornfield Path and Spooky Forest Bridge: each folder goes through
+## the Moonlit rules (sizes, palette and hard alpha, candy-yellow, stamp-red and art-moon nowhere, the seam, the
+## tiles, the strip built from its tiles with only the path tiles on row 0) plus the chase readability band
+## (near.png rows 160-191 opaque and free of the characters' colours; the strip's top 4 rows also free of wood
+## and wood-dark, the zombie's trousers and shoes), the Halloween dressing and the pixel-crisp import.
 
 const PALETTE_PATH: String = "res://assets/palette/palette_32.png"
 const DIR: String = "res://assets/sprites/backdrops/sunny_village_green/"
@@ -830,4 +835,157 @@ func test_hr_pairs_a_doorway_per_lane_on_the_feet_line() -> void:
 func test_hr_pairs_import_settings_lossless_no_mipmaps() -> void:
 	for dir: String in HR_PAIRS:
 		for file: String in _hr_files(dir):
+			_assert_pixel_crisp_import(dir + file)
+
+
+# --- Pitchfork Panic settings (Story 10.4): Cornfield Path and Spooky Forest Bridge ---
+
+## Each setting's folder -> the ground tiles its walking path (the strip's row 0) may use.
+const PP_THEMES: Dictionary[String, Array] = {
+	"res://assets/sprites/backdrops/cornfield_path/": [0, 1, 2],
+	"res://assets/sprites/backdrops/spooky_forest_bridge/": [0, 1],
+}
+## The chase readability band (Story 10.4): the Moonlit night band's list; the path rows also never wear the
+## zombie's trousers and shoes (wood, wood-dark).
+const CHASE_BAND_FORBIDDEN: Array[String] = NIGHT_BAND_FORBIDDEN
+const CHASE_PATH_FORBIDDEN: Array[String] = [
+	"1e1428", "2b1d3f", "6cc24a", "b8f27c", "7a4bb3", "f29ab8", "c9607f", "8a5228", "5a3218",
+]
+
+
+## Shared check: rows [from_y, to_y) of `image` with a pixel that is not fully opaque (empty when solid).
+func _hole_rows(image: Image, from_y: int, to_y: int) -> Array[int]:
+	var rows: Array[int] = []
+	for y: int in range(from_y, mini(to_y, image.get_height())):
+		for x: int in image.get_width():
+			if image.get_pixel(x, y).a8 != 255:
+				rows.append(y)
+				break
+	return rows
+
+
+func test_pp_themes_files_exist_at_their_size() -> void:
+	for dir: String in PP_THEMES:
+		for file: String in LAYERS:
+			var image: Image = _load_from(dir, file)
+			assert_not_null(image, "%s%s missing" % [dir, file])
+			if image != null:
+				assert_eq(image.get_size(), Vector2i(PERIOD, PLAYFIELD_GROUND_Y), "%s%s size" % [dir, file])
+		var tiles: Image = _load_from(dir, TILES)
+		assert_not_null(tiles, "%s tiles missing" % dir)
+		if tiles != null:
+			assert_eq(tiles.get_size(), Vector2i(4 * TILE, TILE), "%s four ground tiles" % dir)
+		var strip: Image = _load_from(dir, STRIP)
+		assert_not_null(strip, "%s strip missing" % dir)
+		if strip != null:
+			assert_eq(strip.get_size(), Vector2i(PERIOD, STRIP_H), "%s strip size" % dir)
+
+
+func test_pp_themes_hard_alpha_and_palette_only() -> void:
+	for dir: String in PP_THEMES:
+		for file: String in _all_files():
+			var image: Image = _load_from(dir, file)
+			if image == null:
+				fail_test("%s%s missing" % [dir, file])
+				continue
+			var bad: Array[String] = _alpha_palette_problems(image)
+			assert_eq(bad.size(), 0, "%s%s: %s" % [dir, file, ", ".join(bad.slice(0, 10))])
+
+
+## Candy-yellow is the end labels' and focus colour, stamp-red the stamp's, art-moon the moon's: none here.
+func test_pp_themes_reserved_colours() -> void:
+	for dir: String in PP_THEMES:
+		for file: String in _all_files():
+			var colors: Dictionary[String, bool] = _colors_in(dir, file)
+			for hex: String in [CANDY_YELLOW, STAMP_RED, ART_MOON]:
+				assert_false(colors.has(hex), "%s%s uses %s" % [dir, file, hex])
+
+
+func test_pp_themes_seam_rows_match_and_features_cross() -> void:
+	for dir: String in PP_THEMES:
+		for file: String in [LAYERS[0], LAYERS[1], LAYERS[2], STRIP]:
+			var image: Image = _load_from(dir, file)
+			if image == null or image.get_width() != PERIOD:
+				fail_test("%s%s missing" % [dir, file])
+				continue
+			var bad: Array[int] = _seam_mismatch_rows(image)
+			assert_eq(bad.size(), 0, "%s%s seam rows %s" % [dir, file, bad.slice(0, 10)])
+			assert_true(_crosses_seam(image), "%s%s has something across the seam" % [dir, file])
+
+
+## Every tile repeats with itself left to right; the tiles that stack in rows 1-3 (not the path's) also top
+## to bottom. A path tile's top edge is the ground line and its bottom meets the row below.
+func test_pp_themes_tiles_are_seamless() -> void:
+	for dir: String in PP_THEMES:
+		var tiles: Image = _load_from(dir, TILES)
+		if tiles == null:
+			fail_test("%s tiles missing" % dir)
+			continue
+		var path_tiles: Array = PP_THEMES[dir]
+		for tile: int in tiles.get_width() / TILE:
+			for i: int in TILE:
+				assert_eq(tiles.get_pixel(tile * TILE, i), tiles.get_pixel(tile * TILE + TILE - 1, i),
+						"%s tile %d row %d left/right edge" % [dir, tile, i])
+				if not tile in path_tiles:
+					assert_eq(tiles.get_pixel(tile * TILE + i, 0), tiles.get_pixel(tile * TILE + i, TILE - 1),
+							"%s tile %d column %d top/bottom edge" % [dir, tile, i])
+
+
+## Each 16 x 16 cell of the strip is exactly one tile; row 0 only the setting's path tiles; every tile used.
+func test_pp_themes_strip_is_built_from_the_tiles() -> void:
+	for dir: String in PP_THEMES:
+		var tiles: Image = _load_from(dir, TILES)
+		var strip: Image = _load_from(dir, STRIP)
+		if tiles == null or strip == null:
+			fail_test("%s tiles or strip missing" % dir)
+			continue
+		var tile_bytes: Array[PackedByteArray] = []
+		for tile: int in tiles.get_width() / TILE:
+			tile_bytes.append(tiles.get_region(Rect2i(tile * TILE, 0, TILE, TILE)).get_data())
+		var used: Dictionary[int, bool] = {}
+		var problems: Array[String] = []
+		for row: int in STRIP_H / TILE:
+			for col: int in PERIOD / TILE:
+				var cell: PackedByteArray = strip.get_region(Rect2i(col * TILE, row * TILE, TILE, TILE)).get_data()
+				var index: int = tile_bytes.find(cell)
+				if index == -1:
+					problems.append("(%d,%d) not a tile" % [col, row])
+					continue
+				used[index] = true
+				if row == 0 and not index in PP_THEMES[dir]:
+					problems.append("(%d,0) tile %d on the path" % [col, index])
+		assert_eq(problems.size(), 0, "%s strip: %s" % [dir, ", ".join(problems.slice(0, 10))])
+		assert_eq(used.size(), tile_bytes.size(), "%s: every tile is used" % dir)
+
+
+## The chase readability band: near.png rows 160-191 fully opaque and free of the characters' colours; the
+## strip's top 4 rows free of them and of the zombie's trousers and shoes (wood, wood-dark).
+func test_pp_themes_chase_readability_band() -> void:
+	for dir: String in PP_THEMES:
+		var near: Image = _load_from(dir, "near.png")
+		if near == null:
+			fail_test("%snear.png missing" % dir)
+			continue
+		var holes: Array[int] = _hole_rows(near, NIGHT_BAND_TOP, PLAYFIELD_GROUND_Y)
+		assert_eq(holes.size(), 0, "%snear.png band rows with holes %s" % [dir, holes.slice(0, 10)])
+		var band: Dictionary[String, bool] = _colors_in(dir, "near.png", NIGHT_BAND_TOP, PLAYFIELD_GROUND_Y - 1)
+		for hex: String in CHASE_BAND_FORBIDDEN:
+			assert_false(band.has(hex), "%snear.png band uses %s" % [dir, hex])
+		var path: Dictionary[String, bool] = _colors_in(dir, STRIP, 0, NIGHT_STRIP_ROWS - 1)
+		for hex: String in CHASE_PATH_FORBIDDEN:
+			assert_false(path.has(hex), "%s ground strip top rows use %s" % [dir, hex])
+
+
+## DESIGN.md D6's cute-Halloween dressing: a pumpkin and bat-purple in the near or far layer.
+func test_pp_themes_carry_the_halloween_dressing() -> void:
+	for dir: String in PP_THEMES:
+		var colors: Dictionary[String, bool] = _colors_in(dir, "near.png")
+		colors.merge(_colors_in(dir, "far.png"))
+		assert_true(colors.has(PUMPKIN), "%s has a pumpkin" % dir)
+		assert_true(colors.has(BAT_PURPLE), "%s has bat-purple" % dir)
+
+
+func test_pp_themes_import_settings_lossless_no_mipmaps() -> void:
+	for dir: String in PP_THEMES:
+		for file: String in _all_files():
 			_assert_pixel_crisp_import(dir + file)

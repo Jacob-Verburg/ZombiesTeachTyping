@@ -133,9 +133,43 @@ func test_pitchfork_backdrop_swaps_too() -> void:
 	level.apply_theme(_theme(&"test", TestBackdrop))
 	assert_eq(level.get_node("%Backdrop").scene_file_path, TestBackdrop.resource_path)
 	assert_eq(level.get_node("%Backdrop").get_index(), index)
-	assert_not_null(level.get_node_or_null("%EscapeBush"), "the dive props stay in the level")
+	assert_not_null(level.get_node_or_null("%EscapeCover"), "the dive props stay in the level")
 	add_child_autofree(level)
+	var cover: EscapeCover = level.get_node("%EscapeCover")
+	assert_eq(cover.get_sheet().resource_path, "res://assets/sprites/props/escape_bush.png",
+			"a plain ParallaxBackdrop keeps the built-in bush")
 	assert_push_warning_count(0)
+
+
+## Story 10.4: the shipped Cornfield Path and Spooky Forest Bridge really swap in, are ChaseBackdrops the level
+## scrolls, and hand the level their own escape cover (all textures present, so no warning).
+func test_new_pitchfork_settings_really_swap() -> void:
+	var covers: Dictionary[StringName, String] = {
+		&"cornfield_path": "res://assets/sprites/props/escape_haystack.png",
+		&"spooky_forest_bridge": "res://assets/sprites/props/escape_hollow_log.png",
+	}
+	var registry: LevelRegistry = load(REGISTRY_PATH) as LevelRegistry
+	var themes: Array[LevelTheme] = registry.get_entry(&"pitchfork_panic").themes.slice(1)
+	assert_eq(themes.size(), 2, "two new settings")
+	for theme: LevelTheme in themes:
+		var level: LevelBase = _level(PitchforkScene)
+		var index: int = level.get_node("%Backdrop").get_index()
+		level.apply_theme(theme)
+		var node: Node = level.get_node("%Backdrop")
+		assert_eq(node.scene_file_path, theme.backdrop.resource_path, "%s swapped in" % theme.id)
+		assert_eq(String(node.name), "Backdrop")
+		assert_eq(node.get_index(), index, "same draw order")
+		assert_true(node.unique_name_in_owner, "still %Backdrop")
+		add_child_autofree(level)
+		var backdrop: ChaseBackdrop = node as ChaseBackdrop
+		assert_not_null(backdrop, "%s is a ChaseBackdrop" % theme.id)
+		assert_eq(level.get("_backdrop"), backdrop, "the level holds the new backdrop")
+		level.call("_set_zombie_x", 1000.0)
+		assert_ne(backdrop.get_layer(ParallaxBackdrop.LAYER_GROUND).position.x, 0.0, "%s scrolls" % theme.id)
+		var cover: EscapeCover = level.get_node("%EscapeCover") as EscapeCover
+		assert_eq(cover.get_sheet().resource_path, covers[theme.id], "%s cover" % theme.id)
+	assert_push_warning_count(0)
+	assert_push_error_count(0)
 
 
 func test_horde_rush_swaps_field_and_defender() -> void:

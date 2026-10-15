@@ -2312,7 +2312,7 @@ func test_shipped_levels_start_in_their_theme() -> void:
 	var expected: Dictionary[StringName, Array] = {
 		&"zombie_run": [&"sunny_village_green", &"pumpkin_patch_farm", &"snowy_town"],
 		&"horde_rush": [&"farmhouse", &"castle", &"beach_hut"],
-		&"pitchfork_panic": [&"moonlit_village"],
+		&"pitchfork_panic": [&"moonlit_village", &"cornfield_path", &"spooky_forest_bridge"],
 	}
 	for level_id: StringName in expected:
 		var data: PlayerDataScript = _fake_player_data()
@@ -2491,4 +2491,111 @@ func test_every_horde_rush_pair_can_be_drawn() -> void:
 	for run_seed: int in range(1, 61):
 		drawn[ThemePicker.pick(themes, &"", ThemePicker.theme_rng(run_seed)).id] = true
 	for theme_id: StringName in HORDE_RUSH_THEMES:
+		assert_true(drawn.has(theme_id), "%s drawn over seeds 1..60" % theme_id)
+
+
+# --- Story 10.4: the Pitchfork Panic settings ---
+
+const PITCHFORK_PANIC_THEMES: Array[StringName] = [&"moonlit_village", &"cornfield_path", &"spooky_forest_bridge"]
+## Each setting's escape cover (on its ChaseBackdrop scene).
+const PITCHFORK_PANIC_COVERS: Dictionary[StringName, String] = {
+	&"moonlit_village": "res://assets/sprites/props/escape_bush.png",
+	&"cornfield_path": "res://assets/sprites/props/escape_haystack.png",
+	&"spooky_forest_bridge": "res://assets/sprites/props/escape_hollow_log.png",
+}
+
+
+func _shipped_pitchfork_panic_themes() -> Array[LevelTheme]:
+	var registry: LevelRegistry = load("res://data/levels/level_registry.tres") as LevelRegistry
+	return registry.get_entry(&"pitchfork_panic").themes
+
+
+## A scripted Pitchfork Panic run on `frame`: correct keys typed through the session in bursts, fixed
+## _process steps between them, then steps with no keys until the mob catches the zombie (or a step limit);
+## returns what the rules decide (the passage typed, the chase steps and the mob's world x, the brains, the end
+## reason).
+func _scripted_chase_run(frame: RunFrameScript) -> Dictionary:
+	var level: PitchforkPanicLevel = frame.get_level() as PitchforkPanicLevel
+	var reasons: Array[StringName] = []
+	level.end_requested.connect(func(reason: StringName) -> void: reasons.append(reason))
+	var typed: String = ""
+	var steps: Array[Array] = []
+	for burst: int in 4:
+		for i: int in 15:
+			var session: TypingSession = frame.get_session()
+			var c: String = session.get_current_target()[session.get_cursor()]
+			_send_char(frame, c)
+			typed += c
+		for i: int in 60:
+			level._process(1.0 / 60.0)
+		# The mob's world x is mob_steps * step_px: it changes if a setting ever changes the chase config.
+		steps.append([level.get_model().zombie_steps, level.get_model().mob_steps,
+				(level.get_node("%Mob") as Node2D).position.x])
+	var idle: int = 0
+	while reasons.is_empty() and idle < 6000:
+		level._process(1.0 / 60.0)
+		idle += 1
+	return {
+		"typed": typed,
+		"steps": steps,
+		"brains": level.get_brains_earned(),
+		"reasons": reasons,
+		"idle_steps": idle,
+	}
+
+
+## AC 6: the setting never changes the rules. Same seed, each setting forced, the same scripted keys and
+## steps: the same passage, LevelConfig, chase steps, brains and end reason; %Backdrop is that setting's scene
+## and %EscapeCover shows that setting's cover.
+func test_pitchfork_panic_rules_do_not_change_with_the_setting() -> void:
+	var backdrops: Dictionary[StringName, String] = {}
+	for theme: LevelTheme in _shipped_pitchfork_panic_themes():
+		backdrops[theme.id] = theme.backdrop.resource_path
+	assert_eq(backdrops.keys(), PITCHFORK_PANIC_THEMES as Array, "the shipped Pitchfork Panic settings")
+	var first: Dictionary = {}
+	var first_config: LevelConfig = null
+	for theme_id: StringName in PITCHFORK_PANIC_THEMES:
+		var data: PlayerDataScript = _fake_player_data()
+		var frame: RunFrameScript = _make({"level_id": &"pitchfork_panic", "seed": 42, "theme": theme_id}, null, data)
+		add_child_autofree(frame)
+		assert_eq(frame.get_theme_id(), theme_id, "forced setting")
+		var level: LevelBase = frame.get_level()
+		assert_eq(level.get_node("%Backdrop").scene_file_path, backdrops[theme_id], "%s backdrop" % theme_id)
+		var cover: EscapeCover = level.get_node("%EscapeCover") as EscapeCover
+		assert_eq(cover.get_sheet().resource_path, PITCHFORK_PANIC_COVERS[theme_id], "%s cover" % theme_id)
+		var config: LevelConfig = level.get_level_config()
+		var outcome: Dictionary = _scripted_chase_run(frame)
+		assert_eq(outcome["reasons"], [&"caught"] as Array[StringName], "%s: the idle mob catches up" % theme_id)
+		if first_config == null:
+			first_config = config
+			first = outcome
+			continue
+		assert_eq(config, first_config, "%s: same LevelConfig" % theme_id)
+		assert_eq(outcome, first, "%s: same passage, chase and ending for the same seed" % theme_id)
+	assert_eq(_nav, [], "no failed-load navigation")
+	assert_push_warning_count(0)
+	assert_push_error_count(0)
+
+
+## FR76: the same setting never shows twice in a row.
+func test_pitchfork_panic_never_repeats_its_setting() -> void:
+	var data: PlayerDataScript = _fake_player_data()
+	var seen: Array[StringName] = []
+	for run_seed: int in range(1, 6):
+		var frame: RunFrameScript = _make({"level_id": &"pitchfork_panic", "seed": run_seed}, null, data)
+		add_child_autofree(frame)
+		seen.append(frame.get_theme_id())
+	for i: int in range(1, seen.size()):
+		assert_ne(seen[i], seen[i - 1], "run %d repeats %s" % [i + 1, seen[i]])
+	assert_push_warning_count(0)
+	assert_push_error_count(0)
+
+
+## Every shipped Pitchfork Panic setting is really drawn.
+func test_every_pitchfork_panic_setting_can_be_drawn() -> void:
+	var themes: Array[LevelTheme] = _shipped_pitchfork_panic_themes()
+	var drawn: Dictionary[StringName, bool] = {}
+	for run_seed: int in range(1, 61):
+		drawn[ThemePicker.pick(themes, &"", ThemePicker.theme_rng(run_seed)).id] = true
+	for theme_id: StringName in PITCHFORK_PANIC_THEMES:
 		assert_true(drawn.has(theme_id), "%s drawn over seeds 1..60" % theme_id)

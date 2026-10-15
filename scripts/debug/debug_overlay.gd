@@ -36,7 +36,8 @@ extends CanvasLayer
 ## {"level_id": &"zombie_run", "theme": <id>}, so each town opens directly (from the menu card the theme is
 ## random). They follow the same rules as the other jumps (mouse-only, main menu only).
 ## Story 10.3: the row also holds one button per Horde Rush pair ({"level_id": &"horde_rush", "theme": <id>}), built
-## the same way (THEME_JUMP_LEVELS).
+## the same way (THEME_JUMP_LEVELS). Story 10.4: and one per Pitchfork Panic setting
+## ({"level_id": &"pitchfork_panic", "theme": <id>}); the row is an HFlowContainer, so the nine buttons wrap.
 ## Closed = no per-frame work (_process off, refresh timer stopped). Nothing is logged per frame.
 ## A section is one label plus one _refresh_* called from _refresh().
 ## player_data, save_service, find_run_frame, navigate and current_screen are test seams: tests assign them before add_child.
@@ -60,8 +61,9 @@ const TARGET_SHOWN_CHARS: int = 16
 const STRESS_COPIES: int = 30
 ## Read for the theme jump buttons (Story 10.2): load(), not preload, like PlayerData.
 const LEVEL_REGISTRY_PATH: String = "res://data/levels/level_registry.tres"
-## The levels whose themes get jump buttons: Zombie Run (Story 10.2) and Horde Rush (Story 10.3).
-const THEME_JUMP_LEVELS: Array[StringName] = [&"zombie_run", &"horde_rush"]
+## The levels whose themes get jump buttons: Zombie Run (Story 10.2), Horde Rush (Story 10.3) and Pitchfork
+## Panic (Story 10.4).
+const THEME_JUMP_LEVELS: Array[StringName] = [&"zombie_run", &"horde_rush", &"pitchfork_panic"]
 const HELP_TEXT: String = "F5 +100 brains  F6 end run  F7 typing log\nF8 reset  F9 export  F2 pin seed  F4 stress"
 const CONFIRM_TEXT: String = "Reset the save? F8 again = yes, any other key = no"
 

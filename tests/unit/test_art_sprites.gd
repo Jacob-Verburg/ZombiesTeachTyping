@@ -7,7 +7,8 @@ extends GutTest
 ## the dust cloud and the escape bush) and the Story 9.1 hats (Witch, Bunny ears, Santa, Leprechaun, Heart
 ## headband, Top hat, Pirate, Crown) and the Story 9.2 pets (Black cat, Spider, Orange cat, Bat, Crow,
 ## Wolf-dog, Floating eyeball, Brain buddy) and the Story 10.3 Horde Rush pairs (the Knight and the Lifeguard, the toy
-## dart and its hit, the water balloon and its splash): size, hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty distinct frames on one ground
+## dart and its hit, the water balloon and its splash) and the Story 10.4 escape covers (the haystack and the hollow
+## log, the bush's contract): size, hard alpha, palette-only pixels, the 1 px ink outline rule, non-empty distinct frames on one ground
 ## line, and pixel-crisp import settings.
 ## Read from the committed PNG bytes (Image.load_from_file), so import state doesn't matter.
 ## Frame size per sheet: characters (and the poof) 32x32, props 16x16, effects 48x48 (style sheet section 3).
@@ -34,10 +35,17 @@ const DIZZY_STAR_PATH: String = PROPS_DIR + "dizzy_star.png"
 const MOB_HINT_PATH: String = PROPS_DIR + "mob_hint.png"
 const DUST_CLOUD_PATH: String = PROPS_DIR + "dust_cloud.png"
 const ESCAPE_BUSH_PATH: String = PROPS_DIR + "escape_bush.png"
+## Story 10.4: each Pitchfork Panic setting's escape cover (the bush's contract: 48x48, 3 frames, row 46).
+const ESCAPE_HAYSTACK_PATH: String = PROPS_DIR + "escape_haystack.png"
+const ESCAPE_HOLLOW_LOG_PATH: String = PROPS_DIR + "escape_hollow_log.png"
+const ESCAPE_COVERS: Array[String] = [ESCAPE_BUSH_PATH, ESCAPE_HAYSTACK_PATH, ESCAPE_HOLLOW_LOG_PATH]
+## A cover's still frame is big enough to hide the 32 px zombie diving into it.
+const COVER_MIN_WIDTH: int = 28
+const COVER_MIN_HEIGHT: int = 30
 ## Story 8.6 sheets: never stamp red or candy-yellow (the stars are parchment: candy-yellow is focus only).
 const PITCHFORK_PANIC_SHEETS: Array[String] = [
 	MOB_PITCH_PATH, MOB_PITCH_ALT_PATH, MOB_TORCH_PATH, MOB_TORCH_ALT_PATH, DAZED_PATH, DIZZY_STAR_PATH,
-	MOB_HINT_PATH, DUST_CLOUD_PATH, ESCAPE_BUSH_PATH,
+	MOB_HINT_PATH, DUST_CLOUD_PATH, ESCAPE_BUSH_PATH, ESCAPE_HAYSTACK_PATH, ESCAPE_HOLLOW_LOG_PATH,
 ]
 ## The dizzy stars are small next to the 32 px zombie.
 const DIZZY_STAR_MAX_WIDTH: int = 8
@@ -129,6 +137,8 @@ const PROP_SHEETS: Dictionary[String, int] = {
 const EFFECT_SHEETS: Dictionary[String, int] = {
 	DUST_CLOUD_PATH: 4,
 	ESCAPE_BUSH_PATH: 3,
+	ESCAPE_HAYSTACK_PATH: 3,
+	ESCAPE_HOLLOW_LOG_PATH: 3,
 }
 const HATS_DIR: String = "res://assets/sprites/cosmetics/hats/"
 const HAT_PUMPKIN_PATH: String = HATS_DIR + "hat_pumpkin.png"
@@ -241,6 +251,7 @@ const ZOMBIE_GREEN_BRIGHT: String = "b8f27c"
 const BAT_PURPLE: String = "7a4bb3"
 const ART_GRASS: String = "4e9a34"
 const PARCHMENT: String = "f6e7c1"
+const PARCHMENT_SHADE: String = "d9bc84"
 const DUSK: String = "4a3366"
 const INK_MUTED: String = "4e4757"
 ## The style sheet reserves art-moon for the moon (night backdrops).
@@ -503,6 +514,13 @@ func test_right_color_ramps_used() -> void:
 		elif path == ESCAPE_BUSH_PATH:
 			assert_true(colors.has(ART_GRASS), "bush has no art-grass")
 			assert_true(colors.has(BAT_PURPLE) or colors.has(PUMPKIN), "bush has no berries")
+		elif path == ESCAPE_HAYSTACK_PATH:
+			assert_true(colors.has(PARCHMENT_SHADE), "haystack has no parchment-shade straw")
+			assert_true(colors.has(WOOD_LIGHT), "haystack has no wood-light straw lines")
+		elif path == ESCAPE_HOLLOW_LOG_PATH:
+			assert_true(colors.has(WOOD), "hollow log has no wood bark")
+			assert_true(colors.has(WOOD_DARK), "hollow log has no wood-dark bark lines")
+			assert_true(colors.has(ART_GRASS), "hollow log has no art-grass moss")
 		elif path == DIZZY_STAR_PATH:
 			assert_true(colors.has(PARCHMENT), "dizzy star has no parchment")
 		elif path == MOB_HINT_PATH:
@@ -894,7 +912,7 @@ func test_dizzy_star_is_small() -> void:
 				"star frame %d width" % frame)
 
 
-## The dust cloud and the bush stand on row 46 in every frame (the level puts their origin on the ground).
+## The dust cloud and the escape covers stand on row 46 in every frame (the level puts their origin on the ground).
 func test_effects_stand_on_row_46() -> void:
 	for path: String in EFFECT_SHEETS:
 		var image: Image = _load(path)
@@ -904,6 +922,19 @@ func test_effects_stand_on_row_46() -> void:
 		for frame: int in EFFECT_SHEETS[path]:
 			assert_eq(_lowest_opaque_row(image, frame, EFFECT_FRAME), EFFECT_GROUND_ROW,
 					"%s frame %d ground row" % [_name(path), frame])
+
+
+## Story 10.4: every escape cover's still frame is big enough to hide the zombie (its opaque box at least
+## COVER_MIN_WIDTH x COVER_MIN_HEIGHT), the Moonlit bush included.
+func test_escape_covers_hide_the_zombie() -> void:
+	for path: String in ESCAPE_COVERS:
+		var image: Image = _load(path)
+		assert_not_null(image, "%s missing" % path)
+		if image == null:
+			continue
+		var used: Rect2i = image.get_region(Rect2i(0, 0, EFFECT_FRAME, EFFECT_FRAME)).get_used_rect()
+		assert_gte(used.size.x, COVER_MIN_WIDTH, "%s frame 0 width" % _name(path))
+		assert_gte(used.size.y, COVER_MIN_HEIGHT, "%s frame 0 height" % _name(path))
 
 
 ## The mob hint fits its 32 px frame inside the 1 px margin, its handles on row 30 (the level puts its
