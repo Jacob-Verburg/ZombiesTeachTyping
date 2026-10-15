@@ -1406,18 +1406,22 @@ func test_zombie_name_warnings_never_carry_the_name() -> void:
 
 ## NFR12, part (b): print lines can't be captured by GUT, so this reads the name code as text. Any Log.* /
 ## print / push_* call line in these files fails if, after its quoted strings are removed, it still names a
-## variable that can hold the name (name, raw, text, cleaned, _text). Name-related log messages must stay
-## fixed literals.
+## variable that can hold the name (name, raw, text, cleaned, _text; Story 11.2 adds summary, raw_name, shown and the
+## picker / card files). Name-related log messages must stay fixed literals.
 func test_zombie_name_is_never_passed_to_a_log_call() -> void:
 	var call: RegEx = RegEx.create_from_string(r"\b(Log\.\w+|print\w*|push_\w+)\s*\(")
 	var quoted: RegEx = RegEx.create_from_string(r'"(\\.|[^"\\])*"')
 	var name_var: RegEx = RegEx.create_from_string(
-			r"\b(name|raw|text|cleaned|_text|next|value|current|out|chosen|stored)\b|get_zombie_name|get_text")
+			r"\b(name|raw|text|cleaned|_text|next|value|current|out|chosen|stored|summary|raw_name|shown)\b"
+			+ r"|get_zombie_name|get_text|get_shown_name|get_profile_summary\(")
 	for path: String in [
 		"res://scripts/autoloads/player_data.gd",
 		"res://scripts/screens/name_zombie.gd",
 		"res://scripts/core/zombie_name.gd",
 		"res://scripts/screens/title.gd",
+		# Story 11.2: the picker and the zombie card (PlayerData's profile methods are in player_data.gd above).
+		"res://scripts/screens/whos_playing.gd",
+		"res://scripts/ui/zombie_card.gd",
 	]:
 		assert_true(FileAccess.file_exists(path), path)
 		var lines: PackedStringArray = FileAccess.get_file_as_string(path).split("\n")
@@ -1431,3 +1435,212 @@ func test_zombie_name_is_never_passed_to_a_log_call() -> void:
 				line += " " + lines[j].strip_edges()
 			var code: String = quoted.sub(line, "\"\"", true)
 			assert_null(name_var.search(code), "%s:%d logs a name variable: %s" % [path, i + 1, line.strip_edges()])
+
+
+# --- profiles (Story 11.2, FR78) -------------------------------------------------
+
+## Adds a profile `id` to the live save: profile_defaults() plus `fields`. Returns the stored Dictionary.
+func _add_profile(id: String, fields: Dictionary = {}) -> Dictionary:
+	var profile: Dictionary = SaveSchema.profile_defaults()
+	profile.merge(fields, true)
+	_save.get_data()["profiles"][id] = profile
+	return profile
+
+
+func _profile_count() -> int:
+	return (_save.get_data()["profiles"] as Dictionary).size()
+
+
+func test_new_zombie_id_format_matches_the_first_profile_id() -> void:
+	assert_eq(GameConstants.NEW_ZOMBIE_ID_FORMAT % 1, SaveSchema.DEFAULT_PROFILE_ID, "one id pattern")
+
+
+func test_profile_ids_sort_naturally() -> void:
+	var sut: PlayerDataScript = _make()
+	_add_profile("p10")
+	_add_profile("p2")
+	assert_eq(sut.get_profile_ids(), [&"p1", &"p2", &"p10"] as Array[StringName])
+
+
+func test_active_profile_id_reads_the_save() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_eq(sut.get_active_profile_id(), &"p1")
+	_add_profile("p2")
+	_save.get_data()["active_profile"] = "p2"
+	assert_eq(sut.get_active_profile_id(), &"p2")
+
+
+func test_profile_summary_of_the_active_and_an_inactive_profile() -> void:
+	var sut: PlayerDataScript = _make_shop()
+	_save.get_active_profile()["name"] = "Sam"
+	_save.get_active_profile()["owned_items"] = ["hat_pumpkin"]
+	_save.get_active_profile()["equipped"] = {"hat": "hat_pumpkin", "pet": ""}
+	_add_profile("p2", {"name": "Bo", "owned_items": ["hat_witch", "pet_cute_ghost"],
+			"equipped": {"hat": "hat_witch", "pet": "pet_cute_ghost"}})
+	assert_eq_deep(sut.get_profile_summary(&"p1"), {"id": &"p1", "name": "Sam", "hat": &"hat_pumpkin", "pet": &""})
+	assert_eq_deep(sut.get_profile_summary(&"p2"),
+			{"id": &"p2", "name": "Bo", "hat": &"hat_witch", "pet": &"pet_cute_ghost"})
+
+
+func test_profile_summary_reads_only_that_profiles_items_and_a_valid_name() -> void:
+	var sut: PlayerDataScript = _make_shop()
+	_save.get_active_profile()["owned_items"] = ["hat_pumpkin", "pet_cute_ghost"]
+	# p2 wears what only p1 owns and has a junk name; p3 wears a locked hat and a junk pet value.
+	_add_profile("p2", {"name": "!!!", "owned_items": ["hat_crown"],
+			"equipped": {"hat": "hat_pumpkin", "pet": "pet_cute_ghost"}})
+	_add_profile("p3", {"owned_items": ["hat_crown"], "equipped": {"hat": "hat_crown", "pet": 5}})
+	assert_eq_deep(sut.get_profile_summary(&"p2"), {"id": &"p2", "name": "", "hat": &"", "pet": &""})
+	assert_eq_deep(sut.get_profile_summary(&"p3"), {"id": &"p3", "name": "", "hat": &"", "pet": &""})
+
+
+func test_profile_summary_of_an_unknown_id_is_empty_with_an_error() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_eq_deep(sut.get_profile_summary(&"p9"), {})
+	assert_push_error("get_profile_summary: unknown profile p9")
+
+
+func test_has_named_zombie() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_false(sut.has_named_zombie(), "fresh save")
+	_save.get_active_profile()["name"] = "!!!"
+	assert_false(sut.has_named_zombie(), "junk name")
+	_add_profile("p2", {"name": "Bo"})
+	assert_true(sut.has_named_zombie(), "an inactive named zombie counts")
+
+
+func test_can_add_zombie_until_the_cap() -> void:
+	var sut: PlayerDataScript = _make()
+	for n: int in range(2, GameConstants.MAX_ZOMBIES + 1):
+		assert_true(sut.can_add_zombie(), "%d profiles" % (n - 1))
+		_add_profile("p%d" % n)
+	assert_false(sut.can_add_zombie(), "at MAX_ZOMBIES")
+
+
+func test_switch_profile_unknown_id_changes_nothing() -> void:
+	var sut: PlayerDataScript = _make_counting()
+	watch_signals(sut)
+	assert_false(sut.switch_profile(&"p7"))
+	assert_push_error("switch_profile: unknown profile p7")
+	assert_eq(sut.get_active_profile_id(), &"p1")
+	assert_signal_not_emitted(sut, "profile_replaced")
+	assert_eq((_save as CountingSave).requests, 0)
+
+
+func test_switch_profile_to_the_active_one_is_a_noop() -> void:
+	var sut: PlayerDataScript = _make_counting()
+	watch_signals(sut)
+	assert_true(sut.switch_profile(&"p1"))
+	assert_signal_not_emitted(sut, "profile_replaced")
+	assert_eq((_save as CountingSave).requests, 0)
+
+
+func test_switch_profile_reads_the_other_profile_and_leaves_the_old_one_alone() -> void:
+	_save = CountingSave.new()
+	_save.save_dir = TEST_DIR
+	add_child_autofree(_save)
+	var sut: PlayerDataScript = PlayerDataScript.new()
+	sut.save_service = _save
+	sut.catalogue = _test_catalogue()
+	add_child_autofree(sut)
+	_save.get_active_profile()["brains"] = 12
+	_add_profile("p2", {"name": "Bo", "brains": 40, "owned_items": ["hat_witch"],
+			"equipped": {"hat": "hat_witch", "pet": ""}, "settings": {"music_on": false, "sound_on": true},
+			"tier": 3, "flags": {"welcome_bonus_claimed": true, "tutorial_seen": true, "placement_done": true}})
+	var old: Dictionary = _save.get_active_profile().duplicate(true)
+	var requests: int = (_save as CountingSave).requests
+	watch_signals(sut)
+	assert_true(sut.switch_profile(&"p2"))
+	assert_signal_emit_count(sut, "profile_replaced", 1)
+	assert_eq((_save as CountingSave).requests, requests + 1, "one save request")
+	assert_eq(sut.get_active_profile_id(), &"p2")
+	assert_eq(sut.get_brains(), 40)
+	assert_eq(sut.get_equipped(&"hat"), &"hat_witch")
+	assert_false(sut.get_setting(&"music_on"))
+	assert_eq(sut.get_tier(), 3)
+	assert_eq(sut.get_zombie_name(), "Bo")
+	assert_eq_deep(_save.get_data()["profiles"]["p1"], old)
+	await wait_process_frames(2)
+	var written: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(TEST_DIR.path_join("save.json")))
+	assert_eq(written["active_profile"], "p2", "the switch is saved")
+
+
+func test_switch_profile_places_an_mvp_profile() -> void:
+	_put_fixture(FULL_PATH)
+	var sut: PlayerDataScript = _make()
+	var mvp: Dictionary = _save.get_active_profile().duplicate(true)
+	mvp["tier"] = 0
+	mvp["flags"]["placement_done"] = false
+	_save.get_data()["profiles"]["p2"] = mvp
+	assert_true(sut.switch_profile(&"p2"))
+	assert_true(sut.get_flag(&"placement_done"), "_reconcile_tier ran on the switch")
+	assert_gt(sut.get_tier(), 0)
+
+
+func test_create_profile_adds_a_fresh_named_active_zombie() -> void:
+	var sut: PlayerDataScript = _make_counting()
+	sut.add_brains(9)
+	assert_true(sut.set_zombie_name("Sam"))
+	var requests: int = (_save as CountingSave).requests
+	watch_signals(sut)
+	assert_eq(sut.create_profile("  Bo  "), &"p2")
+	var expected: Dictionary = SaveSchema.profile_defaults()
+	expected["name"] = "Bo"
+	assert_eq_deep(_save.get_data()["profiles"]["p2"], expected)
+	assert_eq(sut.get_active_profile_id(), &"p2")
+	assert_eq(sut.get_brains(), 0)
+	assert_eq(sut.get_zombie_name(), "Bo")
+	assert_signal_emit_count(sut, "profile_replaced", 1)
+	assert_signal_emitted_with_parameters(sut, "zombie_name_changed", ["Bo"])
+	assert_eq((_save as CountingSave).requests, requests + 1, "one save request")
+	assert_eq(int(_save.get_data()["profiles"]["p1"]["brains"]), 9, "the first zombie keeps its brains")
+
+
+func test_create_profile_reuses_the_lowest_free_id() -> void:
+	var sut: PlayerDataScript = _make()
+	_add_profile("p3", {"name": "Al"})
+	assert_eq(sut.create_profile("Bo"), &"p2")
+	assert_eq(sut.get_profile_ids(), [&"p1", &"p2", &"p3"] as Array[StringName])
+
+
+func test_create_profile_refusals_change_nothing() -> void:
+	var sut: PlayerDataScript = _make_counting()
+	assert_true(sut.set_zombie_name("Sam"))
+	var before: Dictionary = _save.get_data().duplicate(true)
+	var requests: int = (_save as CountingSave).requests
+	watch_signals(sut)
+	assert_eq(sut.create_profile("#9#9#"), &"")
+	assert_push_warning("create_profile: invalid name")
+	assert_eq(sut.create_profile(""), &"")
+	assert_eq(sut.create_profile("sam"), &"", "same name, other case")
+	assert_push_warning("create_profile: name already used")
+	assert_eq(sut.create_profile(" SAM "), &"")
+	assert_push_warning_count(4)
+	assert_eq_deep(_save.get_data(), before)
+	assert_eq((_save as CountingSave).requests, requests)
+	assert_signal_not_emitted(sut, "profile_replaced")
+	assert_signal_not_emitted(sut, "zombie_name_changed")
+
+
+func test_create_profile_refused_at_the_cap() -> void:
+	var sut: PlayerDataScript = _make()
+	for n: int in range(2, GameConstants.MAX_ZOMBIES + 1):
+		_add_profile("p%d" % n)
+	var before: Dictionary = _save.get_data().duplicate(true)
+	assert_eq(sut.create_profile("Bo"), &"")
+	assert_push_warning("create_profile: no room for another zombie")
+	assert_eq(_profile_count(), GameConstants.MAX_ZOMBIES)
+	assert_eq_deep(_save.get_data(), before)
+
+
+func test_two_profiles_survive_a_reload() -> void:
+	var sut: PlayerDataScript = _make()
+	assert_true(sut.set_zombie_name("Sam"))
+	sut.add_brains(5)
+	assert_eq(sut.create_profile("Bo"), &"p2")
+	await wait_process_frames(2)
+	var reloaded: PlayerDataScript = _make()
+	assert_eq(reloaded.get_profile_ids(), [&"p1", &"p2"] as Array[StringName])
+	assert_eq(reloaded.get_active_profile_id(), &"p2")
+	assert_eq(reloaded.get_zombie_name(), "Bo")
+	assert_eq(reloaded.get_profile_summary(&"p1")["name"], "Sam")
+	assert_eq(int(_save.get_data()["profiles"]["p1"]["brains"]), 5)

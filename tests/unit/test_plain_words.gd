@@ -51,6 +51,9 @@ const APPROVED_COPY: Array[String] = [
 	"Finish a game to see your charts!",
 	# Story 11.1: the name screen (Gate 1, 2026-10-15). The kid's typed name is their own words, never copy.
 	"Name your zombie!", "Done",
+	# Story 11.2: the "Who's playing?" picker and the name screen's new-zombie mode (Gate 1, 2026-10-15). "Zombie" is
+	# the card of a zombie with no name yet (GameConstants.ZOMBIE_NAME_DEFAULT); real names are never copy.
+	"Who's playing?", "New zombie", "Back", "Zombie",
 ]
 ## Numbers and formatted values: counts, "+N", "+N bonus", "Need N more", times, percents, the conga badge,
 ## the WPM placeholder (en dash), the confirm question for a live item (a word may carry one hyphenated part,
@@ -74,6 +77,7 @@ const ReportScript := preload("res://scripts/screens/report_card.gd")
 const TrendsScript := preload("res://scripts/screens/trends.gd")
 const TrendsScene: PackedScene = preload("res://scenes/screens/trends.tscn")
 const NameZombieScene: PackedScene = preload("res://scenes/screens/name_zombie.tscn")
+const WhosPlayingScene: PackedScene = preload("res://scenes/screens/whos_playing.tscn")
 const ClosetScene: PackedScene = preload("res://scenes/screens/crypt_closet.tscn")
 const ReportScene: PackedScene = preload("res://scenes/screens/report_card.tscn")
 const GiftScene: PackedScene = preload("res://scenes/screens/welcome_gift.tscn")
@@ -233,6 +237,27 @@ func _live_strings() -> Dictionary[String, String]:
 	add_child_autofree(naming)
 	assert_eq((naming.get_node("%NameLabel") as Label).text, "", "no name leaks into the copy walk")
 	_collect_labels(naming, "name", out)
+	# Story 11.2: the name screen in new-zombie mode (Back shown) and the picker. The temp zombie has no name, so
+	# its card shows the default "Zombie" and no kid's name reaches the copy check.
+	Router._store_payload({"new_zombie": true})
+	var new_naming: Control = NameZombieScene.instantiate() as Control
+	new_naming.process_mode = Node.PROCESS_MODE_DISABLED
+	new_naming.set("navigate", _noop_nav)
+	new_naming.set("play_sfx", _noop)
+	new_naming.set("play_music", _noop)
+	new_naming.set("player_data", _player)
+	add_child_autofree(new_naming)
+	assert_true((new_naming.get_node("%BackButton") as Control).visible, "the walk sees Back")
+	_collect_labels(new_naming, "new name", out)
+	assert_eq(_player.get_zombie_name(), "", "no name leaks into the copy walk")
+	var picker: Control = WhosPlayingScene.instantiate() as Control
+	picker.process_mode = Node.PROCESS_MODE_DISABLED
+	picker.set("navigate", _noop_nav)
+	picker.set("play_sfx", _noop)
+	picker.set("play_music", _noop)
+	picker.set("player_data", _player)
+	add_child_autofree(picker)
+	_collect_labels(picker, "picker", out)
 	# The conga badge at 13.
 	var leader: Node2D = Node2D.new()
 	add_child_autofree(leader)
@@ -298,7 +323,8 @@ func test_the_walk_finds_the_copy() -> void:
 	values.assign(strings.values())
 	for expected: String in ["Click or press any key", "Buy the Pumpkin hat for 100 brains?", "+10 bonus",
 			"×13", "Need 40 more", "Zombie Run", "This browser might forget your brains", "+100", "Caps Lock is on",
-			"Buy the Wolf-dog for 300 brains?", "Golden crown", "Words per minute", "1 hr 5 min", "Name your zombie!", "Done"]:
+			"Buy the Wolf-dog for 300 brains?", "Golden crown", "Words per minute", "1 hr 5 min", "Name your zombie!", "Done",
+			"Who's playing?", "New zombie", "Back", "Zombie"]:
 		assert_has(values, expected, "the walk saw '%s'" % expected)
 
 

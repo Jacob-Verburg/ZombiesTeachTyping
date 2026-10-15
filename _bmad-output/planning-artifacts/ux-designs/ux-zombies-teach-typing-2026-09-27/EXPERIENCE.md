@@ -34,8 +34,9 @@ Screens map 1:1 to `Router.Screen` (ARCH Screen Flow). Mocked surfaces link to t
 | Surface | Reached from | Purpose | Leaves to |
 |---|---|---|---|
 | Boot splash (web) | Opening the link | Load progress in game style (D11) | Title |
-| Title | Boot | Logo + "Click or press any key"; unlocks browser audio | Name your zombie (zombie has no name yet, Story 11.1), else Main Menu |
-| Name your zombie (`NAME_ZOMBIE`, Story 11.1) | Title, only while the active zombie has no name (an MVP save or a brand-new one) | The kid's zombie (hat + pet) above a chalkboard name field and one Done button; [sketch](sketches/name-zombie-11-1.md) | Main Menu (Done / Enter with a name) |
+| Title | Boot | Logo + "Click or press any key"; unlocks browser audio | Name your zombie (no zombie has a name yet, Story 11.1), else Who's playing? (Story 11.2) |
+| Who's playing? (`WHOS_PLAYING`, Story 11.2) | Title, once any zombie has a name | One zombie card per zombie (its own hat, pet and name) and a "New zombie" button (hidden at 4 zombies); focus starts on the zombie that played last; [sketch](sketches/whos-playing-11-2.md) | Main Menu (pick a named zombie), Name your zombie (pick an unnamed zombie, or New zombie) |
+| Name your zombie (`NAME_ZOMBIE`, Story 11.1) | Title, only while no zombie has a name (an MVP save or a brand-new one); Who's playing? (an unnamed zombie, or New zombie with payload `{"new_zombie": true}`, Story 11.2) | The kid's zombie (hat + pet) above a chalkboard name field and one Done button; in new-zombie mode a plain zombie, an empty field and a Back button; [sketch](sketches/name-zombie-11-1.md), [new-zombie mode](sketches/whos-playing-11-2.md) | Main Menu (Done / Enter with a name); Who's playing? (Back / Esc, new-zombie mode only) |
 | [Main Menu](mockups/key-main-menu.html) | Title, Report Card (Menu), Closet (Esc), Progress (Esc), Pause (Quit to Menu) | Zombie with hat + pet, brain counter, 3 level cards, Crypt Closet button, Progress button (top right, Story 10.5), Music / Sound / Fullscreen toggles, storage notice when needed | Run, Crypt Closet, Progress |
 | [Run](mockups/key-run-hud.html) (`RunFrame`) | Level card, Play Again | Playfield + shared HUD band; pause panel and countdown overlay it | Report Card, Main Menu (quit) |
 | [Report Card](mockups/key-report-card.html) | Run end (timer / caught / escaped) | Chalkboard stats, Professor Zombie, New best! | Run (Play Again), Main Menu, Welcome Gift (first completed run ever) |
@@ -43,7 +44,7 @@ Screens map 1:1 to `Router.Screen` (ARCH Screen Flow). Mocked surfaces link to t
 | Crypt Closet | Main Menu, Welcome Gift | 3×3 hats + 3×3 pets, preview zombie, brain counter; first-visit tutorial | Main Menu (Esc) |
 | Progress (`TRENDS`, Story 10.5) | Main Menu | For a parent: lifetime totals chalkboard + chalk bar charts of WPM, accuracy (last 20 games) and practice time (last 7 days with practice); [sketch](sketches/trends-10-5.md) | Main Menu (Esc / Menu) |
 
-Flow (GDD Screens & Flow, FR24): `Title → (Name your zombie, unnamed zombie only) → Main Menu → [Level → Report Card → (Welcome Gift → Crypt Closet, first time only) → Play Again | Menu] | Crypt Closet`.
+Flow (GDD Screens & Flow, FR24): `Title → (Name your zombie, first zombie only) | Who's playing? → (Name your zombie, new zombie) → Main Menu → [Level → Report Card → (Welcome Gift → Crypt Closet, first time only) → Play Again | Menu] | Crypt Closet`.
 
 - Nothing is more than one step from the main menu. Pause replaces nothing: it overlays the frozen run.
 - After a first purchase, the way to play in the new hat is Closet → Esc → Menu → level card (2 steps, deliberate for MVP; Story 4.5 design note).
@@ -75,6 +76,8 @@ Microcopy. Brand voice lives in `DESIGN.md` Brand & Style. Every label uses word
 | Progress totals | "Keys Typed" · "Best WPM" · "Brains Earned" · "Time Practiced"; time as "45 min" / "1 hr 5 min" / "0 min" |
 | Progress, no game yet | "Finish a game to see your charts!" · "Menu" + key hint "Esc" |
 | Name screen (Story 11.1) | "Name your zombie!" · "Done" + key hint "Enter" (Gate 1, 2026-10-15). The typed name is the kid's own words, never checked as copy and never logged. |
+| Who's playing? (Story 11.2) | "Who's playing?" · "New zombie"; a zombie with no name yet shows "Zombie" (Gate 1, 2026-10-15). Cards show names only: no brains, WPM, tier or anything that compares zombies. |
+| Name screen, new zombie (Story 11.2) | "Back" beside "Done" (Gate 1, 2026-10-15). A name another zombie has (ignoring capitals) only wiggles the field, no text. |
 | Storage notice | "This browser might forget your brains" (Story 5.2, Gate A; was "Progress may not be saved in this browser mode", too hard for a 6-year-old) |
 | Web page, game can't start | "This game needs a newer browser. Try Chrome, Edge or Firefox on a computer." (Story 5.2, Gate A; replaces the engine's own message, which stays in the console) |
 
@@ -103,8 +106,9 @@ Behavioral delta only; visual specs live in `DESIGN.md` Components. Anything not
 | **tutorial-arrow** | Closet from Welcome Gift with `tutorial_seen` false: points at the first affordable item → Buy → Yes → Wear in turn; ends (and sets `tutorial_seen`) when the first item is worn or the kid leaves the Closet (FR45). Never blocks other input. |
 | **welcome-gift-card** | Single button, pre-focused; Enter/click goes to the Closet. Grants +100 and sets `welcome_bonus_claimed` on show (Story 4.5). |
 | **storage-notice** | Shown on the main menu only when `OS.is_userfs_persistent()` is false; non-interactive, never dismissable, never blocks (ARCH Persistence check). |
-| **title-prompt** | Any key or click advances and calls `AudioManager.unlock()` from that input (FR23). Goes to the name screen while the zombie has no name, else the main menu (Story 11.1). |
-| **name-entry** (Story 11.1) | A–Z / a–z add a letter (case as typed, read by character so any keyboard layout works); Space adds one space between words (never first, never two in a row) and never presses the button; Backspace removes the last character; at most 12 characters. Every other key (digits, punctuation, accented letters, Tab, arrows, held-key repeats, Ctrl/Alt combos) is ignored silently: no bonk, no shake, no red. Enter or a click on Done with a name saves it and goes to the menu (UI click); with an empty name Done only wiggles the field (no sound, no text). Esc does nothing. While open, the browser never scrolls on Space or goes back on Backspace. |
+| **title-prompt** | Any key or click advances and calls `AudioManager.unlock()` from that input (FR23). Goes to the name screen while no zombie has a name (Story 11.1), else Who's playing? (Story 11.2). |
+| **zombie-card** (Story 11.2) | One per zombie on Who's playing?. Arrows / Tab walk the cards then "New zombie" (ends stop); hover moves focus; Enter, Space or a click picks that zombie (UI click): to the menu when it has a name, else to the name screen. Esc does nothing. Never compares zombies. |
+| **name-entry** (Story 11.1) | A–Z / a–z add a letter (case as typed, read by character so any keyboard layout works); Space adds one space between words (never first, never two in a row) and never presses the button; Backspace removes the last character; at most 12 characters. Every other key (digits, punctuation, accented letters, Tab, arrows, held-key repeats, Ctrl/Alt combos) is ignored silently: no bonk, no shake, no red. Enter or a click on Done with a name saves it and goes to the menu (UI click); with an empty name Done only wiggles the field (no sound, no text). Esc does nothing. New-zombie mode (Story 11.2): Done creates the new zombie with that name; an empty name or a name another zombie has only wiggles; Back or Esc returns to Who's playing? and creates nothing. While open, the browser never scrolls on Space or goes back on Backspace. |
 | **boot-splash** | Web only; shows load progress until the title screen is ready. No interaction. |
 | **brain-counter** | Shown on the main menu, the Closet and the HUD of **every** level (D15). Updates immediately on any brain change (`PlayerData` signal); counts up with a short tick on gains (see Game Feel). |
 | **hud-band** | Fixed; never hides during a run. |
@@ -150,6 +154,10 @@ Behavioral delta only; visual specs live in `DESIGN.md` Components. Anything not
 | Progress | Filled | Three chalk bar charts (newest right; practice days without practice are skipped, never empty bars) beside the totals board. No dates, goals, grades, ranks, comparisons or timers; never the tier. |
 | Name your zombie | Empty | Chalk underline caret at the start; Done shows the grey "off" plank (still focused, candy-yellow ring). |
 | Name your zombie | Filled | 24 px chalk name with the caret after the last letter (hidden at 12 characters); Done back to its normal plank. |
+| Name your zombie | New zombie (Story 11.2) | Empty field, plain zombie (no hat, no pet), "Back" plank left of Done; Done keeps its "off" plank while the name is empty even when Back has the focus. |
+| Who's playing? | One zombie | One card under the sign, "New zombie" right under it; the rest of the screen is night sky. |
+| Who's playing? | Full (4 zombies) | Four cards, no "New zombie" button (it can't be focused either). |
+| Who's playing? | A zombie with no name | Its card shows "Zombie"; picking it opens the name screen first. |
 | Any screen | Save write fails | Silent; nothing shown to the kid beyond the storage notice (ARCH). |
 | Any screen | Router transition | Quick fade; input to the outgoing screen is ignored during the fade `[ASSUMPTION]`. |
 

@@ -128,11 +128,28 @@ func test_next_screen_is_the_name_screen_without_a_name() -> void:
 	assert_eq(title.call("next_screen"), Router.Screen.NAME_ZOMBIE)
 
 
-func test_next_screen_is_the_menu_with_a_name() -> void:
+func test_next_screen_is_the_picker_with_a_name() -> void:
 	var title: Control = _title_with_temp_player()
 	var player: PlayerDataScript = title.get("player_data")
 	assert_true(player.set_zombie_name("Sam"))
-	assert_eq(title.call("next_screen"), Router.Screen.MAIN_MENU)
+	assert_eq(title.call("next_screen"), Router.Screen.WHOS_PLAYING,
+			"Story 11.2 changed this: a named zombie now goes to the Who's playing? picker, not the menu")
+
+
+func test_next_screen_is_the_picker_when_only_an_inactive_zombie_is_named() -> void:
+	var title: Control = _title_with_temp_player()
+	var player: PlayerDataScript = title.get("player_data")
+	var other: Dictionary = SaveSchema.profile_defaults()
+	other["name"] = "Bo"
+	player.save_service.get_data()["profiles"]["p2"] = other
+	assert_eq(title.call("next_screen"), Router.Screen.WHOS_PLAYING)
+
+
+func test_next_screen_is_the_name_screen_when_no_zombie_is_named() -> void:
+	var title: Control = _title_with_temp_player()
+	var player: PlayerDataScript = title.get("player_data")
+	player.save_service.get_data()["profiles"]["p2"] = SaveSchema.profile_defaults()
+	assert_eq(title.call("next_screen"), Router.Screen.NAME_ZOMBIE)
 
 
 func test_next_screen_junk_name_goes_to_the_name_screen() -> void:

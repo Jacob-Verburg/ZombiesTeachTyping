@@ -404,3 +404,163 @@ func test_everything_sits_inside_the_safe_rect() -> void:
 	for path: String in ["%Sign", "%NameField", "%DoneButton", "%EnterKeycap"]:
 		var control: Control = screen.get_node(path)
 		assert_true(SAFE_RECT.encloses(control.get_global_rect()), "%s %s" % [path, control.get_global_rect()])
+
+
+# --- new-zombie mode (Story 11.2) ------------------------------------------------
+
+func _make_new() -> NameZombieScript:
+	Router._store_payload({"new_zombie": true})
+	return _make()
+
+
+func _profile_count() -> int:
+	return (_save.get_data()["profiles"] as Dictionary).size()
+
+
+func _esc() -> InputEventAction:
+	var esc: InputEventAction = InputEventAction.new()
+	esc.action = &"ui_cancel"
+	esc.pressed = true
+	return esc
+
+
+func test_new_mode_starts_empty_with_back_and_a_plain_zombie() -> void:
+	_player.catalogue = load("res://data/cosmetics/catalogue.tres")
+	assert_true(_player.set_zombie_name("Sam"))
+	var screen: NameZombieScript = _make_new()
+	assert_true(screen.is_new_zombie_mode())
+	assert_eq(screen.get_text(), "", "not the last zombie's name")
+	var back: Button = screen.get_node("%BackButton")
+	assert_true(back.visible)
+	assert_eq(back.focus_mode, Control.FOCUS_ALL)
+	assert_true((screen.get_node("%DoneButton") as Control).has_focus(), "Done starts focused")
+	var hat_slot: HatSlot = screen.get_node("%Zombie").get_node("%HatSlot") as HatSlot
+	assert_false(hat_slot.follow_equipped)
+	assert_eq(hat_slot.get_item_id(), &"")
+	assert_false((screen.get_node("%PetSlot") as PetSlot).follow_equipped)
+	assert_eq((screen.get_node("%PetSlot") as PetSlot).get_item_id(), &"")
+
+
+func test_new_mode_back_and_done_are_one_focus_pair() -> void:
+	var screen: NameZombieScript = _make_new()
+	var back: Button = screen.get_node("%BackButton")
+	var done: Button = screen.get_node("%DoneButton")
+	assert_eq(done.get_node(done.focus_neighbor_left), back)
+	assert_eq(done.get_node(done.focus_previous), back)
+	assert_eq(done.get_node(done.focus_neighbor_right), done, "ends stop")
+	assert_eq(back.get_node(back.focus_neighbor_right), done)
+	assert_eq(back.get_node(back.focus_next), done)
+	assert_eq(back.get_node(back.focus_neighbor_left), back)
+
+
+func test_new_mode_valid_name_creates_the_zombie_and_goes_to_the_menu_once() -> void:
+	assert_true(_player.set_zombie_name("Sam"))
+	var screen: NameZombieScript = _make_new()
+	_type(screen, "Bo")
+	_enter(screen)
+	_enter(screen)
+	assert_eq(_profile_count(), 2)
+	assert_eq(_player.get_active_profile_id(), &"p2")
+	assert_eq(_player.get_zombie_name(), "Bo")
+	assert_eq(_player.get_profile_summary(&"p1")["name"], "Sam", "the first zombie keeps its name")
+	assert_eq(_sfx, [&"sfx_ui_click"] as Array[StringName])
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+	assert_eq(screen.get_text(), "Bo", "the field keeps what was typed")
+
+
+func test_new_mode_empty_done_only_wiggles() -> void:
+	assert_true(_player.set_zombie_name("Sam"))
+	var screen: NameZombieScript = _make_new()
+	_enter(screen)
+	(screen.get_node("%DoneButton") as Button).pressed.emit()
+	assert_true(screen.is_wiggling())
+	assert_eq(_nav, [])
+	assert_eq(_sfx, [] as Array[StringName])
+	assert_eq(_profile_count(), 1, "no default-named zombie")
+
+
+func test_new_mode_a_used_name_only_wiggles() -> void:
+	assert_true(_player.set_zombie_name("Sam"))
+	var screen: NameZombieScript = _make_new()
+	_type(screen, "sam")
+	_enter(screen)
+	assert_push_warning("create_profile: name already used")
+	assert_true(screen.is_wiggling())
+	assert_eq(_nav, [])
+	assert_eq(_profile_count(), 1)
+	assert_eq(_player.get_active_profile_id(), &"p1")
+
+
+func test_new_mode_at_the_cap_only_wiggles() -> void:
+	assert_true(_player.set_zombie_name("Sam"))
+	for n: int in range(2, GameConstants.MAX_ZOMBIES + 1):
+		_save.get_data()["profiles"]["p%d" % n] = SaveSchema.profile_defaults()
+	var screen: NameZombieScript = _make_new()
+	_type(screen, "Bo")
+	_enter(screen)
+	assert_push_warning("create_profile: no room for another zombie")
+	assert_true(screen.is_wiggling())
+	assert_eq(_nav, [])
+	assert_eq(_profile_count(), GameConstants.MAX_ZOMBIES)
+
+
+func test_new_mode_esc_goes_back_and_creates_nothing() -> void:
+	assert_true(_player.set_zombie_name("Sam"))
+	var screen: NameZombieScript = _make_new()
+	_type(screen, "Bo")
+	screen._unhandled_input(_esc())
+	screen._unhandled_input(_esc())
+	assert_eq(_nav, [[Router.Screen.WHOS_PLAYING, {}]])
+	assert_eq(_sfx, [&"sfx_ui_click"] as Array[StringName])
+	assert_eq(_profile_count(), 1)
+
+
+func test_new_mode_back_button_goes_back_and_creates_nothing() -> void:
+	assert_true(_player.set_zombie_name("Sam"))
+	var screen: NameZombieScript = _make_new()
+	_type(screen, "Bo")
+	(screen.get_node("%BackButton") as Button).pressed.emit()
+	assert_eq(_nav, [[Router.Screen.WHOS_PLAYING, {}]])
+	assert_eq(_profile_count(), 1)
+	assert_eq(_player.get_active_profile_id(), &"p1")
+
+
+func test_new_mode_keeps_the_typed_text_on_profile_replaced() -> void:
+	assert_true(_player.set_zombie_name("Sam"))
+	var screen: NameZombieScript = _make_new()
+	_type(screen, "Bo")
+	_player.profile_replaced.emit()
+	assert_eq(screen.get_text(), "Bo")
+
+
+func test_old_mode_has_no_back_and_esc_does_nothing() -> void:
+	var screen: NameZombieScript = _make()
+	assert_false(screen.is_new_zombie_mode())
+	var back: Button = screen.get_node("%BackButton")
+	assert_false(back.visible)
+	assert_eq(back.focus_mode, Control.FOCUS_NONE)
+	screen._unhandled_input(_esc())
+	assert_eq(_nav, [])
+	(screen.get_node("%BackButton") as Button).pressed.emit()
+	assert_eq(_nav, [], "a stray Back press does nothing in 11.1's mode")
+
+
+func test_a_junk_payload_is_the_old_mode() -> void:
+	for junk: Dictionary in [{"new_zombie": "yes"}, {"new_zombie": 1}, {"other": true}]:
+		Router._store_payload(junk)
+		var screen: NameZombieScript = _make()
+		assert_false(screen.is_new_zombie_mode(), "payload %s" % junk)
+		assert_false((screen.get_node("%BackButton") as Control).visible)
+
+
+func test_done_keeps_the_off_look_while_back_has_focus() -> void:
+	var screen: NameZombieScript = _make_new()
+	var done: Button = screen.get_node("%DoneButton")
+	var off_box: StyleBox = done.get_theme_stylebox(&"disabled")
+	assert_true(screen.is_done_off())
+	(screen.get_node("%BackButton") as Button).grab_focus()
+	await wait_process_frames(3)
+	assert_eq(done.get_theme_stylebox(&"normal"), off_box, "no lit plank under grey text")
+	_type(screen, "Bo")
+	assert_false(screen.is_done_off())
+	assert_ne(done.get_theme_stylebox(&"normal"), off_box, "the ready plank once a name is typed")

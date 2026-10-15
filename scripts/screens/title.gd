@@ -1,7 +1,8 @@
 extends Control
 ## Title screen: any key press (except Esc) or click goes on, once (FR23): to the "Name your zombie!" screen
-## when the active zombie has no name yet (Story 11.1, FR78: an MVP save or a brand-new one), else to the main
-## menu. next_screen() makes that choice. That same input unlocks browser audio, so the unlock must stay inside
+## while no zombie has a name yet (Story 11.1, FR78: an MVP save or a brand-new one), else to the "Who's
+## playing?" picker (Story 11.2, approved at Gate 1: name first, picker from then on). next_screen() makes that
+## choice. That same input unlocks browser audio, so the unlock must stay inside
 ## the input callback. player_data is a test seam (defaults to the PlayerData autoload in _ready).
 
 const WHEEL_BUTTONS: Array[MouseButton] = [
@@ -33,11 +34,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	Router.go(next_screen())
 
 
-## Where the title goes: NAME_ZOMBIE while the active zombie has no (valid) name, else MAIN_MENU.
+## Where the title goes: WHOS_PLAYING once any zombie has a (valid) name, else NAME_ZOMBIE.
 func next_screen() -> Router.Screen:
-	if player_data.get_zombie_name().is_empty():
-		return Router.Screen.NAME_ZOMBIE
-	return Router.Screen.MAIN_MENU
+	if player_data.has_named_zombie():
+		return Router.Screen.WHOS_PLAYING
+	return Router.Screen.NAME_ZOMBIE
 
 
 func _is_advance_event(event: InputEvent) -> bool:

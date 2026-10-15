@@ -2,6 +2,8 @@ extends Node
 ## Screen flow: one fade-covered scene swap at a time.
 ## go() stores a payload; the incoming screen reads it once with take_payload() in _ready().
 ## A screen that fails to load is logged and replaced by MAIN_MENU (never loops).
+## Screens are only ever appended to the enum (the value is the index): NAME_ZOMBIE (Story 11.1), WHOS_PLAYING
+## (Story 11.2, the "Who's playing?" picker; NAME_ZOMBIE also takes {"new_zombie": true} from it).
 ## KEYBOARD_TEST is a temporary dev screen (Story 1.5); Story 5.0 may remove it.
 ## Debug overlay hook (Story 1.8, Boundary 7): in debug builds only, _ready() adds
 ## scenes/debug/debug_overlay.tscn as a child, so it sits above every screen and survives scene swaps.
@@ -10,7 +12,7 @@ extends Node
 
 signal screen_changed(screen: Screen)
 
-enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET, KEYBOARD_TEST, TRENDS, NAME_ZOMBIE }
+enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET, KEYBOARD_TEST, TRENDS, NAME_ZOMBIE, WHOS_PLAYING }
 
 ## Paths, not preloads: a failed preload is a parse error, so the MAIN_MENU fallback could never run.
 const SCREEN_PATHS: Dictionary[Screen, String] = {
@@ -23,6 +25,7 @@ const SCREEN_PATHS: Dictionary[Screen, String] = {
 	Screen.KEYBOARD_TEST: "res://scenes/screens/keyboard_test.tscn",
 	Screen.TRENDS: "res://scenes/screens/trends.tscn",
 	Screen.NAME_ZOMBIE: "res://scenes/screens/name_zombie.tscn",
+	Screen.WHOS_PLAYING: "res://scenes/screens/whos_playing.tscn",
 }
 const FADE_OUT_SEC: float = 0.15
 const FADE_IN_SEC: float = 0.15

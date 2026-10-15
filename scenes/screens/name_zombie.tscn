@@ -95,6 +95,25 @@ offset_bottom = 38.0
 mouse_filter = 2
 color = Color(0.95686275, 0.94509804, 0.89411765, 1)
 
+[node name="BackButton" type="Button" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 144.0
+offset_top = 272.0
+offset_right = 240.0
+offset_bottom = 304.0
+focus_neighbor_left = NodePath(".")
+focus_neighbor_top = NodePath(".")
+focus_neighbor_right = NodePath(".")
+focus_neighbor_bottom = NodePath(".")
+focus_next = NodePath(".")
+focus_previous = NodePath(".")
+focus_mode = 0
+theme_type_variation = &"PixelButton"
+text = "Back"
+script = ExtResource("2_pixel_button")
+
 [node name="DoneButton" type="Button" parent="."]
 unique_name_in_owner = true
 layout_mode = 0

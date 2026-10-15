@@ -172,7 +172,7 @@ No starter template. The existing project is used, with these settings corrected
 
 **Approach:** Autoload services for persistent state; enum state machine for the run.
 
-- `PlayerData` is the single in-memory source of truth for the active profile (brains, owned/equipped cosmetics, flags, settings, bests, run history). All mutations go through its methods (`add_brains()`, `buy_item()`, `equip()`, `record_run()`, `set_setting()`, `set_flag()`, and from Epic 6 `mark_unlock_seen()` / `mark_level_chosen()`; flags are read with `get_flag()`, unlocks with `get_unlock_state(level_id)`). `record_run()` applies the level unlock rule (FR79) and emits `level_unlocked(level_id)`, each of which emits a typed change signal and requests a save. No other code writes save fields directly.
+- `PlayerData` is the single in-memory source of truth for the active profile (brains, owned/equipped cosmetics, flags, settings, bests, run history). All mutations go through its methods (`add_brains()`, `buy_item()`, `equip()`, `record_run()`, `set_setting()`, `set_flag()`, from Epic 6 `mark_unlock_seen()` / `mark_level_chosen()`, and from Story 11.2 `switch_profile()` / `create_profile()`, which set `active_profile` and emit `profile_replaced` so every listener re-reads; flags are read with `get_flag()`, unlocks with `get_unlock_state(level_id)`). `record_run()` applies the level unlock rule (FR79) and emits `level_unlocked(level_id)`, each of which emits a typed change signal and requests a save. No other code writes save fields directly.
 - The run lifecycle lives in `RunFrame` as an enum state machine:
   `WAITING_FIRST_KEY → RUNNING ⇄ PAUSED → COUNTDOWN → RUNNING … → ENDING → DONE`
   - `WAITING_FIRST_KEY`: first target shown, clock stopped, "Type the letter to start!"
@@ -186,16 +186,18 @@ No starter template. The existing project is used, with these settings corrected
 `Router` (autoload) owns a `CanvasLayer` fade overlay and a screen registry:
 
 ```gdscript
-enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET, KEYBOARD_TEST, TRENDS, NAME_ZOMBIE }
-# New screens are appended (screen ids are passed around as ints): TRENDS (Story 10.5), NAME_ZOMBIE (Story 11.1).
+enum Screen { TITLE, MAIN_MENU, RUN, REPORT_CARD, WELCOME_GIFT, CRYPT_CLOSET, KEYBOARD_TEST, TRENDS, NAME_ZOMBIE, WHOS_PLAYING }
+# New screens are appended (screen ids are passed around as ints): TRENDS (Story 10.5), NAME_ZOMBIE (Story 11.1),
+# WHOS_PLAYING (Story 11.2).
 func go(screen: Screen, payload: Dictionary = {}) -> void
 func take_payload() -> Dictionary   # called once by the incoming screen in _ready()
 ```
 
 - `RUN` payload: `{ "level_id": StringName }`. `RunFrame` instances the level scene named in the level registry.
 - `REPORT_CARD` payload: `{ "result": RunResult }`.
-- `NAME_ZOMBIE` (Story 11.1, FR78): the title goes here instead of the menu while the active profile's `name` is empty or invalid (`PlayerData.get_zombie_name()`); Done saves it with `PlayerData.set_zombie_name()` (rules in `ZombieName`) and goes to the menu. No payload. The name is never logged.
-- Flow: Title → (Name your zombie, unnamed zombie only) → Main Menu → Run → Report Card → (Welcome Gift → Crypt Closet, first completed run only) → Play Again (Run, same level) | Menu.
+- `NAME_ZOMBIE` (Story 11.1, FR78): the title goes here while no profile has a valid `name` (`PlayerData.has_named_zombie()`); Done saves it with `PlayerData.set_zombie_name()` (rules in `ZombieName`) and goes to the menu. The name is never logged. Payload `{"new_zombie": true}` (Story 11.2, from `WHOS_PLAYING`): the field starts empty, Done calls `PlayerData.create_profile()` (an already-used name is refused), Back / Esc returns to `WHOS_PLAYING`. Any other payload is the 11.1 mode.
+- `WHOS_PLAYING` (Story 11.2, FR78): the title goes here once any profile is named. One `ZombieCard` per profile (`get_profile_ids()` + `get_profile_summary()`), "New zombie" while `can_add_zombie()`. A pick calls `PlayerData.switch_profile()` and goes to `MAIN_MENU` (named) or `NAME_ZOMBIE` (unnamed). No payload read.
+- Flow: Title → (Name your zombie, first zombie only) | Who's playing? → (Name your zombie, new zombie) → Main Menu → Run → Report Card → (Welcome Gift → Crypt Closet, first completed run only) → Play Again (Run, same level) | Menu.
 
 ### Typing Pipeline & Level Contract
 
@@ -272,6 +274,7 @@ func get_brains_earned() -> int
 - **Migration:** `SaveService` runs ordered `migrate_N_to_N1(data: Dictionary) -> Dictionary` functions up to `CURRENT_SCHEMA`. Every migration has a GUT test with a fixture file.
 - **Persistence check:** if `OS.is_userfs_persistent()` is false, the main menu shows a small plain-words notice ("Progress may not be saved in this browser mode").
 - **Defaults:** a missing field is filled from defaults on load, and unknown fields are kept rather than dropped.
+- **Profiles (Story 11.2, FR78, ADR-2):** up to `GameConstants.MAX_ZOMBIES` (4) entries in `profiles`, keyed `p<N>` (`GameConstants.NEW_ZOMBIE_ID_FORMAT`, the lowest unused N; never derived from the name, so ids may be logged). A new profile is `SaveSchema.profile_defaults()` plus its name. Only `PlayerData` writes `active_profile` (through `SaveService.get_data()`). No schema change: the save was profile-shaped from v1.
 
 ### Static Game Data
 

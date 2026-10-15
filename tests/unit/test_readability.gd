@@ -9,6 +9,8 @@ extends GutTest
 ## a temp-dir PlayerData for anything that writes. Router.go() is never called.
 ## Story 10.5: the Progress screen is walked filled (several runs, so its charts and totals show).
 ## Story 11.1: the name screen is walked filled with the widest name (12 W), and its typed name is >= 24 px.
+## Story 11.2: the "Who's playing?" picker is walked full (MAX_ZOMBIES zombies, 12 W names, hats and pets), and
+## the name screen in its new-zombie mode (Back shown).
 
 const TEXT_FLOOR: int = 16
 const TARGET_FLOOR: int = 32
@@ -26,6 +28,9 @@ const GiftScene: PackedScene = preload("res://scenes/screens/welcome_gift.tscn")
 const ClosetScene: PackedScene = preload("res://scenes/screens/crypt_closet.tscn")
 const TrendsScene: PackedScene = preload("res://scenes/screens/trends.tscn")
 const NameZombieScene: PackedScene = preload("res://scenes/screens/name_zombie.tscn")
+const WhosPlayingScene: PackedScene = preload("res://scenes/screens/whos_playing.tscn")
+## Story 11.2: the screen's 16 px margin.
+const SAFE_RECT: Rect2 = Rect2(16, 16, 608, 328)
 const HudScene: PackedScene = preload("res://scenes/run/hud.tscn")
 const PauseScene: PackedScene = preload("res://scenes/run/pause_panel.tscn")
 const CountdownScene: PackedScene = preload("res://scenes/run/countdown.tscn")
@@ -182,6 +187,40 @@ func _name_zombie() -> Control:
 	return naming
 
 
+## Story 11.2: the name screen opened by "New zombie" (empty field, Back shown).
+func _name_zombie_new() -> Control:
+	Router._store_payload({"new_zombie": true})
+	var naming: Control = NameZombieScene.instantiate() as Control
+	naming.process_mode = Node.PROCESS_MODE_DISABLED
+	naming.set("navigate", _noop_nav)
+	naming.set("is_transitioning", func() -> bool: return false)
+	naming.set("play_sfx", _noop_sfx)
+	naming.set("play_music", _noop_sfx)
+	naming.set("player_data", _player)
+	add_child_autofree(naming)
+	return naming
+
+
+## Story 11.2: the picker holding `count` zombies, each with the widest name (12 W), a hat and a pet.
+func _whos_playing(count: int = GameConstants.MAX_ZOMBIES) -> Control:
+	var profiles: Dictionary = _player.save_service.get_data()["profiles"]
+	for n: int in range(1, count + 1):
+		var profile: Dictionary = SaveSchema.profile_defaults()
+		profile["name"] = "W".repeat(GameConstants.ZOMBIE_NAME_MAX_LENGTH)
+		profile["owned_items"] = ["hat_pumpkin", "pet_cute_ghost"]
+		profile["equipped"] = {"hat": "hat_pumpkin", "pet": "pet_cute_ghost"}
+		profiles[GameConstants.NEW_ZOMBIE_ID_FORMAT % n] = profile
+	var picker: Control = WhosPlayingScene.instantiate() as Control
+	picker.process_mode = Node.PROCESS_MODE_DISABLED
+	picker.set("navigate", _noop_nav)
+	picker.set("is_transitioning", func() -> bool: return false)
+	picker.set("play_sfx", _noop_sfx)
+	picker.set("play_music", _noop_sfx)
+	picker.set("player_data", _player)
+	add_child_autofree(picker)
+	return picker
+
+
 func _hud() -> Control:
 	var hud: Control = HudScene.instantiate() as Control
 	hud.process_mode = Node.PROCESS_MODE_DISABLED
@@ -268,7 +307,8 @@ func _playfield() -> Array[Node]:
 
 ## Every MVP screen and the run's parts, built and laid out.
 func _all_roots() -> Array[Node]:
-	var roots: Array[Node] = [_title(), _menu(), _report_card(), _gift(), _closet(), _trends(), _name_zombie(), _hud(),
+	var roots: Array[Node] = [_title(), _menu(), _report_card(), _gift(), _closet(), _trends(), _name_zombie(), _name_zombie_new(),
+			_whos_playing(), _hud(),
 			_pause_panel(), _countdown(), _prompt("Buy the Pumpkin hat for 100 brains?")]
 	roots.append_array(_widgets())
 	roots.append_array(_playfield())
@@ -278,7 +318,7 @@ func _all_roots() -> Array[Node]:
 # --- walkers ----------------------------------------------------------------------------------------------
 
 func _collect(node: Node, out: Array[Control]) -> void:
-	if node is Label or node is BaseButton or node is ClosetItemTile or node is LevelCard:
+	if node is Label or node is BaseButton or node is ClosetItemTile or node is LevelCard or node is ZombieCard:
 		out.append(node as Control)
 	for child: Node in node.get_children():
 		_collect(child, out)
@@ -294,7 +334,7 @@ func _text_nodes(roots: Array[Node]) -> Array[Control]:
 ## A control a kid can click or focus: a BaseButton, Closet tile or level card shown on screen that takes focus
 ## or the mouse.
 func _is_clickable(control: Control) -> bool:
-	var is_target: bool = control is BaseButton or control is ClosetItemTile or control is LevelCard
+	var is_target: bool = control is BaseButton or control is ClosetItemTile or control is LevelCard 			or control is ZombieCard
 	if not is_target or not control.is_visible_in_tree():
 		return false
 	return control.focus_mode != Control.FOCUS_NONE or control.mouse_filter != Control.MOUSE_FILTER_IGNORE
@@ -349,6 +389,50 @@ func test_name_screen_name_is_24px_and_everything_fits() -> void:
 	assert_gte(name_label.get_theme_font_size(&"font_size"), NAME_FLOOR, "the typed name")
 	var nodes: Array[Control] = _text_nodes([naming])
 	for control: Control in nodes:
+		_assert_fits(control)
+
+
+## Story 11.2: the picker full and one below full (New zombie shown): 16 px names that fit, every card and the
+## button inside the margin, nothing overlapping.
+func test_whos_playing_full_fits_inside_the_margin() -> void:
+	for count: int in [GameConstants.MAX_ZOMBIES - 1, GameConstants.MAX_ZOMBIES]:  # the second adds one profile
+		var picker: Control = _whos_playing(count)
+		await wait_process_frames(2)
+		var cards: Array = picker.call("get_cards")
+		assert_eq(cards.size(), count)
+		var rects: Array[Rect2] = [(picker.get_node("%Sign") as Control).get_global_rect()]
+		for card: ZombieCard in cards:
+			var name_label: Label = card.get_node("%NameLabel") as Label
+			assert_eq(name_label.text, "W".repeat(GameConstants.ZOMBIE_NAME_MAX_LENGTH))
+			assert_gte(name_label.get_theme_font_size(&"font_size"), TEXT_FLOOR)
+			assert_ne(card.get_hat_id(), &"", "the hat is on")
+			assert_ne(card.get_pet_id(), &"", "the pet is there")
+			rects.append(card.get_global_rect())
+		var button: Button = picker.get_node("%NewZombieButton") as Button
+		assert_eq(button.visible, count < GameConstants.MAX_ZOMBIES)
+		if button.visible:
+			rects.append(button.get_global_rect())
+		for control: Control in _text_nodes([picker]):
+			_assert_fits(control)
+		for i: int in rects.size():
+			assert_true(SAFE_RECT.encloses(rects[i]), "%d players: rect %d %s inside the margin" % [count, i, rects[i]])
+			for j: int in range(i + 1, rects.size()):
+				assert_false(rects[i].intersects(rects[j]), "%d players: rects %d and %d overlap" % [count, i, j])
+		picker.queue_free()
+		await wait_process_frames(1)
+
+
+## Story 11.2: the name screen's new-zombie mode: Back and Done fit, side by side, inside the margin.
+func test_name_screen_new_zombie_mode_fits() -> void:
+	var naming: Control = _name_zombie_new()
+	await wait_process_frames(2)
+	var back: Button = naming.get_node("%BackButton") as Button
+	var done: Button = naming.get_node("%DoneButton") as Button
+	assert_true(back.visible)
+	assert_true(SAFE_RECT.encloses(back.get_global_rect()))
+	assert_false(back.get_global_rect().intersects(done.get_global_rect()), "Back and Done don't overlap")
+	assert_false(back.get_global_rect().intersects((naming.get_node("%EnterKeycap") as Control).get_global_rect()))
+	for control: Control in _text_nodes([naming]):
 		_assert_fits(control)
 
 

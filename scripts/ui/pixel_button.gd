@@ -13,11 +13,19 @@ extends Button
 ## would reset `position`); the bounce is applied as a relative offset, so it always ends exactly at rest
 ## even if an owner moves the button meanwhile, and never runs hidden or disabled. get_rest_rect() is the
 ## button's global rect without the bounce, for aiming a TutorialArrow.
+## resting_box (Story 11.2): a box shown as `normal` while the button is not focused (the name screen's "off"
+## Done, which can lose focus to Back); null = the theme's own `normal`. It goes through the same swap.
 
 ## Look value, not a GDD number: the focus bounce height.
 const BOUNCE_PX: float = 1.0
 ## Look value, not a GDD number: the whole bounce, up and back.
 const BOUNCE_S: float = 0.1
+
+## The box shown as `normal` while not focused; null = the theme's `normal`.
+var resting_box: StyleBox = null:
+	set(value):
+		resting_box = value
+		_refresh_fill()
 
 var _bounce_tween: Tween = null
 var _bounce_applied: float = 0.0
@@ -36,7 +44,7 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	# `disabled` has no signal; setting it redraws the button, so the redraw is the hook, both ways (deferred:
 	# never change theme overrides while drawing). It settles once the override matches the state.
-	if what == NOTIFICATION_DRAW and _wants_focused_fill() != has_theme_stylebox_override(&"normal"):
+	if what == NOTIFICATION_DRAW and (_wanted_normal() != null) != has_theme_stylebox_override(&"normal"):
 		_refresh_fill.call_deferred()
 
 
@@ -61,9 +69,17 @@ func _wants_focused_fill() -> bool:
 	return has_focus() and not disabled and is_visible_in_tree()
 
 
-func _refresh_fill() -> void:
+## What `normal` should be overridden with now: the focused fill, the resting box, or null (the theme's own).
+func _wanted_normal() -> StyleBox:
 	if _wants_focused_fill():
-		add_theme_stylebox_override(&"normal", get_theme_stylebox(&"normal_focused"))
+		return get_theme_stylebox(&"normal_focused")
+	return resting_box
+
+
+func _refresh_fill() -> void:
+	var wanted: StyleBox = _wanted_normal()
+	if wanted != null:
+		add_theme_stylebox_override(&"normal", wanted)
 	else:
 		remove_theme_stylebox_override(&"normal")
 

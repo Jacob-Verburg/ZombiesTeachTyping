@@ -46,3 +46,9 @@ const ZOMBIE_NAME_MAX_LENGTH: int = 12
 ## Story 11.1 review: the name Done saves when nothing valid is typed, so a player who cannot type an ASCII letter
 ## (touch, a non-Latin layout, a switch) is never stuck on the name screen.
 const ZOMBIE_NAME_DEFAULT: String = "Zombie"
+## FR78 / Story 11.2: the most zombies (profiles) one save holds. A layout rule (that many name cards fit the
+## "Who's playing?" screen at 640x360 with 16 px names), not a balancing number. [ASSUMPTION - Gate 1]
+const MAX_ZOMBIES: int = 4
+## FR78 / Story 11.2: a new zombie's profile id, "p<N>" with the lowest unused N >= 1 (SaveSchema's first
+## profile is "p1"). Ids are never shown and never derived from the name, so they may be logged.
+const NEW_ZOMBIE_ID_FORMAT: String = "p%d"

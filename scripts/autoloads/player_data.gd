@@ -2,10 +2,10 @@ extends Node
 ## Single in-memory source of truth for the active profile; the only code that writes save fields.
 ## Every mutation emits a typed signal and requests a save (SaveService.request_save(), never save_now()).
 ## Getters read through SaveService.get_active_profile() on every call: nothing is cached, so a
-## reset (Story 1.8) or a profile switch (Epic 11) that replaces SaveService's data is picked up.
+## reset (Story 1.8) or a profile switch (switch_profile / create_profile, Story 11.2) is picked up.
 ## reset_all() is the one mutation that replaces the whole profile: it emits profile_replaced (no
 ## brains_changed/settings_changed deltas), and anything showing a profile value re-reads on it.
-## Epic 11's profile switch emits the same signal.
+## switch_profile and create_profile (Story 11.2) emit the same signal.
 ## Contract violations (negative amount, unknown setting, null run result) log an error and change
 ## nothing; no assert(), which would fire in GUT's debug run and in release would vanish.
 ## save_service and catalogue are test seams: tests assign a fresh SaveService (save_dir in a temp folder)
@@ -26,7 +26,7 @@ extends Node
 ## and flags.placement_done turns true. Every later recorded run moves it with TierCalculator.compute_tier
 ## (rolling average, hysteresis). Both are written inline in record_run, so it still makes one save request.
 ## _reconcile_tier() keeps placement_done true <=> tier in 1..tier count: it runs at load and in reset_all
-## (Epic 11's profile switch must call it too), and places an MVP save that has runs but no tier from its
+## (and in switch_profile / create_profile), and places an MVP save that has runs but no tier from its
 ## rolling average. The tier is never shown (FR60): no copy, no label, no log line carries it or the average.
 ## get_tier() is the one read (Story 7.5). An invalid tier config changes nothing and logs an error.
 ## tier_config is a test seam (null = the shipped data/tier_config.tres); only the shipped one is validated
@@ -44,7 +44,14 @@ extends Node
 ## Zombie name (Story 11.1, FR78): the active profile's "name". set_zombie_name stores ZombieName.clean(raw) and
 ## refuses an invalid name; get_zombie_name reads it back through ZombieName.is_valid, so a junk or hand-edited
 ## value reads as "" (not named yet, NFR16). The name is personal data: it is never logged (NFR12), only fixed
-## text. Epic 11's profile switch emits profile_replaced, and anything showing the name re-reads it then.
+## text. switch_profile / create_profile emit profile_replaced, and anything showing the name re-reads it then.
+## Profiles (Story 11.2, FR78): the save holds up to GameConstants.MAX_ZOMBIES profiles, keyed "p<N>"; every getter
+## and setter above works on the active one only. get_profile_ids (natural order), get_active_profile_id,
+## get_profile_summary (name, hat, pet of any profile, read with the active getters' rules), has_named_zombie and
+## can_add_zombie feed the "Who's playing?" picker. switch_profile makes another profile active; create_profile
+## adds a fresh named one (refusing an invalid or already-used name, ignoring case, and a full save) and makes it
+## active. Both write active_profile through save_service.get_data(), reconcile the tier, emit profile_replaced
+## and request one save. Logs carry profile ids, never names.
 
 enum PurchaseResult { OK, NOT_ENOUGH_BRAINS, ALREADY_OWNED, UNAVAILABLE }
 
@@ -268,15 +275,13 @@ func buy_item(item: CosmeticItem) -> PurchaseResult:
 
 
 func owns(item_id: StringName) -> bool:
-	if item_id == &"":
-		return false
-	return _owned().has(String(item_id))
+	return _owns_in(_profile(), item_id)
 
 
 ## The owned ids in purchase order, skipping junk a hand-edited save may hold.
 func get_owned_items() -> Array[StringName]:
 	var result: Array[StringName] = []
-	for id: String in _owned():
+	for id: String in _owned_in(_profile()):
 		result.append(StringName(id))
 	return result
 
@@ -323,13 +328,7 @@ func get_equipped(slot: StringName) -> StringName:
 	if not CosmeticItem.is_slot_key(slot):
 		Log.error(&"economy", "get_equipped: unknown slot %s" % slot)
 		return &""
-	var id: String = _stored_id(_equipped(), slot)
-	if id.is_empty() or not owns(StringName(id)):
-		return &""
-	var item: CosmeticItem = catalogue.get_item(StringName(id))
-	if item == null or not item.is_available:
-		return &""
-	return StringName(id)
+	return _equipped_id_in(_profile(), slot)
 
 
 func get_flag(flag: StringName) -> bool:
@@ -353,10 +352,7 @@ func set_flag(flag: StringName, value: bool) -> void:
 
 ## The active profile's zombie name; "" when it has none yet (a missing, non-String or invalid stored value).
 func get_zombie_name() -> String:
-	var stored: Variant = _profile().get("name", "")
-	if not stored is String or not ZombieName.is_valid(stored as String):
-		return ""
-	return stored as String
+	return _stored_name(_profile())
 
 
 ## Stores ZombieName.clean(raw) as the zombie name. An invalid name logs a fixed warning, changes nothing and
@@ -483,8 +479,108 @@ func reset_all() -> void:
 	profile_replaced.emit()
 
 
+## Every profile id in the save, natural order on the String (p2 before p10): stable whatever the JSON key order.
+func get_profile_ids() -> Array[StringName]:
+	var keys: Array[String] = []
+	for key: Variant in _profiles().keys():
+		keys.append(str(key))
+	keys.sort_custom(func(a: String, b: String) -> bool: return a.naturalnocasecmp_to(b) < 0)
+	var ids: Array[StringName] = []
+	for key: String in keys:
+		ids.append(StringName(key))
+	return ids
+
+
+func get_active_profile_id() -> StringName:
+	return StringName(str(save_service.get_data()["active_profile"]))
+
+
+## {"id", "name", "hat", "pet"} for any profile, read with the active-profile getters' rules: a junk name reads
+## "", a hat or pet that profile doesn't own (or that isn't an available catalogue item) reads &"". An unknown id
+## logs an error and returns {}.
+func get_profile_summary(id: StringName) -> Dictionary:
+	var profiles: Dictionary = _profiles()
+	if not profiles.has(String(id)) or not profiles[String(id)] is Dictionary:
+		Log.error(&"save", "get_profile_summary: unknown profile %s" % id)
+		return {}
+	var profile: Dictionary = profiles[String(id)]
+	return {
+		"id": id,
+		"name": _stored_name(profile),
+		"hat": _equipped_id_in(profile, CosmeticItem.SLOT_HAT),
+		"pet": _equipped_id_in(profile, CosmeticItem.SLOT_PET),
+	}
+
+
+## True when any profile has a valid name (the title then opens the "Who's playing?" picker).
+func has_named_zombie() -> bool:
+	for profile: Variant in _profiles().values():
+		if profile is Dictionary and not _stored_name(profile as Dictionary).is_empty():
+			return true
+	return false
+
+
+## True while the save holds fewer than GameConstants.MAX_ZOMBIES profiles.
+func can_add_zombie() -> bool:
+	return _profiles().size() < GameConstants.MAX_ZOMBIES
+
+
+## Makes `id` the active profile: reconciles its tier, emits profile_replaced (every listener re-reads) and requests
+## one save. Already active: true, nothing else. Unknown id: an error, nothing changes, false. Logs the id only.
+func switch_profile(id: StringName) -> bool:
+	if not _profiles().has(String(id)):
+		Log.error(&"save", "switch_profile: unknown profile %s" % id)
+		return false
+	if id == get_active_profile_id():
+		return true
+	save_service.get_data()["active_profile"] = String(id)
+	_reconcile_tier()
+	profile_replaced.emit()
+	save_service.request_save()
+	Log.info(&"save", "switched zombie %s" % id)
+	return true
+
+
+## Adds a new zombie named ZombieName.clean(raw_name) with a fresh profile (SaveSchema.profile_defaults()) under the
+## lowest unused id, makes it active, emits profile_replaced and zombie_name_changed and requests one save; returns
+## the id. Refused with a fixed warning and &"" (nothing changes) for an invalid name, a name another zombie has
+## (ignoring case) or a full save (MAX_ZOMBIES). Never logs the name (NFR12).
+func create_profile(raw_name: String) -> StringName:
+	var cleaned: String = ZombieName.clean(raw_name)
+	if not ZombieName.is_valid(cleaned):
+		Log.warn(&"save", "create_profile: invalid name")
+		return &""
+	if not can_add_zombie():
+		Log.warn(&"save", "create_profile: no room for another zombie")
+		return &""
+	var profiles: Dictionary = _profiles()
+	for profile: Variant in profiles.values():
+		if profile is Dictionary and _stored_name(profile as Dictionary).nocasecmp_to(cleaned) == 0:
+			Log.warn(&"save", "create_profile: name already used")
+			return &""
+	var n: int = 1
+	while profiles.has(GameConstants.NEW_ZOMBIE_ID_FORMAT % n):
+		n += 1
+	var key: String = GameConstants.NEW_ZOMBIE_ID_FORMAT % n
+	var fresh: Dictionary = SaveSchema.profile_defaults()
+	fresh["name"] = cleaned
+	profiles[key] = fresh
+	save_service.get_data()["active_profile"] = key
+	_reconcile_tier()
+	profile_replaced.emit()
+	zombie_name_changed.emit(cleaned)
+	save_service.request_save()
+	Log.info(&"save", "new zombie %s" % key)
+	return StringName(key)
+
+
 func _profile() -> Dictionary:
 	return save_service.get_active_profile()
+
+
+## The save's live profiles Dictionary (every zombie), keyed by String id.
+func _profiles() -> Dictionary:
+	return save_service.get_data()["profiles"]
 
 
 ## False (with an error) when tier_config is missing or invalid: tier work then changes nothing.
@@ -635,13 +731,46 @@ func _equipped() -> Dictionary:
 	return _profile()["equipped"]
 
 
-## The distinct non-empty String ids in owned_items; anything else a hand-edited save holds is skipped.
-func _owned() -> Array[String]:
+## The distinct non-empty String ids in `profile`'s owned_items; anything else a hand-edited save holds is
+## skipped. A non-Array owned_items reads as none.
+func _owned_in(profile: Dictionary) -> Array[String]:
 	var result: Array[String] = []
-	for value: Variant in _profile()["owned_items"]:
+	var stored: Variant = profile.get("owned_items")
+	if not stored is Array:
+		return result
+	for value: Variant in stored as Array:
 		if value is String and not (value as String).is_empty() and not result.has(value):
 			result.append(value)
 	return result
+
+
+func _owns_in(profile: Dictionary, item_id: StringName) -> bool:
+	if item_id == &"":
+		return false
+	return _owned_in(profile).has(String(item_id))
+
+
+## The id `profile` wears in `slot` (a valid slot key), or &"" when empty, not owned by that profile, not in the
+## catalogue or not available. One rule for get_equipped and get_profile_summary.
+func _equipped_id_in(profile: Dictionary, slot: StringName) -> StringName:
+	var equipped: Variant = profile.get("equipped")
+	if not equipped is Dictionary:
+		return &""
+	var id: String = _stored_id(equipped as Dictionary, slot)
+	if id.is_empty() or not _owns_in(profile, StringName(id)):
+		return &""
+	var item: CosmeticItem = catalogue.get_item(StringName(id))
+	if item == null or not item.is_available:
+		return &""
+	return StringName(id)
+
+
+## `profile`'s name; "" when missing, not a String or invalid (ZombieName.is_valid). Never logged (NFR12).
+func _stored_name(profile: Dictionary) -> String:
+	var stored: Variant = profile.get("name", "")
+	if not stored is String or not ZombieName.is_valid(stored as String):
+		return ""
+	return stored as String
 
 
 ## The String stored for `slot`, or "" when missing or not a String.

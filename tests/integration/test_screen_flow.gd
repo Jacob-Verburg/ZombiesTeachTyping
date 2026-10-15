@@ -11,6 +11,7 @@ extends GutTest
 ## RUN gets a temp-dir PlayerData too: since Story 10.1 a started level saves its theme as the level's last one.
 ## TRENDS (Story 10.5) only reads, but gets a temp-dir PlayerData and a navigate recorder anyway (never the live
 ## autoload's save).
+## WHOS_PLAYING (Story 11.2) writes through switch_profile, so it gets a temp-dir PlayerData and recorder seams.
 
 const FLOW_BUTTONS: Dictionary = {
 	"MAIN_MENU": ["%ClosetButton", "%TrendsButton"],
@@ -20,6 +21,7 @@ const FLOW_BUTTONS: Dictionary = {
 	"KEYBOARD_TEST": ["%FullscreenButton", "%DownloadButton", "%BackButton", "%BrainButton"],
 	"TRENDS": ["%MenuButton"],
 	"NAME_ZOMBIE": ["%DoneButton"],
+	"WHOS_PLAYING": ["%NewZombieButton"],
 }
 
 
@@ -83,6 +85,11 @@ func _instance(screen: Router.Screen) -> Control:
 		node.set("navigate", _record)
 		node.set("play_sfx", func(_id: StringName) -> void: pass)
 		node.set("player_data", _temp_player_data())
+	if screen == Router.Screen.WHOS_PLAYING:
+		node.set("navigate", _record)
+		node.set("play_sfx", func(_id: StringName) -> void: pass)
+		node.set("play_music", func(_id: StringName) -> void: pass)
+		node.set("player_data", _temp_player_data())
 	if screen == Router.Screen.WELCOME_GIFT:
 		node.set("navigate", _record)
 		node.set("play_sfx", func(_id: StringName) -> void: pass)
@@ -132,6 +139,38 @@ func test_name_zombie_consumes_the_payload() -> void:
 	assert_not_null(screen)
 	assert_eq(Router.take_payload(), {})
 	assert_eq(_nav, [])
+
+
+## Story 11.2: the picker consumes and ignores its payload, and navigates nowhere on open.
+func test_whos_playing_consumes_the_payload() -> void:
+	Router._store_payload({"stale": true})
+	var screen: Control = _instance(Router.Screen.WHOS_PLAYING)
+	assert_not_null(screen)
+	assert_eq(Router.take_payload(), {})
+	assert_eq(_nav, [])
+
+
+## Story 11.2: a named zombie's title goes to the picker, and picking a named zombie there goes to the menu.
+func test_title_with_a_named_zombie_goes_through_the_picker_to_the_menu() -> void:
+	var player: PlayerDataScript = _temp_player_data()
+	assert_true(player.set_zombie_name("Sam"))
+	var title: Control = (load(Router.SCREEN_PATHS[Router.Screen.TITLE]) as PackedScene).instantiate() as Control
+	title.process_mode = Node.PROCESS_MODE_DISABLED
+	title.set("player_data", player)
+	add_child_autofree(title)
+	var next: Router.Screen = title.call("next_screen")
+	assert_eq(next, Router.Screen.WHOS_PLAYING)
+	var picker: Control = (load(Router.SCREEN_PATHS[next]) as PackedScene).instantiate() as Control
+	picker.process_mode = Node.PROCESS_MODE_DISABLED
+	picker.set("navigate", _record)
+	picker.set("play_sfx", func(_id: StringName) -> void: pass)
+	picker.set("play_music", func(_id: StringName) -> void: pass)
+	picker.set("player_data", player)
+	add_child_autofree(picker)
+	var cards: Array = picker.call("get_cards")
+	assert_eq(cards.size(), 1)
+	(cards[0] as ZombieCard).picked.emit(&"p1")
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
 
 
 ## Story 4.2: the real menu has no payload label; it consumes whatever payload it was given.

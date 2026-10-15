@@ -151,3 +151,21 @@ func test_no_bounce_when_disabled() -> void:
 	button.disabled = true
 	button._on_focus_changed(true)
 	assert_false(button.is_bouncing())
+
+
+## Story 11.2: the resting box replaces the theme's normal while not focused, and survives redraws.
+func test_resting_box_shows_while_not_focused() -> void:
+	var button: PixelButton = _make()
+	var plain: StyleBox = button.get_theme_stylebox(&"normal")
+	var off: StyleBox = button.get_theme_stylebox(&"disabled")
+	button.resting_box = off
+	assert_eq(button.get_theme_stylebox(&"normal"), off)
+	button.grab_focus()
+	assert_eq(button.get_theme_stylebox(&"normal"), button.get_theme_stylebox(&"normal_focused"), "focus wins")
+	button.release_focus()
+	await wait_process_frames(3)
+	assert_eq(button.get_theme_stylebox(&"normal"), off, "kept after a redraw")
+	button.resting_box = null
+	assert_eq(button.get_theme_stylebox(&"normal"), plain)
+	await wait_process_frames(3)
+	assert_false(button.has_theme_stylebox_override(&"normal"))

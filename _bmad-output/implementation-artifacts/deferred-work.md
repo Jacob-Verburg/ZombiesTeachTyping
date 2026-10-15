@@ -922,3 +922,12 @@
 ## Deferred from: code review of story-11-1-name-the-existing-zombie (2026-10-15)
 
 - `PlayerData.set_zombie_name` returns true and the name screen navigates even when the save is read-only (newer `schema_version`) or the write fails; the name then exists only in memory and the name screen shows again next launch with no explanation. Same behavior as other PlayerData setters; fix belongs with a save-failure UX pass.
+
+## Deferred from: dev of story 11-2 (2026-10-15)
+
+- Resolved from 11-1: Done's "off" look no longer assumes focus (`PixelButton.resting_box`, test with focus on Back).
+- F8 debug reset (`reset_all` → `SaveService.reset_to_defaults()`) wipes the whole save, every zombie, back to one unnamed `p1`. Dev-only; no per-zombie reset was added.
+- No rename and no delete for a zombie (no AC). With 4 zombies the save is full until a debug reset; a sibling's typo stays.
+- Duplicate names are refused only for new zombies (`create_profile`); 11.1's `set_zombie_name` (first zombie, or a picked unnamed one) does not check other profiles, so a hand-edited save or an unnamed second zombie can still end up sharing a name.
+- A switch on a read-only (newer-schema) save changes `active_profile` in memory only, like every other setter (11-1 review note).
+- Web smoke: keys typed while the Router fades in are dropped (input is ignored during transitions, by design); the browser pane's slow first frames made that visible. The browser pane's storage now holds two test zombies ("zed bo", "al kid").
