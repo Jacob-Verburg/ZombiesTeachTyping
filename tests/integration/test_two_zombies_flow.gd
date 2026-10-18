@@ -247,3 +247,6 @@ func test_two_kids_each_get_their_own_run_gift_tutorial_and_hat() -> void:
 	(again.get_node("%MenuButton") as Button).pressed.emit()
 	assert_eq(_follow(Router.Screen.MAIN_MENU), {})
 	assert_eq((_profile("p2")["run_history"] as Array).size(), 1, "Sam's second run is not in Bo's history")
+	assert_eq((_profile("p1")["run_history"] as Array).size(), 2, "Sam's second run is in Sam's history")
+	assert_eq(int(_profile("p1")["lifetime"]["runs"]), 2, "Sam's lifetime counts both runs")
+	assert_eq(int(_profile("p2")["lifetime"]["runs"]), 1, "Bo's lifetime still counts one")

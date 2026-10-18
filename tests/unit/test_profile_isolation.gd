@@ -224,7 +224,7 @@ func test_every_mutation_on_the_other_zombie_leaves_the_first_alone() -> void:
 	sut.set_zombie_name("Sam")
 	sut.add_brains(40)
 	assert_true(sut.switch_profile(&"p2"))
-	# Bo already has some of these values, so not every row changes p2: only isolation is checked.
+	# Bo already has some of these values (music already off, ...), so rows that set them are allowed to be no-ops.
 	_run_table(sut, false)
 	assert_eq(int(_snapshot("p1")["brains"]), 40)
 
@@ -324,7 +324,7 @@ func test_switching_back_and_forth_keeps_each_zombie_and_survives_a_reload() -> 
 	assert_eq(sut.get_brains(), 260)
 	assert_eq(sut.get_last_theme(&"horde_rush"), &"castle")
 	assert_eq(sut.get_owned_items(), [&"hat_witch", &"pet_cute_ghost"] as Array[StringName])
-	await wait_process_frames(2)
+	_save.save_now()
 	var memory: Dictionary = _save.get_data().duplicate(true)
 	var reloaded: CountingSave = CountingSave.new()
 	reloaded.save_dir = TEST_DIR
@@ -368,7 +368,7 @@ func test_no_container_is_shared_between_profiles() -> void:
 	assert_eq(sut.create_profile("Bo"), &"p2")
 	assert_eq(sut.create_profile("Al"), &"p3")
 	_assert_nothing_shared("after create_profile")
-	await wait_process_frames(2)
+	_save.save_now()
 	# A load through SaveService: JSON + SaveSchema.fill_defaults for every profile.
 	var loaded: PlayerDataScript = _make()
 	assert_eq(loaded.get_profile_ids(), [&"p1", &"p2", &"p3"] as Array[StringName])

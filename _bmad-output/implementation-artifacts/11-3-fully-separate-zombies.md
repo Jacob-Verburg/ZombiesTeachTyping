@@ -4,7 +4,7 @@ baseline_commit: 650c64424b8086a6c0e37912f6a2936bc83fe2b9
 
 # Story 11.3: Fully Separate Zombies
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -70,6 +70,19 @@ so that one kid's bad day never changes the other kid's game.
   - [x] 7.1 Full suite + counts vs baseline; real save sha256 unchanged; `git status` shows no PNG/WAV/scene changes.
   - [x] 7.2 Mutation pass (scratch edits, restore after; each must turn a test red): `add_brains` also adds to every profile; `buy_item` appends to the first profile's `owned_items` instead of the active one's; `set_setting` writes `profiles["p1"]`; `switch_profile` copies the old profile's `brains` into the new one; `profile_defaults()` returns a shared module-level `owned_items` Array; `record_run` appends to `_profiles().values()[0]`; a new public `set_dummy()` with no table row (guard test); a new `profile_defaults()` key nobody writes (coverage test); Trends doesn't re-read on `profile_replaced`.
   - [x] 7.3 Status → review.
+
+### Review Findings
+
+- [x] [Review][Decision] (resolved: remember the target per zombie, `_tutorial_targets`) Tutorial target after A → B → A — on a switch back, `_on_profile_replaced` restarts the tutorial on the first BUY tile, not the item A already bought (the arrow may point at the wrong tile; it still ends on the first Wear). Options: (1) remember the target per profile id, (2) accept the restart and add a test line pinning it. [scripts/screens/crypt_closet.gd:385]
+- [x] [Review][Patch] "Avoids last theme / used passage" assertions can pass by chance (single seed-7 pick vs one excluded value); assert the RunFrame's theme input directly or use a pool where the excluded value would otherwise be picked [tests/integration/test_two_zombies_runs.gd:~925-950]
+- [x] [Review][Patch] Reload check in the back-and-forth test never flushes the save; it relies on `wait_process_frames(2)`. Call `save_now()` (or await the request) before loading the second SaveService [tests/unit/test_profile_isolation.gd:~1298-1346]
+- [x] [Review][Patch] Two-kid flow's closing leak check is one-directional; assert Sam's history is 2 and his brains/lifetime changed, not just that Bo's history is still 1 [tests/integration/test_two_zombies_flow.gd:~794-799]
+- [x] [Review][Patch] `_run_table(sut, false)` (Bo active) drops the "active profile changed" check, so a no-op or wrong-field mutator passes in that direction; (partly: comment now says which rows may be no-ops; per-row field check not added) keep the check, or tie each row to the field it should change [tests/unit/test_profile_isolation.gd:~1181]
+- [x] [Review][Patch] `_on_profile_replaced` clears `_tutorial_active` but leaves `_tutorial_target` stale, and `_start_tutorial` grabs focus on a switch without re-deciding `_focused_tile`/info sign; target reset + per-zombie resume done; the tutorial's focus grab is intended, as on first open [scripts/screens/crypt_closet.gd:378-386]
+- [x] [Review][Patch] Test "tutorial stays with its zombie" overstates the behaviour: the tutorial is re-decided from flags, not preserved; rename/comment it accordingly [tests/integration/test_profile_switch.gd:~493-510]
+- [x] [Review][Patch] `test_two_zombies_runs.gd` `_start()` types the first 3 characters of a generated passage; punctuation/uppercase start gives keycode 0 and no shift. Only set keycode when non-zero or pick a known-letter prefix [tests/integration/test_two_zombies_runs.gd:~892-898]
+- [x] [Review][Patch] `_passage_id` reads the private `_paragraphs` by string and assumes `t5_`/`t3_` id prefixes; a rename gives a null crash instead of an assertion message [tests/integration/test_two_zombies_runs.gd:~914]
+- [x] [Review][Defer] Stale tutorial after an F8 reset (same profile id; `switched` is false) [scripts/screens/crypt_closet.gd:378-386] — deferred, pre-existing (story pinned it with `test_reset_all_while_active_follows_the_new_state`; dev-only)
 
 ## Dev Notes
 

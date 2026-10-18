@@ -937,3 +937,7 @@
 - Found and fixed: a Crypt Closet left open across a zombie switch kept the last zombie's tutorial (arrow and active state). It now re-decides on `profile_replaced` when the active profile id changed. Not reachable in the shipped game yet (the switch happens only on the picker); 11.4's menu → picker path navigates away anyway.
 - The isolation guard (`test_profile_isolation.gd`) treats any public PlayerData method named `get_*` as a read. A future mutator named `get_...` would slip past the table; keep getters read-only.
 - F8 reset still wipes every zombie (pinned by `test_f8_reset_wipes_every_zombie`); a per-zombie reset stays deferred (11-2).
+
+## Deferred from: code review of 11-3-fully-separate-zombies (2026-10-18)
+
+- A Crypt Closet left open across an F8 `reset_all()` keeps its tutorial state (the profile id stays `p1`, so `_on_profile_replaced` sees no switch). The arrow stays up for an account with no gift, and a later Wear would set `tutorial_seen`. Dev-only; the story pins the current behaviour with `test_reset_all_while_active_follows_the_new_state`.

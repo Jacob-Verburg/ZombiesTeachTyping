@@ -260,7 +260,7 @@ func test_crypt_closet_shows_the_active_zombies_items_and_tutorial() -> void:
 	assert_false(_save.get_data()["profiles"]["p1"]["flags"]["tutorial_seen"])
 
 
-func test_a_tutorial_in_progress_stays_with_its_zombie() -> void:
+func test_a_tutorial_in_progress_resumes_for_its_zombie_after_a_round_trip() -> void:
 	# Sam is mid-tutorial (gift claimed, the pumpkin owned but not worn: Wear is next); Bo has seen it.
 	var sam: Dictionary = _save.get_data()["profiles"]["p1"]
 	sam["flags"]["welcome_bonus_claimed"] = true
@@ -270,13 +270,16 @@ func test_a_tutorial_in_progress_stays_with_its_zombie() -> void:
 	Router._store_payload({"tutorial": true})
 	var closet: Control = await _closet()
 	assert_true(closet.call("is_tutorial_active"), "Sam's tutorial")
+	# Sam is part-way (the pumpkin is what to wear next), not at the first BUY tile the tutorial starts on.
+	closet.set("_tutorial_target", &"hat_pumpkin")
 	assert_true(_player.switch_profile(&"p2"))
 	assert_false(closet.call("is_tutorial_active"), "Bo has seen the tutorial")
 	assert_false((closet.call("get_tutorial_arrow") as TutorialArrow).visible)
 	_player.equip(&"hat_witch")
 	assert_false(_save.get_data()["profiles"]["p1"]["flags"]["tutorial_seen"], "Bo's Wear doesn't spend Sam's tutorial")
 	assert_true(_player.switch_profile(&"p1"))
-	assert_true(closet.call("is_tutorial_active"), "Sam's tutorial is back")
+	assert_true(closet.call("is_tutorial_active"), "Sam's tutorial is back (re-decided from his flags)")
+	assert_eq(closet.get("_tutorial_target"), &"hat_pumpkin", "and it resumes on the item Sam left off at")
 	assert_true((closet.call("get_tutorial_arrow") as TutorialArrow).visible)
 
 

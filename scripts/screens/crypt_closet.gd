@@ -64,6 +64,8 @@ var _leaving: bool = false
 var _tutorial_active: bool = false
 ## The item the arrow guides to (Buy, then Wear).
 var _tutorial_target: StringName = &""
+## Where each zombie's unfinished tutorial left off (profile id -> item id), so A -> B -> A resumes on A's item.
+var _tutorial_targets: Dictionary = {}
 ## True while _cancel_stale_prompt() cancels: that No is the game's, not a press, so it is silent.
 var _cancelling_stale: bool = false
 ## The zombie this Closet last showed (Story 11.3): a profile_replaced with another id is a switch.
@@ -378,12 +380,15 @@ func _on_inventory_changed(_item_id: StringName) -> void:
 func _on_profile_replaced() -> void:
 	_cancel_stale_prompt()
 	var switched: bool = player_data.get_active_profile_id() != _profile_id
-	_profile_id = player_data.get_active_profile_id()
 	if switched:
+		if _tutorial_active:
+			_tutorial_targets[_profile_id] = _tutorial_target
 		_tutorial_active = false
+		_tutorial_target = &""
+	_profile_id = player_data.get_active_profile_id()
 	_refresh()
 	if switched and player_data.get_flag(&"welcome_bonus_claimed") and not player_data.get_flag(&"tutorial_seen"):
-		_start_tutorial()
+		_start_tutorial(_tutorial_targets.get(_profile_id, &"") as StringName)
 
 
 func _on_equipment_changed(_slot: StringName, item_id: StringName) -> void:
@@ -414,9 +419,14 @@ func _release_leave_when_idle() -> void:
 	_leaving = false
 
 
-## The first BUY tile (hats, then pets), else the first WEAR tile; none -> no tutorial.
-func _start_tutorial() -> void:
-	var target: ClosetItemTile = _first_tile_in(ClosetItemTile.State.BUY)
+## The tile to resume at (a zombie that left mid-tutorial), else the first BUY tile (hats, then pets), else the
+## first WEAR tile; none -> no tutorial.
+func _start_tutorial(resume_at: StringName = &"") -> void:
+	var target: ClosetItemTile = get_tile(resume_at) if resume_at != &"" else null
+	if target != null and not target.get_state() in [ClosetItemTile.State.BUY, ClosetItemTile.State.WEAR]:
+		target = null
+	if target == null:
+		target = _first_tile_in(ClosetItemTile.State.BUY)
 	if target == null:
 		target = _first_tile_in(ClosetItemTile.State.WEAR)
 	if target == null:
