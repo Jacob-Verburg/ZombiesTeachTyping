@@ -52,6 +52,11 @@ extends Node
 ## adds a fresh named one (refusing an invalid or already-used name, ignoring case, and a full save) and makes it
 ## active. Both write active_profile through save_service.get_data(), reconcile the tier, emit profile_replaced
 ## and request one save. Logs carry profile ids, never names.
+## Story 11.3: every field in a profile is per-zombie; tests/unit/test_profile_isolation.gd checks each mutation leaves
+## the other profiles untouched (in memory and in save.json) and fails on a new public setter not in its table. Global
+## by design, never per-zombie: schema_version, active_profile, SaveService's read-only flag and save.bak, AudioManager's
+## voice-spacing timers, RunFrame's static debug seeds, Log statics and the window / fullscreen state. The F8 reset
+## (reset_all) wipes every zombie.
 
 enum PurchaseResult { OK, NOT_ENOUGH_BRAINS, ALREADY_OWNED, UNAVAILABLE }
 

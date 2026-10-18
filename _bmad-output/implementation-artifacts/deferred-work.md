@@ -931,3 +931,9 @@
 - Duplicate names are refused only for new zombies (`create_profile`); 11.1's `set_zombie_name` (first zombie, or a picked unnamed one) does not check other profiles, so a hand-edited save or an unnamed second zombie can still end up sharing a name.
 - A switch on a read-only (newer-schema) save changes `active_profile` in memory only, like every other setter (11-1 review note).
 - Web smoke: keys typed while the Router fades in are dropped (input is ignored during transitions, by design); the browser pane's slow first frames made that visible. The browser pane's storage now holds two test zombies ("zed bo", "al kid").
+
+## Deferred from: dev of story 11-3 (2026-10-18)
+
+- Found and fixed: a Crypt Closet left open across a zombie switch kept the last zombie's tutorial (arrow and active state). It now re-decides on `profile_replaced` when the active profile id changed. Not reachable in the shipped game yet (the switch happens only on the picker); 11.4's menu → picker path navigates away anyway.
+- The isolation guard (`test_profile_isolation.gd`) treats any public PlayerData method named `get_*` as a read. A future mutator named `get_...` would slip past the table; keep getters read-only.
+- F8 reset still wipes every zombie (pinned by `test_f8_reset_wipes_every_zombie`); a per-zombie reset stays deferred (11-2).

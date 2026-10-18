@@ -274,7 +274,7 @@ func get_brains_earned() -> int
 - **Migration:** `SaveService` runs ordered `migrate_N_to_N1(data: Dictionary) -> Dictionary` functions up to `CURRENT_SCHEMA`. Every migration has a GUT test with a fixture file.
 - **Persistence check:** if `OS.is_userfs_persistent()` is false, the main menu shows a small plain-words notice ("Progress may not be saved in this browser mode").
 - **Defaults:** a missing field is filled from defaults on load, and unknown fields are kept rather than dropped.
-- **Profiles (Story 11.2, FR78, ADR-2):** up to `GameConstants.MAX_ZOMBIES` (4) entries in `profiles`, keyed `p<N>` (`GameConstants.NEW_ZOMBIE_ID_FORMAT`, the lowest unused N; never derived from the name, so ids may be logged). A new profile is `SaveSchema.profile_defaults()` plus its name. Only `PlayerData` writes `active_profile` (through `SaveService.get_data()`). No schema change: the save was profile-shaped from v1.
+- **Profiles (Story 11.2, FR78, ADR-2):** up to `GameConstants.MAX_ZOMBIES` (4) entries in `profiles`, keyed `p<N>` (`GameConstants.NEW_ZOMBIE_ID_FORMAT`, the lowest unused N; never derived from the name, so ids may be logged). A new profile is `SaveSchema.profile_defaults()` plus its name. Only `PlayerData` writes `active_profile` (through `SaveService.get_data()`). No schema change: the save was profile-shaped from v1. Every profile field is per-zombie (Story 11.3 isolation tests, `tests/unit/test_profile_isolation.gd`); a new PlayerData setter must be added to the isolation table. A screen open across a switch re-reads on `profile_replaced` and must not keep the last zombie's state (the Crypt Closet re-decides its tutorial).
 
 ### Static Game Data
 

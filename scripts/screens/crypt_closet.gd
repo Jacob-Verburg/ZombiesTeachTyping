@@ -24,6 +24,8 @@ extends Control
 ## tutorial_seen set once) only when any item is equipped; leaving without equipping keeps it for the next
 ## visit. It starts on the gift's payload, or on any visit once the gift is claimed and tutorial_seen is
 ## still false (a closed tab or an Esc doesn't lose it); never ends from _exit_tree.
+## A switch to another zombie while open (profile_replaced with a new active profile id, Story 11.3) drops the last
+## zombie's tutorial and starts the new one's on the flag rule only (the gift's payload was the last zombie's).
 ## Seams (tests assign them before add_child): navigate, is_transitioning, player_data, play_sfx and the
 ## exported catalogue. The payload is consumed.
 ## Story 5.0 art: the hand-lettered "Crypt Closet" sign sprite, the Mirror and Sign theme boxes.
@@ -64,6 +66,8 @@ var _tutorial_active: bool = false
 var _tutorial_target: StringName = &""
 ## True while _cancel_stale_prompt() cancels: that No is the game's, not a press, so it is silent.
 var _cancelling_stale: bool = false
+## The zombie this Closet last showed (Story 11.3): a profile_replaced with another id is a switch.
+var _profile_id: StringName = &""
 
 
 func _ready() -> void:
@@ -81,6 +85,7 @@ func _ready() -> void:
 	var payload: Dictionary = Router.take_payload()
 	var tutorial: Variant = payload.get("tutorial", false)
 	var wants_tutorial: bool = (tutorial is bool and tutorial) or player_data.get_flag(&"welcome_bonus_claimed")
+	_profile_id = player_data.get_active_profile_id()
 	_build_tiles()
 	player_data.brains_changed.connect(_on_brains_changed)
 	player_data.inventory_changed.connect(_on_inventory_changed)
@@ -372,7 +377,13 @@ func _on_inventory_changed(_item_id: StringName) -> void:
 
 func _on_profile_replaced() -> void:
 	_cancel_stale_prompt()
+	var switched: bool = player_data.get_active_profile_id() != _profile_id
+	_profile_id = player_data.get_active_profile_id()
+	if switched:
+		_tutorial_active = false
 	_refresh()
+	if switched and player_data.get_flag(&"welcome_bonus_claimed") and not player_data.get_flag(&"tutorial_seen"):
+		_start_tutorial()
 
 
 func _on_equipment_changed(_slot: StringName, item_id: StringName) -> void:
