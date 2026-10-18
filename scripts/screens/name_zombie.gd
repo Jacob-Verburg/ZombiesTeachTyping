@@ -51,6 +51,8 @@ var _text: String = ""
 var _leaving: bool = false
 ## Story 11.2: opened by "New zombie" (payload {"new_zombie": true}); Done creates a profile, Back/Esc return.
 var _new_zombie: bool = false
+## Review of 11.4: the picker was opened from the menu (payload "from_menu": true); Back returns with it.
+var _from_menu: bool = false
 var _wiggle_tween: Tween = null
 var _field_rest_x: float = 0.0
 
@@ -69,6 +71,8 @@ func _ready() -> void:
 	var payload: Dictionary = Router.take_payload()
 	var flag: Variant = payload.get("new_zombie", false)
 	_new_zombie = flag is bool and flag == true
+	var from_menu: Variant = payload.get("from_menu", false)
+	_from_menu = from_menu is bool and from_menu
 	play_music.call(&"mus_menu")
 	WebPlatform.capture_keys = true
 	_field_rest_x = %NameField.position.x
@@ -222,14 +226,14 @@ func _back() -> void:
 	if not _can_go_back() or _leaving or is_transitioning.call():
 		return
 	play_sfx.call(&"sfx_ui_click")
-	_go(Router.Screen.WHOS_PLAYING)
+	_go(Router.Screen.WHOS_PLAYING, {"from_menu": true} if _from_menu else {})
 
 
 ## The one navigation. If the Router never starts a transition, or it ends with this screen still here, the
 ## screen takes input again.
-func _go(screen: Router.Screen) -> void:
+func _go(screen: Router.Screen, payload: Dictionary = {}) -> void:
 	_leaving = true
-	navigate.call(screen, {})
+	navigate.call(screen, payload)
 	if not is_transitioning.call():
 		_leaving = false  # the Router never started: don't leave the screen dead
 		return

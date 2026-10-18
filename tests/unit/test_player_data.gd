@@ -1407,13 +1407,14 @@ func test_zombie_name_warnings_never_carry_the_name() -> void:
 ## NFR12, part (b): print lines can't be captured by GUT, so this reads the name code as text. Any Log.* /
 ## print / push_* call line in these files fails if, after its quoted strings are removed, it still names a
 ## variable that can hold the name (name, raw, text, cleaned, _text; Story 11.2 adds summary, raw_name, shown and the
-## picker / card files). Name-related log messages must stay fixed literals.
+## picker / card files; Story 11.4 adds zombie_name, _shown_name and the main menu / report card files). Name-related
+## log messages must stay fixed literals.
 func test_zombie_name_is_never_passed_to_a_log_call() -> void:
 	var call: RegEx = RegEx.create_from_string(r"\b(Log\.\w+|print\w*|push_\w+)\s*\(")
 	var quoted: RegEx = RegEx.create_from_string(r'"(\\.|[^"\\])*"')
 	var name_var: RegEx = RegEx.create_from_string(
-			r"\b(name|raw|text|cleaned|_text|next|value|current|out|chosen|stored|summary|raw_name|shown)\b"
-			+ r"|get_zombie_name|get_text|get_shown_name|get_profile_summary\(")
+			r"\b(name|raw|text|cleaned|_text|next|value|current|out|chosen|stored|summary|raw_name|shown|zombie_name)\b"
+			+ r"|get_zombie_name|get_text|get_shown_name|get_profile_summary\(|_shown_name\(")
 	for path: String in [
 		"res://scripts/autoloads/player_data.gd",
 		"res://scripts/screens/name_zombie.gd",
@@ -1422,6 +1423,9 @@ func test_zombie_name_is_never_passed_to_a_log_call() -> void:
 		# Story 11.2: the picker and the zombie card (PlayerData's profile methods are in player_data.gd above).
 		"res://scripts/screens/whos_playing.gd",
 		"res://scripts/ui/zombie_card.gd",
+		# Story 11.4: the menu and report card show the name.
+		"res://scripts/screens/main_menu.gd",
+		"res://scripts/screens/report_card.gd",
 	]:
 		assert_true(FileAccess.file_exists(path), path)
 		var lines: PackedStringArray = FileAccess.get_file_as_string(path).split("\n")

@@ -515,6 +515,22 @@ func test_new_mode_esc_goes_back_and_creates_nothing() -> void:
 	assert_eq(_profile_count(), 1)
 
 
+func test_back_from_the_menu_flow_returns_with_the_flag() -> void:
+	assert_true(_player.set_zombie_name("Sam"))
+	Router._store_payload({"new_zombie": true, "from_menu": true})
+	var screen: NameZombieScript = _make()
+	screen._unhandled_input(_esc())
+	assert_eq(_nav, [[Router.Screen.WHOS_PLAYING, {"from_menu": true}]], "Review of 11.4: Esc on the picker stays alive")
+
+
+func test_back_with_a_junk_from_menu_value_returns_empty() -> void:
+	assert_true(_player.set_zombie_name("Sam"))
+	Router._store_payload({"new_zombie": true, "from_menu": "yes"})
+	var screen: NameZombieScript = _make()
+	screen._unhandled_input(_esc())
+	assert_eq(_nav, [[Router.Screen.WHOS_PLAYING, {}]])
+
+
 func test_new_mode_back_button_goes_back_and_creates_nothing() -> void:
 	assert_true(_player.set_zombie_name("Sam"))
 	var screen: NameZombieScript = _make_new()

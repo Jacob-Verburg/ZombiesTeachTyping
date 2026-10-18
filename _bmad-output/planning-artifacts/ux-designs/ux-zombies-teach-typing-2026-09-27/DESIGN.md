@@ -386,7 +386,8 @@ The developer approved this palette on 2026-09-27 after reviewing the key-screen
 | `ink` | `pumpkin` | 6.3:1 | pressed button, Buy tag, New! badge |
 | `ink` | `candy-yellow` | 12.3:1 | Caps Lock hint, tutorial arrow text |
 | `chalk` | `stamp-red` | 5.8:1 | "New best!" stamp |
-| `chalk` | `night` | 13.7:1 | title prompt, text on backdrops |
+| `chalk` | `night` | 13.7:1 | title prompt, text on backdrops, zombie nameplate on the menu |
+| `ink` | `parchment-shade` | 9.7:1 | zombie nameplate on the report card wall (Story 11.4) |
 | `ink-muted` | `disabled-fill` | 5.3:1 | disabled / can't-afford text |
 | `ink` | `zombie-green-bright` | 13.5:1 | Wearing tag |
 
@@ -498,6 +499,7 @@ Godot Control nodes with one shared Theme, `data/ui_theme.tres`; art files follo
 - **Trend chart** [`trend_chart`] (Story 10.5) — a chalkboard panel with a `{colors.chalk-dim}` title and bottom-aligned `{colors.chalk}` bars, one palette `ColorRect` each (no outline, no numbers on bars, one colour for every bar), whole pixels; a value above 0 is at least 2 px tall. Used three times on the Progress screen.
 - **Name field** (Story 11.1) — the `Chalkboard` theme variation (no new art) holding the typed zombie name in `{colors.chalk}` at 24 px (12 letters = 288 px) and a steady 24 × 4 px `{colors.chalk}` underline caret after the last letter, hidden when the name is full. Not focusable itself: the screen's one pixel button keeps focus. Its "Done" button wears the pixel button's *Disabled* plank and text colour while the name is empty but keeps focus and its candy-yellow ring (shape and brightness, not colour alone).
 - **Zombie card** [`zombie_card`] (Story 11.2) — a 352 × 52 `TileParchment` tile with the `ShadowMd` drop shadow (the Crypt Closet tile look, no new art): that zombie at 1× wearing its own hat, its own pet beside it, and its name in `{colors.ink}` at 16 px (12 letters = 192 px). The hat and pet are shown, never followed (it is not always the active zombie). *Focus:* the 2 px candy-yellow `FocusRing` outside the ink edge, same as the Closet tiles. Shows no numbers: zombies are never compared.
+- **Zombie nameplate** (Story 11.4) — the active zombie's name as plain text in the theme font at 16 px (no sign around it), near the zombie: on the main menu in `{colors.chalk}` on `{colors.night}` above the zombie, left-aligned; on the report card in `{colors.ink}` on the `{colors.parchment-shade}` wall above Professor Zombie, between two wall lines. Never wraps or shrinks: 12 letters = 192 px. Decoration only (no focus, no mouse). A zombie with no name shows "Zombie". [sketch](sketches/zombie-name-11-4.md)
 - **"New best!" stamp** — a slightly rotated (−8°, pre-rotated in the sprite, not rotated at runtime) rubber-stamp shape in `{colors.stamp-red}` with chalk lettering, stamped onto the chalkboard's corner. Hand-lettered sprite.
 - **Confirm prompt** — wood panel over the night scrim, a parchment sign with the question in `{typography.heading}`, two pixel buttons side by side.
 - **Tutorial arrow** — a chunky `{colors.candy-yellow}` pointing hand-drawn arrow with an ink outline, bobbing beside its target.

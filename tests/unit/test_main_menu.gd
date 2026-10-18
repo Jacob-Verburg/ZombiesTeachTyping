@@ -8,6 +8,8 @@ extends GutTest
 ## the input that finishes it (handlers called directly: the menu is disabled, so its tweens never run),
 ## mark_level_chosen, re-reads on profile_replaced / unlocks_changed, the hint and badge layout.
 ## Story 10.5: the Progress button (%TrendsButton) opens TRENDS and is its own top focus row.
+## Story 11.4: %ZombieName shows the active zombie's name (default "Zombie") and follows switches, resets and
+## renames; %SwitchZombieButton opens the picker with {"from_menu": true} and sits between cards and Closet.
 
 const MenuScene: PackedScene = preload("res://scenes/screens/main_menu.tscn")
 const MainMenuScript := preload("res://scripts/screens/main_menu.gd")
@@ -241,14 +243,17 @@ func test_bottom_row_neighbours() -> void:
 		assert_eq(_neighbor(row[i + 1], SIDE_LEFT), row[i])
 	assert_eq(_neighbor(row[0], SIDE_LEFT), row[0], "left end stops")
 	assert_eq(_neighbor(row[3], SIDE_RIGHT), row[3], "right end stops")
+	assert_eq(_neighbor(row[0], SIDE_TOP), _node("%SwitchZombieButton"), "Story 11.4: up from the Closet is Switch")
 	for control: Control in row:
-		assert_eq(_neighbor(control, SIDE_TOP), _cards()[0], "up from %s" % control.name)
+		if control != row[0]:
+			assert_eq(_neighbor(control, SIDE_TOP), _cards()[0], "up from %s" % control.name)
 		assert_eq(_neighbor(control, SIDE_BOTTOM), control, "nothing below the bottom row")
 
 
 func test_up_goes_to_the_first_available_card() -> void:
 	_make(_registry([_entry(&"a", false), _entry(&"b", true), _entry(&"c", false)]), true)
-	assert_eq(_neighbor(_node("%ClosetButton"), SIDE_TOP), _cards()[1])
+	assert_eq(_neighbor(_target("%MusicToggle"), SIDE_TOP), _cards()[1], "Story 11.4: Closet's Up is Switch")
+	assert_eq(_neighbor(_node("%SwitchZombieButton"), SIDE_TOP), _cards()[1])
 
 
 func test_tab_order_walks_cards_then_bottom_row() -> void:
@@ -256,6 +261,7 @@ func test_tab_order_walks_cards_then_bottom_row() -> void:
 	var order: Array[Control] = []
 	order.assign(_cards())
 	order.append_array([
+		_node("%SwitchZombieButton"),  # Story 11.4: between the cards and the bottom row
 		_node("%ClosetButton"), _target("%MusicToggle"), _target("%SoundToggle"), _target("%FullscreenToggle"),
 		_node("%TrendsButton"),
 	])
@@ -295,9 +301,111 @@ func test_trends_button_down_goes_to_the_closet_without_a_choosable_card() -> vo
 
 func test_decor_never_takes_focus_or_the_mouse() -> void:
 	_make()
-	for path: String in ["%Logo", "%BrainCounter", "%StorageNotice", "%StorageNoticeLabel", "%Background", "%Cards"]:
+	for path: String in [
+		"%Logo", "%BrainCounter", "%StorageNotice", "%StorageNoticeLabel", "%Background", "%Cards", "%ZombieName",
+	]:
 		assert_eq(_node(path).focus_mode, Control.FOCUS_NONE, path)
 		assert_eq(_node(path).mouse_filter, Control.MOUSE_FILTER_IGNORE, path)
+
+
+# --- Story 11.4: the zombie's name and Switch -----------------------------------------------------------
+
+func _name_label() -> Label:
+	return _menu.get_node("%ZombieName") as Label
+
+
+func test_name_shows_the_active_zombie() -> void:
+	_player.set_zombie_name("Sam")
+	_make()
+	assert_eq(_name_label().text, "Sam")
+
+
+func test_an_empty_name_shows_the_default() -> void:
+	_make()
+	assert_eq(_player.get_zombie_name(), "")
+	assert_eq(_name_label().text, GameConstants.ZOMBIE_NAME_DEFAULT)
+
+
+func test_name_follows_a_switch_and_a_reset() -> void:
+	_player.set_zombie_name("Sam")
+	_make()
+	_player.create_profile("Bo")
+	assert_eq(_name_label().text, "Bo", "create_profile makes Bo active")
+	_player.switch_profile(&"p1")
+	assert_eq(_name_label().text, "Sam", "profile_replaced re-reads the name")
+	_player.reset_all()
+	assert_eq(_name_label().text, GameConstants.ZOMBIE_NAME_DEFAULT, "a reset leaves no name")
+
+
+func test_name_follows_set_zombie_name() -> void:
+	_player.set_zombie_name("Sam")
+	_make()
+	_player.set_zombie_name("Max")
+	assert_eq(_name_label().text, "Max")
+
+
+func test_name_never_wraps_or_clips() -> void:
+	_make()
+	var label: Label = _name_label()
+	assert_eq(label.autowrap_mode, TextServer.AUTOWRAP_OFF)
+	assert_false(label.clip_text)
+	assert_eq(label.get_theme_font_size(&"font_size"), 16)
+	assert_eq(label.get_theme_color(&"font_color"), Color("#F4F1E4"), "chalk on the night sky")
+	assert_gte(label.size.x, 192.0, "12 letters at 16 px fit")
+
+
+func test_switch_opens_the_picker_from_the_menu_once() -> void:
+	_make()
+	var switch_button: Button = _node("%SwitchZombieButton") as Button
+	assert_true(switch_button.visible, "shown even with one zombie")
+	switch_button.pressed.emit()
+	assert_eq(_nav, [[Router.Screen.WHOS_PLAYING, {"from_menu": true}]])
+	switch_button.pressed.emit()
+	(_node("%ClosetButton") as Button).pressed.emit()
+	assert_eq(_nav.size(), 1, "the _leaving guard: one navigation per menu")
+
+
+func test_switch_is_ignored_while_the_router_is_transitioning() -> void:
+	_make()
+	_transitioning = true
+	(_node("%SwitchZombieButton") as Button).pressed.emit()
+	assert_eq(_nav, [])
+
+
+func test_switch_neighbours() -> void:
+	_make()
+	var switch_button: Control = _node("%SwitchZombieButton")
+	assert_eq(_neighbor(switch_button, SIDE_TOP), _cards()[0], "up to the first choosable card")
+	assert_eq(_neighbor(switch_button, SIDE_BOTTOM), _node("%ClosetButton"))
+	assert_eq(_neighbor(switch_button, SIDE_LEFT), switch_button)
+	assert_eq(_neighbor(switch_button, SIDE_RIGHT), switch_button)
+	assert_eq(_neighbor(_node("%ClosetButton"), SIDE_TOP), switch_button)
+	for card: LevelCard in _cards():
+		assert_eq(_neighbor(card, SIDE_BOTTOM), _node("%ClosetButton"), "cards still go down to the Closet")
+	assert_gte(switch_button.size.y, 32.0)
+	assert_false(switch_button.has_focus(), "the first card keeps the opening focus")
+
+
+func test_switch_up_goes_to_progress_without_a_choosable_card() -> void:
+	_make(_registry([_entry(&"a", false)]), true)
+	assert_eq(_neighbor(_node("%SwitchZombieButton"), SIDE_TOP), _node("%TrendsButton"))
+	assert_true(_node("%ClosetButton").has_focus(), "opening focus unchanged")
+
+
+func test_switch_keeps_its_wiring_after_a_rewire() -> void:
+	_make(_chain_registry(), true)
+	_player.debug_set_all_unlocked(true)
+	var switch_button: Control = _node("%SwitchZombieButton")
+	assert_eq(_neighbor(_node("%ClosetButton"), SIDE_TOP), switch_button)
+	assert_eq(_neighbor(switch_button, SIDE_BOTTOM), _node("%ClosetButton"))
+	assert_eq(switch_button.get_node_or_null(switch_button.focus_previous), _cards()[_cards().size() - 1])
+	var first: LevelCard = null
+	for card: LevelCard in _cards():
+		if card.is_choosable():
+			first = card
+			break
+	assert_not_null(first)
+	assert_eq(_neighbor(switch_button, SIDE_TOP), first, "Switch's Up follows the rewire")
 
 
 # --- Wallet and toggles --------------------------------------------------------------------------------
@@ -618,7 +726,7 @@ func test_fresh_save_locks_horde_rush_with_its_hint() -> void:
 	assert_eq(horde.get_hint_text(), "Finish Zombie Run to open!")
 	assert_eq(_card_of(&"pitchfork_panic").get_hint_text(), "Finish Horde Rush to open!")
 	assert_true(_cards()[0].has_focus(), "Zombie Run is the only choosable card and has focus")
-	assert_eq(_neighbor(_node("%ClosetButton"), SIDE_TOP), _cards()[0])
+	assert_eq(_neighbor(_target("%MusicToggle"), SIDE_TOP), _cards()[0], "Story 11.4: Closet's Up is Switch")
 	horde._activate()
 	assert_eq(_nav, [], "a Locked card goes nowhere")
 	assert_true(horde.is_wiggling())
@@ -782,7 +890,7 @@ func test_profile_replaced_relocks_the_card() -> void:
 
 func test_unlocks_changed_rereads_states_and_rewires_focus() -> void:
 	_make(_chain_registry(), true)
-	assert_eq(_neighbor(_node("%ClosetButton"), SIDE_TOP), _cards()[0])
+	assert_eq(_neighbor(_target("%MusicToggle"), SIDE_TOP), _cards()[0], "Story 11.4: Closet's Up is Switch")
 	_player.debug_set_all_unlocked(true)
 	assert_eq(_cards()[1].get_state(), LevelCard.State.NEW, "re-read with no moment")
 	assert_false(_cards()[1].is_playing_moment())

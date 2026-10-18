@@ -941,3 +941,14 @@
 ## Deferred from: code review of 11-3-fully-separate-zombies (2026-10-18)
 
 - A Crypt Closet left open across an F8 `reset_all()` keeps its tutorial state (the profile id stays `p1`, so `_on_profile_replaced` sees no switch). The arrow stays up for an account with no gift, and a later Wear would set `tutorial_seen`. Dev-only; the story pins the current behaviour with `test_reset_all_while_active_follows_the_new_state`.
+
+## Deferred from: dev of story 11-4 (2026-10-18)
+
+- The report card's name is read once in `_ready()` (no listener): fine today because no switch can happen while a card is open; a future in-card rename/switch would need `zombie_name_changed` / `profile_replaced`.
+- Web smoke: the browser pane's storage was empty this time (no "zed bo" / "al kid" from 11.2); the smoke made "zed" and "bo" fresh. The console buffer only keeps the latest ~500 lines, so the no-names check covers the buffered tail (ids-only lines like `new zombie p2` are pinned by unit tests).
+- Still no rename/delete (11-1 / 11-2 notes): the menu name is decoration only, by design (Gate 1).
+
+## Deferred from: code review of story-11-4-zombie-name-on-menu-and-report-card (2026-10-18)
+
+- A hand-edited save with a long or odd-glyph zombie name is not re-sanitized where the menu and report card read it, so it can overflow the label (cosmetic; names are sanitized on write).
+- The empty-name -> "Zombie" fallback is duplicated in `main_menu.gd`, `report_card.gd` and `ZombieCard`; share a helper if it grows.

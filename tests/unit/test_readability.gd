@@ -11,6 +11,9 @@ extends GutTest
 ## Story 11.1: the name screen is walked filled with the widest name (12 W), and its typed name is >= 24 px.
 ## Story 11.2: the "Who's playing?" picker is walked full (MAX_ZOMBIES zombies, 12 W names, hats and pets), and
 ## the name screen in its new-zombie mode (Back shown).
+## Story 11.4: the menu and the report card are walked with the widest name (12 W), the tallest hat (witch hat,
+## 17 px above the head) and a pet; the name and Switch must fit inside the margin without touching the zombie,
+## its hat, its pet, the storage notice, the stamp or any button.
 
 const TEXT_FLOOR: int = 16
 const TARGET_FLOOR: int = 32
@@ -29,6 +32,9 @@ const ClosetScene: PackedScene = preload("res://scenes/screens/crypt_closet.tscn
 const TrendsScene: PackedScene = preload("res://scenes/screens/trends.tscn")
 const NameZombieScene: PackedScene = preload("res://scenes/screens/name_zombie.tscn")
 const WhosPlayingScene: PackedScene = preload("res://scenes/screens/whos_playing.tscn")
+## Story 11.4: the tallest hat in the shipped catalogue (measured: top opaque row 13, 17 px above the head) and a pet.
+const TALLEST_HAT: StringName = &"hat_witch"
+const LONG_NAME_PET: StringName = &"pet_wolf_dog"
 ## Story 11.2: the screen's 16 px margin.
 const SAFE_RECT: Rect2 = Rect2(16, 16, 608, 328)
 const HudScene: PackedScene = preload("res://scenes/run/hud.tscn")
@@ -96,7 +102,16 @@ func _title() -> Control:
 	return title
 
 
+## Story 11.4: the active zombie gets the widest name, the tallest hat and a pet (before a screen is built).
+func _dress_long() -> void:
+	var profile: Dictionary = _player.save_service.get_active_profile()
+	profile["name"] = "W".repeat(GameConstants.ZOMBIE_NAME_MAX_LENGTH)
+	profile["owned_items"] = [String(TALLEST_HAT), String(LONG_NAME_PET)]
+	profile["equipped"] = {"hat": String(TALLEST_HAT), "pet": String(LONG_NAME_PET)}
+
+
 func _menu() -> Control:
+	_dress_long()
 	var menu: Control = MenuScene.instantiate() as Control
 	menu.process_mode = Node.PROCESS_MODE_DISABLED
 	menu.set("navigate", _noop_nav)
@@ -118,12 +133,15 @@ func _report_card() -> Control:
 	var result: RunResult = RunResult.create(
 			&"zombie_run", 1790000000, 120.0, 142, 9, {}, 35, 10, "all", GameConstants.END_REASON_TIMER)
 	Router._store_payload({"result": result, "new_best": true})
+	_dress_long()
 	var card: Control = ReportScene.instantiate() as Control
 	card.process_mode = Node.PROCESS_MODE_DISABLED
 	card.set("navigate", _noop_nav)
 	card.set("play_sfx", _noop_sfx)
 	card.set("play_music", _noop_sfx)
 	card.set("player_data", _player)
+	(card.get_node("%Professor").get_node("%HatSlot") as HatSlot).player_data = _player
+	(card.get_node("%Professor").get_node("%PetSlot") as PetSlot).player_data = _player
 	add_child_autofree(card)
 	for i: int in 7:
 		var row: Control = card.get_node_or_null("%%Row%d" % i) as Control
@@ -434,6 +452,91 @@ func test_name_screen_new_zombie_mode_fits() -> void:
 	assert_false(back.get_global_rect().intersects((naming.get_node("%EnterKeycap") as Control).get_global_rect()))
 	for control: Control in _text_nodes([naming]):
 		_assert_fits(control)
+
+
+## Story 11.4: the drawn part of a 32 px sprite frame (its opaque pixels), in canvas coordinates.
+func _opaque_rect(sprite: Node2D, texture: Texture2D) -> Rect2:
+	var used: Rect2i = texture.get_image().get_used_rect()
+	var top_left: Vector2 = sprite.global_position
+	if sprite is Sprite2D and (sprite as Sprite2D).centered:
+		top_left -= texture.get_size() / 2.0
+	return Rect2(top_left + Vector2(used.position), Vector2(used.size))
+
+
+func _hat_rect(hat: HatSlot) -> Rect2:
+	assert_eq(hat.get_item_id(), TALLEST_HAT, "the tallest hat is on")
+	var overlay: Sprite2D = hat.get_node("%Overlay") as Sprite2D
+	return _opaque_rect(overlay, overlay.texture)
+
+
+func _pet_rect(pet: PetSlot) -> Rect2:
+	var sprite: AnimatedSprite2D = pet.get_node("%Pet") as AnimatedSprite2D
+	assert_true(sprite.visible, "the pet is there")
+	var frame: Texture2D = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	return _opaque_rect(sprite, frame)
+
+
+func _assert_apart(rects: Dictionary[String, Rect2], label: String) -> void:
+	var keys: Array[String] = rects.keys()
+	for i: int in keys.size():
+		assert_true(SAFE_RECT.encloses(rects[keys[i]]), "%s: %s %s inside the margin" % [label, keys[i], rects[keys[i]]])
+		for j: int in range(i + 1, keys.size()):
+			assert_false(rects[keys[i]].intersects(rects[keys[j]]),
+					"%s: %s and %s overlap" % [label, keys[i], keys[j]])
+
+
+func test_menu_long_name_tallest_hat_pet_and_switch_fit() -> void:
+	var menu: Control = _menu()
+	await wait_process_frames(2)
+	var label: Label = menu.get_node("%ZombieName") as Label
+	assert_eq(label.text, "W".repeat(GameConstants.ZOMBIE_NAME_MAX_LENGTH))
+	_assert_label_fits(label)
+	_assert_fits(menu.get_node("%SwitchZombieButton") as Control)
+	assert_true((menu.get_node("%StorageNotice") as Control).is_visible_in_tree(), "storage notice shown")
+	var zombie: Node2D = menu.get_node("%Zombie")
+	var rects: Dictionary[String, Rect2] = {
+		"name": label.get_global_rect(),
+		"switch": (menu.get_node("%SwitchZombieButton") as Control).get_global_rect(),
+		"closet": (menu.get_node("%ClosetButton") as Control).get_global_rect(),
+		"notice": (menu.get_node("%StorageNotice") as Control).get_global_rect(),
+		"cards": (menu.get_node("%Cards") as Control).get_global_rect(),
+		"music": (menu.get_node("%MusicToggle") as Control).get_global_rect(),
+		"hat": _hat_rect(zombie.get_node("%HatSlot") as HatSlot),
+		"pet": _pet_rect(menu.get_node("%PetSlot") as PetSlot),
+	}
+	_assert_apart(rects, "menu")
+
+
+func test_report_card_long_name_tallest_hat_pet_and_stamp_fit() -> void:
+	var card: Control = _report_card()
+	await wait_process_frames(2)
+	var label: Label = card.get_node("%ZombieName") as Label
+	assert_eq(label.text, "W".repeat(GameConstants.ZOMBIE_NAME_MAX_LENGTH))
+	_assert_label_fits(label)
+	assert_true((card.get_node("%Stamp") as CanvasItem).is_visible_in_tree(), "New best stamp shown")
+	assert_true((card.get_node("%Row6") as CanvasItem).is_visible_in_tree(), "bonus row shown")
+	var professor: Node2D = card.get_node("%Professor")
+	var mortarboard: Sprite2D = professor.get_node("Body/Mortarboard") as Sprite2D
+	var rects: Dictionary[String, Rect2] = {
+		"name": label.get_global_rect(),
+		"board": (card.get_node("Board") as Control).get_global_rect(),
+		"stamp": (card.get_node("%Stamp") as Control).get_global_rect(),
+		"play again": (card.get_node("%PlayAgainButton") as Control).get_global_rect(),
+		"menu": (card.get_node("%MenuButton") as Control).get_global_rect(),
+		"hat": _hat_rect(professor.get_node("%HatSlot") as HatSlot),
+		"mortarboard": _opaque_rect(mortarboard, mortarboard.texture),
+		"pet": _pet_rect(professor.get_node("%PetSlot") as PetSlot),
+	}
+	# The board and stamp are drawn from y 6/12, above the 16 px margin by design (Story 2.9); only check overlap.
+	var keys: Array[String] = rects.keys()
+	for i: int in keys.size():
+		for j: int in range(i + 1, keys.size()):
+			if keys[i] in ["hat", "mortarboard"] and keys[j] in ["hat", "mortarboard"]:
+				continue  # the mortarboard rests on the hat on purpose (Story 4.3)
+			if keys[i] in ["board", "stamp"] and keys[j] in ["board", "stamp"]:
+				continue  # the stamp hangs over the board's corner on purpose (Story 2.9)
+			assert_false(rects[keys[i]].intersects(rects[keys[j]]), "report card: %s and %s overlap" % [keys[i], keys[j]])
+	assert_true(SAFE_RECT.encloses(rects["name"]), "the name is inside the margin")
 
 
 # --- fit checks for screens without their own ----------------------------------------------------------------

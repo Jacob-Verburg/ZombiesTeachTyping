@@ -6,6 +6,8 @@ extends GutTest
 ## (push_input), so the focused button and _unhandled_input see them in Godot's own order.
 ## Story 4.5: every card gets a temp-dir PlayerData (never the real save) with welcome_bonus_claimed set,
 ## so the navigation tests mean the same on any machine; the Welcome Gift redirect tests clear it.
+## Story 11.4: %ZombieName shows the active zombie's name (default "Zombie") from the first frame, outside the
+## reveal, clear of the tallest hat's stacked mortarboard.
 
 const ReportScene: PackedScene = preload("res://scenes/screens/report_card.tscn")
 const ProfessorScene: PackedScene = preload("res://scenes/characters/professor_zombie.tscn")
@@ -280,7 +282,7 @@ func test_focused_button_gets_the_focus_fill() -> void:
 
 func test_decor_never_takes_mouse_or_focus() -> void:
 	var card: Control = _card({"result": _result()})
-	for path: String in ["Backdrop", "Board", "%Stamp", "%EnterHint", "%EscHint", "%Heading"]:
+	for path: String in ["Backdrop", "Board", "%Stamp", "%EnterHint", "%EscHint", "%Heading", "%ZombieName"]:
 		var node: Control = card.get_node(path)
 		assert_eq(node.mouse_filter, Control.MOUSE_FILTER_IGNORE, path)
 		assert_eq(node.focus_mode, Control.FOCUS_NONE, path)
@@ -500,8 +502,8 @@ func test_every_text_at_least_16_px() -> void:
 			var size: int = (node as Control).get_theme_font_size(&"font_size")
 			assert_true(size >= 16, "%s font %d" % [node.name, size])
 			checked += 1
-	# 18 since Story 5.0: "New best!" is a hand-lettered sprite, no longer a Label.
-	assert_eq(checked, 18, "checked %d texts" % checked)
+	# 18 since Story 5.0: "New best!" is a hand-lettered sprite, no longer a Label. 19 since Story 11.4: the name.
+	assert_eq(checked, 19, "checked %d texts" % checked)
 
 
 # --- Professor Zombie -------------------------------------------------------------------------------
@@ -547,6 +549,60 @@ func test_mortarboard_stacks_on_the_hat() -> void:
 	# around y 258.
 	hat.show_item(pumpkin)
 	assert_almost_eq(mortarboard.global_position.y + 1.0, 260.0, 2.0)
+
+
+# --- Story 11.4: the zombie's name --------------------------------------------------------------------
+
+func test_name_shows_the_active_zombie() -> void:
+	_player.set_zombie_name("Sam")
+	var card: Control = _card({"result": _result()})
+	assert_eq(_text(card, "%ZombieName"), "Sam")
+
+
+func test_name_is_the_active_profiles_not_the_first() -> void:
+	_player.set_zombie_name("Sam")
+	_player.create_profile("Bo")
+	var card: Control = _card({"result": _result()})
+	assert_eq(_text(card, "%ZombieName"), "Bo")
+
+
+func test_an_empty_name_shows_the_default() -> void:
+	var card: Control = _card({"result": _result()})
+	assert_eq(_text(card, "%ZombieName"), GameConstants.ZOMBIE_NAME_DEFAULT)
+
+
+func test_name_shows_from_the_first_frame_outside_the_reveal() -> void:
+	_player.set_zombie_name("Sam")
+	var card: Control = _card({"result": _result(10)})
+	assert_eq(card.get("_open_s"), 0.0)
+	assert_true(_shown(card, "%ZombieName"), "visible before any reveal step")
+	var rows: Array[Control] = card.get("_rows")
+	assert_false(rows.has(card.get_node("%ZombieName")), "not part of the write-on reveal")
+
+
+func test_name_never_wraps_and_fits_twelve_letters() -> void:
+	var card: Control = _card({"result": _result()})
+	var label: Label = card.get_node("%ZombieName") as Label
+	assert_eq(label.autowrap_mode, TextServer.AUTOWRAP_OFF)
+	assert_false(label.clip_text)
+	assert_eq(label.get_theme_font_size(&"font_size"), 16)
+	assert_eq(label.get_theme_color(&"font_color"), Color("#1E1428"), "ink on the wall")
+	assert_gte(label.size.x, 192.0)
+	assert_true(label.get_global_rect().end.x <= 624.0, "inside the margin")
+
+
+func test_name_sits_above_the_tallest_hat_and_its_mortarboard() -> void:
+	var card: Control = _card({"result": _result()})
+	var professor: Node2D = card.get_node("%Professor")
+	var hat: HatSlot = professor.get_node("%HatSlot") as HatSlot
+	var mortarboard: Sprite2D = professor.get_node("Body/Mortarboard")
+	var witch: CosmeticItem = load("res://data/cosmetics/hat_witch.tres") as CosmeticItem
+	hat.show_item(witch)
+	var board_top: float = mortarboard.global_position.y + float(mortarboard.texture.get_image().get_used_rect().position.y)
+	var label: Control = card.get_node("%ZombieName") as Control
+	assert_lt(label.get_global_rect().end.y, board_top, "the name ends above the stacked mortarboard")
+	for path: String in ["Board", "%Stamp", "%PlayAgainButton", "%MenuButton"]:
+		assert_false(label.get_global_rect().intersects((card.get_node(path) as Control).get_global_rect()), path)
 
 
 func test_pet_stands_clear_of_the_board_stamp_and_buttons() -> void:

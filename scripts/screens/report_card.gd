@@ -10,7 +10,8 @@ extends Control
 ## navigates. Welcome Gift (Story 4.5): a card opened with a RunResult whose exit finds the
 ## welcome_bonus_claimed flag still false goes to the Welcome Gift instead of where it was asked, so the first
 ## completed run's exit (Play Again, Menu, Esc or Enter) shows the gift once. The flag is read at leave time
-## and never written here (the gift owns it). That one flag is all this screen reads from PlayerData.
+## and never written here (the gift owns it). That flag and the zombie's name (below) are all this screen reads
+## from PlayerData.
 ## Story 5.0 art: the chalkboard and keycaps are theme boxes, the chalk tray, the "New best!" stamp (pre-rotated)
 ## and the window's moon and bat are sprites, and Play Again / Menu are PixelButtons (the focused fill and
 ## ring are theirs).
@@ -18,6 +19,10 @@ extends Control
 ## first shown, one chime the frame the last row shows (before the stamp), and a click
 ## when _leave() actually navigates (play_sfx seam). The stamp is silent (no stamp thump in FR50).
 ## The worn hat and pet fill the Professor's slots by themselves (Story 4.3).
+## Story 11.4 (FR78, sketch zombie-name-11-4.md, approved 2026-10-18): %ZombieName above the Professor shows the
+## active zombie's name (GameConstants.ZOMBIE_NAME_DEFAULT when the save holds none), read once in _ready() (no
+## switch can happen while a card is open). It is decoration: never in the reveal, no focus, no mouse, never
+## logged (NFR12).
 
 const PlayerDataScript: GDScript = preload("res://scripts/autoloads/player_data.gd")
 ## Level replayed by Play Again when the payload has no result.
@@ -68,6 +73,8 @@ func _ready() -> void:
 	if not play_music.is_valid():
 		play_music = AudioManager.play_music
 	play_music.call(&"mus_menu")
+	var zombie_name: String = player_data.get_zombie_name()
+	%ZombieName.text = GameConstants.ZOMBIE_NAME_DEFAULT if zombie_name.is_empty() else zombie_name
 	var payload: Dictionary = Router.take_payload()
 	var raw: Variant = payload.get("result")
 	var result: RunResult = raw if raw is RunResult else null

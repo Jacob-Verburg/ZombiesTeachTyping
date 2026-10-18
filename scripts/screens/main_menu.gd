@@ -4,7 +4,8 @@ extends Control
 ## signpost button and the Music / Sound / Fullscreen toggles. Debug-only levels never get a card; the
 ## debug overlay (F3) jumps to the test level, the gift and the keyboard test instead (Boundary 7).
 ## Focus: on open, the first choosable (Available or New) card. Left/Right move along a row (the ends stop),
-## Down from any card goes to the Closet button, Up from the bottom row goes to the first choosable card. Hover moves
+## Down from any card goes to the Closet button, Up from the bottom row goes to the first choosable card (the
+## Closet button's Up goes to Switch since Story 11.4). Hover moves
 ## focus (LevelCard and PixelButton do it), so one control is highlighted at a time. Esc does nothing: this
 ## is the root screen. The payload is consumed and ignored (report card and pause quit pass {}).
 ## Toggles: Music/Sound only call PlayerData.set_setting(); AudioManager follows the setting (Boundary 4).
@@ -28,6 +29,13 @@ extends Control
 ## Story 10.5: the Progress button (%TrendsButton, top right) opens the Progress screen (Router TRENDS) through
 ## _leave(). It is its own top focus row: Up from any card goes to it, Down from it goes to the first choosable
 ## card (or the Closet button when there is none), Left/Right stay put; Tab walks cards, bottom row, Progress.
+## Story 11.4 (FR78, sketch zombie-name-11-4.md, approved 2026-10-18): %ZombieName above the zombie shows the
+## active zombie's name (GameConstants.ZOMBIE_NAME_DEFAULT when the save holds none), re-read with the wallet on
+## open and profile_replaced and on zombie_name_changed; it is decoration (no focus, no mouse) and is never
+## logged (NFR12). %SwitchZombieButton ("Switch", always shown) opens the "Who's playing?" picker through _leave()
+## with {"from_menu": true}, so Esc there comes back here. It sits between the cards and the bottom row in the
+## left column: Up from the Closet button goes to it, Up from it to the first choosable card (else Progress),
+## Down from it to the Closet button, Left/Right stay put; Tab walks cards, Switch, bottom row, Progress.
 ## Seams (tests assign them before add_child): navigate, player_data, toggle_fullscreen, is_fullscreen and
 ## the exported level_registry.
 
@@ -81,6 +89,7 @@ func _ready() -> void:
 	_build_cards()
 	player_data.brains_changed.connect(_on_brains_changed)
 	player_data.profile_replaced.connect(_show_profile)
+	player_data.zombie_name_changed.connect(_on_zombie_name_changed)
 	_show_profile()
 	%MusicToggle.flipped.connect(_on_music_flipped)
 	%SoundToggle.flipped.connect(_on_sound_flipped)
@@ -89,6 +98,7 @@ func _ready() -> void:
 	_sync_fullscreen()
 	%ClosetButton.pressed.connect(_on_closet_button_pressed)
 	%TrendsButton.pressed.connect(_on_trends_button_pressed)
+	%SwitchZombieButton.pressed.connect(_on_switch_zombie_button_pressed)
 	_wire_focus()
 	var first: LevelCard = _first_choosable_card()
 	if first != null:
@@ -246,6 +256,7 @@ func _refresh_unlocks() -> void:
 
 
 ## Three rows: Progress, the cards, and Closet / Music / Sound / Fullscreen. The row ends stop (no wrap).
+## Switch sits between the cards and the Closet button in the left column (Story 11.4).
 func _wire_focus() -> void:
 	var bottom: Array[Control] = [
 		%ClosetButton, %MusicToggle.get_focus_target(), %SoundToggle.get_focus_target(),
@@ -254,20 +265,30 @@ func _wire_focus() -> void:
 	var cards: Array[Control] = []
 	cards.assign(_cards)
 	var trends: Control = %TrendsButton
+	var switch_button: Control = %SwitchZombieButton
 	_wire_row(cards, bottom[0], true)
 	_wire_row(bottom, _first_choosable_card(), false)
+	bottom[0].focus_neighbor_top = bottom[0].get_path_to(switch_button)
 	for card: Control in cards:
 		card.focus_neighbor_top = card.get_path_to(trends)
 	var below: Control = _first_choosable_card()
+	var above_switch: Control = below if below != null else trends
 	if below == null:
 		below = bottom[0]
+	var switch_own: NodePath = switch_button.get_path_to(switch_button)
+	switch_button.focus_neighbor_left = switch_own
+	switch_button.focus_neighbor_right = switch_own
+	switch_button.focus_neighbor_top = switch_button.get_path_to(above_switch)
+	switch_button.focus_neighbor_bottom = switch_button.get_path_to(bottom[0])
 	var own: NodePath = trends.get_path_to(trends)
 	trends.focus_neighbor_left = own
 	trends.focus_neighbor_right = own
 	trends.focus_neighbor_top = own
 	trends.focus_neighbor_bottom = trends.get_path_to(below)
-	# Tab walks the cards, then the bottom row, then Progress, and wraps.
-	var order: Array[Control] = cards + bottom
+	# Tab walks the cards, then Switch, then the bottom row, then Progress, and wraps.
+	var order: Array[Control] = cards.duplicate()
+	order.append(switch_button)
+	order.append_array(bottom)
 	order.append(trends)
 	for i: int in order.size():
 		var control: Control = order[i]
@@ -288,9 +309,10 @@ func _wire_row(row: Array[Control], cross: Control, is_top_row: bool) -> void:
 		control.focus_neighbor_top = own if is_top_row else cross_path
 
 
-## Re-reads the wallet and the saved toggles (on open and on profile_replaced: F8 reset, Epic 11 switch).
+## Re-reads the wallet, the name and the saved toggles (on open and on profile_replaced: F8 reset, Epic 11 switch).
 func _show_profile() -> void:
 	%BrainCounter.set_count(player_data.get_brains())
+	%ZombieName.text = _shown_name()
 	%MusicToggle.show_state(player_data.get_setting(&"music_on"))
 	%SoundToggle.show_state(player_data.get_setting(&"sound_on"))
 
@@ -364,6 +386,20 @@ func _on_closet_button_pressed() -> void:
 
 func _on_trends_button_pressed() -> void:
 	_leave(Router.Screen.TRENDS, {})
+
+
+## The active zombie's name, or the default when the save holds none (same rule as ZombieCard).
+func _shown_name() -> String:
+	var zombie_name: String = player_data.get_zombie_name()
+	return GameConstants.ZOMBIE_NAME_DEFAULT if zombie_name.is_empty() else zombie_name
+
+
+func _on_zombie_name_changed(_zombie_name: String) -> void:
+	%ZombieName.text = _shown_name()
+
+
+func _on_switch_zombie_button_pressed() -> void:
+	_leave(Router.Screen.WHOS_PLAYING, {"from_menu": true})
 
 
 func _on_brains_changed(total: int, _delta: int) -> void:

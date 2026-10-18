@@ -12,9 +12,10 @@ extends GutTest
 ## TRENDS (Story 10.5) only reads, but gets a temp-dir PlayerData and a navigate recorder anyway (never the live
 ## autoload's save).
 ## WHOS_PLAYING (Story 11.2) writes through switch_profile, so it gets a temp-dir PlayerData and recorder seams.
+## Story 11.4: menu → Switch → picker ({"from_menu": true}) → Esc or a pick → menu, all on one temp PlayerData.
 
 const FLOW_BUTTONS: Dictionary = {
-	"MAIN_MENU": ["%ClosetButton", "%TrendsButton"],
+	"MAIN_MENU": ["%ClosetButton", "%TrendsButton", "%SwitchZombieButton"],
 	"REPORT_CARD": ["%PlayAgainButton", "%MenuButton"],
 	"WELCOME_GIFT": ["%OpenClosetButton"],
 	"CRYPT_CLOSET": ["%MenuButton"],
@@ -171,6 +172,76 @@ func test_title_with_a_named_zombie_goes_through_the_picker_to_the_menu() -> voi
 	assert_eq(cards.size(), 1)
 	(cards[0] as ZombieCard).picked.emit(&"p1")
 	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+
+
+## Story 11.4: a disabled menu or picker on `player`, navigating into the recorder (never the live Router).
+func _menu_on(player: PlayerDataScript) -> Control:
+	var menu: Control = (load(Router.SCREEN_PATHS[Router.Screen.MAIN_MENU]) as PackedScene).instantiate() as Control
+	menu.process_mode = Node.PROCESS_MODE_DISABLED
+	menu.set("navigate", _record)
+	menu.set("is_transitioning", func() -> bool: return false)
+	menu.set("player_data", player)
+	(menu.get_node("%PetSlot") as PetSlot).player_data = player
+	(menu.get_node("%Zombie").get_node("%HatSlot") as HatSlot).player_data = player
+	menu.set("toggle_fullscreen", func() -> void: pass)
+	menu.set("is_fullscreen", func() -> bool: return false)
+	add_child_autofree(menu)
+	return menu
+
+
+func _picker_on(player: PlayerDataScript) -> Control:
+	var picker: Control = (load(Router.SCREEN_PATHS[Router.Screen.WHOS_PLAYING]) as PackedScene).instantiate() as Control
+	picker.process_mode = Node.PROCESS_MODE_DISABLED
+	picker.set("navigate", _record)
+	picker.set("is_transitioning", func() -> bool: return false)
+	picker.set("play_sfx", func(_id: StringName) -> void: pass)
+	picker.set("play_music", func(_id: StringName) -> void: pass)
+	picker.set("player_data", player)
+	add_child_autofree(picker)
+	return picker
+
+
+## Hands the last recorded navigation's payload to the next screen, as Router.go() would.
+func _follow(expected: Router.Screen) -> void:
+	var last: Array = _nav[_nav.size() - 1]
+	assert_eq(last[0], expected)
+	Router._store_payload(last[1])
+
+
+func test_menu_switch_opens_the_picker_and_esc_comes_back() -> void:
+	var player: PlayerDataScript = _temp_player_data()
+	assert_true(player.set_zombie_name("Sam"))
+	var menu: Control = _menu_on(player)
+	(menu.get_node("%SwitchZombieButton") as Button).pressed.emit()
+	assert_eq(_nav, [[Router.Screen.WHOS_PLAYING, {"from_menu": true}]])
+	_follow(Router.Screen.WHOS_PLAYING)
+	var picker: Control = _picker_on(player)
+	var esc: InputEventAction = InputEventAction.new()
+	esc.action = &"ui_cancel"
+	esc.pressed = true
+	picker.call("_unhandled_input", esc)
+	get_viewport().push_input(InputEventAction.new())  # GUT's viewport must not stay "handled"
+	assert_eq(_nav[_nav.size() - 1], [Router.Screen.MAIN_MENU, {}])
+	assert_eq(player.get_active_profile_id(), &"p1", "Esc switched nothing")
+
+
+func test_menu_switch_then_pick_the_other_zombie_shows_its_name() -> void:
+	var player: PlayerDataScript = _temp_player_data()
+	assert_true(player.set_zombie_name("Sam"))
+	var bo: StringName = player.create_profile("Bo")
+	assert_true(player.switch_profile(&"p1"))
+	var menu: Control = _menu_on(player)
+	assert_eq((menu.get_node("%ZombieName") as Label).text, "Sam")
+	(menu.get_node("%SwitchZombieButton") as Button).pressed.emit()
+	_follow(Router.Screen.WHOS_PLAYING)
+	var picker: Control = _picker_on(player)
+	var cards: Array = picker.call("get_cards")
+	assert_eq(cards.size(), 2)
+	(cards[1] as ZombieCard).picked.emit(bo)
+	_follow(Router.Screen.MAIN_MENU)
+	var back: Control = _menu_on(player)
+	assert_eq((back.get_node("%ZombieName") as Label).text, "Bo")
+	assert_eq(player.get_active_profile_id(), bo)
 
 
 ## Story 4.2: the real menu has no payload label; it consumes whatever payload it was given.

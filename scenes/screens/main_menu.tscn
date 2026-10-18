@@ -78,6 +78,20 @@ position = Vector2(48, 284)
 unique_name_in_owner = true
 position = Vector2(84, 284)
 
+[node name="ZombieName" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 204.0
+offset_right = 208.0
+offset_bottom = 220.0
+focus_mode = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.95686275, 0.94509804, 0.89411765, 1)
+theme_override_font_sizes/font_size = 16
+text = "Zombie"
+vertical_alignment = 1
+
 [node name="PostLeft" type="TextureRect" parent="."]
 layout_mode = 0
 offset_left = 38.0
@@ -107,6 +121,17 @@ offset_right = 224.0
 offset_bottom = 328.0
 theme_type_variation = &"PixelButton"
 text = "Crypt Closet"
+script = ExtResource("5_pixel_button")
+
+[node name="SwitchZombieButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 112.0
+offset_top = 248.0
+offset_right = 224.0
+offset_bottom = 280.0
+theme_type_variation = &"PixelButton"
+text = "Switch"
 script = ExtResource("5_pixel_button")
 
 [node name="TrendsButton" type="Button" parent="."]

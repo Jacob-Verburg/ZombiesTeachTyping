@@ -9,7 +9,9 @@ extends Control
 ## (PlayerData.switch_profile), plays the UI click and navigates once: to the main menu when it has a name, else
 ## to the name screen (Story 11.1's mode). New zombie plays the click and opens the name screen with
 ## {"new_zombie": true}; the profile is only created there, once a good name is confirmed. Esc does nothing (the
-## title is not a place to go back to). The payload is consumed and ignored. The cards are rebuilt on
+## title is not a place to go back to) unless the menu's Switch button opened the picker (Story 11.4: payload
+## {"from_menu": true}, a real true only): then Esc plays the click and goes back to the main menu once, switching
+## nothing. Any other payload keeps Esc dead. The cards are rebuilt on
 ## profile_replaced (an F8 reset while open). One navigation per visit (_leaving, released if the Router's
 ## transition never starts or ends without freeing the screen). Names are personal data: nothing here logs them
 ## (NFR12); this screen doesn't type, so WebPlatform.capture_keys is left alone.
@@ -43,6 +45,8 @@ var is_transitioning: Callable
 var _leaving: bool = false
 ## A profile_replaced arrived while _leaving: rebuild once the screen takes input again.
 var _dirty: bool = false
+## Opened by the menu's Switch button (payload {"from_menu": true}): Esc goes back to the menu.
+var _from_menu: bool = false
 
 
 func _ready() -> void:
@@ -58,7 +62,9 @@ func _ready() -> void:
 		is_transitioning = Router.is_transitioning
 	if catalogue == null:
 		catalogue = CATALOGUE
-	Router.take_payload()
+	var payload: Dictionary = Router.take_payload()
+	var from_menu: Variant = payload.get("from_menu", false)
+	_from_menu = from_menu is bool and from_menu
 	play_music.call(&"mus_menu")
 	%NewZombieButton.pressed.connect(_new_zombie)
 	player_data.profile_replaced.connect(_on_profile_replaced)
@@ -81,10 +87,17 @@ func get_cards() -> Array[ZombieCard]:
 	return cards
 
 
-## Esc does nothing here; it is taken so nothing behind the screen sees it.
+## Esc is always taken so nothing behind the screen sees it. From the menu it goes back there, switching nothing;
+## from the title it does nothing.
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"ui_cancel"):
-		get_viewport().set_input_as_handled()
+	if not event.is_action_pressed(&"ui_cancel"):
+		return
+	get_viewport().set_input_as_handled()
+	if not _from_menu or _leaving or is_transitioning.call():
+		return
+	_leaving = true
+	play_sfx.call(&"sfx_ui_click")
+	_go(Router.Screen.MAIN_MENU, {})
 
 
 ## A reset replaced the save while the picker is open: show the zombies it holds now.
@@ -171,7 +184,10 @@ func _pick(id: StringName) -> void:
 		return
 	play_sfx.call(&"sfx_ui_click")
 	var named: bool = not player_data.get_zombie_name().is_empty()
-	_go(Router.Screen.MAIN_MENU if named else Router.Screen.NAME_ZOMBIE)
+	if named:
+		_go(Router.Screen.MAIN_MENU)
+	else:
+		_go(Router.Screen.NAME_ZOMBIE, _menu_flag({}))
 
 
 ## New zombie: the name screen in its new-zombie mode. Nothing is created here.
@@ -180,7 +196,14 @@ func _new_zombie() -> void:
 		return
 	_leaving = true
 	play_sfx.call(&"sfx_ui_click")
-	_go(Router.Screen.NAME_ZOMBIE, {"new_zombie": true})
+	_go(Router.Screen.NAME_ZOMBIE, _menu_flag({"new_zombie": true}))
+
+
+## Opened from the menu: the name screen gets the flag so its Back returns here with Esc still working.
+func _menu_flag(payload: Dictionary) -> Dictionary:
+	if _from_menu:
+		payload["from_menu"] = true
+	return payload
 
 
 ## The one navigation. If the Router never starts a transition, or it ends with this screen still here, the

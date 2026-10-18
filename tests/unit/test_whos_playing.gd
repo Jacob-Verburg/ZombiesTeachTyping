@@ -3,7 +3,8 @@ extends GutTest
 ## name, hat and pet; New zombie only while there is room; focus starts on the active zombie and walks the cards
 ## then New zombie with the ends stopping; a pick switches the profile and goes to the main menu (named) or the
 ## name screen (unnamed) once; New zombie opens the name screen in new-zombie mode and creates nothing; Esc does
-## nothing; the cards rebuild on profile_replaced; the payload is consumed.
+## nothing, unless the payload is {"from_menu": true} (Story 11.4: Esc goes back to the menu once, switching
+## nothing); the cards rebuild on profile_replaced; the payload is consumed.
 ## Always a temp-dir SaveService + PlayerData and recorder seams: the real save and the live Router are never
 ## touched (the screen writes through switch_profile).
 
@@ -191,6 +192,23 @@ func test_picking_a_named_zombie_switches_and_goes_to_the_menu_once() -> void:
 	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
 
 
+func test_from_the_menu_the_name_screen_gets_the_flag_back() -> void:
+	_player.set_zombie_name("Sam")
+	_add_profile("p2")
+	Router._store_payload({"from_menu": true})
+	var screen: WhosPlayingScript = _make()
+	screen.get_cards()[1].picked.emit(&"p2")
+	assert_eq(_nav, [[Router.Screen.NAME_ZOMBIE, {"from_menu": true}]], "Review of 11.4: Back must come home with Esc alive")
+
+
+func test_from_the_menu_new_zombie_carries_the_flag() -> void:
+	_player.set_zombie_name("Sam")
+	Router._store_payload({"from_menu": true})
+	var screen: WhosPlayingScript = _make()
+	(screen.get_node("%NewZombieButton") as Button).pressed.emit()
+	assert_eq(_nav, [[Router.Screen.NAME_ZOMBIE, {"new_zombie": true, "from_menu": true}]])
+
+
 func test_picking_an_unnamed_zombie_goes_to_the_name_screen() -> void:
 	_player.set_zombie_name("Sam")
 	_add_profile("p2")
@@ -272,6 +290,69 @@ func test_esc_does_nothing() -> void:
 	screen._unhandled_input(esc)
 	assert_eq(_nav, [])
 	assert_eq(_sfx, [] as Array[StringName])
+
+
+func _esc() -> InputEventAction:
+	var esc: InputEventAction = InputEventAction.new()
+	esc.action = &"ui_cancel"
+	esc.pressed = true
+	return esc
+
+
+func test_esc_from_the_menu_goes_back_once_and_switches_nothing() -> void:
+	_player.set_zombie_name("Sam")
+	_add_profile("p2", {"name": "Bo"})
+	await wait_process_frames(1)  # the name's save is written
+	Router._store_payload({"from_menu": true})
+	var screen: WhosPlayingScript = _make()
+	watch_signals(_player)
+	screen._unhandled_input(_esc())
+	screen._unhandled_input(_esc())
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]], "Story 11.4: Esc returns to the menu once")
+	assert_eq(_sfx, [&"sfx_ui_click"] as Array[StringName])
+	assert_eq(_player.get_active_profile_id(), &"p1")
+	assert_signal_not_emitted(_player, "profile_replaced")
+	assert_false(_save._dirty, "no save requested")
+
+
+func test_esc_from_the_title_payload_stays_dead() -> void:
+	_player.set_zombie_name("Sam")
+	Router._store_payload({})
+	var screen: WhosPlayingScript = _make()
+	screen._unhandled_input(_esc())
+	assert_eq(_nav, [])
+
+
+func test_esc_with_a_junk_from_menu_value_stays_dead() -> void:
+	_player.set_zombie_name("Sam")
+	for junk: Variant in ["yes", 1, "true", null]:
+		Router._store_payload({"from_menu": junk})
+		var screen: WhosPlayingScript = _make()
+		screen._unhandled_input(_esc())
+	assert_eq(_nav, [], "only a real true opens the way back")
+
+
+func test_esc_from_the_menu_is_ignored_while_the_router_is_transitioning() -> void:
+	_player.set_zombie_name("Sam")
+	Router._store_payload({"from_menu": true})
+	var screen: WhosPlayingScript = _make()
+	_transitioning = true
+	screen._unhandled_input(_esc())
+	assert_eq(_nav, [])
+
+
+func test_enter_on_the_focused_active_card_from_the_menu_returns_as_the_same_zombie() -> void:
+	_player.set_zombie_name("Sam")
+	_add_profile("p2", {"name": "Bo"})
+	Router._store_payload({"from_menu": true})
+	var screen: WhosPlayingScript = _make()
+	watch_signals(_player)
+	var focused: ZombieCard = _focused() as ZombieCard
+	assert_not_null(focused)
+	assert_eq(focused.get_profile_id(), &"p1", "focus starts on the active zombie")
+	focused.picked.emit(focused.get_profile_id())
+	assert_eq(_nav, [[Router.Screen.MAIN_MENU, {}]])
+	assert_signal_not_emitted(_player, "profile_replaced")
 
 
 func test_cards_rebuild_on_profile_replaced() -> void:

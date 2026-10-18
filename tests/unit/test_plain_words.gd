@@ -54,6 +54,9 @@ const APPROVED_COPY: Array[String] = [
 	# Story 11.2: the "Who's playing?" picker and the name screen's new-zombie mode (Gate 1, 2026-10-15). "Zombie" is
 	# the card of a zombie with no name yet (GameConstants.ZOMBIE_NAME_DEFAULT); real names are never copy.
 	"Who's playing?", "New zombie", "Back", "Zombie",
+	# Story 11.4: the menu's button that opens the picker (Gate 1, 2026-10-18). The menu and report card show the
+	# zombie's name; the walks use an unnamed temp zombie, so they show the already-approved "Zombie".
+	"Switch",
 ]
 ## Numbers and formatted values: counts, "+N", "+N bonus", "Need N more", times, percents, the conga badge,
 ## the WPM placeholder (en dash), the confirm question for a live item (a word may carry one hyphenated part,
@@ -79,6 +82,7 @@ const TrendsScene: PackedScene = preload("res://scenes/screens/trends.tscn")
 const NameZombieScene: PackedScene = preload("res://scenes/screens/name_zombie.tscn")
 const WhosPlayingScene: PackedScene = preload("res://scenes/screens/whos_playing.tscn")
 const ClosetScene: PackedScene = preload("res://scenes/screens/crypt_closet.tscn")
+const MenuScene: PackedScene = preload("res://scenes/screens/main_menu.tscn")
 const ReportScene: PackedScene = preload("res://scenes/screens/report_card.tscn")
 const GiftScene: PackedScene = preload("res://scenes/screens/welcome_gift.tscn")
 const CongaScene: PackedScene = preload("res://scenes/levels/zombie_run/conga_line.tscn")
@@ -204,6 +208,7 @@ func _live_strings() -> Dictionary[String, String]:
 	card.set("play_music", _noop)
 	card.set("player_data", _player)
 	add_child_autofree(card)
+	assert_eq((card.get_node("%ZombieName") as Label).text, "Zombie", "no kid's name reaches the copy walk")
 	_collect_labels(card, "report", out)
 	# The gift's "+100".
 	var gift: Control = GiftScene.instantiate() as Control
@@ -214,6 +219,16 @@ func _live_strings() -> Dictionary[String, String]:
 	gift.set("player_data", _player)
 	add_child_autofree(gift)
 	_collect_labels(gift, "gift", out)
+	# Review of 11.4: the main menu on an unnamed temp zombie shows the approved "Zombie", never a kid's name.
+	var menu: Control = MenuScene.instantiate() as Control
+	menu.process_mode = Node.PROCESS_MODE_DISABLED
+	menu.set("navigate", _noop_nav)
+	menu.set("is_transitioning", func() -> bool: return false)
+	menu.set("player_data", _player)
+	(menu.get_node("%PetSlot") as PetSlot).player_data = _player
+	(menu.get_node("%Zombie").get_node("%HatSlot") as HatSlot).player_data = _player
+	add_child_autofree(menu)
+	assert_eq((menu.get_node("%ZombieName") as Label).text, "Zombie", "no kid's name reaches the menu copy walk")
 	# The Progress screen filled (titles, totals, "1 hr 5 min").
 	for i: int in 3:
 		_player.record_run(RunResult.create(
@@ -324,7 +339,7 @@ func test_the_walk_finds_the_copy() -> void:
 	for expected: String in ["Click or press any key", "Buy the Pumpkin hat for 100 brains?", "+10 bonus",
 			"×13", "Need 40 more", "Zombie Run", "This browser might forget your brains", "+100", "Caps Lock is on",
 			"Buy the Wolf-dog for 300 brains?", "Golden crown", "Words per minute", "1 hr 5 min", "Name your zombie!", "Done",
-			"Who's playing?", "New zombie", "Back", "Zombie"]:
+			"Who's playing?", "New zombie", "Back", "Zombie", "Switch"]:
 		assert_has(values, expected, "the walk saw '%s'" % expected)
 
 
